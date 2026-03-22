@@ -207,7 +207,12 @@ def estimate_prompt_tokens_chain(
     return 0, "none"
 
 
-def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]:
+def sync_workspace_templates(
+    workspace: Path,
+    silent: bool = False,
+    import_skills: bool = True,
+    import_md_files: bool = True,
+) -> list[str]:
     """Sync bundled templates to workspace. Only creates missing files."""
     from importlib.resources import files as pkg_files
     try:
@@ -226,18 +231,22 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
         dest.write_text(src.read_text(encoding="utf-8") if src else "", encoding="utf-8")
         added.append(str(dest.relative_to(workspace)))
 
-    for item in tpl.iterdir():
-        if item.name.endswith(".md") and not item.name.startswith("."):
-            _write(item, workspace / item.name)
-    _write(tpl / "memory" / "MEMORY.md", workspace / "memory" / "MEMORY.md")
-    _write(None, workspace / "memory" / "HISTORY.md")
+    # --- .md files (AGENTS.md, USER.md, TOOLS.md, HEARTBEAT.md, SOUL.md, ...) ---
+    if import_md_files:
+        for item in tpl.iterdir():
+            if item.name.endswith(".md") and not item.name.startswith("."):
+                _write(item, workspace / item.name)
+        _write(tpl / "memory" / "MEMORY.md", workspace / "memory" / "MEMORY.md")
+        _write(None, workspace / "memory" / "HISTORY.md")
+
     (workspace / "skills").mkdir(exist_ok=True)
 
-    # Sync built-in skills into workspace skills (overwrite existing) so onboard updates skills.
-    _sync_builtin_skills_to_workspace(workspace, silent)
+    # --- Skills ---
+    if import_skills:
+        _sync_builtin_skills_to_workspace(workspace, silent)
 
     if added and not silent:
         from rich.console import Console
         for name in added:
-            Console().print(f"  [dim]Created {name}[/dim]")
+            Console().print(f" [dim]Created {name}[/dim]")
     return added
