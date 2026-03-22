@@ -1,0 +1,30 @@
+"""LLM provider abstraction module."""
+
+from __future__ import annotations
+
+from importlib import import_module
+from typing import TYPE_CHECKING
+
+from shibaclaw.thinkers.base import Thinker, LLMResponse
+
+__all__ = ["Thinker", "LLMResponse", "LiteLLMThinker", "OpenAICodexThinker", "AzureOpenAIThinker"]
+
+_LAZY_IMPORTS = {
+    "LiteLLMThinker": ".litellm_provider",
+    "OpenAICodexThinker": ".openai_codex_provider",
+    "AzureOpenAIThinker": ".azure_openai_provider",
+}
+
+if TYPE_CHECKING:
+    from shibaclaw.thinkers.azure_openai_provider import AzureOpenAIThinker
+    from shibaclaw.thinkers.litellm_provider import LiteLLMThinker
+    from shibaclaw.thinkers.openai_codex_provider import OpenAICodexThinker
+
+
+def __getattr__(name: str):
+    """Lazily expose provider implementations without importing all backends up front."""
+    module_name = _LAZY_IMPORTS.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = import_module(module_name, __name__)
+    return getattr(module, name)
