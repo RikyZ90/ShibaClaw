@@ -8,9 +8,10 @@ ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framewo
 
 ## 🐾 Key Features
 - **Fast & Faithful**: Minimal startup time and dependencies.
-- **Multilingual & Multi-channel**: Support for Telegram, Discord, Slack, WhatsApp, and more.
+- **Multi-channel**: Support for Telegram, Discord, Slack, WhatsApp, and more.
 - **Always Alert**: Built-in cron and heartbeat task scheduler.
-- **Skills Registry**: Easily extensible modular skill system.
+- **Skills Registry**: Easily extensible modular skill system ([clawwhub](https://clawhub.ai/)
+- ⚡ Parallel Multi-Agent Execution: A built-in fan-out orchestration model that spawns and coordinates specialized sub-agents concurrently for faster, scalable task resolution
 - **Advanced Thinking**: Support for OpenAI, Azure, LiteLLM, and deep-reasoning thinkers.
 - **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via structural wrapping and strict security policies.
 
