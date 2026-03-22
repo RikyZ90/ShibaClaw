@@ -1,10 +1,14 @@
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
 
-COPY . /app
+COPY pyproject.toml README.md ./
 
-RUN pip install --no-cache-dir .
+RUN uv pip install --system --no-cache .
+
+COPY . .
+
+RUN uv pip install --system --no-cache .
 
 EXPOSE 19999
 
