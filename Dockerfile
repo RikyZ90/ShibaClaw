@@ -4,9 +4,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 
-RUN mkdir shibaclaw && \
-    touch shibaclaw/__init__.py && \
-    uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache --no-install-project .
 
 COPY . .
 
