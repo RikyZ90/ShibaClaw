@@ -13,7 +13,6 @@ from typing import Any
 if sys.platform == "win32":
     if sys.stdout.encoding != "utf-8":
         os.environ["PYTHONIOENCODING"] = "utf-8"
-        # Re-open stdout/stderr with UTF-8 encoding
         try:
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -96,7 +95,6 @@ def _init_prompt_session() -> None:
     """Create the prompt_toolkit session with persistent file history."""
     global _PROMPT_SESSION, _SAVED_TERM_ATTRS
 
-    # Save terminal state so we can restore it on exit
     try:
         import termios
         _SAVED_TERM_ATTRS = termios.tcgetattr(sys.stdin.fileno())
@@ -111,7 +109,7 @@ def _init_prompt_session() -> None:
     _PROMPT_SESSION = PromptSession(
         history=FileHistory(str(history_file)),
         enable_open_in_editor=False,
-        multiline=False,   # Enter submits (single line mode)
+        multiline=False,  # Enter submits (single line mode)
     )
 
 
@@ -150,9 +148,9 @@ async def _print_interactive_line(text: str) -> None:
             icon = "[🔍]"
         elif "tool" in text.lower() or "exec" in text.lower():
             icon = "[🛠️]"
-            
+
         ansi = _render_interactive_ansi(
-            lambda c: c.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
+            lambda c: c.print(f" [orange3]{icon}[/orange3] [dim]{text}[/dim]")
         )
         print_formatted_text(ANSI(ansi), end="")
 
@@ -218,9 +216,9 @@ def _print_cli_progress_line(text: str, thinking: _ThinkingSpinner | None) -> No
         icon = "[🛠️]"
     elif "done" in text.lower() or "finish" in text.lower():
         icon = "[✅]"
-    
+
     with thinking.pause() if thinking else nullcontext():
-        console.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
+        console.print(f" [orange3]{icon}[/orange3] [dim]{text}[/dim]")
 
 
 async def _print_interactive_progress_line(text: str, thinking: _ThinkingSpinner | None) -> None:
@@ -247,11 +245,10 @@ async def _read_interactive_input_async() -> str:
     try:
         with patch_stdout():
             return await _PROMPT_SESSION.prompt_async(
-                HTML("<b fg='orange'>You:</b> "),
+                HTML("You: "),
             )
     except EOFError as exc:
         raise KeyboardInterrupt from exc
-
 
 
 def version_callback(value: bool):
@@ -273,7 +270,6 @@ def main(
 # ============================================================================
 # Onboard / Setup
 # ============================================================================
-
 
 @app.command()
 def onboard(
@@ -346,6 +342,7 @@ def onboard(
             console.print(f"[red]✗[/red] Error during configuration: {e}")
             console.print("[yellow]Please run 'shibaclaw onboard' again to complete setup.[/yellow]")
             raise typer.Exit(1)
+
     _onboard_plugins(config_path)
 
     # Create workspace, preferring the configured workspace path.
@@ -354,7 +351,23 @@ def onboard(
         workspace_path.mkdir(parents=True, exist_ok=True)
         console.print(f"[green]✓[/green] Created workspace at {workspace_path}")
 
-    sync_workspace_templates(workspace_path)
+    # Ask import preferences
+    console.print()
+    import_skills = typer.confirm(
+        "Do you want to import skills?",
+        default=True,
+    )
+    import_md = typer.confirm(
+        "Do you want to import .md files (AGENTS.md, USER.md, TOOLS.md, HEARTBEAT.md and SOUL.md)?",
+        default=True,
+    )
+
+    sync_workspace_templates(workspace_path, import_skills=import_skills, import_md_files=import_md)
+
+    if import_skills:
+        console.print("[green]✓[/green] Skills imported")
+    if import_md:
+        console.print("[green]✓[/green] .md files imported")
 
     agent_cmd = 'shibaclaw agent -m "Hello!"'
     gateway_cmd = "shibaclaw gateway"
@@ -365,12 +378,12 @@ def onboard(
     console.print(f"\n{__logo__} shibaclaw is ready!")
     console.print("\nNext steps:")
     if wizard:
-        console.print(f"  1. Chat: [cyan]{agent_cmd}[/cyan]")
-        console.print(f"  2. Start gateway: [cyan]{gateway_cmd}[/cyan]")
+        console.print(f" 1. Chat: [cyan]{agent_cmd}[/cyan]")
+        console.print(f" 2. Start gateway: [cyan]{gateway_cmd}[/cyan]")
     else:
-        console.print(f"  1. Add your API key to [cyan]{config_path}[/cyan]")
-        console.print("     Get one at: https://openrouter.ai/keys")
-        console.print(f"  2. Chat: [cyan]{agent_cmd}[/cyan]")
+        console.print(f" 1. Add your API key to [cyan]{config_path}[/cyan]")
+        console.print(" Get one at: https://openrouter.ai/keys")
+        console.print(f" 2. Chat: [cyan]{agent_cmd}[/cyan]")
     console.print("\n[dim]Want Telegram/WhatsApp? See: https://github.com/RikyZ90/shibaclaw#-chat-apps[/dim]")
 
 
@@ -450,31 +463,31 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         from loguru import logger
         from shibaclaw.thinkers.litellm_provider import LiteLLMThinker
         from shibaclaw.thinkers.registry import find_by_name
-        
+
         spec = find_by_name(provider_name) if provider_name else None
-        
+
         if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and (spec.is_oauth or spec.is_local)):
             from shibaclaw.config.loader import get_config_path
             config_path = get_config_path()
             import sys
             import time
-            
+
             error_msg = f"No API key configured for model '{model}'."
             logger.error(error_msg)
-            
+
             console.print(f"\n[red]Error: {error_msg}[/red]")
             console.print(f"A default configuration template has been created at: [bold]{config_path}[/bold]")
             console.print("-" * 60)
             console.print("🐾 [bold]Please run: shibaclaw onboard[/bold]")
-            console.print("   to configure your AI provider and start hunting!")
+            console.print(" to configure your AI provider and start hunting!")
             console.print("-" * 60)
 
             if exit_on_error:
-                # Sleep briefly to ensure logs are flushed
                 time.sleep(1)
                 sys.exit(0)
             else:
                 return None
+
         provider = LiteLLMThinker(
             api_key=p.api_key if p else None,
             api_base=config.get_api_base(model),
@@ -489,6 +502,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         max_tokens=defaults.max_tokens,
         reasoning_effort=defaults.reasoning_effort,
     )
+
     return provider
 
 
@@ -529,11 +543,9 @@ def _warn_deprecated_config_keys(config_path: Path | None) -> None:
         )
 
 
-
 # ============================================================================
 # Gateway / Server
 # ============================================================================
-
 
 @app.command()
 def gateway(
@@ -570,6 +582,7 @@ def gateway(
         console.print("[dim]Waiting for configuration... (Ctrl+C to stop)[/dim]")
         while True:
             time.sleep(3600)
+
     session_manager = PackManager(config.workspace_path)
 
     # Create cron service first (callback set after agent creation)
@@ -638,6 +651,7 @@ def gateway(
                     content=response,
                 ))
         return response
+
     cron.on_job = on_cron_job
 
     # Create channel manager
@@ -646,7 +660,6 @@ def gateway(
     def _pick_heartbeat_target() -> tuple[str, str]:
         """Pick a routable channel/chat target for heartbeat-triggered messages."""
         enabled = set(channels.enabled_channels)
-        # Prefer the most recently updated non-internal session on an enabled channel.
         for item in session_manager.list_sessions():
             key = item.get("key") or ""
             if ":" not in key:
@@ -656,7 +669,6 @@ def gateway(
                 continue
             if channel in enabled and chat_id:
                 return channel, chat_id
-        # Fallback keeps prior behavior but remains explicit.
         return "cli", "direct"
 
     # Create heartbeat service
@@ -729,12 +741,9 @@ def gateway(
     asyncio.run(run())
 
 
-
-
 # ============================================================================
 # Agent Commands
 # ============================================================================
-
 
 @app.command()
 def agent(
@@ -826,11 +835,8 @@ def agent(
 
         signal.signal(signal.SIGINT, _handle_signal)
         signal.signal(signal.SIGTERM, _handle_signal)
-        # SIGHUP is not available on Windows
         if hasattr(signal, 'SIGHUP'):
             signal.signal(signal.SIGHUP, _handle_signal)
-        # Ignore SIGPIPE to prevent silent process termination when writing to closed pipes
-        # SIGPIPE is not available on Windows
         if hasattr(signal, 'SIGPIPE'):
             signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
@@ -853,14 +859,12 @@ def agent(
                                 pass
                             else:
                                 await _print_interactive_progress_line(msg.content, _thinking)
-
                         elif not turn_done.is_set():
                             if msg.content:
                                 turn_response.append(msg.content)
-                            turn_done.set()
+                                turn_done.set()
                         elif msg.content:
                             await _print_interactive_response(msg.content, render_markdown=markdown)
-
                     except asyncio.TimeoutError:
                         continue
                     except asyncio.CancelledError:
@@ -921,7 +925,6 @@ def agent(
 # Channel Commands
 # ============================================================================
 
-
 channels_app = typer.Typer(help="Manage channels")
 app.add_typer(channels_app, name="channels")
 
@@ -959,22 +962,18 @@ def _get_bridge_dir() -> Path:
     import shutil
     import subprocess
 
-    # User's bridge location
     from shibaclaw.config.paths import get_bridge_install_dir
 
     user_bridge = get_bridge_install_dir()
 
-    # Check if already built
     if (user_bridge / "dist" / "index.js").exists():
         return user_bridge
 
-    # Check for npm
     npm_path = shutil.which("npm")
     if not npm_path:
         console.print("[red]npm not found. Please install Node.js >= 18.[/red]")
         raise typer.Exit(1)
 
-    # Find source bridge: first check package data, then source dir
     pkg_bridge = Path(__file__).parent.parent / "bridge"  # shibaclaw/bridge (installed)
     src_bridge = Path(__file__).parent.parent.parent / "bridge"  # repo root/bridge (dev)
 
@@ -991,18 +990,16 @@ def _get_bridge_dir() -> Path:
 
     console.print(f"{__logo__} Setting up bridge...")
 
-    # Copy to user directory
     user_bridge.parent.mkdir(parents=True, exist_ok=True)
     if user_bridge.exists():
         shutil.rmtree(user_bridge)
     shutil.copytree(source, user_bridge, ignore=shutil.ignore_patterns("node_modules", "dist"))
 
-    # Install and build
     try:
-        console.print("  Installing dependencies...")
+        console.print(" Installing dependencies...")
         subprocess.run([npm_path, "install"], cwd=user_bridge, check=True, capture_output=True)
 
-        console.print("  Building...")
+        console.print(" Building...")
         subprocess.run([npm_path, "run", "build"], cwd=user_bridge, check=True, capture_output=True)
 
         console.print("[green]✓[/green] Bridge ready\n")
@@ -1094,7 +1091,6 @@ def plugins_list():
 # Status Commands
 # ============================================================================
 
-
 @app.command()
 def status():
     """Show shibaclaw status."""
@@ -1114,7 +1110,6 @@ def status():
 
         console.print(f"Model: {config.agents.defaults.model}")
 
-        # Check API keys from registry
         for spec in PROVIDERS:
             p = getattr(config.providers, spec.name, None)
             if p is None:
@@ -1122,7 +1117,6 @@ def status():
             if spec.is_oauth:
                 console.print(f"{spec.label}: [green]✓ (OAuth)[/green]")
             elif spec.is_local:
-                # Local deployments show api_base instead of api_key
                 if p.api_base:
                     console.print(f"{spec.label}: [green]✓ {p.api_base}[/green]")
                 else:
@@ -1138,7 +1132,6 @@ def status():
 
 provider_app = typer.Typer(help="Manage providers")
 app.add_typer(provider_app, name="provider")
-
 
 _LOGIN_HANDLERS: dict[str, callable] = {}
 
@@ -1161,7 +1154,7 @@ def provider_login(
     spec = next((s for s in PROVIDERS if s.name == key and s.is_oauth), None)
     if not spec:
         names = ", ".join(s.name.replace("_", "-") for s in PROVIDERS if s.is_oauth)
-        console.print(f"[red]Unknown OAuth provider: {provider}[/red]  Supported: {names}")
+        console.print(f"[red]Unknown OAuth provider: {provider}[/red] Supported: {names}")
         raise typer.Exit(1)
 
     handler = _LOGIN_HANDLERS.get(spec.name)
@@ -1191,7 +1184,7 @@ def _login_openai_codex() -> None:
         if not (token and token.access):
             console.print("[red]✗ Authentication failed[/red]")
             raise typer.Exit(1)
-        console.print(f"[green]✓ Authenticated with OpenAI Codex[/green]  [dim]{token.account_id}[/dim]")
+        console.print(f"[green]✓ Authenticated with OpenAI Codex[/green] [dim]{token.account_id}[/dim]")
     except ImportError:
         console.print("[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]")
         raise typer.Exit(1)
