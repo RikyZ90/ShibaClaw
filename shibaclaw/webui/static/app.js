@@ -643,54 +643,213 @@ window.restartGateway = async function() {
     }
 };
 
+// ── Channel icons & labels for grouping ─────────────────────
+const CHANNEL_META = {
+    webui:    { icon: "language",        label: "Web UI" },
+    telegram: { icon: "send",            label: "Telegram" },
+    discord:  { icon: "forum",           label: "Discord" },
+    slack:    { icon: "tag",             label: "Slack" },
+    api:      { icon: "api",             label: "API" },
+    cli:      { icon: "terminal",        label: "CLI" },
+    _default: { icon: "chat_bubble",     label: "Other" }
+};
+const RECENT_COUNT = 4;
+const GROUP_PREVIEW = 3;
+
+// Track collapsed state across reloads
+const _channelCollapsed = {};
+
+function _extractChannel(key) {
+    const idx = key.indexOf(":");
+    return idx > 0 ? key.substring(0, idx).toLowerCase() : "_default";
+}
+
+function _channelInfo(ch) {
+    return CHANNEL_META[ch] || { icon: CHANNEL_META._default.icon, label: ch.charAt(0).toUpperCase() + ch.slice(1) };
+}
+
+function _buildSessionEl(sess) {
+    const el = document.createElement("div");
+    el.className = "history-item";
+    el.dataset.sessionKey = sess.key;
+    if (sess.key === state.sessionId) el.classList.add("active");
+
+    const date = new Date(sess.created_at).toLocaleDateString();
+    const time = new Date(sess.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const name = sess.nickname || sess.key;
+    const safeKey = encodeURIComponent(sess.key);
+    const safeName = escapeHtml(name);
+
+    el.innerHTML = `
+        <div class="session-info" onclick="selectSession(decodeURIComponent('${safeKey}'), this)">
+            <div class="session-name">${safeName}</div>
+            <div class="session-meta">${date} ${time}</div>
+        </div>
+        <div class="session-actions">
+            <button class="btn-session-menu" onclick="toggleSessionMenu(event, this, decodeURIComponent('${safeKey}'))">
+                <span class="material-icons-round">more_vert</span>
+            </button>
+            <div class="session-dropdown" data-session-key="${safeKey}">
+                <div class="dropdown-item" onclick="renameSessionPrompt(decodeURIComponent('${safeKey}'), '${safeName}')">
+                    <span class="material-icons-round">edit</span> Rename
+                </div>
+                <div class="dropdown-item" onclick="archiveSession(decodeURIComponent('${safeKey}'))">
+                    <span class="material-icons-round">archive</span> Archive
+                </div>
+                <div class="dropdown-item danger" onclick="deleteSession(decodeURIComponent('${safeKey}'))">
+                    <span class="material-icons-round">delete</span> Delete
+                </div>
+            </div>
+        </div>
+    `;
+    return el;
+}
+
+function _toggleChannelGroup(ch, headerEl) {
+    _channelCollapsed[ch] = !_channelCollapsed[ch];
+    const items = headerEl.nextElementSibling;
+    if (_channelCollapsed[ch]) {
+        headerEl.classList.add("collapsed");
+        items.classList.add("collapsed");
+    } else {
+        headerEl.classList.remove("collapsed");
+        items.classList.remove("collapsed");
+        items.style.maxHeight = items.scrollHeight + "px";
+    }
+}
+
 async function loadHistory() {
     const list = $("history-list");
     try {
         const res = await authFetch("/api/sessions");
         const data = await res.json();
         list.innerHTML = "";
-        
+
         if (!data.sessions || data.sessions.length === 0) {
             list.innerHTML = `<div class="history-item">No past sessions</div>`;
             return;
         }
 
-        data.sessions.forEach(sess => {
-            const el = document.createElement("div");
-            el.className = "history-item";
-            if (sess.key === state.sessionId) el.classList.add("active");
-            
-            const date = new Date(sess.created_at).toLocaleDateString();
-            const time = new Date(sess.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            const name = sess.nickname || sess.key;
-            const safeKey = encodeURIComponent(sess.key);
-            const safeName = escapeHtml(name);
-            
-            el.innerHTML = `
-                <div class="session-info" onclick="selectSession(decodeURIComponent('${safeKey}'), this)">
-                    <div class="session-name">${safeName}</div>
-                    <div class="session-meta">${date} ${time}</div>
-                </div>
-                <div class="session-actions">
-                    <button class="btn-session-menu" onclick="toggleSessionMenu(event, this, decodeURIComponent('${safeKey}'))">
-                        <span class="material-icons-round">more_vert</span>
-                    </button>
-                    <div class="session-dropdown" data-session-key="${safeKey}">
-                        <div class="dropdown-item" onclick="renameSessionPrompt(decodeURIComponent('${safeKey}'), '${safeName}')">
-                            <span class="material-icons-round">edit</span> Rename
-                        </div>
-                        <div class="dropdown-item" onclick="archiveSession(decodeURIComponent('${safeKey}'))">
-                            <span class="material-icons-round">archive</span> Archive
-                        </div>
-                        <div class="dropdown-item danger" onclick="deleteSession(decodeURIComponent('${safeKey}'))">
-                            <span class="material-icons-round">delete</span> Delete
-                        </div>
-                    </div>
-                </div>
-            `;
-            list.appendChild(el);
+        const sessions = data.sessions; // already sorted by updated_at desc
+        const channels = new Map();
+
+        sessions.forEach(s => {
+            const ch = _extractChannel(s.key);
+            if (!channels.has(ch)) channels.set(ch, []);
+            channels.get(ch).push(s);
         });
+
+        const hasMultipleChannels = channels.size > 1;
+
+        // ── Recent section (always shown) ───────────────
+        const recentSessions = sessions.slice(0, RECENT_COUNT);
+        const recentLabel = document.createElement("div");
+        recentLabel.className = "session-recent-label";
+        recentLabel.innerHTML = `<span class="material-icons-round">schedule</span> Recent`;
+        list.appendChild(recentLabel);
+
+        recentSessions.forEach(s => list.appendChild(_buildSessionEl(s)));
+
+        // If few sessions total or only one channel, just show flat list with "show more"
+        if (sessions.length <= RECENT_COUNT) return;
+
+        // ── Divider ───────────────────────────────────────
+        const divider = document.createElement("div");
+        divider.className = "sessions-divider";
+        list.appendChild(divider);
+
+        if (!hasMultipleChannels) {
+            // Single channel: just add remaining as "Older" group
+            const remaining = sessions.slice(RECENT_COUNT);
+            const recentKeys = new Set(recentSessions.map(s => s.key));
+            const olderLabel = document.createElement("div");
+            olderLabel.className = "channel-group-header";
+            olderLabel.innerHTML = `
+                <span class="material-icons-round">history</span>
+                Older
+                <span class="group-count">${remaining.length}</span>
+                <span class="material-icons-round group-chevron">expand_more</span>
+            `;
+            list.appendChild(olderLabel);
+
+            const itemsContainer = document.createElement("div");
+            itemsContainer.className = "channel-group-items";
+
+            const showInitially = remaining.slice(0, GROUP_PREVIEW);
+            const showLater = remaining.slice(GROUP_PREVIEW);
+
+            showInitially.forEach(s => itemsContainer.appendChild(_buildSessionEl(s)));
+
+            if (showLater.length > 0) {
+                const moreBtn = document.createElement("button");
+                moreBtn.className = "btn-show-more";
+                moreBtn.innerHTML = `<span class="material-icons-round">unfold_more</span> Show ${showLater.length} more`;
+                moreBtn.onclick = () => {
+                    showLater.forEach(s => itemsContainer.insertBefore(_buildSessionEl(s), moreBtn));
+                    moreBtn.remove();
+                    itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
+                };
+                itemsContainer.appendChild(moreBtn);
+            }
+
+            itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
+            list.appendChild(itemsContainer);
+
+            if (_channelCollapsed["_older"]) {
+                olderLabel.classList.add("collapsed");
+                itemsContainer.classList.add("collapsed");
+            }
+            olderLabel.onclick = () => _toggleChannelGroup("_older", olderLabel);
+        } else {
+            // Multiple channels: group by channel
+            const recentKeys = new Set(recentSessions.map(s => s.key));
+
+            for (const [ch, chSessions] of channels) {
+                const remaining = chSessions.filter(s => !recentKeys.has(s.key));
+                if (remaining.length === 0) continue;
+
+                const info = _channelInfo(ch);
+
+                const header = document.createElement("div");
+                header.className = "channel-group-header";
+                header.innerHTML = `
+                    <span class="material-icons-round">${info.icon}</span>
+                    ${info.label}
+                    <span class="group-count">${remaining.length}</span>
+                    <span class="material-icons-round group-chevron">expand_more</span>
+                `;
+                list.appendChild(header);
+
+                const itemsContainer = document.createElement("div");
+                itemsContainer.className = "channel-group-items";
+
+                const showInitially = remaining.slice(0, GROUP_PREVIEW);
+                const showLater = remaining.slice(GROUP_PREVIEW);
+
+                showInitially.forEach(s => itemsContainer.appendChild(_buildSessionEl(s)));
+
+                if (showLater.length > 0) {
+                    const moreBtn = document.createElement("button");
+                    moreBtn.className = "btn-show-more";
+                    moreBtn.innerHTML = `<span class="material-icons-round">unfold_more</span> Show ${showLater.length} more`;
+                    moreBtn.onclick = () => {
+                        showLater.forEach(s => itemsContainer.insertBefore(_buildSessionEl(s), moreBtn));
+                        moreBtn.remove();
+                        itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
+                    };
+                    itemsContainer.appendChild(moreBtn);
+                }
+
+                itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
+                list.appendChild(itemsContainer);
+
+                if (_channelCollapsed[ch]) {
+                    header.classList.add("collapsed");
+                    itemsContainer.classList.add("collapsed");
+                }
+                header.onclick = () => _toggleChannelGroup(ch, header);
+            }
+        }
     } catch(e) {
         list.innerHTML = `<div class="history-item">Error loading history</div>`;
     }
