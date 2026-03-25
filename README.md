@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/shibaclaw_logo.jpg" width="800" alt="...">
+  <img src="assets/shibaclaw_logo_readme.jpg" width="800" alt="...">
 </p>
 
 # Smart. Loyal. Powerful. 🐕
