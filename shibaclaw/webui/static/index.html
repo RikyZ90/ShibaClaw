@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>ShibaClaw — AI Assistant</title>
+    <meta name="description" content="ShibaClaw WebUI — Premium AI Agent Interface">
+    <link rel="icon" type="image/png" href="/static/shibaclaw_logo.png">
+    <link rel="apple-touch-icon" href="/static/shibaclaw_logo.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/index.css">
+
+    <!-- Socket.IO and Marked.js -->
+    <script src="/static/vendor/socket.io.min.js"></script>
+    <script src="/static/vendor/marked.min.js"></script>
+
+
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="/static/vendor/github-dark.min.css">
+    <script src="/static/vendor/highlight.min.js"></script>
+
+</head>
+<body>
+    <!-- Login Screen (shown when auth is required) -->
+    <div class="login-overlay" id="login-overlay" style="display:none">
+        <div class="login-card">
+            <img src="/static/shibaclaw_logo.png" alt="ShibaClaw" class="login-logo">
+            <h1 class="login-title">ShibaClaw</h1>
+            <p class="login-subtitle">Enter your access token to continue</p>
+            <div class="login-input-group">
+                <input type="password" id="login-token" class="login-input" placeholder="Paste access token..." autocomplete="off" spellcheck="false">
+                <button id="btn-login" class="login-btn">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle">login</span>
+                    Connect
+                </button>
+            </div>
+            <div id="login-error" class="login-error" style="display:none">Invalid token</div>
+            <p class="login-hint">Token is printed in the terminal when the server starts</p>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="/static/shibaclaw_logo.png" alt="ShibaClaw Logo" class="logo-icon">
+                    <div class="logo-text">
+                        <h1>ShibaClaw</h1>
+                        <span class="version">v0.0.5</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+                    <span class="material-icons-round">menu</span>
+                </button>
+            </div>
+
+            <div class="sidebar-actions">
+                <button class="btn-action btn-new-chat" id="btn-new-session">
+                    <span class="material-icons-round">add_circle</span>
+                    <span>New Session</span>
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-section-title">Status</h3>
+                <div class="status-card" id="status-card">
+                    <div class="status-dot disconnected" id="status-dot"></div>
+                    <span class="status-text" id="status-text">Connecting...</span>
+                    <button class="btn-restart" id="btn-restart" onclick="restartGateway()" title="Restart Gateway">
+                        <span class="material-icons-round">refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="section-title">QUICK COMMANDS</div>
+                <button class="btn-command" data-command="/help">
+                    <span class="material-icons-round">help_outline</span> Help
+                </button>
+                <button class="btn-command" onclick="openModal('settings-modal')">
+                    <span class="material-icons-round">settings</span> Settings
+                </button>
+            </div>
+
+            <!-- History Section -->
+            <div class="sidebar-section history-section">
+                <div class="section-title">RECENT SESSIONS</div>
+                <div id="history-list" class="history-list">
+                    <!-- Loaded via API -->
+                    <div class="history-item loading">Loading...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="footer-info">
+                    <span class="material-icons-round">schedule</span>
+                    <span id="clock">--:--</span>
+                </div>
+                <button class="btn-logout" id="btn-logout" title="Logout" style="display:none">
+                    <span class="material-icons-round" style="font-size:16px">logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-area">
+            <!-- Top Bar -->
+            <header class="chat-header">
+                <button class="mobile-menu-btn" id="mobile-menu-btn">
+                    <span class="material-icons-round">menu</span>
+                </button>
+                <div class="chat-header-info">
+                    <h2>ShibaClaw</h2>
+                    <span class="chat-header-subtitle" id="session-id">Session loading...</span>
+                </div>
+            </header>
+
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcome-screen">
+                <div class="welcome-content">
+                    <img src="/static/shibaclaw_logo.png" alt="ShibaClaw Logo" class="welcome-logo">
+                    <h2 class="welcome-title">Welcome to <span class="gradient-text">ShibaClaw</span></h2>
+                    <p class="welcome-subtitle">Your personal AI assistant, ready to hunt for answers.</p>
+                    <div class="welcome-hints">
+                        <button class="hint-card" data-hint="Explain how async/await works in Python">
+                            <span class="material-icons-round">code</span>
+                            <span>Explain async/await</span>
+                        </button>
+                        <button class="hint-card" data-hint="Write a FastAPI endpoint with authentication">
+                            <span class="material-icons-round">api</span>
+                            <span>FastAPI endpoint</span>
+                        </button>
+                        <button class="hint-card" data-hint="Help me debug this error and suggest fixes">
+                            <span class="material-icons-round">bug_report</span>
+                            <span>Debug my code</span>
+                        </button>
+                        <button class="hint-card" data-hint="Create a comprehensive README for my project">
+                            <span class="material-icons-round">description</span>
+                            <span>Write a README</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat History -->
+            <div class="chat-history" id="chat-history"></div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <div class="thinking-indicator" id="thinking-indicator">
+                        <div class="thinking-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="thinking-text" id="thinking-text">Thinking...</span>
+                    </div>
+                    <div class="input-container">
+                        <textarea
+                            id="chat-input"
+                            placeholder="Send a message to ShibaClaw..."
+                            rows="1"
+                            autofocus
+                        ></textarea>
+                        <button class="btn-send" id="btn-send" disabled>
+                            <span class="material-icons-round">send</span>
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <div class="input-actions">
+                            <button class="btn-input-action" id="btn-context" onclick="openModal('context-modal')" title="View context">
+                                <span class="material-icons-round">psychology</span>
+                                <span>Context</span>
+                            </button>
+                            <button class="btn-input-action btn-stop" id="btn-stop" disabled title="Stop agent">
+                                <span class="material-icons-round">stop_circle</span>
+                                <span>Stop</span>
+                            </button>
+                            <div class="token-badge" id="token-badge" title="Click to view full context" onclick="openModal('context-modal')">
+                                <span class="material-icons-round">data_usage</span>
+                                <span class="token-badge-text" id="token-badge-text">-- / --</span>
+                            </div>
+                        </div>
+                        <span class="input-hint">Enter to send · Shift+Enter for new line</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ── Modals ────────────────────────────────────────────── -->
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-backdrop">
+        <div class="modal modal-settings">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">settings</span> Settings</h2>
+                <button class="btn-icon" onclick="closeModal('settings-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <!-- Tabs -->
+            <div class="settings-tabs">
+                <button class="settings-tab active" data-tab="agent" onclick="switchSettingsTab('agent')">
+                    <span class="material-icons-round">smart_toy</span> Agent
+                </button>
+                <button class="settings-tab" data-tab="providers" onclick="switchSettingsTab('providers')">
+                    <span class="material-icons-round">key</span> Provider
+                </button>
+                <button class="settings-tab" data-tab="tools" onclick="switchSettingsTab('tools')">
+                    <span class="material-icons-round">build</span> Tools
+                </button>
+                <button class="settings-tab" data-tab="gateway" onclick="switchSettingsTab('gateway')">
+                    <span class="material-icons-round">dns</span> Gateway
+                </button>
+                <button class="settings-tab" data-tab="channels" onclick="switchSettingsTab('channels')">
+                    <span class="material-icons-round">forum</span> Channels
+                </button>
+                <button class="settings-tab" data-tab="oauth" onclick="switchSettingsTab('oauth')">
+                    <span class="material-icons-round">lock_open</span> OAuth Provider
+                </button>
+            </div>
+            <div class="modal-body settings-scroll" id="settings-body">
+                <!-- Loading spinner -->
+                <div id="settings-loading" class="settings-loader">
+                    <span class="material-icons-round spin">progress_activity</span>
+                    Loading settings...
+                </div>
+
+                <!-- Tab: Agent -->
+                <div class="settings-panel" id="panel-agent">
+                    <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
+                    <div class="field-row"><label>Model</label><input type="text" id="s-agent-model" class="form-input" placeholder="e.g. claude-3-5-sonnet"></div>
+                    <div class="field-row"><label>Provider</label><input type="text" id="s-agent-provider" class="form-input" placeholder="openrouter, anthropic, auto..."></div>
+                    <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens" class="form-input" value="8192"></div>
+                    <div class="field-row"><label>Context Window Tokens</label><input type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
+                    <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
+                    <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
+                    <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+                </div>
+
+                <!-- Tab: Providers (dynamic collapsible) -->
+                <div class="settings-panel" id="panel-providers" style="display:none">
+                    <div id="providers-list"></div>
+                </div>
+
+                <!-- Tab: Tools -->
+                <div class="settings-panel" id="panel-tools" style="display:none">
+                    <div class="field-row"><label>Search Provider</label><input type="text" id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
+                    <div class="field-row"><label>Search API Key</label><input type="password" id="s-tool-searchKey" class="form-input" placeholder="API key"></div>
+                    <div class="field-row"><label>Max Search Results</label><input type="number" id="s-tool-searchMax" class="form-input" value="5"></div>
+                    <div class="field-row"><label>Proxy URL</label><input type="text" id="s-tool-proxy" class="form-input" placeholder="(optional)"></div>
+                    <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label></div>
+                    <div class="field-row"><label>Exec Timeout (s)</label><input type="number" id="s-tool-execTimeout" class="form-input" value="60"></div>
+                    <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label></div>
+                </div>
+
+                <!-- Tab: Gateway -->
+                <div class="settings-panel" id="panel-gateway" style="display:none">
+                    <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="0.0.0.0"></div>
+                    <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input" value="19999"></div>
+                    <div class="field-row"><label>Heartbeat Enabled</label><label class="toggle"><input type="checkbox" id="s-gw-hbEnabled"><span class="toggle-slider"></span></label></div>
+                    <div class="field-row"><label>Heartbeat Interval (s)</label><input type="number" id="s-gw-hbInterval" class="form-input" value="1800"></div>
+                </div>
+
+                <!-- Tab: Channels -->
+                <div class="settings-panel" id="panel-channels" style="display:none">
+                    <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
+                    <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label></div>
+                    <div id="channels-detail"></div>
+                </div>
+
+                <!-- Tab: OAuth Providers -->
+                <div class="settings-panel" id="panel-oauth" style="display:none">
+                    <div class="oauth-list" id="oauth-list">
+                        <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="saveSettings()">
+                    <span class="material-icons-round" style="font-size:1rem;vertical-align:middle">save</span> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Modal -->
+    <div id="context-modal" class="modal-backdrop">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">psychology</span> Active Context</h2>
+                <button class="btn-icon" onclick="closeModal('context-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body markdown-body" id="context-content">
+                <div class="loader">Loading context...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onboarding Modal -->
+    <div id="onboard-modal" class="modal-backdrop" style="z-index: 2000;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">warning</span> Configuration Required</h2>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 2rem;">
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Welcome to ShibaClaw! It looks like your agent is not fully configured yet.</p>
+                <p style="margin-bottom: 1rem; font-weight: 500;">Please run the following command in your terminal to set up your API keys and provider:</p>
+                <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); border: 1px solid var(--border-light); margin-bottom: 1.5rem;">
+                    shibaclaw onboard
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Once completed, please restart the WebUI.</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center;">
+                <button class="btn-primary" onclick="closeModal('onboard-modal')">I Understand</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm dialog -->
+    <div id="confirm-dialog" class="modal-backdrop" style="z-index: 3000;">
+        <div class="modal modal-confirm">
+            <div class="modal-header">
+                <span id="confirm-title">Confirm</span>
+            </div>
+            <div class="modal-body" style="padding: 1.2rem 1.5rem;">
+                <p id="confirm-message" style="margin:0; color: var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+                <button class="btn-primary" id="confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script src="/static/select_session.js"></script>
+</body>
+</html>

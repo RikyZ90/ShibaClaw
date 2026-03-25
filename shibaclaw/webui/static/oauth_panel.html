@@ -1,0 +1,105 @@
+<div class="settings-panel" id="panel-oauth" style="display:none">
+    <div class="oauth-list" id="oauth-list">
+        <div class="field-row">Loading OAuth providers...</div>
+    </div>
+</div>
+<script>
+async function loadOAuthPanel() {
+    const list = document.getElementById('oauth-list');
+    list.innerHTML = '<div class="field-row">Loading OAuth providers...</div>';
+    try {
+        const res = await fetch('/api/oauth/providers');
+        const data = await res.json();
+        list.innerHTML = '';
+        if (!data.providers || data.providers.length === 0) {
+            list.innerHTML = '<div class="field-row">No OAuth providers available.</div>';
+            return;
+        }
+        for (const p of data.providers) {
+            const row = document.createElement('div');
+            row.className = 'field-row oauth-item';
+            row.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%">
+                    <div>
+                        <div style="font-weight:600">${p.label}</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">${p.name}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div id="oauth-status-${p.name}">${p.status}</div>
+                        <button class="btn-primary" id="btn-oauth-check-${p.name}">Check Status</button>
+                        <button class="btn-secondary" id="btn-oauth-login-${p.name}">Login</button>
+                    </div>
+                </div>
+            `;
+            list.appendChild(row);
+            document.getElementById(`btn-oauth-check-${p.name}`).addEventListener('click', async () => {
+                const st = document.getElementById(`oauth-status-${p.name}`);
+                st.textContent = 'checking...';
+                try {
+                    const r = await fetch('/api/oauth/providers');
+                    const dd = await r.json();
+                    const found = (dd.providers || []).find(x => x.name === p.name);
+                    st.textContent = found ? found.status : 'unknown';
+                    if (found && found.message) console.debug(found.message);
+                } catch(e) { st.textContent = 'error'; }
+            });
+            document.getElementById(`btn-oauth-login-${p.name}`).addEventListener('click', async () => {
+                const btn = document.getElementById(`btn-oauth-login-${p.name}`);
+                btn.disabled = true;
+                btn.textContent = 'starting...';
+                try {
+                    const resp = await fetch('/api/oauth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ provider: p.name }) });
+                    const jd = await resp.json();
+                    if (jd.job_id) {
+                        // poll job
+                        const statusEl = document.getElementById(`oauth-status-${p.name}`);
+                        statusEl.textContent = 'running';
+                        const poll = setInterval(async () => {
+                            const r2 = await fetch(`/api/oauth/job/${jd.job_id}`);
+                            const j = await r2.json();
+                            const logs = (j.job && j.job.logs) ? j.job.logs.join('\n') : '';
+                            console.debug('oauth job logs for', p.name, logs);
+                            if (j.job.status === 'done') {
+                                statusEl.textContent = 'authenticated';
+                                clearInterval(poll);
+                                btn.disabled = false;
+                                btn.textContent = 'Login';
+                                alert(`${p.label} login succeeded`);
+                            } else if (j.job.status === 'error') {
+                                statusEl.textContent = 'error';
+                                clearInterval(poll);
+                                btn.disabled = false;
+                                btn.textContent = 'Login';
+                                alert(`Login error: ${logs}`);
+                            }
+                        }, 2000);
+                    } else if (jd.error) {
+                        alert('Error: ' + jd.error);
+                        btn.disabled = false;
+                        btn.textContent = 'Login';
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = 'Login';
+                    }
+                } catch(e) {
+                    console.error(e);
+                    btn.disabled = false;
+                    btn.textContent = 'Login';
+                    alert('Login failed: ' + e);
+                }
+            });
+        }
+    } catch(e) {
+        list.innerHTML = '<div class="field-row">Error loading providers</div>';
+    }
+}
+
+// Ensure panel loads when user opens OAuth tab
+const originalSwitchSettingsTab = window.switchSettingsTab;
+window.switchSettingsTab = function(tab) {
+    originalSwitchSettingsTab(tab);
+    if (tab === 'oauth') {
+        loadOAuthPanel();
+    }
+};
+</script>
