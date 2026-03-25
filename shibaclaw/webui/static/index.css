@@ -113,6 +113,7 @@ html, body {
     flex-direction: column;
     transition: transform var(--transition-base), opacity var(--transition-base);
     z-index: 100;
+    overflow: hidden;
 }
 
 .sidebar-header {
@@ -198,6 +199,31 @@ html, body {
 
 .sidebar-section {
     padding: 12px 16px;
+    flex-shrink: 0;
+}
+
+.sidebar-section.history-section {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 1;
+    padding-bottom: 8px;
+}
+
+/* Custom scrollbar for history section */
+.sidebar-section.history-section::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar-section.history-section::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-section.history-section::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+}
+.sidebar-section.history-section::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .sidebar-section-title {
@@ -207,6 +233,23 @@ html, body {
     letter-spacing: 0.08em;
     color: var(--text-muted);
     margin-bottom: 8px;
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.history-section .section-title {
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    padding: 4px 0 8px;
+    z-index: 2;
 }
 
 .status-card {
@@ -1230,7 +1273,104 @@ html, body {
     }
 }
 
-/* ── Session List & Actions ──────────────────────────────── */
+/* ── Channel Groups & Session List ───────────────────────── */
+
+.session-recent-label,
+.channel-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    margin: 4px 0 2px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    cursor: default;
+    user-select: none;
+}
+
+.session-recent-label .material-icons-round,
+.channel-group-header .material-icons-round {
+    font-size: 14px;
+    opacity: 0.6;
+}
+
+.channel-group-header {
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+.channel-group-header:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-secondary);
+}
+
+.channel-group-header .group-chevron {
+    margin-left: auto;
+    font-size: 16px;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.4;
+}
+.channel-group-header.collapsed .group-chevron {
+    transform: rotate(-90deg);
+}
+
+.channel-group-header .group-count {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    margin-left: 4px;
+}
+
+.channel-group-items {
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s ease;
+    opacity: 1;
+}
+.channel-group-items.collapsed {
+    max-height: 0 !important;
+    opacity: 0;
+}
+
+.btn-show-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    padding: 6px 12px;
+    margin: 2px 0 4px;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.btn-show-more:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-secondary);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.btn-show-more .material-icons-round {
+    font-size: 14px;
+}
+
+.sessions-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 8px 4px;
+}
+
 .history-item {
     padding: 10px 12px;
     border-radius: var(--radius-md);
