@@ -1,0 +1,47 @@
+x-common-config: &common-config
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    TZ: Europe/Rome
+    OR_SITE_URL: https://github.com/RikyZ90/ShibaClaw
+    OR_APP_NAME: ShibaClaw
+  volumes:
+    - ./.shibaclaw:/root/.shibaclaw        # app data & main config
+    - ./.shibaclaw/.config:/root/.config   # XDG user config dir
+    - ./.shibaclaw/.local:/root/.local     # user-level installs (pip, pipx...)
+    - ./.shibaclaw/.cache:/root/.cache     # package/build cache
+    - ./.shibaclaw/tools:/opt/tools        # custom tools installed at runtime
+services:
+  shibaclaw-gateway:
+    container_name: shibaclaw-gateway
+    <<: *common-config
+    command: [ "shibaclaw", "gateway" ]
+    restart: unless-stopped
+    ports:
+      - 19999:19999
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  shibaclaw-cli:
+    container_name: shibaclaw-cli
+    <<: *common-config
+    profiles:
+      - cli
+    command: [ "shibaclaw", "status" ]
+    stdin_open: true
+    tty: true
+
+  shibaclaw-web:
+    container_name: shibaclaw-web
+    <<: *common-config
+    command: [ "shibaclaw", "web", "--port", "3000" ]
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
