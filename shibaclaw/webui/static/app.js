@@ -1,0 +1,1786 @@
+/**
+ * ShibaClaw WebUI — Client Application
+ * Socket.IO + Markdown rendering + interactive chat
+ */
+
+// ── Auth ─────────────────────────────────────────────────────
+const AUTH_KEY = "shibaclaw_token";
+
+function getStoredToken() {
+    return localStorage.getItem(AUTH_KEY) || "";
+}
+
+function setStoredToken(token) {
+    localStorage.setItem(AUTH_KEY, token);
+}
+
+function clearStoredToken() {
+    localStorage.removeItem(AUTH_KEY);
+}
+
+/** Add auth header to all fetch calls. */
+function authHeaders(extra = {}) {
+    const token = getStoredToken();
+    const headers = { ...extra };
+    if (token) headers["Authorization"] = "Bearer " + token;
+    return headers;
+}
+
+/** Wrapper around fetch that auto-adds auth headers. */
+async function authFetch(url, opts = {}) {
+    opts.headers = authHeaders(opts.headers || {});
+    const res = await fetch(url, opts);
+    if (res.status === 401) {
+        // Token expired/invalid — show login
+        showLogin("Session expired. Please re-enter your token.");
+        throw new Error("Unauthorized");
+    }
+    return res;
+}
+
+// ── State ────────────────────────────────────────────────────
+const state = {
+    socket: null,
+    sessionId: null,
+    processing: false,
+    messageCount: 0,
+    queueCount: 0,
+    gatewayUp: false,
+    healthTimer: null,
+    processGroups: {},   // msgId → { el, startTime, stepCount, collapsed }
+    authRequired: false,
+};
+
+// ── DOM References ────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const chatHistory = $("chat-history");
+const chatInput = $("chat-input");
+const btnSend = $("btn-send");
+const welcomeScreen = $("welcome-screen");
+const thinkingIndicator = $("thinking-indicator");
+const thinkingText = $("thinking-text");
+const statusDot = $("status-dot");
+const statusText = $("status-text");
+const sessionIdEl = $("session-id");
+
+// ── Marked.js Configuration ──────────────────────────────────
+if (typeof marked !== "undefined") {
+    marked.setOptions({
+        breaks: true,
+        gfm: true,
+        highlight: function (code, lang) {
+            if (typeof hljs !== "undefined" && lang && hljs.getLanguage(lang)) {
+                try {
+                    return hljs.highlight(code, { language: lang }).value;
+                } catch (e) { /* fallback */ }
+            }
+            return code;
+        },
+    });
+}
+
+// ── Socket.IO Connection ─────────────────────────────────────
+function initSocket() {
+    const savedSessionId = localStorage.getItem("shiba_session_id");
+    const token = getStoredToken();
+    
+    state.socket = io({
+        transports: ["websocket", "polling"],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 10,
+        query: savedSessionId ? { session_id: savedSessionId } : {},
+        auth: token ? { token } : {},
+    });
+
+    const { socket } = state;
+
+    socket.on("connect", () => {
+        state.socket.connected = true;
+        console.log("WebSocket connected.");
+        fetchStatus();
+        hideThinking();
+    });
+
+    socket.on("disconnect", () => {
+        state.socket.connected = false;
+        statusDot.className = "status-dot disconnected";
+        statusText.textContent = "Disconnected";
+        hideTypingBubble();
+        hideThinking();
+        state.processing = false;
+        updateSendButton();
+        console.log("WebSocket disconnected.");
+    });
+
+    socket.on("connect_error", (err) => {
+        if (err && err.message === "Unauthorized") {
+            console.warn("Socket.IO auth rejected — showing login");
+            socket.disconnect();
+            showLogin("Invalid token. Please try again.");
+        }
+    });
+
+    socket.on("connected", (data) => {
+        state.sessionId = data.session_id;
+        sessionIdEl.textContent = data.session_id;
+        localStorage.setItem("shiba_session_id", data.session_id);
+        
+        // If we rejoined an existing session, fetch history
+        if (data.session_id) {
+            console.debug("[SHIBA] connected event → loadSession:", data.session_id);
+            loadSession(data.session_id);
+        }
+    });
+
+    socket.on("agent_thinking", (data) => {
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        showThinking(data.content);
+        addProcessStep(data.id, data.content, "GEN");
+    });
+
+    socket.on("agent_tool", (data) => {
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        showThinking(data.content);
+        addProcessStep(data.id, data.content, "EXE");
+    });
+
+    socket.on("agent_response", (data) => {
+        console.debug("[SHIBA] agent_response:", data.id, "processGroups:", Object.keys(state.processGroups));
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        hideThinking();
+        collapseProcessGroup(data.id);
+        addAgentMessage(data.id, data.content);
+        // decrement queued counter if any
+        if (state.queueCount && state.queueCount > 0) state.queueCount = Math.max(0, state.queueCount - 1);
+        updateQueueIndicator();
+        state.processing = false;
+        setWorkingState(false);
+        updateSendButton();
+        autoTitleSession();
+        loadHistory();
+        refreshTokenBadge();
+        console.debug("[SHIBA] after agent_response, process groups in DOM:", chatHistory.querySelectorAll(".process-group").length);
+    });
+
+    socket.on("error", (data) => {
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        hideThinking();
+        addAgentMessage("error", `⚠️ ${data.message}`);
+        state.processing = false;
+        setWorkingState(false);
+        updateSendButton();
+    });
+
+    socket.on("message_queued", (data) => {
+        // Server tells us the position in queue
+        state.queueCount = data.position || (state.queueCount + 1);
+        updateQueueIndicator();
+    });
+
+    socket.on("message_ack", (data) => {
+        // Agent started processing — set working state
+        setWorkingState(true);
+        clearTimeout(state._typingBubbleTimeout);
+        state._typingBubbleTimeout = setTimeout(() => showTypingBubble(), 150);
+    });
+
+    socket.on("session_reset", (data) => {
+        // Clear all process group timers to prevent memory leak
+        Object.values(state.processGroups).forEach(pg => {
+            if (pg && pg.timer) clearInterval(pg.timer);
+        });
+        state.processGroups = {};
+        state.sessionId = data.session_id;
+        sessionIdEl.textContent = data.session_id;
+        localStorage.setItem("shiba_session_id", data.session_id);
+        chatHistory.innerHTML = "";
+        chatHistory.classList.remove("active");
+        welcomeScreen.style.display = "";
+        state.messageCount = 0;
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        hideThinking();
+        refreshTokenBadge();
+    });
+}
+
+function updateQueueIndicator() {
+    const existing = document.getElementById('queue-indicator');
+    if (state.queueCount && state.queueCount > 0) {
+        if (existing) {
+            existing.textContent = state.queueCount;
+        } else {
+            const badge = document.createElement('span');
+            badge.id = 'queue-indicator';
+            badge.className = 'queue-indicator';
+            badge.textContent = state.queueCount;
+            badge.style.cssText = 'background:#ff8c00;color:#fff;padding:2px 6px;border-radius:12px;font-size:12px;margin-left:8px';
+            if (btnSend && btnSend.parentNode) btnSend.parentNode.insertBefore(badge, btnSend.nextSibling);
+        }
+    } else {
+        if (existing) existing.remove();
+    }
+}
+
+// ── Message Rendering ─────────────────────────────────────────
+function addUserMessage(content) {
+    activateChat();
+    const group = createMessageGroup("user");
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble";
+    bubble.textContent = content;
+    group.querySelector(".message-content").appendChild(bubble);
+    addTimestamp(group);
+    chatHistory.appendChild(group);
+    scrollToBottom();
+}
+
+function addAgentMessage(id, content) {
+    activateChat();
+
+    const group = createMessageGroup("agent");
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble";
+
+    // Render markdown
+    bubble.innerHTML = renderMarkdown(content);
+    enhanceCodeBlocks(bubble);
+
+    group.querySelector(".message-content").appendChild(bubble);
+    addTimestamp(group);
+    chatHistory.appendChild(group);
+    scrollToBottom();
+}
+
+// ── Process Groups (collapsible thinking/tool steps) ──────────
+function addProcessStep(msgId, content, badge) {
+    activateChat();
+
+    let pg = state.processGroups[msgId];
+    if (!pg) {
+        // Create process group container
+        const container = document.createElement("div");
+        container.id = `pg-${msgId}`;
+        container.className = "process-group expanded";
+
+        const header = document.createElement("div");
+        header.className = "process-group-header";
+        header.onclick = () => toggleProcessGroup(msgId);
+        header.innerHTML = `
+            <span class="pg-expand-icon"></span>
+            <span class="pg-title">Processing...</span>
+            <span class="step-badge ${badge}">${badge}</span>
+            <span class="pg-metrics">
+                <span class="material-icons-round" style="font-size:13px">schedule</span>
+                <span class="pg-time">0s</span>
+                <span class="material-icons-round" style="font-size:13px;margin-left:8px">footprint</span>
+                <span class="pg-count">0</span>
+            </span>
+        `;
+        container.appendChild(header);
+
+        const stepsContainer = document.createElement("div");
+        stepsContainer.className = "pg-content";
+        container.appendChild(stepsContainer);
+
+        chatHistory.appendChild(container);
+
+        pg = {
+            el: container,
+            stepsEl: stepsContainer,
+            headerEl: header,
+            startTime: Date.now(),
+            stepCount: 0,
+            genCount: 0,
+            exeCount: 0,
+            collapsed: false,
+            timer: setInterval(() => updateProcessGroupTime(msgId), 1000),
+        };
+        state.processGroups[msgId] = pg;
+    }
+
+    pg.stepCount++;
+    pg.headerEl.querySelector(".pg-count").textContent = pg.stepCount;
+    if (badge === "GEN") pg.genCount++;
+    else if (badge === "EXE") pg.exeCount++;
+
+    // Update the main badge to the latest step type
+    const badgeEl = pg.headerEl.querySelector(".step-badge");
+    badgeEl.className = `step-badge ${badge}`;
+    badgeEl.textContent = badge;
+
+    // Update title with latest step text
+    const title = pg.headerEl.querySelector(".pg-title");
+    title.textContent = truncate(content, 60);
+    title.classList.add("shiny-text");
+
+    // Add the step row
+    const step = document.createElement("div");
+    step.className = "pg-step";
+    step.innerHTML = `
+        <span class="step-badge ${badge}">${badge}</span>
+        <span class="pg-step-text">${escapeHtml(truncate(content, 200))}</span>
+    `;
+
+    pg.stepsEl.appendChild(step);
+    scrollToBottom();
+}
+
+function updateProcessGroupTime(msgId) {
+    const pg = state.processGroups[msgId];
+    if (!pg) return;
+    const elapsed = Math.round((Date.now() - pg.startTime) / 1000);
+    const min = Math.floor(elapsed / 60);
+    const sec = elapsed % 60;
+    pg.headerEl.querySelector(".pg-time").textContent =
+        min > 0 ? `${min}:${String(sec).padStart(2, "0")}` : `${sec}s`;
+}
+
+function collapseProcessGroup(msgId) {
+    const pg = state.processGroups[msgId];
+    if (!pg) return;
+    clearInterval(pg.timer);
+
+    // Finalize time
+    updateProcessGroupTime(msgId);
+
+    // Remove shiny animation from title
+    const title = pg.headerEl.querySelector(".pg-title");
+    title.classList.remove("shiny-text");
+
+    // Mark as completed — collapse
+    pg.el.classList.remove("expanded");
+    pg.el.classList.add("completed");
+
+    // Update badge to END
+    const badgeEl = pg.headerEl.querySelector(".step-badge");
+    badgeEl.className = "step-badge END";
+    badgeEl.textContent = "END";
+
+    // Add summary (e.g. "1 thinking · 2 tool") to match history style
+    const summaryParts = [];
+    if (pg.genCount > 0) summaryParts.push(`${pg.genCount} thinking`);
+    if (pg.exeCount > 0) summaryParts.push(`${pg.exeCount} tool`);
+    if (summaryParts.length > 0) {
+        let summaryEl = pg.headerEl.querySelector(".pg-summary");
+        if (!summaryEl) {
+            summaryEl = document.createElement("span");
+            summaryEl.className = "pg-summary";
+            pg.headerEl.querySelector(".pg-metrics").appendChild(summaryEl);
+        }
+        summaryEl.textContent = summaryParts.join(" · ");
+    }
+
+    pg.collapsed = true;
+}
+
+function toggleProcessGroup(msgId) {
+    const pg = state.processGroups[msgId];
+    if (!pg) return;
+    pg.el.classList.toggle("expanded");
+}
+
+// Render a static (already-completed) process group from session history
+function renderProcessGroupFromHistory(turnId, steps) {
+    const id = `hist-${turnId}`;
+    const container = document.createElement("div");
+    container.className = "process-group completed";
+    container.id = `pg-${id}`;
+
+    const header = document.createElement("div");
+    header.className = "process-group-header";
+    header.onclick = () => {
+        container.classList.toggle("expanded");
+    };
+
+    const lastStep = steps[steps.length - 1];
+    const genCount = steps.filter(s => s.badge === "GEN").length;
+    const exeCount = steps.filter(s => s.badge === "EXE").length;
+    const summaryParts = [];
+    if (genCount > 0) summaryParts.push(`${genCount} thinking`);
+    if (exeCount > 0) summaryParts.push(`${exeCount} tool`);
+
+    header.innerHTML = `
+        <span class="pg-expand-icon"></span>
+        <span class="pg-title">${escapeHtml(truncate(lastStep.text, 60))}</span>
+        <span class="step-badge END">END</span>
+        <span class="pg-metrics">
+            <span class="material-icons-round" style="font-size:13px">footprint</span>
+            <span class="pg-count">${steps.length}</span>
+            <span class="pg-summary">${summaryParts.join(" · ")}</span>
+        </span>
+    `;
+    container.appendChild(header);
+
+    const stepsContainer = document.createElement("div");
+    stepsContainer.className = "pg-content";
+    for (const step of steps) {
+        const row = document.createElement("div");
+        row.className = "pg-step";
+        row.innerHTML = `
+            <span class="step-badge ${step.badge}">${step.badge}</span>
+            <span class="pg-step-text">${escapeHtml(truncate(step.text, 200))}</span>
+        `;
+        stepsContainer.appendChild(row);
+    }
+    container.appendChild(stepsContainer);
+    chatHistory.appendChild(container);
+}
+
+function createMessageGroup(type) {
+    state.messageCount++;
+    const group = document.createElement("div");
+    group.className = `message-group ${type}`;
+
+    const avatar = document.createElement("div");
+    avatar.className = "message-avatar";
+    if (type === "user") {
+        avatar.textContent = "👤";
+    } else {
+        const img = document.createElement("img");
+        img.src = "/static/shibaclaw_logo.png";
+        img.alt = "ShibaClaw";
+        avatar.appendChild(img);
+    }
+    group.appendChild(avatar);
+
+    const content = document.createElement("div");
+    content.className = "message-content";
+    group.appendChild(content);
+
+    return group;
+}
+
+function addTimestamp(group, dateStr) {
+    const time = document.createElement("div");
+    time.className = "message-time";
+    const d = dateStr ? new Date(dateStr) : new Date();
+    time.textContent = d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+    group.querySelector(".message-content").appendChild(time);
+}
+
+// ── Markdown Rendering ────────────────────────────────────────
+function renderMarkdown(text) {
+    if (!text) return "";
+    if (typeof marked !== "undefined") {
+        try {
+            return marked.parse(text);
+        } catch (e) {
+            console.error("Markdown parse error:", e);
+        }
+    }
+    return escapeHtml(text).replace(/\n/g, "<br>");
+}
+
+function enhanceCodeBlocks(container) {
+    container.querySelectorAll("pre").forEach((pre) => {
+        const code = pre.querySelector("code");
+        if (!code) return;
+
+        // Detect language
+        const langClass = [...code.classList].find((c) => c.startsWith("language-"));
+        const lang = langClass ? langClass.replace("language-", "") : "";
+
+        // Highlight if not already done
+        if (typeof hljs !== "undefined" && !code.classList.contains("hljs")) {
+            if (lang && hljs.getLanguage(lang)) {
+                code.innerHTML = hljs.highlight(code.textContent, { language: lang }).value;
+            } else {
+                hljs.highlightElement(code);
+            }
+        }
+
+        // Add header with language label and copy button
+        if (!pre.querySelector(".code-block-header")) {
+            const header = document.createElement("div");
+            header.className = "code-block-header";
+            header.innerHTML = `
+                <span>${lang || "code"}</span>
+                <button class="btn-copy-code" onclick="copyCode(this)">Copy</button>
+            `;
+            pre.insertBefore(header, pre.firstChild);
+        }
+    });
+}
+
+// ── Modals & APIs ─────────────────────────────────────────────
+async function fetchStatus() {
+    try {
+        const res = await authFetch("/api/status");
+        if (res.ok) {
+            const data = await res.json();
+            if (data.agent_configured && state.socket && state.socket.connected) {
+                if (!state.processing) {
+                    setStatusIndicator("ready");
+                }
+                closeModal("onboard-modal");
+            } else {
+                setStatusIndicator("not-configured");
+                if (!data.agent_configured) {
+                    openModal("onboard-modal");
+                }
+            }
+        }
+    } catch(e) {
+        setStatusIndicator("disconnected");
+    }
+}
+
+// ── Gateway Health Polling ─────────────────────────────────────
+async function checkGatewayHealth() {
+    try {
+        const res = await authFetch("/api/gateway-health");
+        const data = await res.json();
+        state.gatewayUp = data.reachable === true;
+    } catch(e) {
+        state.gatewayUp = false;
+    }
+    // Update status unless we're actively processing
+    if (!state.processing) {
+        if (!state.socket || !state.socket.connected) {
+            setStatusIndicator("disconnected");
+        } else if (!state.gatewayUp) {
+            setStatusIndicator("gateway-down");
+        } else {
+            setStatusIndicator("ready");
+        }
+    }
+}
+
+function setStatusIndicator(mode) {
+    switch(mode) {
+        case "ready":
+            statusDot.className = "status-dot connected";
+            statusText.textContent = "Agent Ready";
+            break;
+        case "working":
+            statusDot.className = "status-dot working";
+            statusText.textContent = "Working...";
+            break;
+        case "gateway-down":
+            statusDot.className = "status-dot gateway-down";
+            statusText.textContent = "Gateway Down";
+            break;
+        case "not-configured":
+            statusDot.className = "status-dot disconnected";
+            statusText.textContent = "Not Configured";
+            break;
+        case "disconnected":
+        default:
+            statusDot.className = "status-dot disconnected";
+            statusText.textContent = "Disconnected";
+            break;
+    }
+}
+
+function setWorkingState(working) {
+    const stopBtn = $("btn-stop");
+    if (stopBtn) {
+        stopBtn.disabled = !working;
+        stopBtn.classList.toggle("active", working);
+    }
+    if (working) {
+        setStatusIndicator("working");
+    } else {
+        // Restore based on actual state
+        if (!state.socket || !state.socket.connected) {
+            setStatusIndicator("disconnected");
+        } else if (!state.gatewayUp) {
+            setStatusIndicator("gateway-down");
+        } else {
+            setStatusIndicator("ready");
+        }
+    }
+}
+
+// ── Gateway Restart ───────────────────────────────────────────
+window.restartGateway = async function() {
+    const btn = $("btn-restart");
+    if (btn.classList.contains("restarting")) return;
+
+    btn.classList.add("restarting");
+    statusText.textContent = "Restarting...";
+    statusDot.className = "status-dot restarting";
+
+    try {
+        const res = await authFetch("/api/gateway-restart", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw data.error || "Restart failed";
+
+        // Poll until gateway comes back (up to 30s)
+        let tries = 0;
+        const poll = setInterval(async () => {
+            tries++;
+            try {
+                const h = await authFetch("/api/gateway-health");
+                const hd = await h.json();
+                if (hd.reachable) {
+                    clearInterval(poll);
+                    btn.classList.remove("restarting");
+                    setStatusIndicator("ready");
+                    fetchStatus();
+                    return;
+                }
+            } catch(e) {}
+            if (tries > 15) {
+                clearInterval(poll);
+                btn.classList.remove("restarting");
+                setStatusIndicator("gateway-down");
+            }
+        }, 2000);
+    } catch(e) {
+        btn.classList.remove("restarting");
+        setStatusIndicator("gateway-down");
+        console.error("Restart error:", e);
+    }
+};
+
+async function loadHistory() {
+    const list = $("history-list");
+    try {
+        const res = await authFetch("/api/sessions");
+        const data = await res.json();
+        list.innerHTML = "";
+        
+        if (!data.sessions || data.sessions.length === 0) {
+            list.innerHTML = `<div class="history-item">No past sessions</div>`;
+            return;
+        }
+
+        data.sessions.forEach(sess => {
+            const el = document.createElement("div");
+            el.className = "history-item";
+            if (sess.key === state.sessionId) el.classList.add("active");
+            
+            const date = new Date(sess.created_at).toLocaleDateString();
+            const time = new Date(sess.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const name = sess.nickname || sess.key;
+            const safeKey = encodeURIComponent(sess.key);
+            const safeName = escapeHtml(name);
+            
+            el.innerHTML = `
+                <div class="session-info" onclick="selectSession(decodeURIComponent('${safeKey}'), this)">
+                    <div class="session-name">${safeName}</div>
+                    <div class="session-meta">${date} ${time}</div>
+                </div>
+                <div class="session-actions">
+                    <button class="btn-session-menu" onclick="toggleSessionMenu(event, this, decodeURIComponent('${safeKey}'))">
+                        <span class="material-icons-round">more_vert</span>
+                    </button>
+                    <div class="session-dropdown" data-session-key="${safeKey}">
+                        <div class="dropdown-item" onclick="renameSessionPrompt(decodeURIComponent('${safeKey}'), '${safeName}')">
+                            <span class="material-icons-round">edit</span> Rename
+                        </div>
+                        <div class="dropdown-item" onclick="archiveSession(decodeURIComponent('${safeKey}'))">
+                            <span class="material-icons-round">archive</span> Archive
+                        </div>
+                        <div class="dropdown-item danger" onclick="deleteSession(decodeURIComponent('${safeKey}'))">
+                            <span class="material-icons-round">delete</span> Delete
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.appendChild(el);
+        });
+    } catch(e) {
+        list.innerHTML = `<div class="history-item">Error loading history</div>`;
+    }
+}
+
+window.toggleSessionMenu = function(event, btn, key) {
+    event.stopPropagation();
+    const safeKey = encodeURIComponent(key);
+    const dropdown = document.querySelector(`.session-dropdown[data-session-key="${safeKey}"]`);
+    const isActive = dropdown && dropdown.classList.contains("active");
+    
+    // Close all other dropdowns
+    document.querySelectorAll(".session-dropdown").forEach(d => d.classList.remove("active"));
+    document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
+    
+    if (!isActive && dropdown) {
+        dropdown.classList.add("active");
+        btn.classList.add("active");
+    }
+};
+
+window.renameSessionPrompt = function(key, currentName) {
+    const newName = prompt("Enter new name for session:", currentName);
+    if (newName && newName !== currentName) {
+        renameSession(key, newName);
+    }
+};
+
+async function renameSession(key, nickname) {
+    try {
+        const res = await authFetch(`/api/sessions/${encodeURIComponent(key)}`, {
+            method: "PATCH",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ nickname })
+        });
+        if (res.ok) loadHistory();
+    } catch(e) { console.error("Rename error:", e); }
+}
+
+// ── Auto-title: generate nickname from first user message ─────
+async function autoTitleSession() {
+    if (!state.sessionId) return;
+    const firstUser = chatHistory.querySelector(".message-group.user .message-bubble");
+    if (!firstUser) return;
+
+    const text = firstUser.textContent?.trim();
+    if (!text) return;
+
+    let title = text
+        .replace(/\n+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (title.length > 45) title = title.slice(0, 42) + "...";
+
+    try {
+        const res = await authFetch(`/api/sessions/${encodeURIComponent(state.sessionId)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.nickname) return;
+    } catch(e) { return; }
+
+    renameSession(state.sessionId, title);
+}
+
+// ── Custom confirm dialog ──────────────────────────────────
+function shibaConfirm(title, message, { confirmText = "Confirm", danger = false } = {}) {
+    return new Promise(resolve => {
+        const backdrop = document.getElementById("confirm-dialog");
+        document.getElementById("confirm-title").textContent = title;
+        document.getElementById("confirm-message").textContent = message;
+        const okBtn = document.getElementById("confirm-ok");
+        okBtn.textContent = confirmText;
+        okBtn.className = danger ? "btn-danger" : "btn-primary";
+
+        function cleanup(result) {
+            backdrop.classList.remove("active");
+            okBtn.removeEventListener("click", onOk);
+            document.getElementById("confirm-cancel").removeEventListener("click", onCancel);
+            backdrop.removeEventListener("click", onBackdrop);
+            resolve(result);
+        }
+        function onOk() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onBackdrop(e) { if (e.target === backdrop) cleanup(false); }
+
+        okBtn.addEventListener("click", onOk);
+        document.getElementById("confirm-cancel").addEventListener("click", onCancel);
+        backdrop.addEventListener("click", onBackdrop);
+        backdrop.classList.add("active");
+    });
+}
+
+// ── Instant-remove helper ─────────────────────────────────
+function removeSessionFromUI(key) {
+    const safeKey = encodeURIComponent(key);
+    const dropdown = document.querySelector(`.session-dropdown[data-session-key="${safeKey}"]`);
+    if (!dropdown) return;
+    const item = dropdown.closest(".history-item");
+    if (item) {
+        item.style.transition = "opacity 0.2s, transform 0.2s";
+        item.style.opacity = "0";
+        item.style.transform = "translateX(-20px)";
+        setTimeout(() => item.remove(), 200);
+    }
+}
+
+window.deleteSession = async function(key) {
+    const ok = await shibaConfirm("Delete Session", "This session will be permanently deleted.", { confirmText: "Delete", danger: true });
+    if (!ok) return;
+
+    removeSessionFromUI(key);
+    if (state.sessionId === key) state.socket.emit("new_session");
+
+    try {
+        await authFetch(`/api/sessions/${encodeURIComponent(key)}`, { method: "DELETE" });
+    } catch(e) { console.error("Delete error:", e); }
+};
+
+window.archiveSession = async function(key) {
+    const ok = await shibaConfirm("Archive Session", "This session will be archived to HISTORY.md and removed.", { confirmText: "Archive" });
+    if (!ok) return;
+
+    removeSessionFromUI(key);
+    if (state.sessionId === key) state.socket.emit("new_session");
+
+    try {
+        await authFetch(`/api/sessions/${encodeURIComponent(key)}/archive`, { method: "POST" });
+    } catch(e) { console.error("Archive error:", e); }
+};
+
+// Close dropdowns on outside click
+document.addEventListener("click", () => {
+    document.querySelectorAll(".session-dropdown").forEach(d => d.classList.remove("active"));
+    document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
+});
+
+async function loadSession(sessionId) {
+    if (state.processing) {
+        console.debug("[SHIBA] loadSession skipped — processing in progress");
+        return;
+    }
+    state.sessionId = sessionId;
+    localStorage.setItem("shiba_session_id", sessionId);
+    
+    // Select in sidebar (use data-session-key for reliability)
+    document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
+    const items = $("history-list").children;
+    const encodedId = encodeURIComponent(sessionId);
+    for (let el of items) {
+        try {
+            const dropdown = el.querySelector('.session-dropdown');
+            if (dropdown && dropdown.dataset && dropdown.dataset.sessionKey === encodedId) {
+                el.classList.add('active');
+            }
+        } catch(e) {
+            // fallback: mark by text if data attribute missing
+            if (el.textContent && el.textContent.includes(sessionId)) el.classList.add("active");
+        }
+    }
+
+    try {
+        const res = await authFetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
+        const data = await res.json();
+        console.debug("[SHIBA] loadSession:", sessionId, "messages:", data.messages?.length || 0);
+        
+        // Show nickname in header if available
+        sessionIdEl.textContent = data.nickname || sessionId;
+        
+        chatHistory.innerHTML = "";
+        state.messageCount = 0;
+        // Clear any old process group timers before resetting
+        Object.values(state.processGroups).forEach(pg => {
+            if (pg && pg.timer) clearInterval(pg.timer);
+        });
+        state.processGroups = {};
+        
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        if (messages.length > 0) {
+            activateChat();
+
+            // Refresh context/token badge for this session
+            try { refreshTokenBadge(); } catch(e) { /* ignore */ }
+
+            // Group messages into turns: each user msg starts a new turn
+            // Process groups are built from reasoning + tool_calls within a turn
+            let turnSteps = [];
+            let turnId = 0;
+            let pgCount = 0;
+
+            let lastUserContent = null;
+
+            for (const msg of messages) {
+                if (!msg || !msg.role) continue;
+                if (msg.role === "user") {
+                    // Skip duplicate consecutive user messages
+                    const content = msg.content ? (typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)) : "";
+                    if (!content || content === lastUserContent) continue;
+                    lastUserContent = content;
+
+                    // Flush any pending process group from previous turn
+                    const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
+                    if (turnSteps.length > 0 && hasExeSteps) {
+                        renderProcessGroupFromHistory(turnId, turnSteps);
+                        pgCount++;
+                    }
+                    turnSteps = [];
+                    turnId++;
+                    const group = createMessageGroup("user");
+                    const bubble = document.createElement("div");
+                    bubble.className = "message-bubble";
+                    bubble.textContent = content;
+                    group.querySelector(".message-content").appendChild(bubble);
+                    if (msg.timestamp) addTimestamp(group, msg.timestamp);
+                    chatHistory.appendChild(group);
+
+                } else if (msg.role === "assistant") {
+                    const hasTc = msg.tool_calls && msg.tool_calls.length > 0;
+                    const hasContent = !!msg.content;
+                    const hasReasoning = !!msg.reasoning_content;
+
+                    // Collect reasoning as GEN step
+                    if (hasReasoning) {
+                        const preview = (msg.reasoning_content?.slice?.(0, 120)) || "";
+                        turnSteps.push({ badge: "GEN", text: preview });
+                    }
+                    // Collect tool calls as EXE steps (include args preview like live rendering)
+                    if (hasTc) {
+                        for (const tc of msg.tool_calls) {
+                            const fn = tc.function?.name || "tool";
+                            let args = "";
+                            try {
+                                const raw = tc.function?.arguments;
+                                if (raw) {
+                                    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+                                    // Build a preview like: exec("cd /root/... && npx ...")
+                                    const vals = Object.values(parsed);
+                                    if (vals.length > 0) {
+                                        const preview = String(vals[0]).replace(/\n/g, " ");
+                                        args = `("${truncate(preview, 60)}")`;
+                                    }
+                                }
+                            } catch { /* ignore parse errors */ }
+                            turnSteps.push({ badge: "EXE", text: fn + args });
+                        }
+                    }
+
+                    // Final content with NO tool calls = final reply → flush & render
+                    if (hasContent && !hasTc) {
+                        // Only render process group if it has EXE steps (actual tool use)
+                        const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
+                        if (turnSteps.length > 0 && hasExeSteps) {
+                            renderProcessGroupFromHistory(turnId, turnSteps);
+                            pgCount++;
+                        }
+                        turnSteps = [];
+                        const group = createMessageGroup("agent");
+                        const bubble = document.createElement("div");
+                        bubble.className = "message-bubble";
+                        bubble.innerHTML = renderMarkdown(msg.content);
+                        enhanceCodeBlocks(bubble);
+                        group.querySelector(".message-content").appendChild(bubble);
+                        if (msg.timestamp) addTimestamp(group, msg.timestamp);
+                        chatHistory.appendChild(group);
+                    }
+                    // If has tool_calls, content is just preamble — skip rendering it as a message
+
+                } else if (msg.role === "tool") {
+                    // Tool results are already represented by their tool_call — skip adding extra steps
+                }
+            }
+            // Flush remaining steps (agent still working — only if there are tool steps)
+            if (turnSteps.length > 0 && turnSteps.some(s => s.badge === "EXE")) {
+                renderProcessGroupFromHistory(turnId, turnSteps);
+                pgCount++;
+            }
+
+            console.debug("[SHIBA] loadSession rendered:", pgCount, "process groups,", 
+                chatHistory.querySelectorAll(".process-group").length, "in DOM");
+            scrollToBottom();
+        } else {
+            chatHistory.classList.remove("active");
+            welcomeScreen.style.display = "";
+        }
+    } catch(e) {
+        console.debug("[SHIBA] Error loading session:", e);
+    }
+}
+
+// Global modal triggers
+window.openModal = async function(id) {
+    const modal = $(id);
+    if (!modal) return;
+    modal.classList.add("active");
+    
+    if (id === "context-modal") {
+        if (!state.sessionId) {
+            $("context-content").innerHTML = "<div class='loader'>No active session</div>";
+            return;
+        }
+        $("context-content").innerHTML = `<div class="loader">Loading context...</div>`;
+        try {
+            const res = await authFetch(`/api/context?session_id=${encodeURIComponent(state.sessionId)}`);
+            const data = await res.json();
+            const t = data.tokens || {};
+            const tokenCard = buildTokenCard(t);
+            $("context-content").innerHTML = tokenCard + renderMarkdown(data.context);
+            enhanceCodeBlocks($("context-content"));
+            updateTokenBadge(t);
+        } catch(e) {
+            $("context-content").innerHTML = "Error loading context.";
+        }
+    } else if (id === "settings-modal") {
+        $("settings-loading").style.display = "flex";
+        document.querySelectorAll(".settings-panel").forEach(p => p.style.display = "none");
+        try {
+            const res = await authFetch("/api/settings");
+            const cfg = await res.json();
+            if (cfg.error) throw cfg.error;
+            window._shibaConfig = cfg;
+            populateSettings(cfg);
+            $("settings-loading").style.display = "none";
+            switchSettingsTab("agent");
+        } catch(e) {
+            $("settings-loading").innerHTML = `<span class="material-icons-round" style="color:var(--accent-red)">error</span> Failed to load settings`;
+        }
+    }
+};
+
+window.closeModal = function(id) {
+    const modal = $(id);
+    if (modal) modal.classList.remove("active");
+};
+
+window.switchSettingsTab = function(tab) {
+    document.querySelectorAll(".settings-tab").forEach(t => t.classList.remove("active"));
+    const tabEl = document.querySelector(`.settings-tab[data-tab="${tab}"]`);
+    if (tabEl) tabEl.classList.add("active");
+    document.querySelectorAll(".settings-panel").forEach(p => p.style.display = "none");
+    const panel = $("panel-" + tab);
+    if (panel) panel.style.display = "block";
+    if (tab === "oauth") loadOAuthPanel();
+};
+
+async function loadOAuthPanel() {
+    const list = document.getElementById("oauth-list");
+    if (!list) return;
+    const providers = [
+        { name: "github_copilot", label: "GitHub Copilot", icon: "code", desc: "Authenticate via GitHub device flow. Uses litellm with github_copilot provider." },
+        { name: "openai_codex", label: "OpenAI Codex", icon: "psychology", desc: "Authenticate via OAuth CLI kit. Requires oauth-cli-kit package." },
+    ];
+    list.innerHTML = "";
+    for (const p of providers) {
+        const card = document.createElement("div");
+        card.className = "accordion";
+        card.innerHTML = `
+            <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+                <div class="accordion-title">
+                    <span class="material-icons-round" style="font-size:18px">${p.icon}</span>
+                    ${p.label}
+                </div>
+                <div class="accordion-right">
+                    <span class="acc-badge off" id="oauth-badge-${p.name}">Checking...</span>
+                    <span class="material-icons-round accordion-arrow">expand_more</span>
+                </div>
+            </div>
+            <div class="accordion-body">
+                <div class="field-row" style="grid-template-columns:1fr">
+                    <span style="font-size:12px;color:var(--text-secondary)">${p.desc}</span>
+                </div>
+                <div style="display:flex;gap:8px;padding:0.5rem 0">
+                    <button class="btn-primary btn-sm" id="btn-oauth-login-${p.name}">
+                        <span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login
+                    </button>
+                </div>
+                <div class="oauth-logs" id="oauth-logs-${p.name}" style="display:none;max-height:180px;overflow-y:auto;background:var(--bg-primary);border-radius:6px;padding:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);margin-top:4px;border:1px solid var(--border-color);white-space:pre-wrap;line-height:1.6"></div>
+            </div>`;
+        list.appendChild(card);
+
+        // Login — triggers device flow and shows code + URL
+        document.getElementById("btn-oauth-login-" + p.name).addEventListener("click", async () => {
+            const btn = document.getElementById("btn-oauth-login-" + p.name);
+            const badge = document.getElementById("oauth-badge-" + p.name);
+            const logsEl = document.getElementById("oauth-logs-" + p.name);
+            btn.disabled = true; btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Contacting...';
+            logsEl.style.display = "block"; logsEl.innerHTML = "Requesting device code...\n";
+            const loginBtnHtml = '<span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login';
+            try {
+                const resp = await authFetch("/api/oauth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({provider:p.name}) });
+                const jd = await resp.json();
+                if (jd.error) {
+                    logsEl.textContent = "Error: " + jd.error;
+                    btn.disabled = false; btn.innerHTML = loginBtnHtml;
+                    return;
+                }
+
+                // If we got user_code + verification_uri back (GitHub Copilot), show them immediately
+                if (jd.user_code && jd.verification_uri) {
+                    badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
+                    btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                    const codeId = "oauth-code-" + Date.now();
+                    logsEl.innerHTML =
+                        `<div style="text-align:center;padding:12px 0">` +
+                        `<div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">` +
+                          `<a href="${jd.verification_uri}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                            `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open GitHub` +
+                          `</a>` +
+                          `<div style="position:relative;display:inline-flex;align-items:center;background:var(--bg-secondary);border:2px solid var(--shiba-gold);border-radius:10px;padding:6px 12px 6px 16px;gap:10px;cursor:pointer" onclick="navigator.clipboard.writeText('${jd.user_code}');const t=document.getElementById('${codeId}-tip');t.textContent='Copied!';setTimeout(()=>t.textContent='Click to copy',1500)" title="Click to copy code">` +
+                            `<span style="font-size:26px;font-weight:700;letter-spacing:5px;color:var(--shiba-gold);font-family:'JetBrains Mono',monospace">${jd.user_code}</span>` +
+                            `<span class="material-icons-round" style="font-size:18px;color:var(--text-muted)">content_copy</span>` +
+                          `</div>` +
+                        `</div>` +
+                        `<div id="${codeId}-tip" style="margin-top:6px;font-size:11px;color:var(--text-muted)">Click to copy</div>` +
+                        `<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--text-muted)">` +
+                          `<span class="material-icons-round spin" style="font-size:14px">progress_activity</span> Waiting for authorization...` +
+                        `</div>` +
+                        `</div>`;
+                }
+
+                if (jd.job_id) {
+                    const poll = setInterval(async () => {
+                        try {
+                            const r2 = await authFetch("/api/oauth/job/" + jd.job_id);
+                            const j = await r2.json();
+                            if (!j.job) return;
+
+                            if (j.job.status === "done") {
+                                clearInterval(poll);
+                                badge.textContent = "Configured"; badge.className = "acc-badge on";
+                                btn.disabled = false; btn.innerHTML = loginBtnHtml;
+                                logsEl.innerHTML = `<div style="color:#4ade80;font-weight:600;text-align:center;padding:12px">✅ Authentication successful!</div>`;
+                            } else if (j.job.status === "error") {
+                                clearInterval(poll);
+                                badge.textContent = "Error"; badge.className = "acc-badge off";
+                                btn.disabled = false; btn.innerHTML = loginBtnHtml;
+                                const logs = (j.job.logs || []).join("\n");
+                                logsEl.innerHTML = `<div style="color:#f87171;padding:8px;white-space:pre-wrap">${logs}</div>`;
+                            } else if (j.job.status === "awaiting_code" && j.job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
+                                // OpenAI Codex: show URL + paste input
+                                badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
+                                btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
+                                const inputId = "codex-input-" + jd.job_id;
+                                const submitId = "codex-submit-" + jd.job_id;
+                                logsEl.innerHTML =
+                                    `<div class="codex-auth-ui" style="text-align:center;padding:12px 0">` +
+                                    `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Click the button below to sign in with OpenAI:</div>` +
+                                    `<a href="${j.job.auth_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                                      `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open OpenAI Login` +
+                                    `</a>` +
+                                    `<div style="margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--bg-tertiary);text-align:left;font-size:12px;line-height:1.6;color:var(--text-secondary)">` +
+                                      `<strong style="color:var(--shiba-gold)">📋 After login</strong>, your browser will redirect to a URL like:<br>` +
+                                      `<code style="font-size:11px;color:var(--text-primary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;word-break:break-all">http://localhost:1455/auth/callback?code=<span style="color:var(--shiba-gold);font-weight:700">AUTH_CODE_HERE</span>&amp;state=...</code><br>` +
+                                      `Paste the <strong>entire URL</strong> in the field below — the code will be extracted automatically.` +
+                                    `</div>` +
+                                    `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:center">` +
+                                      `<input id="${inputId}" type="text" class="form-input" placeholder="Paste the full callback URL here..." style="flex:1;max-width:400px;font-size:12px;font-family:'JetBrains Mono',monospace">` +
+                                      `<button id="${submitId}" class="btn-primary btn-sm" style="white-space:nowrap">` +
+                                        `<span class="material-icons-round" style="font-size:14px;vertical-align:middle">send</span> Submit` +
+                                      `</button>` +
+                                    `</div>` +
+                                    `<div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
+                                      `<span class="material-icons-round spin" style="font-size:14px">progress_activity</span> Waiting for authorization...` +
+                                    `</div>` +
+                                    `</div>`;
+                                // Wire up submit button
+                                setTimeout(() => {
+                                    const submitBtn = document.getElementById(submitId);
+                                    const inputEl = document.getElementById(inputId);
+                                    if (submitBtn && inputEl) {
+                                        const doSubmit = async () => {
+                                            const code = inputEl.value.trim();
+                                            if (!code) return;
+                                            submitBtn.disabled = true; submitBtn.textContent = "Sending...";
+                                            try {
+                                                await authFetch("/api/oauth/code", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({job_id: jd.job_id, code}) });
+                                                inputEl.value = ""; inputEl.placeholder = "Code submitted, waiting...";
+                                            } catch { submitBtn.disabled = false; submitBtn.textContent = "Submit"; }
+                                        };
+                                        submitBtn.addEventListener("click", doSubmit);
+                                        inputEl.addEventListener("keydown", e => { if (e.key === "Enter") doSubmit(); });
+                                    }
+                                }, 50);
+                            }
+                        } catch { /* keep polling */ }
+                    }, 2000);
+                } else if (!jd.user_code) {
+                    logsEl.textContent = jd.error || "Unknown response";
+                    btn.disabled = false; btn.innerHTML = loginBtnHtml;
+                }
+            } catch(e) {
+                logsEl.textContent = "Error: " + e;
+                btn.disabled = false; btn.innerHTML = loginBtnHtml;
+            }
+        });
+    }
+
+    // Auto-load status (lightweight, no login trigger)
+    _refreshOAuthStatus();
+}
+
+async function _refreshOAuthStatus() {
+    try {
+        const r = await authFetch("/api/oauth/providers");
+        const data = await r.json();
+        for (const p of (data.providers || [])) {
+            const badge = document.getElementById("oauth-badge-" + p.name);
+            if (!badge) continue;
+            const ok = p.status === "configured";
+            badge.textContent = ok ? "Configured" : (p.status === "missing_dependency" ? "Missing dep" : "Not configured");
+            badge.className = "acc-badge " + (ok ? "on" : "off");
+        }
+    } catch { /* silent */ }
+}
+
+function populateSettings(cfg) {
+    const d = cfg.agents?.defaults || {};
+    $("s-agent-provider").value = d.provider || "";
+    $("s-agent-model").value = d.model || "";
+    $("s-agent-temp").value = d.temperature ?? 0.1;
+    $("s-agent-maxTokens").value = d.maxTokens ?? 8192;
+    $("s-agent-ctxTokens").value = d.contextWindowTokens ?? 65536;
+    $("s-agent-maxIter").value = d.maxToolIterations ?? 40;
+    $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
+    $("s-agent-reasoning").value = d.reasoningEffort || "";
+
+    // Providers — collapsible accordion cards
+    const prov = cfg.providers || {};
+    const list = $("providers-list");
+    list.innerHTML = "";
+    for (const [name, pc] of Object.entries(prov)) {
+        const hasKey = !!(pc.apiKey);
+        const displayName = name.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase());
+        const card = document.createElement("div");
+        card.className = "accordion";
+        card.innerHTML = `
+            <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+                <div class="accordion-title">
+                    <span class="material-icons-round" style="font-size:18px">key</span>
+                    ${displayName}
+                </div>
+                <div class="accordion-right">
+                    <span class="acc-badge ${hasKey ? 'on' : 'off'}">${hasKey ? 'Configured' : 'Not set'}</span>
+                    <span class="material-icons-round accordion-arrow">expand_more</span>
+                </div>
+            </div>
+            <div class="accordion-body">
+                <div class="field-row">
+                    <label>API Key</label>
+                    <input type="password" class="form-input prov-key" data-prov="${name}" value="${pc.apiKey || ""}" placeholder="sk-...">
+                </div>
+                <div class="field-row">
+                    <label>API Base URL</label>
+                    <input type="text" class="form-input prov-base" data-prov="${name}" value="${pc.apiBase || ""}" placeholder="(default)">
+                </div>
+            </div>`;
+        list.appendChild(card);
+    }
+
+    // Tools
+    const tw = cfg.tools?.web || {};
+    const ts = tw.search || {};
+    $("s-tool-searchProvider").value = ts.provider || "brave";
+    $("s-tool-searchKey").value = ts.apiKey || "";
+    $("s-tool-searchMax").value = ts.maxResults ?? 5;
+    $("s-tool-proxy").value = tw.proxy || "";
+    const te = cfg.tools?.exec || {};
+    $("s-tool-execEnable").checked = te.enable !== false;
+    $("s-tool-execTimeout").value = te.timeout ?? 60;
+    $("s-tool-restrict").checked = !!cfg.tools?.restrictToWorkspace;
+
+    // Gateway
+    const gw = cfg.gateway || {};
+    $("s-gw-host").value = gw.host || "0.0.0.0";
+    $("s-gw-port").value = gw.port ?? 19999;
+    const hb = gw.heartbeat || {};
+    $("s-gw-hbEnabled").checked = hb.enabled !== false;
+    $("s-gw-hbInterval").value = hb.intervalS ?? 1800;
+
+    // Channels
+    const ch = cfg.channels || {};
+    $("s-ch-sendProgress").checked = ch.sendProgress !== false;
+    $("s-ch-sendToolHints").checked = !!ch.sendToolHints;
+
+    // Build channel accordion cards
+    const detail = $("channels-detail");
+    detail.innerHTML = "";
+    const skip = ["sendProgress", "sendToolHints"];
+    for (const [name, cc] of Object.entries(ch)) {
+        if (skip.includes(name) || typeof cc !== "object") continue;
+        const enabled = cc.enabled === true;
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+        const card = document.createElement("div");
+        card.className = "accordion";
+        card.innerHTML = `
+            <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+                <div class="accordion-title">
+                    <span class="material-icons-round" style="font-size:18px">chat</span>
+                    ${displayName}
+                </div>
+                <div class="accordion-right">
+                    <span class="acc-badge ${enabled ? 'on' : 'off'}">${enabled ? 'ON' : 'OFF'}</span>
+                    <span class="material-icons-round accordion-arrow">expand_more</span>
+                </div>
+            </div>
+            <div class="accordion-body">
+                <div class="field-row">
+                    <label>Enabled</label>
+                    <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
+                </div>
+            </div>`;
+        detail.appendChild(card);
+    }
+}
+
+window.saveSettings = async function() {
+    // Rebuild the config from form fields
+    const patch = {
+        agents: { defaults: {
+            provider: $("s-agent-provider").value,
+            model: $("s-agent-model").value,
+            temperature: parseFloat($("s-agent-temp").value),
+            maxTokens: parseInt($("s-agent-maxTokens").value),
+            contextWindowTokens: parseInt($("s-agent-ctxTokens").value),
+            maxToolIterations: parseInt($("s-agent-maxIter").value),
+            workspace: $("s-agent-workspace").value,
+            reasoningEffort: $("s-agent-reasoning").value || null,
+        }},
+        providers: {},
+        tools: {
+            web: {
+                proxy: $("s-tool-proxy").value || null,
+                search: {
+                    provider: $("s-tool-searchProvider").value,
+                    apiKey: $("s-tool-searchKey").value,
+                    maxResults: parseInt($("s-tool-searchMax").value),
+                }
+            },
+            exec: {
+                enable: $("s-tool-execEnable").checked,
+                timeout: parseInt($("s-tool-execTimeout").value),
+            },
+            restrictToWorkspace: $("s-tool-restrict").checked,
+        },
+        gateway: {
+            host: $("s-gw-host").value,
+            port: parseInt($("s-gw-port").value),
+            heartbeat: {
+                enabled: $("s-gw-hbEnabled").checked,
+                intervalS: parseInt($("s-gw-hbInterval").value),
+            }
+        },
+        channels: {
+            sendProgress: $("s-ch-sendProgress").checked,
+            sendToolHints: $("s-ch-sendToolHints").checked,
+        }
+    };
+
+    // Collect provider fields
+    document.querySelectorAll(".prov-key").forEach(el => {
+        const name = el.dataset.prov;
+        if (!patch.providers[name]) patch.providers[name] = {};
+        patch.providers[name].apiKey = el.value;
+    });
+    document.querySelectorAll(".prov-base").forEach(el => {
+        const name = el.dataset.prov;
+        if (!patch.providers[name]) patch.providers[name] = {};
+        patch.providers[name].apiBase = el.value || null;
+    });
+
+    // Collect channel enabled toggles
+    document.querySelectorAll(".ch-enabled").forEach(el => {
+        const name = el.dataset.ch;
+        if (!patch.channels[name]) patch.channels[name] = {};
+        patch.channels[name].enabled = el.checked;
+    });
+
+    try {
+        const res = await authFetch("/api/settings", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(patch)
+        });
+        const data = await res.json();
+        if (!res.ok) throw data.error || "Save failed";
+        closeModal("settings-modal");
+        fetchStatus();
+        // Offer restart if gateway is up
+        if (state.gatewayUp && confirm("Settings saved! Restart gateway to apply changes?")) {
+            restartGateway();
+        }
+    } catch(e) {
+        alert("Error saving settings: " + e);
+    }
+};
+
+// ── UI Helpers ────────────────────────────────────────────────
+function activateChat() {
+    welcomeScreen.style.display = "none";
+    chatHistory.classList.add("active");
+}
+
+function showThinking(text) {
+    hideTypingBubble();
+    thinkingIndicator.classList.add("active");
+    thinkingText.textContent = truncate(text, 80);
+}
+
+function hideThinking() {
+    thinkingIndicator.classList.remove("active");
+    thinkingText.textContent = "Thinking...";
+}
+
+// ── Typing Bubble (shown while agent is working, before any event) ──
+function showTypingBubble() {
+    if (document.getElementById("typing-bubble")) return; // prevent duplicates
+    activateChat();
+    const group = createMessageGroup("agent");
+    group.id = "typing-bubble";
+    group.innerHTML = group.innerHTML; // keep avatar
+    const content = group.querySelector(".message-content");
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble typing-bubble";
+    bubble.innerHTML = `
+        <div class="typing-dots-inline">
+            <span></span><span></span><span></span>
+        </div>`;
+    content.appendChild(bubble);
+    chatHistory.appendChild(group);
+    scrollToBottom();
+}
+
+function hideTypingBubble() {
+    const el = document.getElementById("typing-bubble");
+    if (el) el.remove();
+}
+
+function scrollToBottom() {
+    requestAnimationFrame(() => {
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    });
+}
+
+function updateSendButton() {
+    const hasText = chatInput.value.trim().length > 0;
+    btnSend.disabled = !hasText || state.processing;
+}
+
+function autoResizeInput() {
+    chatInput.style.height = "auto";
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 200) + "px";
+}
+
+// ── Utility Functions ─────────────────────────────────────────
+function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function truncate(str, maxLen) {
+    if (!str) return "";
+    return str.length > maxLen ? str.slice(0, maxLen) + "…" : str;
+}
+
+function fmtTokens(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+    return String(n);
+}
+
+function usageTier(pct) {
+    if (pct < 40) return "low";
+    if (pct < 70) return "mid";
+    if (pct < 90) return "high";
+    return "crit";
+}
+
+function usageColor(pct) {
+    if (pct < 40) return "#4ade80";
+    if (pct < 70) return "var(--shiba-gold)";
+    if (pct < 90) return "#f97316";
+    return "#ef4444";
+}
+
+function buildTokenCard(t) {
+    const pct = t.usage_pct || 0;
+    const tier = usageTier(pct);
+    return `
+    <div class="context-token-card">
+        <h3>📊 Token Estimate</h3>
+        <table class="context-token-table">
+            <tr><td>Workspace files</td><td>~${(t.workspace || 0).toLocaleString()}</td></tr>
+            <tr><td>Session messages</td><td>~${(t.messages || 0).toLocaleString()}</td></tr>
+            <tr class="total"><td>Total</td><td>~${(t.total || 0).toLocaleString()}</td></tr>
+        </table>
+        ${t.context_window > 0 ? `
+        <div class="context-usage-bar">
+            <div class="context-usage-fill" style="width:${pct}%; background:${usageColor(pct)};"></div>
+        </div>
+        <div class="context-usage-label">
+            <span>${fmtTokens(t.total)} / ${fmtTokens(t.context_window)}</span>
+            <span style="color:${usageColor(pct)}">${pct}%</span>
+        </div>` : ""}
+    </div>`;
+}
+
+function updateTokenBadge(t) {
+    const badge = $("token-badge");
+    const text = $("token-badge-text");
+    if (!badge || !text || !t) return;
+    const pct = t.usage_pct ?? 0;
+    const tier = usageTier(pct);
+    badge.className = "token-badge usage-" + tier;
+    text.textContent = `${fmtTokens(t.total ?? 0)} / ${fmtTokens(t.context_window ?? 0)} · ${pct}%`;
+}
+
+// Auto-refresh token badge on page load and after messages
+async function refreshTokenBadge() {
+    if (!state.sessionId) return;
+    try {
+        const res = await authFetch(`/api/context?session_id=${encodeURIComponent(state.sessionId)}&summary=1`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.tokens) updateTokenBadge(data.tokens);
+    } catch(e) { /* silent */ }
+}
+
+// ── Global Functions (called from HTML) ───────────────────────
+window.copyCode = function (btn) {
+    const pre = btn.closest("pre");
+    const code = pre.querySelector("code");
+    if (code) {
+        navigator.clipboard.writeText(code.textContent).then(() => {
+            btn.textContent = "Copied!";
+            setTimeout(() => (btn.textContent = "Copy"), 2000);
+        });
+    }
+};
+
+// ── Send Message ─────────────────────────────────────────────
+function sendMessage() {
+    const content = chatInput.value.trim();
+    if (!content || state.processing) return;
+
+    state.processing = true;
+    updateSendButton();
+
+    try {
+        addUserMessage(content);
+        state.socket.emit("user_message", { content });
+        chatInput.value = "";
+        autoResizeInput();
+    } catch(e) {
+        console.error("Send error:", e);
+        state.processing = false;
+        updateSendButton();
+    }
+}
+
+// ── Event Listeners ───────────────────────────────────────────
+function initListeners() {
+    // Send button
+    btnSend.addEventListener("click", sendMessage);
+
+    // Input
+    chatInput.addEventListener("input", () => {
+        updateSendButton();
+        autoResizeInput();
+    });
+
+    chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // New session
+    $("btn-new-session").addEventListener("click", () => {
+        state.socket.emit("new_session");
+    });
+
+    // Quick commands
+    document.querySelectorAll(".btn-command[data-command]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const cmd = btn.dataset.command;
+            chatInput.value = cmd;
+            sendMessage();
+        });
+    });
+
+    // Stop button (below input)
+    $("btn-stop").addEventListener("click", () => {
+        if (state.processing) {
+            state.socket.emit("stop_agent");
+            state.processing = false;
+            setWorkingState(false);
+            clearTimeout(state._typingBubbleTimeout);
+            hideTypingBubble();
+            hideThinking();
+            updateSendButton();
+        }
+    });
+
+    // Welcome hint cards
+    document.querySelectorAll(".hint-card").forEach((card) => {
+        card.addEventListener("click", () => {
+            chatInput.value = card.dataset.hint;
+            sendMessage();
+        });
+    });
+
+    // Mobile sidebar toggle
+    $("mobile-menu-btn").addEventListener("click", () => {
+        $("sidebar").classList.toggle("open");
+    });
+
+    // Sidebar toggle (inside sidebar)
+    $("sidebar-toggle").addEventListener("click", () => {
+        $("sidebar").classList.toggle("open");
+    });
+
+    // Close modals on backdrop click
+    document.querySelectorAll(".modal-backdrop").forEach(bg => {
+        bg.addEventListener("click", (e) => {
+            if (e.target === bg) {
+                bg.classList.remove("active");
+            }
+        });
+    });
+
+    // Clock
+    function updateClock() {
+        const now = new Date();
+        $("clock").textContent = now.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+}
+
+// ── Login/Logout UI ───────────────────────────────────────────
+function showLogin(errorMsg = "") {
+    const overlay = document.getElementById("login-overlay");
+    const appContainer = document.getElementById("app-container");
+    const errorEl = document.getElementById("login-error");
+    const tokenInput = document.getElementById("login-token");
+
+    overlay.style.display = "flex";
+    appContainer.style.display = "none";
+
+    if (errorMsg) {
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = "block";
+        // Shake animation
+        const card = overlay.querySelector(".login-card");
+        card.classList.remove("shake");
+        void card.offsetWidth; // force reflow
+        card.classList.add("shake");
+    } else {
+        errorEl.style.display = "none";
+    }
+
+    setTimeout(() => tokenInput.focus(), 100);
+}
+
+function hideLogin() {
+    const overlay = document.getElementById("login-overlay");
+    const appContainer = document.getElementById("app-container");
+    overlay.style.display = "none";
+    appContainer.style.display = "";
+}
+
+async function attemptLogin(token) {
+    try {
+        const res = await fetch("/api/auth/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+        });
+        const data = await res.json();
+        if (data.valid) {
+            setStoredToken(token);
+            hideLogin();
+            startApp();
+            return true;
+        } else {
+            showLogin("Invalid token. Check the terminal output.");
+            return false;
+        }
+    } catch (e) {
+        showLogin("Connection error. Is the server running?");
+        return false;
+    }
+}
+
+function logout() {
+    clearStoredToken();
+    if (state.socket) state.socket.disconnect();
+    showLogin();
+}
+
+function startApp() {
+    initSocket();
+    initListeners();
+    fetchStatus();
+    loadHistory();
+    refreshTokenBadge();
+    chatInput.focus();
+
+    // Show logout button if auth is required
+    const logoutBtn = document.getElementById("btn-logout");
+    if (logoutBtn && state.authRequired) logoutBtn.style.display = "";
+
+    // Gateway health check every 5s
+    checkGatewayHealth();
+    if (state.healthTimer) clearInterval(state.healthTimer);
+    state.healthTimer = setInterval(checkGatewayHealth, 5000);
+
+    // Auto-refresh history every 30s
+    setInterval(loadHistory, 30000);
+}
+
+// ── Initialize ────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", async () => {
+    // Wire up login form
+    const loginBtn = document.getElementById("btn-login");
+    const loginInput = document.getElementById("login-token");
+    const logoutBtn = document.getElementById("btn-logout");
+
+    if (loginBtn) {
+        loginBtn.addEventListener("click", () => {
+            const token = loginInput.value.trim();
+            if (token) attemptLogin(token);
+        });
+    }
+    if (loginInput) {
+        loginInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                const token = loginInput.value.trim();
+                if (token) attemptLogin(token);
+            }
+        });
+    }
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", logout);
+    }
+
+    // Check if auth is required
+    try {
+        const res = await fetch("/api/auth/status");
+        const data = await res.json();
+        state.authRequired = data.auth_required;
+
+        if (!data.auth_required) {
+            // Auth disabled — start directly
+            startApp();
+            return;
+        }
+
+        // Check URL token param (auto-login like Jupyter)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get("token");
+        if (urlToken) {
+            // Clean URL
+            window.history.replaceState({}, "", window.location.pathname);
+            const ok = await attemptLogin(urlToken);
+            if (ok) return;
+        }
+
+        // Check stored token
+        const storedToken = getStoredToken();
+        if (storedToken) {
+            const verifyRes = await fetch("/api/auth/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: storedToken }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.valid) {
+                hideLogin();
+                startApp();
+                return;
+            }
+        }
+
+        // No valid token — show login
+        showLogin();
+    } catch (e) {
+        // Can't reach server — start anyway (will show errors naturally)
+        startApp();
+    }
+});
