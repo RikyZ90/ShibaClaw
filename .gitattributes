@@ -1,7 +1,3 @@
-* text=auto
-*.png binary
-*.jpg binary
-*.jpeg binary
-*.gif binary
-*.ico binary
-*.pdf binary
+# Force LF for shell scripts
+*.sh text eol=lf
+entrypoint.sh text eol=lf
