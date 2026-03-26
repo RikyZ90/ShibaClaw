@@ -19,6 +19,8 @@ ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framewo
 > [!IMPORTANT]
 > **v0.0.5** is out! WebUI with token authentication, OAuth login from browser, and multi-session chat.
 
+- **2026-03-26** 🧠 Dynamic System Prompt — runtime context (timestamp, channel, iteration) refreshed on every LLM call for a more "alive" agent
+- **2026-03-26** 🐾 SOUL.md template refined — clean formatting and richer personality definition
 - **2026-03-24** 🖥️ WebUI token authentication (Jupyter-style) — secure access with auto-generated tokens
 - **2026-03-24** 🔐 OAuth login from UI — authenticate GitHub Copilot & OpenAI Codex directly from Settings
 - **2026-03-24** 💬 Chat history rendering fixes and wider message layout
