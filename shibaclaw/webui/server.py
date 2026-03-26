@@ -453,7 +453,7 @@ def create_app(
                     token_paths = [
                         _os.path.join(home, ".config", "github-copilot", "hosts.json"),
                         _os.path.join(home, ".config", "github-copilot", "apps.json"),
-                        _os.path.join(home, ".config", "litellm", "github_copilot", "api-key.json"),
+                        _os.path.join(home, ".config", "litellm", "github_copilot", "access-token"),
                     ]
                     has_cached = any(_os.path.exists(tp) for tp in token_paths)
                     has_env = bool(_os.environ.get("GITHUB_TOKEN") or _os.environ.get("GITHUB_COPILOT_TOKEN"))
@@ -552,14 +552,23 @@ def create_app(
 
                             access_token = tj.get("access_token")
                             if access_token:
-                                # Save token for litellm
+                                # Save token for litellm as plain text in access-token
                                 home = _os.path.expanduser("~")
                                 token_dir = _os.path.join(home, ".config", "litellm", "github_copilot")
                                 _os.makedirs(token_dir, exist_ok=True)
-                                import json as _json
-                                token_file = _os.path.join(token_dir, "api-key.json")
+                                token_file = _os.path.join(token_dir, "access-token")
                                 with open(token_file, "w") as f:
-                                    _json.dump({"github_access_token": access_token}, f)
+                                    f.write(access_token)
+
+                                # Trigger gateway restart so it picks up the fresh token
+                                try:
+                                    import urllib.request
+                                    if _config and getattr(_config, "gateway", None):
+                                        gw_port = _config.gateway.port
+                                        req = urllib.request.Request(f"http://127.0.0.1:{gw_port}/restart", method="POST", data=b"")
+                                        urllib.request.urlopen(req, timeout=1)
+                                except Exception:
+                                    pass
 
                                 jobs[job_id]["status"] = "done"
                                 jobs[job_id]["logs"].append("✅ Authenticated with GitHub Copilot!")
