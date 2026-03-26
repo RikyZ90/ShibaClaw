@@ -186,8 +186,17 @@ class ShibaBrain:
         self,
         initial_messages: list[dict],
         on_progress: Callable[..., Awaitable[None]] | None = None,
+        *,
+        channel: str | None = None,
+        chat_id: str | None = None,
+        skill_names: list[str] | None = None,
     ) -> tuple[str | None, list[str], list[dict]]:
-        """Run the agent iteration loop."""
+        """Run the agent iteration loop.
+
+        The system prompt (``messages[0]``) is refreshed before every
+        LLM call so the model always sees an up-to-date timestamp,
+        channel info, and current iteration number.
+        """
         messages = initial_messages
         iteration = 0
         final_content = None
@@ -195,6 +204,18 @@ class ShibaBrain:
 
         while iteration < self.max_iterations:
             iteration += 1
+
+            # --- Refresh the system prompt with live runtime state ---
+            messages[0] = {
+                "role": "system",
+                "content": self.context.build_system_prompt(
+                    skill_names,
+                    channel=channel,
+                    chat_id=chat_id,
+                    iteration=iteration,
+                    max_iterations=self.max_iterations,
+                ),
+            }
 
             tool_defs = self.tools.get_definitions()
 
@@ -385,7 +406,9 @@ class ShibaBrain:
                 current_message=msg.content, channel=channel, chat_id=chat_id,
                 current_role=current_role,
             )
-            final_content, _, all_msgs = await self._run_agent_loop(messages)
+            final_content, _, all_msgs = await self._run_agent_loop(
+                messages, channel=channel, chat_id=chat_id,
+            )
             self._save_turn(session, all_msgs, 1 + len(history))
             self.sessions.save(session)
             self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
@@ -453,6 +476,7 @@ class ShibaBrain:
 
         final_content, _, all_msgs = await self._run_agent_loop(
             initial_messages, on_progress=on_progress or _bus_progress,
+            channel=msg.channel, chat_id=msg.chat_id,
         )
 
         if final_content is None:
