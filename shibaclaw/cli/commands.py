@@ -378,6 +378,33 @@ def onboard(
         console.print(f"  3. WebUI: [cyan]shibaclaw web --port 3000[/cyan]  →  [link=http://localhost:3000]http://localhost:3000[/link]")
     console.print("\n[dim]Want Telegram/WhatsApp? See: https://github.com/RikyZ90/shibaclaw#-chat-apps[/dim]")
 
+    # Auto-restart gateway so the new config takes effect immediately
+    _try_restart_gateway(config)
+
+def _try_restart_gateway(config: Config) -> None:
+    """Try to restart a running gateway so it picks up the new config.
+
+    Sends a POST /restart to the gateway health endpoint.
+    Fails silently if the gateway isn't running (e.g. bare-metal first setup).
+    """
+    import urllib.request
+    import urllib.error
+
+    gw_port = config.gateway.port
+    url = f"http://127.0.0.1:{gw_port}/restart"
+
+    try:
+        req = urllib.request.Request(url, method="POST", data=b"")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            if resp.status == 200:
+                console.print(
+                    "\n[green]✓[/green] Gateway restart triggered — "
+                    "new config will be loaded automatically."
+                )
+    except (urllib.error.URLError, OSError, TimeoutError):
+        # Gateway not running — that's fine, user will start it manually
+        pass
+
 
 def _merge_missing_defaults(existing: Any, defaults: Any) -> Any:
     """Recursively fill in missing values from defaults without overwriting user config."""
