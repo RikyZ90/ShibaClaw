@@ -32,8 +32,20 @@ class ScentBuilder:
         self.memory = ScentKeeper(workspace)
         self.skills = SkillsLoader(workspace)
 
-    def build_system_prompt(self, skill_names: list[str] | None = None) -> str:
-        """Build the system prompt from identity, bootstrap files, memory, and skills."""
+    def build_system_prompt(
+        self,
+        skill_names: list[str] | None = None,
+        *,
+        channel: str | None = None,
+        chat_id: str | None = None,
+        iteration: int | None = None,
+        max_iterations: int | None = None,
+    ) -> str:
+        """Build the system prompt from identity, bootstrap files, memory, skills, and live state.
+
+        All keyword arguments are optional; when omitted the prompt is
+        identical to the previous static version.
+        """
         parts = [self._get_identity()]
 
         bootstrap = self._load_bootstrap_files()
@@ -59,7 +71,44 @@ Skills with available="false" need dependencies installed first - you can try in
 
 {skills_summary}""")
 
+        # --- Live runtime state (refreshed on every LLM call) ---
+        live = self.build_runtime_block(
+            channel=channel,
+            chat_id=chat_id,
+            iteration=iteration,
+            max_iterations=max_iterations,
+        )
+        if live:
+            parts.append(live)
+
         return "\n\n---\n\n".join(parts)
+
+    # ------------------------------------------------------------------ #
+    # Public: live runtime block (called once per LLM iteration)          #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def build_runtime_block(
+        *,
+        channel: str | None = None,
+        chat_id: str | None = None,
+        iteration: int | None = None,
+        max_iterations: int | None = None,
+    ) -> str:
+        """Return a '## Live State' block for the system prompt.
+
+        The block contains the current timestamp plus any optional
+        metadata supplied by the caller.  Returns an empty string when
+        no information is available (all arguments are *None*).
+        """
+        lines: list[str] = [f"Current Time: {current_time_str()}"]
+        if channel:
+            lines.append(f"Active Channel: {channel}")
+        if chat_id:
+            lines.append(f"Chat ID: {chat_id}")
+        if iteration is not None and max_iterations is not None:
+            lines.append(f"Agent Iteration: {iteration} / {max_iterations}")
+        return "## Live State\n\n" + "\n".join(lines)
 
     def _get_identity(self) -> str:
         """Get the core identity section."""
@@ -147,21 +196,23 @@ Your workspace is at: {workspace_path}
         chat_id: str | None = None,
         current_role: str = "user",
     ) -> list[dict[str, Any]]:
-        """Build the complete message list for an LLM call."""
-        runtime_ctx = self._build_runtime_context(channel, chat_id)
+        """Build the complete message list for an LLM call.
+
+        Runtime context is now part of the system prompt (refreshed on
+        each iteration inside the agent loop) so the user message stays
+        clean.  The system prompt built here already contains the
+        initial ``## Live State`` block.
+        """
         user_content = self._build_user_content(current_message, media)
 
-        # Merge runtime context and user content into a single user message
-        # to avoid consecutive same-role messages that some providers reject.
-        if isinstance(user_content, str):
-            merged = f"{runtime_ctx}\n\n{user_content}"
-        else:
-            merged = [{"type": "text", "text": runtime_ctx}] + user_content
-
         return [
-            {"role": "system", "content": self.build_system_prompt(skill_names)},
+            {"role": "system", "content": self.build_system_prompt(
+                skill_names,
+                channel=channel,
+                chat_id=chat_id,
+            )},
             *history,
-            {"role": current_role, "content": merged},
+            {"role": current_role, "content": user_content},
         ]
 
     def _build_user_content(self, text: str, media: list[str] | None) -> str | list[dict[str, Any]]:
