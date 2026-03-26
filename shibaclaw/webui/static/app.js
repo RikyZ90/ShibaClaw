@@ -515,16 +515,25 @@ function enhanceCodeBlocks(container) {
 async function fetchStatus() {
     try {
         const res = await authFetch("/api/status");
+        let oauthConfigured = false;
+        // Check OAuth providers
+        try {
+            const oauthRes = await authFetch("/api/oauth/providers");
+            if (oauthRes.ok) {
+                const oauthData = await oauthRes.json();
+                oauthConfigured = (oauthData.providers || []).some(p => p.status === "configured");
+            }
+        } catch {}
         if (res.ok) {
             const data = await res.json();
-            if (data.agent_configured && state.socket && state.socket.connected) {
+            if ((data.agent_configured || oauthConfigured) && state.socket && state.socket.connected) {
                 if (!state.processing) {
                     setStatusIndicator("ready");
                 }
                 closeModal("onboard-modal");
             } else {
                 setStatusIndicator("not-configured");
-                if (!data.agent_configured) {
+                if (!data.agent_configured && !oauthConfigured) {
                     openModal("onboard-modal");
                 }
             }
@@ -1224,7 +1233,7 @@ async function loadOAuthPanel() {
                         <span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login
                     </button>
                 </div>
-                <div class="oauth-logs" id="oauth-logs-${p.name}" style="display:none;max-height:180px;overflow-y:auto;background:var(--bg-primary);border-radius:6px;padding:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);margin-top:4px;border:1px solid var(--border-color);white-space:pre-wrap;line-height:1.6"></div>
+                <div class="oauth-logs" id="oauth-logs-${p.name}" style="display:none;max-height:180px;background:var(--bg-primary);border-radius:6px;padding:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);margin-top:4px;border:1px solid var(--border-color);white-space:pre-wrap;line-height:1.6"></div>
             </div>`;
         list.appendChild(card);
 
