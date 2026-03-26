@@ -1827,6 +1827,64 @@ input[type="number"].form-input {
 
 /* Panel animation */
 .settings-panel {
+    max-width: 700px;
+    margin: 0 auto;
+    min-width: 320px;
+    box-sizing: border-box;
+}
+
+.oauth-list {
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+}
+
+.oauth-item {
+    min-width: 300px;
+    box-sizing: border-box;
+    word-break: break-word;
+}
+
+/* Fix for OAuth code block vertical scroll */
+.oauth-item pre, .oauth-item code {
+    max-height: 240px;
+    min-height: 80px;
+    font-size: 1.5em;
+    display: block;
+    overflow-y: auto;
+    text-align: center;
+    margin: 0 auto 8px auto;
+    padding: 16px 0;
+    box-sizing: border-box;
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--shiba-gold-dim);
+    border-radius: 10px;
+    transition: max-height 0.2s;
+}
+
+/* Prevent scroll jump bug in OAuth code block */
+.oauth-item pre::-webkit-scrollbar,
+.oauth-item code::-webkit-scrollbar {
+    width: 8px;
+    background: transparent;
+}
+.oauth-item pre::-webkit-scrollbar-thumb,
+.oauth-item code::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+}
+.oauth-item pre {
+    overflow-anchor: none;
+}
+
+
+
+.oauth-item {
+    min-width: 300px;
+    box-sizing: border-box;
+    word-break: break-word;
+}
+
     animation: panelFadeIn 0.2s ease;
 }
 @keyframes panelFadeIn {

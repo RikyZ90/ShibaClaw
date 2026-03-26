@@ -459,21 +459,31 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         spec = find_by_name(provider_name) if provider_name else None
         
         if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and (spec.is_oauth or spec.is_local)):
+            # Suppress onboarding message if any OAuth provider is configured
+            from shibaclaw.thinkers.registry import PROVIDERS
+            from shibaclaw.config.loader import load_config
+            config_obj = load_config()
+            oauth_ok = False
+            for oauth_spec in PROVIDERS:
+                if oauth_spec.is_oauth:
+                    status = _oauth_provider_status(oauth_spec)
+                    if "authenticated" in status or "✓" in status:
+                        oauth_ok = True
+                        break
+            if oauth_ok:
+                if exit_on_error:
+                    import sys; sys.exit(0)
+                else:
+                    return None
             from shibaclaw.config.loader import get_config_path
             config_path = get_config_path()
             import sys
             import time
-            
-            error_msg = f"No API key configured for model '{model}'."
-            logger.error(error_msg)
-            
-            console.print(f"\n[red]Error: {error_msg}[/red]")
             console.print(f"A default configuration template has been created at: [bold]{config_path}[/bold]")
             console.print("-" * 60)
             console.print("🐾 [bold]Please run: shibaclaw onboard[/bold]")
             console.print("   to configure your AI provider and start hunting!")
             console.print("-" * 60)
-
             if exit_on_error:
                 # Sleep briefly to ensure logs are flushed
                 time.sleep(1)
