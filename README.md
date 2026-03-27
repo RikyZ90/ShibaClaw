@@ -5,7 +5,7 @@
 # Smart. Loyal. Powerful. 🐕
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.5-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.6-orange?style=flat-square" alt="version"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
 </p>
@@ -17,7 +17,7 @@ ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framewo
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.5** is out! WebUI with token authentication, OAuth login from browser, and multi-session chat.
+> **v0.0.6** is out! WebUI with token authentication, OAuth login from browser, and multi-session chat.
 
 - **2026-03-26** 🧠 Dynamic System Prompt — runtime context (timestamp, channel, iteration) refreshed on every LLM call for a more "alive" agent
 - **2026-03-26** 🐾 SOUL.md template refined — clean formatting and richer personality definition

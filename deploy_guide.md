@@ -54,7 +54,7 @@ Ideal for local development or lightweight environments.
 
 | Command | Action |
 | :--- | :--- |
-| `shibaclaw --version` | Check if you have the latest Shiba (v0.0.5). |
+| `shibaclaw --version` | Check if you have the latest Shiba (v0.0.6). |
 | `shibaclaw onboard` | Refresh settings without overwriting everything. |
 | `shibaclaw onboard --wizard` | Forced step-by-step setup. |
 
