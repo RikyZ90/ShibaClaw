@@ -3,5 +3,5 @@ shibaclaw - An autonomous AI agent framework designed for loyalty and intelligen
 Guided by the spirit of the Shiba, built for the modern age.
 """
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 __logo__ = "🐕‍🦺"
