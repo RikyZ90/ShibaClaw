@@ -742,7 +742,7 @@ async function loadHistory() {
 
         const sessions = data.sessions; // already sorted by updated_at desc
         // ── Recent section (always shown) ───────────────
-        const recentSessions = sessions.slice(0, RECENT_COUNT);
+        const recentSessions = sessions.slice(0, 5); // show 5 initially
         const recentLabel = document.createElement("div");
         recentLabel.className = "session-recent-label";
         recentLabel.innerHTML = `<span class="material-icons-round">schedule</span> Recent`;
@@ -750,57 +750,26 @@ async function loadHistory() {
 
         recentSessions.forEach(s => list.appendChild(_buildSessionEl(s)));
 
-        // If few sessions total, just show flat list
-        if (sessions.length <= RECENT_COUNT) return;
+        // If few sessions total, we're done
+        if (sessions.length <= 5) return;
 
-        // ── Divider ───────────────────────────────────────
-        const divider = document.createElement("div");
-        divider.className = "sessions-divider";
-        list.appendChild(divider);
-
-        // ── Older group ───────────────────────────────────
-        const remaining = sessions.slice(RECENT_COUNT);
-        const olderLabel = document.createElement("div");
-        olderLabel.className = "channel-group-header";
-        olderLabel.innerHTML = `
-            <span class="material-icons-round">history</span>
-            Older
-            <span class="group-count">${remaining.length}</span>
-            <span class="material-icons-round group-chevron">expand_more</span>
-        `;
-        list.appendChild(olderLabel);
-
-        const itemsContainer = document.createElement("div");
-        itemsContainer.className = "channel-group-items";
-
-        const showInitially = remaining.slice(0, GROUP_PREVIEW);
-        const showLater = remaining.slice(GROUP_PREVIEW);
-
-        showInitially.forEach(s => itemsContainer.appendChild(_buildSessionEl(s)));
-
-        if (showLater.length > 0) {
-            const moreBtn = document.createElement("button");
-            moreBtn.className = "btn-show-more";
-            moreBtn.innerHTML = `<span class="material-icons-round">unfold_more</span> Show ${showLater.length} more`;
-            moreBtn.onclick = () => {
-                showLater.forEach(s => itemsContainer.insertBefore(_buildSessionEl(s), moreBtn));
-                moreBtn.remove();
-                itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
-            };
-            itemsContainer.appendChild(moreBtn);
-        }
-
-        if (_channelCollapsed["_older"] === undefined) _channelCollapsed["_older"] = true;
-
-        if (_channelCollapsed["_older"]) {
-            olderLabel.classList.add("collapsed");
-            itemsContainer.classList.add("collapsed");
-            itemsContainer.style.maxHeight = "0px";
-        } else {
-            itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
-        }
-        list.appendChild(itemsContainer);
-        olderLabel.onclick = () => _toggleChannelGroup("_older", olderLabel);
+        // ── Show More Button ──────────────────────────────
+        const remaining = sessions.slice(5);
+        const moreContainer = document.createElement("div");
+        moreContainer.style.padding = "4px 8px";
+        
+        const moreBtn = document.createElement("button");
+        moreBtn.className = "btn-show-more";
+        moreBtn.style.margin = "8px 0";
+        moreBtn.innerHTML = `<span class="material-icons-round">history</span> Show ${remaining.length} earlier sessions`;
+        
+        moreBtn.onclick = () => {
+            remaining.forEach(s => list.insertBefore(_buildSessionEl(s), moreContainer));
+            moreContainer.remove();
+        };
+        
+        moreContainer.appendChild(moreBtn);
+        list.appendChild(moreContainer);
     } catch(e) {
         list.innerHTML = `<div class="history-item">Error loading history</div>`;
     }
