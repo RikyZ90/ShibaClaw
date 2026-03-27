@@ -720,6 +720,7 @@ function _toggleChannelGroup(ch, headerEl) {
     if (_channelCollapsed[ch]) {
         headerEl.classList.add("collapsed");
         items.classList.add("collapsed");
+        items.style.maxHeight = "0px";
     } else {
         headerEl.classList.remove("collapsed");
         items.classList.remove("collapsed");
@@ -789,13 +790,16 @@ async function loadHistory() {
             itemsContainer.appendChild(moreBtn);
         }
 
-        itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
-        list.appendChild(itemsContainer);
+        if (_channelCollapsed["_older"] === undefined) _channelCollapsed["_older"] = true;
 
         if (_channelCollapsed["_older"]) {
             olderLabel.classList.add("collapsed");
             itemsContainer.classList.add("collapsed");
+            itemsContainer.style.maxHeight = "0px";
+        } else {
+            itemsContainer.style.maxHeight = itemsContainer.scrollHeight + "px";
         }
+        list.appendChild(itemsContainer);
         olderLabel.onclick = () => _toggleChannelGroup("_older", olderLabel);
     } catch(e) {
         list.innerHTML = `<div class="history-item">Error loading history</div>`;
