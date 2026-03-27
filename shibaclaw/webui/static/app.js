@@ -1451,6 +1451,37 @@ function populateSettings(cfg) {
         const displayName = name.charAt(0).toUpperCase() + name.slice(1);
         const card = document.createElement("div");
         card.className = "accordion";
+        let fieldsHtml = "";
+        for (const [k, v] of Object.entries(cc)) {
+            const label = k === 'enabled' ? 'Enabled' : k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            if (typeof v === 'boolean') {
+                fieldsHtml += `
+                <div class="field-row">
+                    <label>${label}</label>
+                    <label class="toggle"><input type="checkbox" class="ch-field-bool" data-ch="${name}" data-k="${k}" ${v ? "checked" : ""}><span class="toggle-slider"></span></label>
+                </div>`;
+            } else if (Array.isArray(v)) {
+                fieldsHtml += `
+                <div class="field-row">
+                    <label>${label}</label>
+                    <input type="text" class="form-input ch-field-array" data-ch="${name}" data-k="${k}" value="${v.join(', ')}" placeholder="comma separated...">
+                </div>`;
+            } else if (typeof v === 'number') {
+                fieldsHtml += `
+                <div class="field-row">
+                    <label>${label}</label>
+                    <input type="number" class="form-input ch-field-num" data-ch="${name}" data-k="${k}" value="${v}">
+                </div>`;
+            } else {
+                const inputType = k.toLowerCase().includes('token') ? 'password' : 'text';
+                fieldsHtml += `
+                <div class="field-row">
+                    <label>${label}</label>
+                    <input type="${inputType}" class="form-input ch-field-str" data-ch="${name}" data-k="${k}" value="${v || ''}">
+                </div>`;
+            }
+        }
+
         card.innerHTML = `
             <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
                 <div class="accordion-title">
@@ -1463,10 +1494,7 @@ function populateSettings(cfg) {
                 </div>
             </div>
             <div class="accordion-body">
-                <div class="field-row">
-                    <label>Enabled</label>
-                    <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
-                </div>
+${fieldsHtml}
             </div>`;
         detail.appendChild(card);
     }
@@ -1527,11 +1555,30 @@ window.saveSettings = async function() {
         patch.providers[name].apiBase = el.value || null;
     });
 
-    // Collect channel enabled toggles
-    document.querySelectorAll(".ch-enabled").forEach(el => {
+    // Collect all channel fields dynamically
+    document.querySelectorAll(".ch-field-bool").forEach(el => {
         const name = el.dataset.ch;
+        const k = el.dataset.k;
         if (!patch.channels[name]) patch.channels[name] = {};
-        patch.channels[name].enabled = el.checked;
+        patch.channels[name][k] = el.checked;
+    });
+    document.querySelectorAll(".ch-field-str").forEach(el => {
+        const name = el.dataset.ch;
+        const k = el.dataset.k;
+        if (!patch.channels[name]) patch.channels[name] = {};
+        patch.channels[name][k] = el.value;
+    });
+    document.querySelectorAll(".ch-field-num").forEach(el => {
+        const name = el.dataset.ch;
+        const k = el.dataset.k;
+        if (!patch.channels[name]) patch.channels[name] = {};
+        patch.channels[name][k] = parseFloat(el.value);
+    });
+    document.querySelectorAll(".ch-field-array").forEach(el => {
+        const name = el.dataset.ch;
+        const k = el.dataset.k;
+        if (!patch.channels[name]) patch.channels[name] = {};
+        patch.channels[name][k] = el.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
     });
 
     try {
