@@ -1254,24 +1254,18 @@ def _oauth_provider_status(spec):
             return "[dim]not authenticated[/dim]"
 
     if spec.name == "github_copilot":
-        try:
-            import asyncio
-            from litellm import acompletion
-        except ImportError:
-            return "[dim]litellm missing ([magenta]pip install litellm[/magenta])[/dim]"
-
-        try:
-            asyncio.run(
-                acompletion(
-                    model="github_copilot/gpt-4o",
-                    messages=[{"role": "user", "content": "hi"}],
-                    max_tokens=1,
-                    timeout=10,
-                )
-            )
+        import os
+        home = os.path.expanduser("~")
+        token_paths = [
+            os.path.join(home, ".config", "github-copilot", "hosts.json"),
+            os.path.join(home, ".config", "github-copilot", "apps.json"),
+            os.path.join(home, ".config", "litellm", "github_copilot", "access-token"),
+        ]
+        has_cached = any(os.path.exists(tp) for tp in token_paths)
+        has_env = bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_COPILOT_TOKEN"))
+        if has_cached or has_env:
             return "[green]✓ (OAuth authenticated)[/green]"
-        except Exception:
-            return "[dim]not authenticated[/dim]"
+        return "[dim]not authenticated[/dim]"
 
     return "[dim]not configured[/dim]"
 
