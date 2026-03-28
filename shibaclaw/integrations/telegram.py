@@ -350,20 +350,34 @@ class TelegramChannel(BaseChannel):
         if not msg.metadata.get("_progress", False):
             self._stop_typing(msg.chat_id)
 
-        try:
-            chat_id = int(msg.chat_id)
-        except ValueError:
-            # Fallback to the first explicitly allowed user if possible (e.g., from cross-channel commands like "auto")
+        original_chat_id = str(msg.chat_id)
+
+        if original_chat_id == "auto" or not original_chat_id.isdigit():
+            # Cross-channel and WebUI usage often send `chat_id: auto`.
             allow_list = getattr(self.config, "allow_from", [])
             valid_ids = [uid.split("|")[0] for uid in allow_list if uid.split("|")[0].isdigit()]
+
+            # Fallback to last non-empty known chat_id from recent incoming messages.
+            if not valid_ids and self._chat_ids:
+                known_chat_ids = list({str(v) for v in self._chat_ids.values()})
+                if len(known_chat_ids) == 1:
+                    valid_ids = known_chat_ids
+                    logger.debug("Auto-resolving Telegram chat_id from last active user {}", known_chat_ids[0])
+
             if len(valid_ids) == 1:
                 chat_id = int(valid_ids[0])
-                logger.debug("Invalid chat_id '{}', falling back to allowed user {}", msg.chat_id, chat_id)
+                logger.debug("Invalid chat_id '%s', falling back to resolved user %s", original_chat_id, chat_id)
             elif len(valid_ids) > 1:
-                logger.error("Invalid chat_id '{}'. Multiple allowed users, cannot auto-resolve.", msg.chat_id)
+                logger.error("Invalid chat_id '%s'. Multiple allowed users, cannot auto-resolve.", original_chat_id)
                 return
             else:
-                logger.error("Invalid chat_id: {}", msg.chat_id)
+                logger.error("Invalid chat_id: %s", original_chat_id)
+                return
+        else:
+            try:
+                chat_id = int(original_chat_id)
+            except ValueError:
+                logger.error("Invalid chat_id: %s", original_chat_id)
                 return
         reply_to_message_id = msg.metadata.get("message_id")
         message_thread_id = msg.metadata.get("message_thread_id")
