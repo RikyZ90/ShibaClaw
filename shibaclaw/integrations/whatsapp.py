@@ -1,4 +1,4 @@
-﻿"""WhatsApp channel implementation using Node.js bridge."""
+"""WhatsApp channel implementation using Node.js bridge."""
 
 import asyncio
 import json
@@ -101,10 +101,26 @@ class WhatsAppChannel(BaseChannel):
             logger.warning("WhatsApp bridge not connected")
             return
 
+        chat_id = msg.chat_id
+        if chat_id == "auto" or ("@" not in chat_id and not chat_id.isdigit()):
+            allow_list = getattr(self.config, "allow_from", [])
+            valid_ids = [uid for uid in allow_list if uid != "*"]
+            if len(valid_ids) == 1:
+                chat_id = valid_ids[0]
+                if "@" not in chat_id:
+                    chat_id = f"{chat_id}@s.whatsapp.net"
+                logger.debug("Invalid chat_id '{}', falling back to allowed user {}", msg.chat_id, chat_id)
+            elif len(valid_ids) > 1:
+                logger.error("Invalid chat_id '{}'. Multiple allowed users, cannot auto-resolve.", msg.chat_id)
+                return
+            else:
+                logger.error("Invalid chat_id: {}", msg.chat_id)
+                return
+
         try:
             payload = {
                 "type": "send",
-                "to": msg.chat_id,
+                "to": chat_id,
                 "text": msg.content
             }
             await self._ws.send(json.dumps(payload, ensure_ascii=False))

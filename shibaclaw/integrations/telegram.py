@@ -353,8 +353,18 @@ class TelegramChannel(BaseChannel):
         try:
             chat_id = int(msg.chat_id)
         except ValueError:
-            logger.error("Invalid chat_id: {}", msg.chat_id)
-            return
+            # Fallback to the first explicitly allowed user if possible (e.g., from cross-channel commands like "auto")
+            allow_list = getattr(self.config, "allow_from", [])
+            valid_ids = [uid.split("|")[0] for uid in allow_list if uid.split("|")[0].isdigit()]
+            if len(valid_ids) == 1:
+                chat_id = int(valid_ids[0])
+                logger.debug("Invalid chat_id '{}', falling back to allowed user {}", msg.chat_id, chat_id)
+            elif len(valid_ids) > 1:
+                logger.error("Invalid chat_id '{}'. Multiple allowed users, cannot auto-resolve.", msg.chat_id)
+                return
+            else:
+                logger.error("Invalid chat_id: {}", msg.chat_id)
+                return
         reply_to_message_id = msg.metadata.get("message_id")
         message_thread_id = msg.metadata.get("message_thread_id")
         if message_thread_id is None and reply_to_message_id is not None:

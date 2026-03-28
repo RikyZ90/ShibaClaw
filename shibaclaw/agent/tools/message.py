@@ -1,4 +1,4 @@
-﻿"""Message tool for sending messages to users."""
+"""Message tool for sending messages to users."""
 
 from typing import Any, Awaitable, Callable
 
@@ -79,31 +79,36 @@ class MessageTool(Tool):
         media: list[str] | None = None,
         **kwargs: Any
     ) -> str:
-        channel = channel or self._default_channel
-        chat_id = chat_id or self._default_chat_id
-        message_id = message_id or self._default_message_id
+        target_channel = channel or self._default_channel
+        # Auto-resolve chat_id to "auto" if crossing boundaries without specific ID
+        if channel and channel != self._default_channel:
+            target_chat_id = chat_id or "auto"
+        else:
+            target_chat_id = chat_id or self._default_chat_id
 
-        if not channel or not chat_id:
+        target_message_id = message_id or self._default_message_id
+
+        if not target_channel or not target_chat_id:
             return "Error: No target channel/chat specified"
 
         if not self._send_callback:
             return "Error: Message sending not configured"
 
         msg = OutboundMessage(
-            channel=channel,
-            chat_id=chat_id,
+            channel=target_channel,
+            chat_id=target_chat_id,
             content=content,
             media=media or [],
             metadata={
-                "message_id": message_id,
+                "message_id": target_message_id,
             },
         )
 
         try:
             await self._send_callback(msg)
-            if channel == self._default_channel and chat_id == self._default_chat_id:
+            if target_channel == self._default_channel and target_chat_id == self._default_chat_id:
                 self._sent_in_turn = True
             media_info = f" with {len(media)} attachments" if media else ""
-            return f"Message sent to {channel}:{chat_id}{media_info}"
+            return f"Message dispatched to {target_channel} (chat_id: {target_chat_id}){media_info}"
         except Exception as e:
             return f"Error sending message: {str(e)}"
