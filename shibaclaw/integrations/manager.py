@@ -133,6 +133,18 @@ class ChannelManager:
                         await channel.send(msg)
                     except Exception as e:
                         logger.error("Error sending to {}: {}", msg.channel, e)
+
+                        origin_channel = msg.metadata.get("origin_channel")
+                        origin_chat_id = msg.metadata.get("origin_chat_id")
+                        if origin_channel and origin_chat_id and origin_channel != msg.channel:
+                            try:
+                                await self.bus.publish_outbound(OutboundMessage(
+                                    channel=origin_channel,
+                                    chat_id=origin_chat_id,
+                                    content=f"[Delivery failed to {msg.channel}:{msg.chat_id}: {e}]",
+                                ))
+                            except Exception as e2:
+                                logger.error("Failed to notify origin channel {}: {}", origin_channel, e2)
                 else:
                     logger.warning("Unknown channel: {}", msg.channel)
 

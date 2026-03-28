@@ -343,8 +343,7 @@ class TelegramChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> None:
         """Send a message through Telegram."""
         if not self._app:
-            logger.warning("Telegram bot not running")
-            return
+            raise RuntimeError("Telegram bot not running")
 
         # Only stop typing indicator for final responses
         if not msg.metadata.get("_progress", False):
@@ -569,18 +568,22 @@ class TelegramChannel(BaseChannel):
                 reply_parameters=reply_params,
                 **(thread_kwargs or {}),
             )
+            return
         except Exception as e:
             logger.warning("HTML parse failed, falling back to plain text: {}", e)
-            try:
-                await self._call_with_retry(
-                    self._app.bot.send_message,
-                    chat_id=chat_id,
-                    text=text,
-                    reply_parameters=reply_params,
-                    **(thread_kwargs or {}),
-                )
-            except Exception as e2:
-                logger.error("Error sending Telegram message: {}", e2)
+
+        try:
+            await self._call_with_retry(
+                self._app.bot.send_message,
+                chat_id=chat_id,
+                text=text,
+                reply_parameters=reply_params,
+                **(thread_kwargs or {}),
+            )
+            return
+        except Exception as e2:
+            logger.error("Error sending Telegram message: {}", e2)
+            raise
 
     async def _send_with_streaming(
         self,

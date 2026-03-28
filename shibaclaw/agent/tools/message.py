@@ -94,14 +94,19 @@ class MessageTool(Tool):
         if not self._send_callback:
             return "Error: Message sending not configured"
 
+        metadata = {
+            "message_id": target_message_id,
+        }
+        if self._default_channel and self._default_chat_id:
+            metadata["origin_channel"] = self._default_channel
+            metadata["origin_chat_id"] = self._default_chat_id
+
         msg = OutboundMessage(
             channel=target_channel,
             chat_id=target_chat_id,
             content=content,
             media=media or [],
-            metadata={
-                "message_id": target_message_id,
-            },
+            metadata=metadata,
         )
 
         try:
