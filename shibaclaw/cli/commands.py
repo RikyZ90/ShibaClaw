@@ -376,34 +376,6 @@ def onboard(
         console.print("     Get one at: https://openrouter.ai/keys")
         console.print(f"  2. Chat: [cyan]{agent_cmd}[/cyan]")
         console.print(f"  3. WebUI: [cyan]shibaclaw web --port 3000[/cyan]  →  [link=http://localhost:3000]http://localhost:3000[/link]")
-    console.print("\n[dim]Want Telegram/WhatsApp? See: https://github.com/RikyZ90/shibaclaw#-chat-apps[/dim]")
-
-    # Auto-restart gateway so the new config takes effect immediately
-    _try_restart_gateway(config)
-
-def _try_restart_gateway(config: Config) -> None:
-    """Try to restart a running gateway so it picks up the new config.
-
-    Sends a POST /restart to the gateway health endpoint.
-    Fails silently if the gateway isn't running (e.g. bare-metal first setup).
-    """
-    import urllib.request
-    import urllib.error
-
-    gw_port = config.gateway.port
-    url = f"http://127.0.0.1:{gw_port}/restart"
-
-    try:
-        req = urllib.request.Request(url, method="POST", data=b"")
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status == 200:
-                console.print(
-                    "\n[green]✓[/green] Gateway restart triggered — "
-                    "new config will be loaded automatically."
-                )
-    except (urllib.error.URLError, OSError, TimeoutError):
-        # Gateway not running — that's fine, user will start it manually
-        pass
 
 
 def _merge_missing_defaults(existing: Any, defaults: Any) -> Any:
@@ -411,7 +383,7 @@ def _merge_missing_defaults(existing: Any, defaults: Any) -> Any:
     if not isinstance(existing, dict) or not isinstance(defaults, dict):
         return existing
 
-    merged = dict(existing)
+    merged = existing.copy()
     for key, value in defaults.items():
         if key not in merged:
             merged[key] = value
@@ -486,31 +458,17 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         spec = find_by_name(provider_name) if provider_name else None
         
         if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and (spec.is_oauth or spec.is_local)):
-            # Suppress onboarding message if any OAuth provider is configured
-            from shibaclaw.thinkers.registry import PROVIDERS
-            from shibaclaw.config.loader import load_config
-            config_obj = load_config()
-            oauth_ok = False
-            for oauth_spec in PROVIDERS:
-                if oauth_spec.is_oauth:
-                    status = _oauth_provider_status(oauth_spec)
-                    if "authenticated" in status or "✓" in status:
-                        oauth_ok = True
-                        break
-            if oauth_ok:
-                if exit_on_error:
-                    import sys; sys.exit(0)
-                else:
-                    return None
             from shibaclaw.config.loader import get_config_path
             config_path = get_config_path()
             import sys
             import time
+            
             console.print(f"A default configuration template has been created at: [bold]{config_path}[/bold]")
             console.print("-" * 60)
             console.print("🐾 [bold]Please run: shibaclaw onboard[/bold]")
             console.print("   to configure your AI provider and start hunting!")
             console.print("-" * 60)
+
             if exit_on_error:
                 # Sleep briefly to ensure logs are flushed
                 time.sleep(1)
@@ -1254,18 +1212,24 @@ def _oauth_provider_status(spec):
             return "[dim]not authenticated[/dim]"
 
     if spec.name == "github_copilot":
-        import os
-        home = os.path.expanduser("~")
-        token_paths = [
-            os.path.join(home, ".config", "github-copilot", "hosts.json"),
-            os.path.join(home, ".config", "github-copilot", "apps.json"),
-            os.path.join(home, ".config", "litellm", "github_copilot", "access-token"),
-        ]
-        has_cached = any(os.path.exists(tp) for tp in token_paths)
-        has_env = bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_COPILOT_TOKEN"))
-        if has_cached or has_env:
+        try:
+            import asyncio
+            from litellm import acompletion
+        except ImportError:
+            return "[dim]litellm missing ([magenta]pip install litellm[/magenta])[/dim]"
+
+        try:
+            asyncio.run(
+                acompletion(
+                    model="github_copilot/gpt-4o",
+                    messages=[{"role": "user", "content": "hi"}],
+                    max_tokens=1,
+                    timeout=10,
+                )
+            )
             return "[green]✓ (OAuth authenticated)[/green]"
-        return "[dim]not authenticated[/dim]"
+        except Exception:
+            return "[dim]not authenticated[/dim]"
 
     return "[dim]not configured[/dim]"
 
