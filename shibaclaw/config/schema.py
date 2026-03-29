@@ -1,4 +1,4 @@
-﻿"""Configuration schema using Pydantic."""
+"""Configuration schema using Pydantic."""
 
 from pathlib import Path
 from typing import Literal
@@ -98,7 +98,7 @@ class HeartbeatConfig(Base):
 class GatewayConfig(Base):
     """Gateway/server configuration."""
 
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 19999
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
 
@@ -147,7 +147,7 @@ class ToolsConfig(Base):
 
     web: WebToolsConfig = Field(default_factory=WebToolsConfig)
     exec: ExecToolConfig = Field(default_factory=ExecToolConfig)
-    restrict_to_workspace: bool = False  # If true, restrict all tool access to workspace directory
+    restrict_to_workspace: bool = True  # If true, restrict all tool access to workspace directory
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
 
 

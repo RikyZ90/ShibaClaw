@@ -17,7 +17,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/index.css?v=2">
 
     <!-- Socket.IO and Marked.js -->
     <script src="/static/vendor/socket.io.min.js"></script>
@@ -266,7 +266,7 @@
 
                 <!-- Tab: Gateway -->
                 <div class="settings-panel" id="panel-gateway" style="display:none">
-                    <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="0.0.0.0"></div>
+                    <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="127.0.0.1"></div>
                     <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input" value="19999"></div>
                     <div class="field-row"><label>Heartbeat Enabled</label><label class="toggle"><input type="checkbox" id="s-gw-hbEnabled"><span class="toggle-slider"></span></label></div>
                     <div class="field-row"><label>Heartbeat Interval (s)</label><input type="number" id="s-gw-hbInterval" class="form-input" value="1800"></div>
@@ -349,7 +349,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
-    <script src="/static/select_session.js"></script>
+    <script src="/static/app.js?v=2"></script>
+    <script src="/static/select_session.js?v=2"></script>
 </body>
 </html>

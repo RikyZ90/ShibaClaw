@@ -1,4 +1,4 @@
-﻿"""Shell execution tool."""
+"""Shell execution tool."""
 
 import asyncio
 import os
@@ -33,6 +33,10 @@ class ExecTool(Tool):
             r">\s*/dev/sd",                  # write to disk
             r"\b(shutdown|reboot|poweroff)\b",  # system power
             r":\(\)\s*\{.*\};\s*:",          # fork bomb
+            r"\b(eval|alias|export|source)\b", # environment/execution manipulation
+            r"\bsudo\s+",                    # privilege escalation
+            r"\b(nc|netcat|ncat)\b",         # networking/shells
+            r"\b(bash|sh|zsh|dash)\s+-i\b",  # interactive shells
         ]
         self.allow_patterns = allow_patterns or []
         self.restrict_to_workspace = restrict_to_workspace
@@ -74,6 +78,12 @@ class ExecTool(Tool):
             },
             "required": ["command"],
         }
+
+    # Extra deny patterns applied when restrict_to_workspace is True
+    _INTERPRETER_DENY_PATTERNS = [
+        r"\b(python[23]?|ruby|perl|node|bash|sh|zsh|pwsh|powershell)\s+\S+",  # interpreter + file
+        r"\b(python[23]?|ruby|perl|node)\s+-[ec]\s+",                         # interpreter -e/-c inline
+    ]
 
     async def execute(
         self, command: str, working_dir: str | None = None,
@@ -141,10 +151,30 @@ class ExecTool(Tool):
         except Exception as e:
             return f"Error executing command: {str(e)}"
 
+    @staticmethod
+    def _normalize_command(cmd: str) -> str:
+        """Normalize common encoding tricks before safety checks.
+
+        Handles hex escapes (\\x41), unicode escapes (\\u0041),
+        and dollar-single-quote ($'\\x41') that bypass naive regex blocklists.
+        """
+        import codecs
+        result = cmd
+        # Decode Python-style hex/unicode escapes: \x41 → A, \u0041 → A
+        try:
+            result = codecs.decode(result, "unicode_escape")
+        except Exception:
+            pass  # leave as-is if decode fails (e.g. invalid sequences)
+        # Collapse excessive whitespace (tab, multiple spaces → single space)
+        result = re.sub(r"\s+", " ", result)
+        return result
+
     def _guard_command(self, command: str, cwd: str) -> str | None:
         """Best-effort safety guard for potentially destructive commands."""
         cmd = command.strip()
-        lower = cmd.lower()
+        # Normalize encoding tricks before checking
+        normalized = self._normalize_command(cmd)
+        lower = normalized.lower()
 
         for pattern in self.deny_patterns:
             if re.search(pattern, lower):
@@ -162,7 +192,21 @@ class ExecTool(Tool):
             if "..\\" in cmd or "../" in cmd:
                 return "Error: Command blocked by safety guard (path traversal detected)"
 
+            # Block scripting interpreters running external files
+            for pattern in self._INTERPRETER_DENY_PATTERNS:
+                if re.search(pattern, lower):
+                    return "Error: Command blocked by safety guard (interpreter execution not allowed in restricted mode)"
+
+            # Block output redirects to absolute paths outside workspace
+            redirect_targets = re.findall(r">{1,2}\s*([^\s|&;]+)", normalized)
             cwd_path = Path(cwd).resolve()
+            for target in redirect_targets:
+                try:
+                    t = Path(target).expanduser().resolve()
+                    if t.is_absolute() and cwd_path not in t.parents and t != cwd_path:
+                        return "Error: Command blocked by safety guard (redirect outside working dir)"
+                except Exception:
+                    continue
 
             for raw in self._extract_absolute_paths(cmd):
                 try:

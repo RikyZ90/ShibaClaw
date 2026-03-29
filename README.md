@@ -5,7 +5,7 @@
 # Smart. Loyal. Powerful. 🐕
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.6-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.6b-orange?style=flat-square" alt="version"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
 </p>
@@ -17,8 +17,16 @@ ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framewo
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.6** is out! WebUI with token authentication, OAuth login from browser, and multi-session chat.
+> **v0.0.6b** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.
+> Includes heavily requested WebUI and Gateway stability improvements!
 
+- **2026-03-29** 🛡️ Security Hardening — Enhanced Indirect Prompt Injection protection via **Randomized Tool Output Wrapping** (using dynamic nonces per-session) to prevent instructions from untrusted data hijacking the agent.
+- **2026-03-29** 🐾 LiteLLM Dependency Removed — Architecture modernized to utilize native SDKs (`openai`, `anthropic`), dramatically reducing docker image sizes, startup times, and opaque dependency risks.
+- **2026-03-29** 🔐 GitHub Copilot OAuth rewritten using raw asynchronous device flow for highly stable background token refresh without proxy dependencies.
+- **2026-03-29** 💬 Session UI Refactor — Removed nested channels grouping. Conversations are now displayed in a sleek chronological feed with a "Show more" history pane.
+- **2026-03-29** 🎨 UI/UX Polish — Native browser popups (`alert`, `confirm`, `prompt`) entirely replaced with custom CSS modal dialogs (`shibaDialog`).
+- **2026-03-29** 🛡️ WebUI Settings Fix — Solved a critical bug causing Config `_deep_merge` to overwrite legitimate API keys with `****` redacted strings under the hood. 
+- **2026-03-29** ⚡ WebSockets & Gateway Stability — Annihilated "Scrollbar Jittering" and implemented a cache-busting `Gateway health` polling mechanism
 - **2026-03-26** 🧠 Dynamic System Prompt — runtime context (timestamp, channel, iteration) refreshed on every LLM call for a more "alive" agent
 - **2026-03-26** 🐾 SOUL.md template refined — clean formatting and richer personality definition
 - **2026-03-24** 🖥️ WebUI token authentication (Jupyter-style) — secure access with auto-generated tokens
@@ -38,7 +46,7 @@ ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framewo
 - 🧩 **Skills Registry**: Modular and extensible skill system with native ClawhHub marketplace support
 - ⚡ **Parallel Multi-Agent Execution**: A built-in fan-out orchestration model that spawns and coordinates specialized sub-agents concurrently for faster, scalable task resolution
 - **Advanced Thinking**: Support for OpenAI, Azure, LiteLLM, and deep-reasoning thinkers.
-- **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via structural wrapping and strict security policies.
+- **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via **Structural Randomized Wrapping** and strict per-session security policies.
 
 ## 🔒 Loyal Only to You
 Like the most devoted guard dog, ShibaClaw is trained to obey only its master. Thanks to its advanced **Tool Output Wrapping** system, the framework is hardened against *Indirect Prompt Injection* attacks. It treats external data from websites, files, or tools as literal information—never as new instructions. Your orders are final; to ShibaClaw, external noise is just a squirrel 🐿️.

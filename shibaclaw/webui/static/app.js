@@ -46,6 +46,8 @@ const state = {
     messageCount: 0,
     queueCount: 0,
     gatewayUp: false,
+    gatewayUnreachableCount: 0,
+    agentConfigured: false,
     healthTimer: null,
     processGroups: {},   // msgId → { el, startTime, stepCount, collapsed }
     authRequired: false,
@@ -514,11 +516,11 @@ function enhanceCodeBlocks(container) {
 // ── Modals & APIs ─────────────────────────────────────────────
 async function fetchStatus() {
     try {
-        const res = await authFetch("/api/status");
+        const res = await authFetch("/api/status?_t=" + Date.now());
         let oauthConfigured = false;
         // Check OAuth providers
         try {
-            const oauthRes = await authFetch("/api/oauth/providers");
+            const oauthRes = await authFetch("/api/oauth/providers?_t=" + Date.now());
             if (oauthRes.ok) {
                 const oauthData = await oauthRes.json();
                 oauthConfigured = (oauthData.providers || []).some(p => p.status === "configured");
@@ -526,9 +528,16 @@ async function fetchStatus() {
         } catch {}
         if (res.ok) {
             const data = await res.json();
+            state.agentConfigured = data.agent_configured;
             if ((data.agent_configured || oauthConfigured) && state.socket && state.socket.connected) {
                 if (!state.processing) {
-                    setStatusIndicator("ready");
+                    // Only say ready if the gateway is also up (or we are on bare metal where they are the same)
+                    // If we just got a config success, we should check health soon
+                    if (state.gatewayUp || state.agentConfigured) {
+                        setStatusIndicator("ready");
+                    } else {
+                        setStatusIndicator("gateway-down");
+                    }
                 }
                 closeModal("onboard-modal");
             } else {
@@ -545,21 +554,58 @@ async function fetchStatus() {
 
 // ── Gateway Health Polling ─────────────────────────────────────
 async function checkGatewayHealth() {
+    const wasGatewayUp = state.gatewayUp;
+    let reachable = false;
+
     try {
-        const res = await authFetch("/api/gateway-health");
+        const res = await authFetch("/api/gateway-health?_t=" + Date.now());
         const data = await res.json();
-        state.gatewayUp = data.reachable === true;
+        reachable = data.reachable === true;
     } catch(e) {
-        state.gatewayUp = false;
+        reachable = false;
     }
-    // Update status unless we're actively processing
+
+    // Important: if we're disconnected from WebUI server, that takes priority
+    if (!state.socket || !state.socket.connected) {
+        state.gatewayUp = false; // assumed down if we can't even talk to our backend
+        state.gatewayUnreachableCount = 2;
+        if (!state.processing) setStatusIndicator("disconnected");
+        return;
+    }
+
+    if (reachable) {
+        state.gatewayUnreachableCount = 0;
+        state.gatewayUp = true;
+    } else {
+        state.gatewayUnreachableCount = Math.min(2, state.gatewayUnreachableCount + 1);
+        if (state.gatewayUnreachableCount >= 2) {
+            state.gatewayUp = false;
+        }
+    }
+
     if (!state.processing) {
-        if (!state.socket || !state.socket.connected) {
-            setStatusIndicator("disconnected");
-        } else if (!state.gatewayUp) {
-            setStatusIndicator("gateway-down");
+        if (!state.gatewayUp) {
+            // Avoid momentary flicker for single transient failure
+            if (state.gatewayUnreachableCount >= 2) {
+                if (state.agentConfigured) {
+                    setStatusIndicator("ready");
+                } else {
+                    setStatusIndicator("gateway-down");
+                }
+            }
+        } else if (!wasGatewayUp) {
+            // Came back up from down state
+            fetchStatus();
         } else {
-            setStatusIndicator("ready");
+            // Stable ready state check (don't override "Working...")
+            if (statusText.textContent === "Gateway Down") {
+                fetchStatus();
+            } else if (statusText.textContent === "Shiba ready") {
+                // keep it
+            } else if (statusText.textContent !== "Working...") {
+               // unsure -> refresh
+               fetchStatus();
+            }
         }
     }
 }
@@ -568,7 +614,7 @@ function setStatusIndicator(mode) {
     switch(mode) {
         case "ready":
             statusDot.className = "status-dot connected";
-            statusText.textContent = "Agent Ready";
+            statusText.textContent = "Shiba ready";
             break;
         case "working":
             statusDot.className = "status-dot working";
@@ -602,7 +648,7 @@ function setWorkingState(working) {
         // Restore based on actual state
         if (!state.socket || !state.socket.connected) {
             setStatusIndicator("disconnected");
-        } else if (!state.gatewayUp) {
+        } else if (!state.gatewayUp && !state.agentConfigured) {
             setStatusIndicator("gateway-down");
         } else {
             setStatusIndicator("ready");
@@ -629,7 +675,7 @@ window.restartGateway = async function() {
         const poll = setInterval(async () => {
             tries++;
             try {
-                const h = await authFetch("/api/gateway-health");
+                const h = await authFetch("/api/gateway-health?_t=" + Date.now());
                 const hd = await h.json();
                 if (hd.reachable) {
                     clearInterval(poll);
@@ -720,7 +766,6 @@ function _toggleChannelGroup(ch, headerEl) {
     if (_channelCollapsed[ch]) {
         headerEl.classList.add("collapsed");
         items.classList.add("collapsed");
-        items.style.maxHeight = "0px";
     } else {
         headerEl.classList.remove("collapsed");
         items.classList.remove("collapsed");
@@ -741,8 +786,9 @@ async function loadHistory() {
         }
 
         const sessions = data.sessions; // already sorted by updated_at desc
-        // ── Recent section (always shown) ───────────────
-        const recentSessions = sessions.slice(0, 5); // show 5 initially
+        const recentSessions = sessions.slice(0, RECENT_COUNT);
+        const remaining = sessions.slice(RECENT_COUNT);
+
         const recentLabel = document.createElement("div");
         recentLabel.className = "session-recent-label";
         recentLabel.innerHTML = `<span class="material-icons-round">schedule</span> Recent`;
@@ -750,26 +796,33 @@ async function loadHistory() {
 
         recentSessions.forEach(s => list.appendChild(_buildSessionEl(s)));
 
-        // If few sessions total, we're done
-        if (sessions.length <= 5) return;
+        if (remaining.length === 0) return;
 
-        // ── Show More Button ──────────────────────────────
-        const remaining = sessions.slice(5);
-        const moreContainer = document.createElement("div");
-        moreContainer.style.padding = "4px 8px";
-        
-        const moreBtn = document.createElement("button");
-        moreBtn.className = "btn-show-more";
-        moreBtn.style.margin = "8px 0";
-        moreBtn.innerHTML = `<span class="material-icons-round">history</span> Show ${remaining.length} earlier sessions`;
-        
-        moreBtn.onclick = () => {
-            remaining.forEach(s => list.insertBefore(_buildSessionEl(s), moreContainer));
-            moreContainer.remove();
-        };
-        
-        moreContainer.appendChild(moreBtn);
-        list.appendChild(moreContainer);
+        // Divider
+        const divider = document.createElement("div");
+        divider.className = "sessions-divider";
+        list.appendChild(divider);
+
+        const olderLabel = document.createElement("div");
+        olderLabel.className = "session-recent-label";
+        olderLabel.innerHTML = `<span class="material-icons-round">history</span> Older`;
+        list.appendChild(olderLabel);
+
+        const showInitially = remaining.slice(0, GROUP_PREVIEW);
+        const showLater = remaining.slice(GROUP_PREVIEW);
+
+        showInitially.forEach(s => list.appendChild(_buildSessionEl(s)));
+
+        if (showLater.length > 0) {
+            const moreBtn = document.createElement("button");
+            moreBtn.className = "btn-show-more";
+            moreBtn.innerHTML = `<span class="material-icons-round">unfold_more</span> Show ${showLater.length} more`;
+            moreBtn.onclick = () => {
+                showLater.forEach(s => list.insertBefore(_buildSessionEl(s), moreBtn));
+                moreBtn.remove();
+            };
+            list.appendChild(moreBtn);
+        }
     } catch(e) {
         list.innerHTML = `<div class="history-item">Error loading history</div>`;
     }
@@ -791,8 +844,8 @@ window.toggleSessionMenu = function(event, btn, key) {
     }
 };
 
-window.renameSessionPrompt = function(key, currentName) {
-    const newName = prompt("Enter new name for session:", currentName);
+window.renameSessionPrompt = async function(key, currentName) {
+    const newName = await shibaDialog("prompt", "Rename Session", "Enter new name for session:", { defaultValue: currentName, confirmText: "Rename" });
     if (newName && newName !== currentName) {
         renameSession(key, newName);
     }
@@ -834,30 +887,64 @@ async function autoTitleSession() {
     renameSession(state.sessionId, title);
 }
 
-// ── Custom confirm dialog ──────────────────────────────────
-function shibaConfirm(title, message, { confirmText = "Confirm", danger = false } = {}) {
+// ── Custom dialog logic ──────────────────────────────────────
+async function shibaDialog(type, title, message, { confirmText = "Confirm", danger = false, defaultValue = "" } = {}) {
     return new Promise(resolve => {
         const backdrop = document.getElementById("confirm-dialog");
-        document.getElementById("confirm-title").textContent = title;
-        document.getElementById("confirm-message").textContent = message;
+        const msgEl = document.getElementById("confirm-message");
         const okBtn = document.getElementById("confirm-ok");
+        const cancelBtn = document.getElementById("confirm-cancel");
+
+        document.getElementById("confirm-title").textContent = title;
+        msgEl.innerHTML = message;
+        
+        let inputEl = null;
+        if (type === "prompt") {
+            inputEl = document.createElement("input");
+            inputEl.type = "text";
+            inputEl.className = "form-input";
+            inputEl.style.marginTop = "16px";
+            inputEl.style.width = "100%";
+            inputEl.style.fontSize = "14px";
+            inputEl.style.padding = "10px";
+            inputEl.value = defaultValue;
+            msgEl.appendChild(inputEl);
+        }
+
         okBtn.textContent = confirmText;
         okBtn.className = danger ? "btn-danger" : "btn-primary";
+        cancelBtn.style.display = (type === "alert") ? "none" : "";
 
         function cleanup(result) {
             backdrop.classList.remove("active");
             okBtn.removeEventListener("click", onOk);
-            document.getElementById("confirm-cancel").removeEventListener("click", onCancel);
+            cancelBtn.removeEventListener("click", onCancel);
             backdrop.removeEventListener("click", onBackdrop);
+            if (inputEl) inputEl.removeEventListener("keydown", onKeydown);
             resolve(result);
         }
-        function onOk() { cleanup(true); }
-        function onCancel() { cleanup(false); }
-        function onBackdrop(e) { if (e.target === backdrop) cleanup(false); }
+
+        function onOk() { 
+            if (type === "prompt") cleanup(inputEl.value);
+            else cleanup(true); 
+        }
+        function onCancel() { cleanup(type === "prompt" ? null : false); }
+        function onBackdrop(e) { if (e.target === backdrop) onCancel(); }
+        function onKeydown(e) {
+            if (e.key === "Enter") onOk();
+            if (e.key === "Escape") onCancel();
+        }
 
         okBtn.addEventListener("click", onOk);
-        document.getElementById("confirm-cancel").addEventListener("click", onCancel);
+        cancelBtn.addEventListener("click", onCancel);
         backdrop.addEventListener("click", onBackdrop);
+        if (inputEl) {
+            inputEl.addEventListener("keydown", onKeydown);
+            setTimeout(() => inputEl.focus(), 50);
+        } else {
+            setTimeout(() => okBtn.focus(), 50);
+        }
+
         backdrop.classList.add("active");
     });
 }
@@ -877,7 +964,7 @@ function removeSessionFromUI(key) {
 }
 
 window.deleteSession = async function(key) {
-    const ok = await shibaConfirm("Delete Session", "This session will be permanently deleted.", { confirmText: "Delete", danger: true });
+    const ok = await shibaDialog("confirm", "Delete Session", "This session will be permanently deleted.", { confirmText: "Delete", danger: true });
     if (!ok) return;
 
     removeSessionFromUI(key);
@@ -889,7 +976,7 @@ window.deleteSession = async function(key) {
 };
 
 window.archiveSession = async function(key) {
-    const ok = await shibaConfirm("Archive Session", "This session will be archived to HISTORY.md and removed.", { confirmText: "Archive" });
+    const ok = await shibaDialog("confirm", "Archive Session", "This session will be archived to HISTORY.md and removed.", { confirmText: "Archive" });
     if (!ok) return;
 
     removeSessionFromUI(key);
@@ -1144,7 +1231,7 @@ async function loadOAuthPanel() {
                         <span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login
                     </button>
                 </div>
-                <div class="oauth-logs" id="oauth-logs-${p.name}" style="display:none;max-height:180px;background:var(--bg-primary);border-radius:6px;padding:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);margin-top:4px;border:1px solid var(--border-color);white-space:pre-wrap;line-height:1.6"></div>
+                <div class="oauth-logs" id="oauth-logs-${p.name}" style="display:none;height:260px;overflow-y:scroll;overflow-x:hidden;background:var(--bg-primary);border-radius:6px;padding:12px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);margin-top:4px;border:1px solid var(--border-color);white-space:pre-wrap;line-height:1.6"></div>
             </div>`;
         list.appendChild(card);
 
@@ -1168,7 +1255,7 @@ async function loadOAuthPanel() {
                 // If we got user_code + verification_uri back (GitHub Copilot), show them immediately
                 if (jd.user_code && jd.verification_uri) {
                     badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
-                    btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                    btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
                     const codeId = "oauth-code-" + Date.now();
                     logsEl.innerHTML =
                         `<div style="text-align:center;padding:12px 0">` +
@@ -1183,7 +1270,7 @@ async function loadOAuthPanel() {
                         `</div>` +
                         `<div id="${codeId}-tip" style="margin-top:6px;font-size:11px;color:var(--text-muted)">Click to copy</div>` +
                         `<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--text-muted)">` +
-                          `<span class="material-icons-round spin" style="font-size:14px">progress_activity</span> Waiting for authorization...` +
+                          `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
                         `</div>` +
                         `</div>`;
                 }
@@ -1209,7 +1296,7 @@ async function loadOAuthPanel() {
                             } else if (j.job.status === "awaiting_code" && j.job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
                                 // OpenAI Codex: show URL + paste input
                                 badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
-                                btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
+                                btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
                                 const inputId = "codex-input-" + jd.job_id;
                                 const submitId = "codex-submit-" + jd.job_id;
                                 logsEl.innerHTML =
@@ -1230,7 +1317,7 @@ async function loadOAuthPanel() {
                                       `</button>` +
                                     `</div>` +
                                     `<div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
-                                      `<span class="material-icons-round spin" style="font-size:14px">progress_activity</span> Waiting for authorization...` +
+                                      `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
                                     `</div>` +
                                     `</div>`;
                                 // Wire up submit button
@@ -1341,7 +1428,7 @@ function populateSettings(cfg) {
 
     // Gateway
     const gw = cfg.gateway || {};
-    $("s-gw-host").value = gw.host || "0.0.0.0";
+    $("s-gw-host").value = gw.host || "127.0.0.1";
     $("s-gw-port").value = gw.port ?? 19999;
     const hb = gw.heartbeat || {};
     $("s-gw-hbEnabled").checked = hb.enabled !== false;
@@ -1362,37 +1449,6 @@ function populateSettings(cfg) {
         const displayName = name.charAt(0).toUpperCase() + name.slice(1);
         const card = document.createElement("div");
         card.className = "accordion";
-        let fieldsHtml = "";
-        for (const [k, v] of Object.entries(cc)) {
-            const label = k === 'enabled' ? 'Enabled' : k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            if (typeof v === 'boolean') {
-                fieldsHtml += `
-                <div class="field-row">
-                    <label>${label}</label>
-                    <label class="toggle"><input type="checkbox" class="ch-field-bool" data-ch="${name}" data-k="${k}" ${v ? "checked" : ""}><span class="toggle-slider"></span></label>
-                </div>`;
-            } else if (Array.isArray(v)) {
-                fieldsHtml += `
-                <div class="field-row">
-                    <label>${label}</label>
-                    <input type="text" class="form-input ch-field-array" data-ch="${name}" data-k="${k}" value="${v.join(', ')}" placeholder="comma separated...">
-                </div>`;
-            } else if (typeof v === 'number') {
-                fieldsHtml += `
-                <div class="field-row">
-                    <label>${label}</label>
-                    <input type="number" class="form-input ch-field-num" data-ch="${name}" data-k="${k}" value="${v}">
-                </div>`;
-            } else {
-                const inputType = k.toLowerCase().includes('token') ? 'password' : 'text';
-                fieldsHtml += `
-                <div class="field-row">
-                    <label>${label}</label>
-                    <input type="${inputType}" class="form-input ch-field-str" data-ch="${name}" data-k="${k}" value="${v || ''}">
-                </div>`;
-            }
-        }
-
         card.innerHTML = `
             <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
                 <div class="accordion-title">
@@ -1405,7 +1461,10 @@ function populateSettings(cfg) {
                 </div>
             </div>
             <div class="accordion-body">
-${fieldsHtml}
+                <div class="field-row">
+                    <label>Enabled</label>
+                    <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
+                </div>
             </div>`;
         detail.appendChild(card);
     }
@@ -1466,30 +1525,11 @@ window.saveSettings = async function() {
         patch.providers[name].apiBase = el.value || null;
     });
 
-    // Collect all channel fields dynamically
-    document.querySelectorAll(".ch-field-bool").forEach(el => {
+    // Collect channel enabled toggles
+    document.querySelectorAll(".ch-enabled").forEach(el => {
         const name = el.dataset.ch;
-        const k = el.dataset.k;
         if (!patch.channels[name]) patch.channels[name] = {};
-        patch.channels[name][k] = el.checked;
-    });
-    document.querySelectorAll(".ch-field-str").forEach(el => {
-        const name = el.dataset.ch;
-        const k = el.dataset.k;
-        if (!patch.channels[name]) patch.channels[name] = {};
-        patch.channels[name][k] = el.value;
-    });
-    document.querySelectorAll(".ch-field-num").forEach(el => {
-        const name = el.dataset.ch;
-        const k = el.dataset.k;
-        if (!patch.channels[name]) patch.channels[name] = {};
-        patch.channels[name][k] = parseFloat(el.value);
-    });
-    document.querySelectorAll(".ch-field-array").forEach(el => {
-        const name = el.dataset.ch;
-        const k = el.dataset.k;
-        if (!patch.channels[name]) patch.channels[name] = {};
-        patch.channels[name][k] = el.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        patch.channels[name].enabled = el.checked;
     });
 
     try {
@@ -1503,11 +1543,15 @@ window.saveSettings = async function() {
         closeModal("settings-modal");
         fetchStatus();
         // Offer restart if gateway is up
-        if (state.gatewayUp && confirm("Settings saved! Restart gateway to apply changes?")) {
-            restartGateway();
+        if (state.gatewayUp) {
+            const ok = await shibaDialog("confirm", "Settings Saved", "Restart gateway to apply changes?", { confirmText: "Restart" });
+            if (ok) {
+                authFetch("/api/restart", { method: "POST" });
+                shibaDialog("alert", "Restarting", "The gateway is restarting. Please wait a few moments.", { confirmText: "OK" });
+            }
         }
     } catch(e) {
-        alert("Error saving settings: " + e);
+        shibaDialog("alert", "Error", "Error saving settings: " + e, { confirmText: "Close", danger: true });
     }
 };
 
@@ -1875,16 +1919,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Auth disabled — start directly
             startApp();
             return;
-        }
-
-        // Check URL token param (auto-login like Jupyter)
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlToken = urlParams.get("token");
-        if (urlToken) {
-            // Clean URL
-            window.history.replaceState({}, "", window.location.pathname);
-            const ok = await attemptLogin(urlToken);
-            if (ok) return;
         }
 
         // Check stored token
