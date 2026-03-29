@@ -1,3 +1,15 @@
+@app.command()
+def print_token():
+    """Stampa il token di autenticazione della WebUI."""
+    from shibaclaw.webui.server import get_auth_token
+    import logging
+    token = get_auth_token()
+    if token:
+        masked = token[:4] + "*" * (len(token) - 4) if len(token) > 4 else "****"
+        console.print(f"[green]🔑 Token: {token}[/green]")
+        logging.getLogger("shibaclaw").info(f"WebUI Auth Token: {token}")
+    else:
+        console.print("[yellow]Nessun token trovato o autenticazione disabilitata.[/yellow]")
 """CLI commands for shibaclaw."""
 
 import asyncio
@@ -430,7 +442,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
     # OpenAI Codex (OAuth)
     if provider_name == "openai_codex" or model.startswith("openai-codex/"):
         provider = OpenAICodexThinker(default_model=model)
-    # Custom: direct OpenAI-compatible endpoint, bypasses LiteLLM
+    # Custom: direct OpenAI-compatible endpoint
     elif provider_name == "custom":
         from shibaclaw.thinkers.custom_provider import CustomThinker
         provider = CustomThinker(
@@ -559,6 +571,17 @@ def gateway(
 ):
     """Start the shibaclaw gateway."""
     setup_shiba_logging(level="DEBUG" if verbose else "INFO")
+    # Stampa e logga il token all'avvio
+    try:
+        from shibaclaw.webui.server import get_auth_token
+        token = get_auth_token()
+        if token:
+            masked = token[:4] + "*" * (len(token) - 4) if len(token) > 4 else "****"
+            console.print(f"[green]🔑 Token: {token}[/green]")
+            import logging
+            logging.getLogger("shibaclaw").info(f"WebUI Auth Token: {token}")
+    except Exception:
+        pass
     from shibaclaw.agent.loop import ShibaBrain
     from shibaclaw.bus.queue import MessageBus
     from shibaclaw.integrations.manager import ChannelManager

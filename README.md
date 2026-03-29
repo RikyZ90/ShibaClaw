@@ -62,7 +62,7 @@ Ready to hunt? Choose your path:
 docker compose up -d --build                                  # gateway + webUI
 docker exec -it shibaclaw-gateway shibaclaw onboard --wizard  # first-time setup
 ```
-Open **http://localhost:3000** — the terminal prints an access token, paste it in the login screen or use the direct URL.
+Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen or use the direct URL with the token appended.
 
 ### 🐍 Bare Metal
 ```bash
