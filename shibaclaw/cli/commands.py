@@ -1,4 +1,9 @@
 
+
+import typer
+from rich.console import Console
+from shibaclaw import __logo__, __version__
+
 """CLI commands for shibaclaw."""
 app = typer.Typer(
     name="shibaclaw",
@@ -43,32 +48,22 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-import typer
+
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.application import run_in_terminal
 from prompt_toolkit.formatted_text import ANSI, HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.patch_stdout import patch_stdout
-from rich.console import Console
 from rich.markdown import Markdown
 from rich.table import Table
 from rich.text import Text
 
-from shibaclaw import __logo__, __version__
 from shibaclaw.config.paths import get_workspace_path
 from shibaclaw.config.schema import Config
 from shibaclaw.helpers.helpers import sync_workspace_templates
 from shibaclaw.helpers.logging import setup_shiba_logging
 
-app = typer.Typer(
-    name="shibaclaw",
-    context_settings={"help_option_names": ["-h", "--help"]},
-    help=f"{__logo__} shibaclaw - Personal AI Assistant",
-    no_args_is_help=True,
-)
-
-console = Console()
-EXIT_COMMANDS = {"exit", "quit", "/exit", "/quit", ":q"}
+setup_shiba_logging()
 
 setup_shiba_logging()
 
