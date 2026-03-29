@@ -1,3 +1,15 @@
+
+"""CLI commands for shibaclaw."""
+app = typer.Typer(
+    name="shibaclaw",
+    context_settings={"help_option_names": ["-h", "--help"]},
+    help=f"{__logo__} shibaclaw - Personal AI Assistant",
+    no_args_is_help=True,
+)
+
+console = Console()
+EXIT_COMMANDS = {"exit", "quit", "/exit", "/quit", ":q"}
+
 @app.command()
 def print_token():
     """Stampa il token di autenticazione della WebUI."""
@@ -10,7 +22,6 @@ def print_token():
         logging.getLogger("shibaclaw").info(f"WebUI Auth Token: {token}")
     else:
         console.print("[yellow]Nessun token trovato o autenticazione disabilitata.[/yellow]")
-"""CLI commands for shibaclaw."""
 
 import asyncio
 from contextlib import contextmanager, nullcontext
