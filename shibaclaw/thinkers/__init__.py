@@ -7,17 +7,21 @@ from typing import TYPE_CHECKING
 
 from shibaclaw.thinkers.base import Thinker, LLMResponse
 
-__all__ = ["Thinker", "LLMResponse", "LiteLLMThinker", "OpenAICodexThinker", "AzureOpenAIThinker"]
+__all__ = ["Thinker", "LLMResponse", "OpenAIThinker", "AnthropicThinker", "GithubCopilotThinker", "OpenAICodexThinker", "AzureOpenAIThinker"]
 
 _LAZY_IMPORTS = {
-    "LiteLLMThinker": ".litellm_provider",
+    "OpenAIThinker": ".openai_provider",
+    "AnthropicThinker": ".anthropic_provider",
+    "GithubCopilotThinker": ".github_copilot_provider",
     "OpenAICodexThinker": ".openai_codex_provider",
     "AzureOpenAIThinker": ".azure_openai_provider",
 }
 
 if TYPE_CHECKING:
     from shibaclaw.thinkers.azure_openai_provider import AzureOpenAIThinker
-    from shibaclaw.thinkers.litellm_provider import LiteLLMThinker
+    from shibaclaw.thinkers.openai_provider import OpenAIThinker
+    from shibaclaw.thinkers.anthropic_provider import AnthropicThinker
+    from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
     from shibaclaw.thinkers.openai_codex_provider import OpenAICodexThinker
 
 

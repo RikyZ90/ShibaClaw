@@ -30,6 +30,25 @@ from loguru import logger
 # Static files directory
 STATIC_DIR = Path(__file__).parent / "static"
 
+# ── CORS origins ─────────────────────────────────────────────────
+def _cors_origins() -> list[str]:
+    """Return allowed CORS origins from env or safe defaults."""
+    env = os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip()
+    if env == "*":
+        return "*"  # explicit opt-in to wildcard
+    if env:
+        return [o.strip() for o in env.split(",") if o.strip()]
+    return [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://localhost:3000",
+        "https://127.0.0.1:3000",
+        "http://localhost",
+        "http://127.0.0.1",
+        "https://localhost",
+        "https://127.0.0.1",
+    ]
+
 # ── Token-based authentication ───────────────────────────────────
 AUTH_TOKEN_DIR = Path.home() / ".shibaclaw"
 AUTH_TOKEN_FILE = AUTH_TOKEN_DIR / "auth_token"
@@ -73,17 +92,24 @@ _workspace_context_cache = {
 _session_context_cache: dict[str, dict[str, Any]] = {}
 
 
+def _mask_token(token: str) -> str:
+    """Return a masked version of a token for safe logging."""
+    if len(token) <= 4:
+        return "****"
+    return token[:4] + "*" * (len(token) - 4)
+
+
 def _check_token(request: Request) -> bool:
-    """Validate the auth token from Authorization header or query param."""
+    """Validate the auth token from Authorization header."""
     if not _auth_enabled() or not _AUTH_TOKEN:
         return True
+    
+    # We NO LONGER support query params (?token=) as they leak to browser history and logs.
     # Authorization: Bearer <token>
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer ") and auth_header[7:].strip() == _AUTH_TOKEN:
         return True
-    # Query param: ?token=<token>
-    if request.query_params.get("token") == _AUTH_TOKEN:
-        return True
+    
     return False
 
 
@@ -134,25 +160,26 @@ def create_app(
     # ── Socket.IO server ──────────────────────────────────────────────
     sio = socketio.AsyncServer(
         async_mode="asgi",
-        cors_allowed_origins="*",
+        cors_allowed_origins=_cors_origins(),
         logger=False,
         engineio_logger=False,
     )
 
-    # In-memory state per session (sid → data)
+
     sessions: dict[str, dict] = {}
 
-    # ── Agent setup (lazy — only when config is provided) ─────────────
+    # ── Agent setup ───────────────────────────────────────────────
     _config = config
     _provider = provider
     agent = None
     bus = None
+    _bg_tasks = []
 
     def _load_latest_config():
         nonlocal _config, _provider
         from shibaclaw.config.loader import load_config
         _config = load_config()
-        # Build an actual Thinker (provider with chat_with_retry), not just ProviderConfig
+
         try:
             from shibaclaw.cli.commands import _make_provider
             _provider = _make_provider(_config, exit_on_error=False)
@@ -160,18 +187,12 @@ def create_app(
             _provider = None
 
     async def _ensure_agent():
-        nonlocal agent, bus, _config, _provider
+        nonlocal agent, bus, _config, _provider, _bg_tasks
         
-        # If not configured, try to reload from disk (might have been onboarded)
-        is_fully_configured = (
-            _config is not None and 
-            _config.agents.defaults.provider != "auto" and 
-            _config.get_api_key() is not None
-        )
-        
-        if not is_fully_configured:
-            _load_latest_config()
 
+        if agent is None:
+            _load_latest_config()
+            
         if agent is not None:
             return
             
@@ -205,21 +226,50 @@ def create_app(
         )
         await cron.start()
 
+
+        nonlocal _bg_tasks
+        for t in _bg_tasks:
+            t.cancel()
+        _bg_tasks.clear()
+
+
+        task1 = asyncio.create_task(agent.run())
+
+
+        async def _consume_outbound():
+            while True:
+                try:
+                    msg = await asyncio.wait_for(bus.consume_outbound(), timeout=1.0)
+                    if msg.channel == "webui" and msg.chat_id in sessions:
+                        # Only handle non-progress system broadcasts (progress is handled tightly in user_message)
+                        if not msg.metadata or not msg.metadata.get("_progress"):
+                            # This is likely a background task completion
+                            await sio.emit("agent_response", {
+                                "id": str(uuid.uuid4())[:8],
+                                "content": msg.content or "Task completed.",
+                            }, room=msg.chat_id)
+                except asyncio.TimeoutError:
+                    pass
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    import traceback
+                    logger.error("Outbound consumer error: {}", getattr(e, "message", str(e)))
+
+        task2 = asyncio.create_task(_consume_outbound())
+        _bg_tasks.extend([task1, task2])
+
     # ── Socket.IO handlers ────────────────────────────────────────────
     @sio.event
     async def connect(sid, environ, auth=None):
-        # Validate auth token for Socket.IO connections
+        # Validate auth token for Socket.IO connections (only via auth object)
         if _auth_enabled() and _AUTH_TOKEN:
             token = None
             if isinstance(auth, dict):
                 token = auth.get("token")
-            # Also check query params as fallback
-            if not token:
-                import urllib.parse
-                query = urllib.parse.parse_qs(environ.get("QUERY_STRING", ""))
-                token = query.get("token", [None])[0]
+            
             if token != _AUTH_TOKEN:
-                logger.warning("🔒 Socket.IO connection rejected (invalid token) from {}", sid)
+                logger.warning("🔒 Socket.IO connection rejected (invalid/missing token) from {}", sid)
                 raise socketio.exceptions.ConnectionRefusedError("Unauthorized")
 
         # Allow client to provide session_id via query params for persistence
@@ -353,6 +403,10 @@ def create_app(
         for k, v in patch.items():
             if isinstance(v, dict) and isinstance(base.get(k), dict):
                 _deep_merge(base[k], v)
+            elif isinstance(v, str) and isinstance(base.get(k), str):
+                if v == _redact_one(base.get(k)):
+                    continue
+                base[k] = v
             else:
                 base[k] = v
 
@@ -384,13 +438,35 @@ def create_app(
             "workspace": str(_config.workspace_path) if _config else None,
         })
 
+    def _redact_secrets(obj: Any, keys_to_redact: set[str] | None = None) -> Any:
+        """Recursively redact sensitive fields in a config dict."""
+        _keys = keys_to_redact or {
+            "api_key", "apiKey", "access_token", "accessToken",
+            "token", "secret", "password", "key", "auth_token"
+        }
+        if isinstance(obj, dict):
+            return {
+                k: (_redact_one(v) if k.lower() in _keys else _redact_secrets(v, _keys))
+                for k, v in obj.items()
+            }
+        if isinstance(obj, list):
+            return [_redact_secrets(item, _keys) for item in obj]
+        return obj
+
+    def _redact_one(val: Any) -> Any:
+        if not isinstance(val, str) or not val:
+            return val
+        if len(val) <= 4:
+            return "****"
+        return "*" * (len(val) - 4) + val[-4:]
+
     async def api_settings_get(request: Request):
         if not _config:
             _load_latest_config()
         if not _config:
             return JSONResponse({"error": "No config"}, status_code=400)
         data = _config.model_dump(mode="json", by_alias=True)
-        return JSONResponse(data)
+        return JSONResponse(_redact_secrets(data))
 
     async def api_settings_post(request: Request):
         nonlocal agent
@@ -453,7 +529,7 @@ def create_app(
                     token_paths = [
                         _os.path.join(home, ".config", "github-copilot", "hosts.json"),
                         _os.path.join(home, ".config", "github-copilot", "apps.json"),
-                        _os.path.join(home, ".config", "litellm", "github_copilot", "access-token"),
+                        _os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token"),
                     ]
                     has_cached = any(_os.path.exists(tp) for tp in token_paths)
                     has_env = bool(_os.environ.get("GITHUB_TOKEN") or _os.environ.get("GITHUB_COPILOT_TOKEN"))
@@ -552,23 +628,25 @@ def create_app(
 
                             access_token = tj.get("access_token")
                             if access_token:
-                                # Save token for litellm as plain text in access-token
+                                # Save token for GithubCopilotThinker as plain text in access-token
                                 home = _os.path.expanduser("~")
-                                token_dir = _os.path.join(home, ".config", "litellm", "github_copilot")
+                                token_dir = _os.path.join(home, ".config", "shibaclaw", "github_copilot")
                                 _os.makedirs(token_dir, exist_ok=True)
                                 token_file = _os.path.join(token_dir, "access-token")
                                 with open(token_file, "w") as f:
                                     f.write(access_token)
 
                                 # Trigger gateway restart so it picks up the fresh token
-                                try:
-                                    import urllib.request
-                                    if _config and getattr(_config, "gateway", None):
-                                        gw_port = _config.gateway.port
-                                        req = urllib.request.Request(f"http://127.0.0.1:{gw_port}/restart", method="POST", data=b"")
-                                        urllib.request.urlopen(req, timeout=1)
-                                except Exception:
-                                    pass
+                                    try:
+                                        import urllib.request
+                                        if _config and getattr(_config, "gateway", None):
+                                            gw_port = _config.gateway.port
+                                            req = urllib.request.Request(f"http://127.0.0.1:{gw_port}/restart", method="POST", data=b"")
+                                            if _AUTH_TOKEN:
+                                                req.add_header("Authorization", f"Bearer {_AUTH_TOKEN}")
+                                            urllib.request.urlopen(req, timeout=1)
+                                    except Exception:
+                                        pass
 
                                 jobs[job_id]["status"] = "done"
                                 jobs[job_id]["logs"].append("✅ Authenticated with GitHub Copilot!")
@@ -848,12 +926,14 @@ def create_app(
 
         for host in hosts:
             try:
+                # Use a larger timeout for connection (DNS can be slow)
                 reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port), timeout=2.0
+                    asyncio.open_connection(host, port), timeout=10.0
                 )
                 writer.write(b"GET /health HTTP/1.0\r\nHost: health\r\n\r\n")
                 await writer.drain()
-                data = await asyncio.wait_for(reader.read(512), timeout=2.0)
+                # Use a slightly larger timeout for reading
+                data = await asyncio.wait_for(reader.read(1024), timeout=5.0)
                 writer.close()
                 if b"200" in data:
                     import json as _json
@@ -946,13 +1026,19 @@ def create_app(
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(host, port), timeout=2.0
                 )
-                writer.write(b"POST /restart HTTP/1.0\r\nHost: gw\r\n\r\n")
+                auth_hdr = f"Authorization: Bearer {_AUTH_TOKEN}\r\n" if _AUTH_TOKEN else ""
+                writer.write(f"POST /restart HTTP/1.0\r\nHost: gw\r\n{auth_hdr}\r\n".encode())
                 await writer.drain()
                 data = await asyncio.wait_for(reader.read(512), timeout=2.0)
                 writer.close()
                 if b"200" in data:
                     # Reset agent so it recreates on next message after restart
-                    nonlocal agent
+                    nonlocal agent, _bg_tasks
+                    if agent:
+                        agent.stop()
+                    for t in _bg_tasks:
+                        t.cancel()
+                    _bg_tasks.clear()
                     agent = None
                     return JSONResponse({"status": "restarting"})
             except Exception:
@@ -983,30 +1069,33 @@ def create_app(
 
     app = Starlette(routes=routes)
 
-    # Add auth middleware
     if _auth_enabled():
         app.add_middleware(AuthMiddleware)
 
-    # Wrap Starlette with Socket.IO ASGI app (no debug wrappers)
     combined = socketio.ASGIApp(sio, app)
 
     return combined, sio
 
 
-async def run_server(port: int = 3000, config=None, provider=None):
+async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
     """Start the WebUI server."""
     app, sio = create_app(config=config, provider=provider)
 
-    # Print auth info
     if _auth_enabled() and _AUTH_TOKEN:
-        logger.info("🔒 Auth enabled — token: {}", _AUTH_TOKEN)
-        logger.info("🔑 Direct URL: http://localhost:{}?token={}", port, _AUTH_TOKEN)
+        logger.info("🔒 Auth enabled — token: {}", _mask_token(_AUTH_TOKEN))
+        logger.info("🔑 Use Authorization: Bearer <token> header to authenticate")
     else:
-        logger.info("🔓 Auth disabled — open access")
+        logger.warning("""\n
+╔══════════════════════════════════════════════════════════════╗
+║  ⚠️  WARNING: Authentication is DISABLED (SHIBACLAW_AUTH)   ║
+║  The WebUI is completely open — anyone on the network can   ║
+║  access it. Set SHIBACLAW_AUTH=true for production use.     ║
+╚══════════════════════════════════════════════════════════════╝
+""")
 
     server_config = uvicorn.Config(
         app=app,
-        host="0.0.0.0",
+        host=host,
         port=port,
         log_level="info",
         access_log=False,

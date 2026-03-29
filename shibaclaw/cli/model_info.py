@@ -1,6 +1,6 @@
-﻿"""Model information helpers for the onboard wizard.
+"""Model information helpers for the codebase.
 
-Provides model context window lookup and autocomplete suggestions using litellm.
+Provides model context window lookup and autocomplete suggestions using a static database.
 """
 
 from __future__ import annotations
@@ -8,38 +8,61 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any
 
-
-def _litellm():
-    """Lazy accessor for litellm (heavy import deferred until actually needed)."""
-    import litellm as _ll
-
-    return _ll
-
-
-@lru_cache(maxsize=1)
-def _get_model_cost_map() -> dict[str, Any]:
-    """Get litellm's model cost map (cached)."""
-    return getattr(_litellm(), "model_cost", {})
-
+# A static mapping replacing litellm's massive internal DB
+_STATIC_MODEL_COST = {
+    "claude-3-7-sonnet-20250219": {"max_input_tokens": 200000, "max_tokens": 8192},
+    "claude-3-5-sonnet-20241022": {"max_input_tokens": 200000, "max_tokens": 8192},
+    "claude-3-5-sonnet-20240620": {"max_input_tokens": 200000, "max_tokens": 8192},
+    "claude-3-5-haiku-20241022": {"max_input_tokens": 200000, "max_tokens": 8192},
+    "claude-3-opus-20240229": {"max_input_tokens": 200000, "max_tokens": 4096},
+    
+    "gpt-4o": {"max_input_tokens": 128000, "max_tokens": 16384},
+    "gpt-4o-2024-05-13": {"max_input_tokens": 128000, "max_tokens": 16384},
+    "gpt-4o-2024-08-06": {"max_input_tokens": 128000, "max_tokens": 16384},
+    "gpt-4o-2024-11-20": {"max_input_tokens": 128000, "max_tokens": 16384},
+    "gpt-4o-mini": {"max_input_tokens": 128000, "max_tokens": 16384},
+    "gpt-4-turbo": {"max_input_tokens": 128000, "max_tokens": 4096},
+    "o1": {"max_input_tokens": 200000, "max_tokens": 100000},
+    "o1-preview": {"max_input_tokens": 128000, "max_tokens": 32768},
+    "o1-mini": {"max_input_tokens": 128000, "max_tokens": 65536},
+    "o3-mini": {"max_input_tokens": 200000, "max_tokens": 100000},
+    
+    "deepseek-chat": {"max_input_tokens": 64000, "max_tokens": 8192},
+    "deepseek-coder": {"max_input_tokens": 64000, "max_tokens": 8192},
+    "deepseek-reasoner": {"max_input_tokens": 64000, "max_tokens": 8192},
+    
+    "qwen-plus": {"max_input_tokens": 131072, "max_tokens": 8192},
+    "qwen-max": {"max_input_tokens": 32768, "max_tokens": 8192},
+    "qwen-turbo": {"max_input_tokens": 131072, "max_tokens": 8192},
+    
+    "glm-4-plus": {"max_input_tokens": 128000, "max_tokens": 8192},
+    "glm-4-0520": {"max_input_tokens": 128000, "max_tokens": 8192},
+    "glm-4-air": {"max_input_tokens": 128000, "max_tokens": 8192},
+    
+    "moonshot-v1-8k": {"max_input_tokens": 8000, "max_tokens": 4096},
+    "moonshot-v1-32k": {"max_input_tokens": 32000, "max_tokens": 4096},
+    "moonshot-v1-128k": {"max_input_tokens": 128000, "max_tokens": 4096},
+    "kimi-k2.5": {"max_input_tokens": 128000, "max_tokens": 8192},
+    
+    "gemini-1.5-pro": {"max_input_tokens": 2000000, "max_tokens": 8192},
+    "gemini-1.5-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
+    "gemini-2.0-pro-exp-02-05": {"max_input_tokens": 2000000, "max_tokens": 8192},
+    "gemini-2.0-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
+    
+    "MiniMax-Text-01": {"max_input_tokens": 128000, "max_tokens": 8192},
+    "MiniMax-M2.1": {"max_input_tokens": 128000, "max_tokens": 8192},
+    
+    "llama3-8b-8192": {"max_input_tokens": 8192, "max_tokens": 8192},
+    "llama3-70b-8192": {"max_input_tokens": 8192, "max_tokens": 8192},
+    "gemma2-9b-it": {"max_input_tokens": 8192, "max_tokens": 8192},
+    "mixtral-8x7b-32768": {"max_input_tokens": 32768, "max_tokens": 8192},
+    "nemotron-70b-instruct": {"max_input_tokens": 8192, "max_tokens": 8192},
+}
 
 @lru_cache(maxsize=1)
 def get_all_models() -> list[str]:
-    """Get all known model names from litellm.
-    """
-    models = set()
-
-    # From model_cost (has pricing info)
-    cost_map = _get_model_cost_map()
-    for k in cost_map.keys():
-        if k != "sample_spec":
-            models.add(k)
-
-    # From models_by_provider (more complete provider coverage)
-    for provider_models in getattr(_litellm(), "models_by_provider", {}).values():
-        if isinstance(provider_models, (set, list)):
-            models.update(provider_models)
-
-    return sorted(models)
+    """Get all known model names."""
+    return sorted(_STATIC_MODEL_COST.keys())
 
 
 def _normalize_model_name(model: str) -> str:
@@ -48,53 +71,32 @@ def _normalize_model_name(model: str) -> str:
 
 
 def find_model_info(model_name: str) -> dict[str, Any] | None:
-    """Find model info with fuzzy matching.
-
-    Args:
-        model_name: Model name in any common format
-
-    Returns:
-        Model info dict or None if not found
-    """
-    cost_map = _get_model_cost_map()
-    if not cost_map:
+    """Find model info with fuzzy matching."""
+    if not _STATIC_MODEL_COST:
         return None
 
-    # Direct match
-    if model_name in cost_map:
-        return cost_map[model_name]
+    if model_name in _STATIC_MODEL_COST:
+        return _STATIC_MODEL_COST[model_name]
 
-    # Extract base name (without provider prefix)
     base_name = model_name.split("/")[-1] if "/" in model_name else model_name
     base_normalized = _normalize_model_name(base_name)
-
     candidates = []
 
-    for key, info in cost_map.items():
-        if key == "sample_spec":
-            continue
-
+    for key, info in _STATIC_MODEL_COST.items():
         key_base = key.split("/")[-1] if "/" in key else key
         key_base_normalized = _normalize_model_name(key_base)
 
-        # Score the match
         score = 0
-
-        # Exact base name match (highest priority)
         if base_normalized == key_base_normalized:
             score = 100
-        # Base name contains model
         elif base_normalized in key_base_normalized:
             score = 80
-        # Model contains base name
         elif key_base_normalized in base_normalized:
             score = 70
-        # Partial match
         elif base_normalized[:10] in key_base_normalized:
             score = 50
 
         if score > 0:
-            # Prefer models with max_input_tokens
             if info.get("max_input_tokens"):
                 score += 10
             candidates.append((score, key, info))
@@ -102,44 +104,18 @@ def find_model_info(model_name: str) -> dict[str, Any] | None:
     if not candidates:
         return None
 
-    # Return the best match
     candidates.sort(key=lambda x: (-x[0], x[1]))
     return candidates[0][2]
 
 
 def get_model_context_limit(model: str, provider: str = "auto") -> int | None:
-    """Get the maximum input context tokens for a model.
-
-    Args:
-        model: Model name (e.g., "claude-3.5-sonnet", "gpt-4o")
-        provider: Provider name for informational purposes (not yet used for filtering)
-
-    Returns:
-        Maximum input tokens, or None if unknown
-
-    Note:
-        The provider parameter is currently informational only. Future versions may
-        use it to prefer provider-specific model variants in the lookup.
-    """
-    # First try fuzzy search in model_cost (has more accurate max_input_tokens)
+    """Get the maximum input context tokens for a model."""
     info = find_model_info(model)
     if info:
-        # Prefer max_input_tokens (this is what we want for context window)
         max_input = info.get("max_input_tokens")
         if max_input and isinstance(max_input, int):
             return max_input
 
-    # Fall back to litellm's get_max_tokens (returns max_output_tokens typically)
-    try:
-        result = _litellm().get_max_tokens(model)
-        if result and result > 0:
-            return result
-    except (KeyError, ValueError, AttributeError):
-        # Model not found in litellm's database or invalid response
-        pass
-
-    # Last resort: use max_tokens from model_cost
-    if info:
         max_tokens = info.get("max_tokens")
         if max_tokens and isinstance(max_tokens, int):
             return max_tokens
@@ -149,11 +125,7 @@ def get_model_context_limit(model: str, provider: str = "auto") -> int | None:
 
 @lru_cache(maxsize=1)
 def _get_provider_keywords() -> dict[str, list[str]]:
-    """Build provider keywords mapping from shibaclaw's provider registry.
-
-    Returns:
-        Dict mapping provider name to list of keywords for model filtering.
-    """
+    """Build provider keywords mapping from shibaclaw's provider registry."""
     try:
         from shibaclaw.thinkers.registry import PROVIDERS
 
@@ -167,48 +139,32 @@ def _get_provider_keywords() -> dict[str, list[str]]:
 
 
 def get_model_suggestions(partial: str, provider: str = "auto", limit: int = 20) -> list[str]:
-    """Get autocomplete suggestions for model names.
-
-    Args:
-        partial: Partial model name typed by user
-        provider: Provider name for filtering (e.g., "openrouter", "minimax")
-        limit: Maximum number of suggestions to return
-
-    Returns:
-        List of matching model names
-    """
+    """Get autocomplete suggestions for model names."""
     all_models = get_all_models()
     if not all_models:
         return []
 
     partial_lower = partial.lower()
     partial_normalized = _normalize_model_name(partial)
-
-    # Get provider keywords from registry
     provider_keywords = _get_provider_keywords()
 
-    # Filter by provider if specified
     allowed_keywords = None
     if provider and provider != "auto":
         allowed_keywords = provider_keywords.get(provider.lower())
 
     matches = []
-
     for model in all_models:
         model_lower = model.lower()
 
-        # Apply provider filter
         if allowed_keywords:
             if not any(kw in model_lower for kw in allowed_keywords):
                 continue
 
-        # Match against partial input
         if not partial:
             matches.append(model)
             continue
 
         if partial_lower in model_lower:
-            # Score by position of match (earlier = better)
             pos = model_lower.find(partial_lower)
             score = 100 - pos
             matches.append((score, model))
@@ -216,7 +172,6 @@ def get_model_suggestions(partial: str, provider: str = "auto", limit: int = 20)
             score = 50
             matches.append((score, model))
 
-    # Sort by score if we have scored matches
     if matches and isinstance(matches[0], tuple):
         matches.sort(key=lambda x: (-x[0], x[1]))
         matches = [m[1] for m in matches]

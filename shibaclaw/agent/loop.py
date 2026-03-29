@@ -202,6 +202,9 @@ class ShibaBrain:
         final_content = None
         tools_used: list[str] = []
 
+        # Regenerate tool-output nonce for this interaction
+        self.context.regenerate_nonce()
+
         while iteration < self.max_iterations:
             iteration += 1
 
@@ -323,16 +326,26 @@ class ShibaBrain:
             channel=msg.channel, chat_id=msg.chat_id, content=content,
         ))
 
+    _RESTART_ALLOWED_CHANNELS = {"cli", "webui"}
+
     async def _handle_restart(self, msg: InboundMessage) -> None:
-        """Restart the process in-place via os.execv."""
+        """Restart the process in-place via os.execv.
+
+        Only allowed from trusted local channels (cli, webui).
+        """
+        if msg.channel not in self._RESTART_ALLOWED_CHANNELS:
+            await self.bus.publish_outbound(OutboundMessage(
+                channel=msg.channel, chat_id=msg.chat_id,
+                content="🐕 Restart is only allowed from local interfaces (CLI/WebUI).",
+            ))
+            return
+
         await self.bus.publish_outbound(OutboundMessage(
             channel=msg.channel, chat_id=msg.chat_id, content="🐕 Woof! Restarting the hunt...",
         ))
 
         async def _do_restart():
             await asyncio.sleep(1)
-            # Use -m shibaclaw instead of sys.argv[0] for Windows compatibility
-            # (sys.argv[0] may be just "shibaclaw" without full path on Windows)
             os.execv(sys.executable, [sys.executable, "-m", "shibaclaw"] + sys.argv[1:])
 
         asyncio.create_task(_do_restart())

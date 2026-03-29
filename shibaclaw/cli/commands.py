@@ -378,33 +378,6 @@ def onboard(
         console.print(f"  3. WebUI: [cyan]shibaclaw web --port 3000[/cyan]  →  [link=http://localhost:3000]http://localhost:3000[/link]")
     console.print("\n[dim]Want Telegram/WhatsApp? See: https://github.com/RikyZ90/shibaclaw#-chat-apps[/dim]")
 
-    # Auto-restart gateway so the new config takes effect immediately
-    _try_restart_gateway(config)
-
-def _try_restart_gateway(config: Config) -> None:
-    """Try to restart a running gateway so it picks up the new config.
-
-    Sends a POST /restart to the gateway health endpoint.
-    Fails silently if the gateway isn't running (e.g. bare-metal first setup).
-    """
-    import urllib.request
-    import urllib.error
-
-    gw_port = config.gateway.port
-    url = f"http://127.0.0.1:{gw_port}/restart"
-
-    try:
-        req = urllib.request.Request(url, method="POST", data=b"")
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status == 200:
-                console.print(
-                    "\n[green]✓[/green] Gateway restart triggered — "
-                    "new config will be loaded automatically."
-                )
-    except (urllib.error.URLError, OSError, TimeoutError):
-        # Gateway not running — that's fine, user will start it manually
-        pass
-
 
 def _merge_missing_defaults(existing: Any, defaults: Any) -> Any:
     """Recursively fill in missing values from defaults without overwriting user config."""
@@ -478,52 +451,51 @@ def _make_provider(config: Config, exit_on_error: bool = True):
             api_base=p.api_base,
             default_model=model,
         )
+    # Github Copilot
+    elif provider_name == "github_copilot" or model.startswith("github_copilot/"):
+        from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
+        provider = GithubCopilotThinker(default_model=model)
     else:
         from loguru import logger
-        from shibaclaw.thinkers.litellm_provider import LiteLLMThinker
         from shibaclaw.thinkers.registry import find_by_name
         
         spec = find_by_name(provider_name) if provider_name else None
         
         if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and (spec.is_oauth or spec.is_local)):
-            # Suppress onboarding message if any OAuth provider is configured
-            from shibaclaw.thinkers.registry import PROVIDERS
-            from shibaclaw.config.loader import load_config
-            config_obj = load_config()
-            oauth_ok = False
-            for oauth_spec in PROVIDERS:
-                if oauth_spec.is_oauth:
-                    status = _oauth_provider_status(oauth_spec)
-                    if "authenticated" in status or "✓" in status:
-                        oauth_ok = True
-                        break
-            if oauth_ok:
-                if exit_on_error:
-                    import sys; sys.exit(0)
-                else:
-                    return None
             from shibaclaw.config.loader import get_config_path
             config_path = get_config_path()
             import sys
             import time
+            
             console.print(f"A default configuration template has been created at: [bold]{config_path}[/bold]")
             console.print("-" * 60)
             console.print("🐾 [bold]Please run: shibaclaw onboard[/bold]")
             console.print("   to configure your AI provider and start hunting!")
             console.print("-" * 60)
+
             if exit_on_error:
-                # Sleep briefly to ensure logs are flushed
                 time.sleep(1)
                 sys.exit(0)
             else:
                 return None
-        provider = LiteLLMThinker(
-            api_key=p.api_key if p else None,
-            api_base=config.get_api_base(model),
-            default_model=model,
-            extra_headers=p.extra_headers if p else None,
-            provider_name=provider_name,
-        )
+                
+        if spec and spec.name == "anthropic":
+            from shibaclaw.thinkers.anthropic_provider import AnthropicThinker
+            provider = AnthropicThinker(
+                api_key=p.api_key if p else None,
+                api_base=config.get_api_base(model),
+                default_model=model,
+                extra_headers=p.extra_headers if p else None,
+            )
+        else:
+            from shibaclaw.thinkers.openai_provider import OpenAIThinker
+            provider = OpenAIThinker(
+                api_key=p.api_key if p else None,
+                api_base=config.get_api_base(model),
+                default_model=model,
+                extra_headers=p.extra_headers if p else None,
+                provider_name=provider_name,
+            )
 
     defaults = config.agents.defaults
     provider.generation = GenerationSettings(
@@ -579,6 +551,7 @@ def _warn_deprecated_config_keys(config_path: Path | None) -> None:
 
 @app.command()
 def gateway(
+    host: str = typer.Option("127.0.0.1", "--host", "-H", help="Gateway host"),
     port: int | None = typer.Option(None, "--port", "-p", help="Gateway port"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
@@ -601,6 +574,7 @@ def gateway(
 
     config = _load_runtime_config(config, workspace)
     port = port if port is not None else config.gateway.port
+    host = host if host != "127.0.0.1" else config.gateway.host
 
     console.print(f"{__logo__} Starting shibaclaw gateway version {__version__} on port {port}...")
     bus = MessageBus()
@@ -614,11 +588,11 @@ def gateway(
             time.sleep(3600)
     session_manager = PackManager(config.workspace_path)
 
-    # Create cron service first (callback set after agent creation)
+
     cron_store_path = get_cron_dir() / "jobs.json"
     cron = CronService(cron_store_path)
 
-    # Create agent with cron service
+
     agent = ShibaBrain(
         bus=bus,
         provider=provider,
@@ -636,7 +610,7 @@ def gateway(
         channels_config=config.channels,
     )
 
-    # Set cron callback (needs agent)
+
     async def on_cron_job(job: CronJob) -> str | None:
         """Execute a cron job through the agent."""
         from shibaclaw.agent.tools.cron import CronTool
@@ -682,7 +656,7 @@ def gateway(
         return response
     cron.on_job = on_cron_job
 
-    # Create channel manager
+
     channels = ChannelManager(config, bus)
 
     def _pick_heartbeat_target() -> tuple[str, str]:
@@ -701,7 +675,7 @@ def gateway(
         # Fallback keeps prior behavior but remains explicit.
         return "cli", "direct"
 
-    # Create heartbeat service
+
     async def on_heartbeat_execute(tasks: str) -> str:
         """Phase 2: execute heartbeat tasks through the full agent loop."""
         channel, chat_id = _pick_heartbeat_target()
@@ -750,13 +724,27 @@ def gateway(
 
     async def run():
         _restart_requested = False
+        from shibaclaw.webui.server import get_auth_token
+        auth_token = get_auth_token()
 
-        # ── Lightweight health + restart endpoint on gateway port ──
         async def _health_handler(reader, writer):
             nonlocal _restart_requested
             try:
-                data = await asyncio.wait_for(reader.read(1024), timeout=2)
+                data = await asyncio.wait_for(reader.read(2048), timeout=2)
                 if b"POST" in data and b"/restart" in data:
+                    # Security check: require valid auth token if enabled
+                    is_authorized = True
+                    if auth_token:
+                        auth_header = f"Authorization: Bearer {auth_token}".encode()
+                        if auth_header not in data:
+                            is_authorized = False
+                    
+                    if not is_authorized:
+                        resp = "HTTP/1.0 401 Unauthorized\r\n\r\n"
+                        writer.write(resp.encode())
+                        await writer.drain()
+                        return
+
                     import json
                     body = json.dumps({"status": "restarting"})
                     resp = (
@@ -798,8 +786,8 @@ def gateway(
 
         import time
         _gw_start = time.time()
-        gw_host = config.gateway.host
-        gw_port = config.gateway.port
+        gw_host = host
+        gw_port = port if port is not None else config.gateway.port
 
         try:
             health_srv = await asyncio.start_server(
@@ -845,6 +833,7 @@ def gateway(
 
 @app.command()
 def web(
+    host: str = typer.Option("127.0.0.1", "--host", "-H", help="WebUI host"),
     port: int = typer.Option(3000, "--port", "-p", help="WebUI port"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: str | None = typer.Option(None, "--config", "-c", help="Path to config file"),
@@ -864,13 +853,14 @@ def web(
     from shibaclaw.webui.server import run_server, get_auth_token
     token = get_auth_token()
     if token:
-        console.print(f"  [green]🔑 Token: {token}[/green]")
-        console.print(f"  [dim]→ http://localhost:{port}?token={token}[/dim]")
+        masked = token[:4] + "*" * (len(token) - 4) if len(token) > 4 else "****"
+        console.print(f"  [green]🔑 Token: {masked}[/green]")
+        console.print(f"  [dim]→ Login at http://localhost:{port} and provide the token above.[/dim]")
     else:
         console.print("  [yellow]🔓 Auth disabled — open access[/yellow]")
     console.print("  [dim]Press Ctrl+C to stop[/dim]\n")
 
-    asyncio.run(run_server(port=port, config=config, provider=provider))
+    asyncio.run(run_server(port=port, host=host, config=config, provider=provider))
 
 
 # ============================================================================
@@ -1254,18 +1244,20 @@ def _oauth_provider_status(spec):
             return "[dim]not authenticated[/dim]"
 
     if spec.name == "github_copilot":
-        import os
-        home = os.path.expanduser("~")
-        token_paths = [
-            os.path.join(home, ".config", "github-copilot", "hosts.json"),
-            os.path.join(home, ".config", "github-copilot", "apps.json"),
-            os.path.join(home, ".config", "litellm", "github_copilot", "access-token"),
-        ]
-        has_cached = any(os.path.exists(tp) for tp in token_paths)
-        has_env = bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_COPILOT_TOKEN"))
-        if has_cached or has_env:
+        try:
+            import asyncio
+            from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
+        except ImportError:
+            return "[dim]missing dependencies[/dim]"
+
+        try:
+            async def _test():
+                thinker = GithubCopilotThinker()
+                await thinker.chat([{"role": "user", "content": "hi"}], max_tokens=1)
+            asyncio.run(_test())
             return "[green]✓ (OAuth authenticated)[/green]"
-        return "[dim]not authenticated[/dim]"
+        except Exception:
+            return "[dim]not authenticated[/dim]"
 
     return "[dim]not configured[/dim]"
 
@@ -1376,16 +1368,95 @@ def _login_openai_codex() -> None:
 @_register_login("github_copilot")
 def _login_github_copilot() -> None:
     import asyncio
+    import httpx
+    import os
+    import time
 
     console.print("[cyan]Starting GitHub Copilot device flow...[/cyan]\n")
 
-    async def _trigger():
-        from litellm import acompletion
-        await acompletion(model="github_copilot/gpt-4o", messages=[{"role": "user", "content": "hi"}], max_tokens=1)
+    GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
+    GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
+    GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+
+    async def _run_flow():
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                GITHUB_DEVICE_CODE_URL,
+                headers={"Accept": "application/json"},
+                json={"client_id": GITHUB_CLIENT_ID, "scope": "read:user"},
+                timeout=10,
+            )
+            resp_json = resp.json()
+
+        user_code = resp_json.get("user_code", "")
+        verification_uri = resp_json.get("verification_uri", "https://github.com/login/device")
+        device_code = resp_json.get("device_code", "")
+        interval = resp_json.get("interval", 5)
+        expires_in = resp_json.get("expires_in", 900)
+
+        if not device_code or not user_code:
+            console.print("[red]❌ GitHub did not return a device code[/red]")
+            raise typer.Exit(1)
+
+        console.print(f"1. Go to: [bold blue]{verification_uri}[/bold blue]")
+        console.print(f"2. Enter code: [bold yellow]{user_code}[/bold yellow]")
+        console.print("\n[dim]Waiting for authorization...[/dim]")
+
+        max_attempts = expires_in // interval
+        for attempt in range(max_attempts):
+            await asyncio.sleep(interval)
+            try:
+                async with httpx.AsyncClient() as c:
+                    tr = await c.post(
+                        GITHUB_ACCESS_TOKEN_URL,
+                        headers={"Accept": "application/json"},
+                        json={
+                            "client_id": GITHUB_CLIENT_ID,
+                            "device_code": device_code,
+                            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                        },
+                        timeout=10,
+                    )
+                    tj = tr.json()
+                
+                error = tj.get("error")
+                if error == "authorization_pending":
+                    continue
+                elif error == "slow_down":
+                    await asyncio.sleep(5)
+                    continue
+                elif error == "expired_token":
+                    console.print("[red]❌ Device code expired. Try again.[/red]")
+                    raise typer.Exit(1)
+                elif error == "access_denied":
+                    console.print("[red]❌ Access denied by user.[/red]")
+                    raise typer.Exit(1)
+                elif error:
+                    console.print(f"[red]❌ GitHub error: {error}[/red]")
+                    raise typer.Exit(1)
+
+                access_token = tj.get("access_token")
+                if access_token:
+                    home = os.path.expanduser("~")
+                    token_dir = os.path.join(home, ".config", "shibaclaw", "github_copilot")
+                    os.makedirs(token_dir, exist_ok=True)
+                    token_file = os.path.join(token_dir, "access-token")
+                    with open(token_file, "w") as f:
+                        f.write(access_token)
+                    console.print("[green]✓ Successfully authenticated with GitHub Copilot[/green]")
+                    return
+
+            except Exception as httperr:
+                console.print(f"[red]❌ Network error during polling: {httperr}[/red]")
+                continue
+
+        console.print("[red]❌ Timed out waiting for authorization[/red]")
+        raise typer.Exit(1)
 
     try:
-        asyncio.run(_trigger())
-        console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
+        asyncio.run(_run_flow())
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]Authentication error: {e}[/red]")
         raise typer.Exit(1)

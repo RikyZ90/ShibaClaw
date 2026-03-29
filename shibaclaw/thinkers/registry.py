@@ -31,9 +31,6 @@ class ProviderSpec:
     env_key: str  # LiteLLM env var, e.g. "DASHSCOPE_API_KEY"
     display_name: str = ""  # shown in `shibaclaw status`
 
-    # model prefixing
-    litellm_prefix: str = ""  # "dashscope" → model becomes "dashscope/{model}"
-    skip_prefixes: tuple[str, ...] = ()  # don't prefix if model already starts with these
 
     # extra env vars, e.g. (("ZHIPUAI_API_KEY", "{api_key}"),)
     env_extras: tuple[tuple[str, str], ...] = ()
@@ -47,7 +44,7 @@ class ProviderSpec:
 
     # gateway behavior
     strip_model_prefix: bool = False  # strip "provider/" before re-prefixing
-    litellm_kwargs: dict[str, Any] = field(default_factory=dict)  # extra kwargs passed to LiteLLM
+
 
     # per-model param overrides, e.g. (("kimi-k2.5", {"temperature": 1.0}),)
     model_overrides: tuple[tuple[str, dict[str, Any]], ...] = ()
@@ -77,7 +74,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=(),
         env_key="",
         display_name="Custom",
-        litellm_prefix="",
         is_direct=True,
     ),
 
@@ -87,7 +83,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("azure", "azure-openai"),
         env_key="",
         display_name="Azure OpenAI",
-        litellm_prefix="",
         is_direct=True,
     ),
     # === Gateways (detected by api_key / api_base, not model name) =========
@@ -98,8 +93,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("openrouter",),
         env_key="OPENROUTER_API_KEY",
         display_name="OpenRouter",
-        litellm_prefix="openrouter",  # anthropic/claude-3 → openrouter/anthropic/claude-3
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -118,8 +111,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("aihubmix",),
         env_key="OPENAI_API_KEY",  # OpenAI-compatible
         display_name="AiHubMix",
-        litellm_prefix="openai",  # → openai/{model}
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -135,8 +126,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("siliconflow",),
         env_key="OPENAI_API_KEY",
         display_name="SiliconFlow",
-        litellm_prefix="openai",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -153,8 +142,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("volcengine", "volces", "ark"),
         env_key="OPENAI_API_KEY",
         display_name="VolcEngine",
-        litellm_prefix="volcengine",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -171,8 +158,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("volcengine-plan",),
         env_key="OPENAI_API_KEY",
         display_name="VolcEngine Coding Plan",
-        litellm_prefix="volcengine",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -189,8 +174,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("byteplus",),
         env_key="OPENAI_API_KEY",
         display_name="BytePlus",
-        litellm_prefix="volcengine",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -207,8 +190,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("byteplus-plan",),
         env_key="OPENAI_API_KEY",
         display_name="BytePlus Coding Plan",
-        litellm_prefix="volcengine",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=True,
         is_local=False,
@@ -227,8 +208,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("anthropic", "claude"),
         env_key="ANTHROPIC_API_KEY",
         display_name="Anthropic",
-        litellm_prefix="",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -245,8 +224,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("openai", "gpt"),
         env_key="OPENAI_API_KEY",
         display_name="OpenAI",
-        litellm_prefix="",
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -262,8 +239,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("openai-codex",),
         env_key="",  # OAuth-based, no API key
         display_name="OpenAI Codex",
-        litellm_prefix="",  # Not routed through LiteLLM
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -280,8 +255,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("github_copilot", "copilot"),
         env_key="",  # OAuth-based, no API key
         display_name="Github Copilot",
-        litellm_prefix="github_copilot",  # github_copilot/model → github_copilot/model
-        skip_prefixes=("github_copilot/",),
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -298,8 +271,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("deepseek",),
         env_key="DEEPSEEK_API_KEY",
         display_name="DeepSeek",
-        litellm_prefix="deepseek",  # deepseek-chat → deepseek/deepseek-chat
-        skip_prefixes=("deepseek/",),  # avoid double-prefix
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -315,8 +286,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("gemini",),
         env_key="GEMINI_API_KEY",
         display_name="Gemini",
-        litellm_prefix="gemini",  # gemini-pro → gemini/gemini-pro
-        skip_prefixes=("gemini/",),  # avoid double-prefix
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -334,8 +303,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("zhipu", "glm", "zai"),
         env_key="ZAI_API_KEY",
         display_name="Zhipu AI",
-        litellm_prefix="zai",  # glm-4 → zai/glm-4
-        skip_prefixes=("zhipu/", "zai/", "openrouter/", "hosted_vllm/"),
         env_extras=(("ZHIPUAI_API_KEY", "{api_key}"),),
         is_gateway=False,
         is_local=False,
@@ -351,8 +318,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("qwen", "dashscope"),
         env_key="DASHSCOPE_API_KEY",
         display_name="DashScope",
-        litellm_prefix="dashscope",  # qwen-max → dashscope/qwen-max
-        skip_prefixes=("dashscope/", "openrouter/"),
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -370,8 +335,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("moonshot", "kimi"),
         env_key="MOONSHOT_API_KEY",
         display_name="Moonshot",
-        litellm_prefix="moonshot",  # kimi-k2.5 → moonshot/kimi-k2.5
-        skip_prefixes=("moonshot/", "openrouter/"),
         env_extras=(("MOONSHOT_API_BASE", "{api_base}"),),
         is_gateway=False,
         is_local=False,
@@ -388,8 +351,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("minimax",),
         env_key="MINIMAX_API_KEY",
         display_name="MiniMax",
-        litellm_prefix="minimax",  # MiniMax-M2.1 → minimax/MiniMax-M2.1
-        skip_prefixes=("minimax/", "openrouter/"),
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -407,8 +368,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("vllm",),
         env_key="HOSTED_VLLM_API_KEY",
         display_name="vLLM/Local",
-        litellm_prefix="hosted_vllm",  # Llama-3-8B → hosted_vllm/Llama-3-8B
-        skip_prefixes=(),
         env_extras=(),
         is_gateway=False,
         is_local=True,
@@ -424,8 +383,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("ollama", "nemotron"),
         env_key="OLLAMA_API_KEY",
         display_name="Ollama",
-        litellm_prefix="ollama_chat",  # model → ollama_chat/model
-        skip_prefixes=("ollama/", "ollama_chat/"),
         env_extras=(),
         is_gateway=False,
         is_local=True,
@@ -443,8 +400,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         keywords=("groq",),
         env_key="GROQ_API_KEY",
         display_name="Groq",
-        litellm_prefix="groq",  # llama3-8b-8192 → groq/llama3-8b-8192
-        skip_prefixes=("groq/",),  # avoid double-prefix
         env_extras=(),
         is_gateway=False,
         is_local=False,
@@ -521,3 +476,4 @@ def find_by_name(name: str) -> ProviderSpec | None:
         if spec.name == name:
             return spec
     return None
+

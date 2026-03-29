@@ -16,7 +16,7 @@ services:
   shibaclaw-gateway:
     container_name: shibaclaw-gateway
     <<: *common-config
-    command: [ "shibaclaw", "gateway" ]
+    command: [ "shibaclaw", "gateway", "--host", "0.0.0.0" ]
     restart: unless-stopped
     ports:
       - 19999:19999
@@ -41,7 +41,7 @@ services:
   shibaclaw-web:
     container_name: shibaclaw-web
     <<: *common-config
-    command: [ "shibaclaw", "web", "--port", "3000" ]
+    command: [ "shibaclaw", "web", "--host", "0.0.0.0", "--port", "3000" ]
     restart: unless-stopped
     ports:
       - "3000:3000"

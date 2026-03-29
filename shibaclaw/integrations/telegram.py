@@ -343,18 +343,41 @@ class TelegramChannel(BaseChannel):
     async def send(self, msg: OutboundMessage) -> None:
         """Send a message through Telegram."""
         if not self._app:
-            logger.warning("Telegram bot not running")
-            return
+            raise RuntimeError("Telegram bot not running")
 
         # Only stop typing indicator for final responses
         if not msg.metadata.get("_progress", False):
             self._stop_typing(msg.chat_id)
 
-        try:
-            chat_id = int(msg.chat_id)
-        except ValueError:
-            logger.error("Invalid chat_id: {}", msg.chat_id)
-            return
+        original_chat_id = str(msg.chat_id)
+
+        if original_chat_id == "auto" or not original_chat_id.isdigit():
+            # Cross-channel and WebUI usage often send `chat_id: auto`.
+            allow_list = getattr(self.config, "allow_from", [])
+            valid_ids = [uid.split("|")[0] for uid in allow_list if uid.split("|")[0].isdigit()]
+
+            # Fallback to last non-empty known chat_id from recent incoming messages.
+            if not valid_ids and self._chat_ids:
+                known_chat_ids = list({str(v) for v in self._chat_ids.values()})
+                if len(known_chat_ids) == 1:
+                    valid_ids = known_chat_ids
+                    logger.debug("Auto-resolving Telegram chat_id from last active user {}", known_chat_ids[0])
+
+            if len(valid_ids) == 1:
+                chat_id = int(valid_ids[0])
+                logger.debug("Invalid chat_id '%s', falling back to resolved user %s", original_chat_id, chat_id)
+            elif len(valid_ids) > 1:
+                logger.error("Invalid chat_id '%s'. Multiple allowed users, cannot auto-resolve.", original_chat_id)
+                return
+            else:
+                logger.error("Invalid chat_id: %s", original_chat_id)
+                return
+        else:
+            try:
+                chat_id = int(original_chat_id)
+            except ValueError:
+                logger.error("Invalid chat_id: %s", original_chat_id)
+                return
         reply_to_message_id = msg.metadata.get("message_id")
         message_thread_id = msg.metadata.get("message_thread_id")
         if message_thread_id is None and reply_to_message_id is not None:
@@ -545,18 +568,22 @@ class TelegramChannel(BaseChannel):
                 reply_parameters=reply_params,
                 **(thread_kwargs or {}),
             )
+            return
         except Exception as e:
             logger.warning("HTML parse failed, falling back to plain text: {}", e)
-            try:
-                await self._call_with_retry(
-                    self._app.bot.send_message,
-                    chat_id=chat_id,
-                    text=text,
-                    reply_parameters=reply_params,
-                    **(thread_kwargs or {}),
-                )
-            except Exception as e2:
-                logger.error("Error sending Telegram message: {}", e2)
+
+        try:
+            await self._call_with_retry(
+                self._app.bot.send_message,
+                chat_id=chat_id,
+                text=text,
+                reply_parameters=reply_params,
+                **(thread_kwargs or {}),
+            )
+            return
+        except Exception as e2:
+            logger.error("Error sending Telegram message: {}", e2)
+            raise
 
     async def _send_with_streaming(
         self,
