@@ -16,9 +16,9 @@ def setup_shiba_logging(level: str = "INFO", show_path: bool = False):
 
     fmt = (
         "<blue>{time:HH:mm:ss}</blue> "
-        "<level>{level: <7}</level> "
-        "<cyan>{extra[component]}</cyan> "
-        "<white>|</white> <level>{message}</level>"
+        "<level>{level: ^8}</level> "
+        "<bold><white>🐾 {extra[component]: <7}</white></bold> "
+        "<white>»</white> <level>{message}</level>"
     )
 
     if show_path:

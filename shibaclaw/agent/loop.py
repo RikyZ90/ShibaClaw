@@ -69,7 +69,7 @@ class ShibaBrain:
         self.channels_config = channels_config
         self.provider = provider
         self.workspace = workspace
-        self.model = model or provider.get_default_model()
+        self.model = model or (provider.get_default_model() if provider else "unknown")
         self.max_iterations = max_iterations
         self.context_window_tokens = context_window_tokens
         self.web_search_config = web_search_config or WebSearchConfig()
@@ -402,6 +402,11 @@ class ShibaBrain:
         on_progress: Callable[[str], Awaitable[None]] | None = None,
     ) -> OutboundMessage | None:
         """Process a single inbound message and return the response."""
+        if self.provider is None:
+            return OutboundMessage(
+                channel=msg.channel, chat_id=msg.chat_id,
+                content="🐕 Shiba is idle. Please configure an AI provider in the WebUI to start hunting!",
+            )
         # System messages: parse origin from chat_id ("channel:chat_id")
         if msg.channel == "system":
             channel, chat_id = (msg.chat_id.split(":", 1) if ":" in msg.chat_id

@@ -1,3 +1,5 @@
+// Salva l'ultimo config caricato per confronto
+let lastSettingsConfig = null;
 /**
  * ShibaClaw WebUI — Client Application
  * Socket.IO + Markdown rendering + interactive chat
@@ -47,6 +49,7 @@ const state = {
     queueCount: 0,
     gatewayUp: false,
     gatewayUnreachableCount: 0,
+    gatewayProviderReady: true,
     agentConfigured: false,
     healthTimer: null,
     processGroups: {},   // msgId → { el, startTime, stepCount, collapsed }
@@ -529,6 +532,15 @@ async function fetchStatus() {
         if (res.ok) {
             const data = await res.json();
             state.agentConfigured = data.agent_configured;
+            
+            // Reset gateway failure trackers if overall status looks good.
+            // This prevents the UI from flipping back to "Gateway Down" 
+            // after the backend just told us we are ready.
+            if (data.agent_configured || oauthConfigured) {
+                state.gatewayUp = true;
+                state.gatewayUnreachableCount = 0;
+            }
+
             if ((data.agent_configured || oauthConfigured) && state.socket && state.socket.connected) {
                 if (!state.processing) {
                     // Only say ready if the gateway is also up (or we are on bare metal where they are the same)
@@ -561,8 +573,10 @@ async function checkGatewayHealth() {
         const res = await authFetch("/api/gateway-health?_t=" + Date.now());
         const data = await res.json();
         reachable = data.reachable === true;
+        state.gatewayProviderReady = data.provider_ready !== false;
     } catch(e) {
         reachable = false;
+        state.gatewayProviderReady = true;
     }
 
     // Important: if we're disconnected from WebUI server, that takes priority
@@ -577,34 +591,32 @@ async function checkGatewayHealth() {
         state.gatewayUnreachableCount = 0;
         state.gatewayUp = true;
     } else {
-        state.gatewayUnreachableCount = Math.min(2, state.gatewayUnreachableCount + 1);
-        if (state.gatewayUnreachableCount >= 2) {
+        // Se l'agente è configurato, aumentiamo la tolleranza (10 errori)
+        const maxFailures = state.agentConfigured ? 10 : 3;
+        state.gatewayUnreachableCount = Math.min(maxFailures, state.gatewayUnreachableCount + 1);
+        if (state.gatewayUnreachableCount >= maxFailures) {
             state.gatewayUp = false;
         }
     }
 
     if (!state.processing) {
         if (!state.gatewayUp) {
-            // Avoid momentary flicker for single transient failure
-            if (state.gatewayUnreachableCount >= 2) {
-                if (state.agentConfigured) {
-                    setStatusIndicator("ready");
-                } else {
-                    setStatusIndicator("gateway-down");
-                }
+            // Mostra "Gateway Down" solo dopo aver raggiunto la nuova soglia
+            const maxFailures = state.agentConfigured ? 10 : 3;
+            if (state.gatewayUnreachableCount >= maxFailures) {
+                setStatusIndicator("gateway-down");
             }
-        } else if (!wasGatewayUp) {
-            // Came back up from down state
-            fetchStatus();
         } else {
-            // Stable ready state check (don't override "Working...")
-            if (statusText.textContent === "Gateway Down") {
+            // Gateway is up — check if provider is ready
+            if (state.gatewayProviderReady === false) {
+                setStatusIndicator("model-offline");
+            } else if (statusText.textContent === "Gateway Down" || statusText.textContent === "Model Offline") {
+                // Restoration check
                 fetchStatus();
             } else if (statusText.textContent === "Shiba ready") {
-                // keep it
+                // stable
             } else if (statusText.textContent !== "Working...") {
-               // unsure -> refresh
-               fetchStatus();
+                fetchStatus();
             }
         }
     }
@@ -623,6 +635,10 @@ function setStatusIndicator(mode) {
         case "gateway-down":
             statusDot.className = "status-dot gateway-down";
             statusText.textContent = "Gateway Down";
+            break;
+        case "model-offline":
+            statusDot.className = "status-dot model-offline";
+            statusText.textContent = "Model Offline";
             break;
         case "not-configured":
             statusDot.className = "status-dot disconnected";
@@ -1371,6 +1387,8 @@ async function _refreshOAuthStatus() {
 }
 
 function populateSettings(cfg) {
+        // Salva una copia del config attuale per confronto dopo il salvataggio
+        lastSettingsConfig = JSON.parse(JSON.stringify(cfg));
     const d = cfg.agents?.defaults || {};
     $("s-agent-provider").value = d.provider || "";
     $("s-agent-model").value = d.model || "";
@@ -1542,12 +1560,28 @@ window.saveSettings = async function() {
         if (!res.ok) throw data.error || "Save failed";
         closeModal("settings-modal");
         fetchStatus();
-        // Offer restart if gateway is up
-        if (state.gatewayUp) {
+
+        // Mostra il popup di restart solo se sono cambiate impostazioni critiche
+        let needsRestart = false;
+        if (lastSettingsConfig) {
+            const oldGw = lastSettingsConfig.gateway || {};
+            const newGw = patch.gateway || {};
+            if (
+                oldGw.host !== newGw.host ||
+                String(oldGw.port) !== String(newGw.port) ||
+                (oldGw.heartbeat && newGw.heartbeat && (
+                    oldGw.heartbeat.enabled !== newGw.heartbeat.enabled ||
+                    String(oldGw.heartbeat.intervalS) !== String(newGw.heartbeat.intervalS)
+                ))
+            ) {
+                needsRestart = true;
+            }
+        }
+        if (state.gatewayUp && needsRestart) {
             const ok = await shibaDialog("confirm", "Settings Saved", "Restart gateway to apply changes?", { confirmText: "Restart" });
             if (ok) {
                 authFetch("/api/restart", { method: "POST" });
-                shibaDialog("alert", "Restarting", "The gateway is restarting. Please wait a few moments.", { confirmText: "OK" });
+                // Popup "Restarting" rimosso perché il restart è molto veloce
             }
         }
     } catch(e) {

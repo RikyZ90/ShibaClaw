@@ -296,6 +296,39 @@ def main(
 # ============================================================================
 
 
+def _is_oauth_authenticated(spec) -> bool:
+    """Return True if the OAuth provider is already authenticated (Robust File check)."""
+    import os
+    home = os.path.expanduser("~")
+
+    if spec.name == "openai_codex":
+        # Check standard file path or use internal helper
+        codex_path = os.path.join(home, ".config", "shibaclaw", "openai_codex", "credentials.json")
+        if os.path.exists(codex_path):
+            return True
+        try:
+            from oauth_cli_kit import get_token
+            token = get_token()
+            return bool(token and getattr(token, "access", None))
+        except Exception:
+            return False
+
+    if spec.name == "github_copilot":
+        # Check all possible locations: both in ~/.shibaclaw and ~/.config/shibaclaw
+        # (Inside Docker home is /root, it maps host .shibaclaw and .shibaclaw/.config)
+        token_paths = [
+            os.path.join(home, ".shibaclaw", "github_copilot", "access-token"),
+            os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token"),
+            os.path.join(home, ".config", "github-copilot", "hosts.json"),
+        ]
+        if os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_COPILOT_TOKEN"):
+            return True
+            
+        return any(os.path.exists(tp) for tp in token_paths)
+
+    return False
+
+
 @app.command()
 def onboard(
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
@@ -324,17 +357,25 @@ def onboard(
     else:
         config = _apply_workspace_override(Config())
 
-    # Auto-trigger wizard if no API keys are configured
+    # Auto-trigger wizard if no API keys or OAuth are configured
     if not wizard:
         from shibaclaw.thinkers.registry import PROVIDERS
         has_api = False
         for spec in PROVIDERS:
-            if spec.is_oauth or spec.is_local:
-                continue
-            p = getattr(config.providers, spec.name, None)
-            if p and p.api_key:
-                has_api = True
-                break
+            if spec.is_oauth:
+                if _is_oauth_authenticated(spec):
+                    has_api = True
+                    break
+            elif spec.is_local:
+                p = getattr(config.providers, spec.name, None)
+                if p and p.api_base:
+                    has_api = True
+                    break
+            else:
+                p = getattr(config.providers, spec.name, None)
+                if p and p.api_key:
+                    has_api = True
+                    break
         if not has_api:
             wizard = True
             console.print("[dim]No API keys detected. Starting configuration wizard...[/dim]")
@@ -479,23 +520,59 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         
         spec = find_by_name(provider_name) if provider_name else None
         
-        if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and (spec.is_oauth or spec.is_local)):
-            from shibaclaw.config.loader import get_config_path
-            config_path = get_config_path()
-            import sys
-            import time
-            
-            console.print(f"A default configuration template has been created at: [bold]{config_path}[/bold]")
-            console.print("-" * 60)
-            console.print("🐾 [bold]Please run: shibaclaw onboard[/bold]")
-            console.print("   to configure your AI provider and start hunting!")
-            console.print("-" * 60)
+        # Determine if the current model is ready
+        current_ready = model.startswith("bedrock/") or (p and p.api_key) or (spec and (spec.is_oauth or spec.is_local))
+        if current_ready and spec and spec.is_oauth:
+            # For OAuth, we need to do the real check (status logic)
+            current_ready = _is_oauth_authenticated(spec)
 
-            if exit_on_error:
-                time.sleep(1)
-                sys.exit(0)
+        if not current_ready:
+            # Check if ANY provider is ready globally
+            from shibaclaw.thinkers.registry import PROVIDERS
+            any_ready = False
+            for s in PROVIDERS:
+                if s.is_oauth:
+                    if _is_oauth_authenticated(s):
+                        any_ready = True
+                        break
+                elif s.is_local:
+                    lp = getattr(config.providers, s.name, None)
+                    if lp and lp.api_base:
+                        any_ready = True
+                        break
+                else:
+                    lp = getattr(config.providers, s.name, None)
+                    if lp and lp.api_key:
+                        any_ready = True
+                        break
+
+            if not any_ready:
+                from shibaclaw.config.loader import get_config_path
+                config_path = get_config_path()
+                import sys
+                import time
+                
+                console.print(f"A default configuration template has been created at: [bold]{config_path}[/bold]")
+                console.print("-" * 60)
+                console.print("🐾 [bold]Please run: shibaclaw onboard[/bold]")
+                console.print("   to configure your AI provider and start hunting!")
+                console.print("-" * 60)
+
+                if exit_on_error:
+                    time.sleep(1)
+                    sys.exit(0)
+                else:
+                    return None
             else:
-                return None
+                # Some provider is ready, but not the current one
+                console.print(f"[yellow]🐾 Current model [bold]{model}[/bold] is not configured/authenticated.[/yellow]")
+                console.print(f"[yellow]   (But other providers were detected as ready!)[/yellow]")
+                console.print(f"[yellow]   Switch models in the WebUI or edit [bold]config.json[/bold][/yellow]")
+                if exit_on_error:
+                    import sys
+                    sys.exit(0)
+                else:
+                    return None
                 
         if spec and spec.name == "anthropic":
             from shibaclaw.thinkers.anthropic_provider import AnthropicThinker
@@ -577,15 +654,11 @@ def gateway(
 ):
     """Start the shibaclaw gateway."""
     setup_shiba_logging(level="DEBUG" if verbose else "INFO")
-    # Stampa e logga il token all'avvio
+    # Instruct user how to get token securely
     try:
         from shibaclaw.webui.server import get_auth_token
-        token = get_auth_token()
-        if token:
-            masked = token[:4] + "*" * (len(token) - 4) if len(token) > 4 else "****"
-            console.print(f"[green]🔑 Token: {token}[/green]")
-            import logging
-            logging.getLogger("shibaclaw").info(f"WebUI Auth Token: {token}")
+        if get_auth_token():
+             console.print(f"  [dim]🔑 To retrieve the WebUI token, run:[/dim] [bold cyan]docker exec -it shibaclaw-gateway shibaclaw print-token[/bold cyan]")
     except Exception:
         pass
     from shibaclaw.agent.loop import ShibaBrain
@@ -605,16 +678,13 @@ def gateway(
     port = port if port is not None else config.gateway.port
     host = host if host != "127.0.0.1" else config.gateway.host
 
-    console.print(f"{__logo__} Starting shibaclaw gateway version {__version__} on port {port}...")
+    # Preparazione avvio
     bus = MessageBus()
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
-        import time
         console.print("[yellow]🐾 Entering idle mode...[/yellow]")
         console.print("[yellow]You can now run:[/yellow] [bold]docker exec -it shibaclaw-gateway shibaclaw onboard --wizard[/bold]")
-        console.print("[dim]Waiting for configuration... (Ctrl+C to stop)[/dim]")
-        while True:
-            time.sleep(3600)
+        console.print("[dim](The management server is starting anyway so the WebUI can connect)[/dim]")
     session_manager = PackManager(config.workspace_path)
 
 
@@ -739,17 +809,27 @@ def gateway(
         enabled=hb_cfg.enabled,
     )
 
+    # ── Unified Status Overview ───────────────────────────────────
+    from rich.panel import Panel
+    
+    status_parts = [
+        f"[bold gold1]{__logo__} ShibaClaw Gateway v{__version__}[/bold gold1] [dim](port {port})[/dim]",
+        "",
+    ]
+    
     if channels.enabled_channels:
-        console.print(f"[green]✓[/green] Channels enabled: {', '.join(channels.enabled_channels)}")
+        status_parts.append(f"  [green]✓[/green] [bold]Channels:[/bold] {', '.join(channels.enabled_channels)}")
     else:
-        console.print("[yellow]Warning: No channels enabled[/yellow]")
-
+        status_parts.append("  [yellow]⚠ No channels enabled[/yellow]")
+        
     cron_status = cron.status()
-    if cron_status["jobs"] > 0:
-        console.print(f"[green]✓[/green] Cron: {cron_status['jobs']} scheduled jobs")
-
-    console.print(f"[green]✓[/green] Heartbeat: every {hb_cfg.interval_s}s")
-    console.print(f"\n  [dim]🖥️  WebUI:[/dim] [cyan]shibaclaw web --port 3000[/cyan]  →  [link=http://localhost:3000]http://localhost:3000[/link]")
+    cron_info = f"[green]✓[/green] [bold]Cron:[/bold] {cron_status['jobs']} jobs" if cron_status["jobs"] > 0 else "[dim]Cron: idle[/dim]"
+    hb_info = f"[green]✓[/green] [bold]Heartbeat:[/bold] {hb_cfg.interval_s}s" if hb_cfg.enabled else "[dim]Heartbeat: disabled[/dim]"
+    status_parts.append(f"  {cron_info} | {hb_info}")
+    
+    status_parts.append(f"\n  [cyan]🖥️  WebUI:[/cyan] [link=http://localhost:3000]http://localhost:3000[/link]")
+    
+    console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
     async def run():
         _restart_requested = False
@@ -791,8 +871,9 @@ def gateway(
                 elif b"GET" in data:
                     import json, time
                     body = json.dumps({
-                        "status": "ok",
+                        "status": "ok" if provider else "idle",
                         "uptime": int(time.time() - _gw_start),
+                        "provider_ready": provider is not None,
                     })
                     resp = (
                         f"HTTP/1.0 200 OK\r\n"
@@ -876,18 +957,28 @@ def web(
         console.print("[yellow]🐕 WebUI starting without agent (no API key configured).[/yellow]")
         console.print("[yellow]Run: shibaclaw onboard --wizard[/yellow]")
 
-    console.print(f"{__logo__} Starting ShibaClaw WebUI...")
-    console.print(f"  [cyan]→ http://localhost:{port}[/cyan]")
-
+    from rich.panel import Panel
+    
+    status_parts = [
+        f"[bold gold1]{__logo__} ShibaClaw WebUI[/bold gold1]",
+        f"  [cyan]➜ http://{host}:{port}[/cyan]",
+        ""
+    ]
+    
     from shibaclaw.webui.server import run_server, get_auth_token
     token = get_auth_token()
     if token:
         masked = token[:4] + "*" * (len(token) - 4) if len(token) > 4 else "****"
-        console.print(f"  [green]🔑 Token: {masked}[/green]")
-        console.print(f"  [dim]→ Login at http://localhost:{port} and provide the token above.[/dim]")
+        status_parts.append(f"  [green]🔑 Token:[/green] [bold]{masked}[/bold]")
+        status_parts.append(f"  [dim]Login at the URL above using this token.[/dim]")
+        status_parts.append(f"  [dim]To retrieve the full token, run:[/dim]")
+        status_parts.append(f"  [bold cyan]docker exec -it shibaclaw-gateway shibaclaw print-token[/bold cyan]")
     else:
-        console.print("  [yellow]🔓 Auth disabled — open access[/yellow]")
-    console.print("  [dim]Press Ctrl+C to stop[/dim]\n")
+        status_parts.append("  [yellow]🔓 Auth disabled — open access[/yellow]")
+    
+    status_parts.append("\n  [dim]Press Ctrl+C to stop[/dim]")
+    
+    console.print(Panel("\n".join(status_parts), expand=False, border_style="orange3"))
 
     asyncio.run(run_server(port=port, host=host, config=config, provider=provider))
 
