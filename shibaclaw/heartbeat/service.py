@@ -142,6 +142,8 @@ class HeartbeatService:
 
     async def _tick(self) -> None:
         """Execute a single heartbeat tick."""
+        if not self.provider:
+            return
         from shibaclaw.helpers.evaluator import evaluate_response
 
         content = self._read_heartbeat_file()

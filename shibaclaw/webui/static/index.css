@@ -285,6 +285,11 @@ html, body {
     box-shadow: 0 0 6px rgba(249, 115, 22, 0.4);
     animation: pulse-orange 1.5s infinite;
 }
+.status-dot.model-offline {
+    background: #eab308;
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+    animation: pulse-yellow 1.5s infinite;
+}
 .status-dot.disconnected {
     background: var(--accent-red);
 }
@@ -335,6 +340,11 @@ html, body {
 @keyframes pulse-orange {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
+}
+
+@keyframes pulse-yellow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .status-text {

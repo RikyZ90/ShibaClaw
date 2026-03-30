@@ -1083,6 +1083,7 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
 
     if _auth_enabled() and _AUTH_TOKEN:
         logger.info("🔒 Auth enabled — token: {}", _mask_token(_AUTH_TOKEN))
+        logger.info("🔑 To retrieve the full token, run: docker exec -it shibaclaw-gateway shibaclaw print-token")
         logger.info("🔑 Use Authorization: Bearer <token> header to authenticate")
     else:
         logger.warning("""\n
