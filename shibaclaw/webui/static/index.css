@@ -98,7 +98,7 @@ html, body {
 .app-container {
     display: flex;
     height: 100vh;
-    width: 100vw;
+    width: 100%;
     overflow: hidden;
 }
 
@@ -452,6 +452,7 @@ html, body {
     justify-content: center;
     padding: 40px 20px;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .welcome-content {
@@ -533,6 +534,7 @@ html, body {
 .chat-history {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px 28px 120px;
     display: none; /* Hidden until first message */
     flex-direction: column;
@@ -1895,8 +1897,6 @@ input[type="number"].form-input {
     word-break: break-word;
 }
 
-    animation: panelFadeIn 0.2s ease;
-}
 @keyframes panelFadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }

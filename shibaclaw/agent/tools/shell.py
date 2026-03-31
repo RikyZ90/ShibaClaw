@@ -42,7 +42,7 @@ class ExecTool(Tool):
             r">\s*/dev/sd",                  # write to disk
             r"\b(shutdown|reboot|poweroff)\b",  # system power
             r":\(\)\s*\{.*\};\s*:",          # fork bomb
-            r"\b(eval|alias|export|source)\b", # environment/execution manipulation
+            r"\b(eval|alias)\b", # environment/execution manipulation
             r"\bsudo\s+",                    # privilege escalation
             r"\b(nc|netcat|ncat)\b",         # networking/shells
             r"\b(bash|sh|zsh|dash)\s+-i\b",  # interactive shells

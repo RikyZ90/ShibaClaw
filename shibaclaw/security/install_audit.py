@@ -177,31 +177,31 @@ async def _audit_pip(
     threshold = Severity.from_str(block_severity)
 
     # Extract package specs from command (everything after 'pip install' that isn't a flag)
-    match = re.search(r"\bpip3?\s+install\s+(.*)", command, re.IGNORECASE)
-    if not match:
+    # Use finditer to support multiline commands or chained commands
+    packages: list[str] = []
+    
+    for match in re.finditer(r"\bpip3?\s+install\s+([^&;\n]+)", command, re.IGNORECASE):
+        raw_args = match.group(1).strip()
+        tokens = raw_args.split()
+        skip_next = False
+        for token in tokens:
+            if skip_next:
+                skip_next = False
+                continue
+            if token.startswith("-"):
+                # Flags that consume the next arg
+                if token in ("-r", "--requirement", "-c", "--constraint", "-e", "--editable",
+                             "-t", "--target", "--prefix", "-i", "--index-url",
+                             "--extra-index-url", "-f", "--find-links"):
+                    skip_next = True
+                continue
+            packages.append(token)
+            
+    if not packages and "pip install" not in command.lower():
         result.summary = "Could not parse pip install command"
         result.confidence = "low"
         result.warnings.append("Could not parse package list from command")
         return result
-
-    raw_args = match.group(1).strip()
-    # Extract package names (skip flags like -r, --upgrade, -U, etc.)
-    tokens = raw_args.split()
-    packages: list[str] = []
-    skip_next = False
-    for token in tokens:
-        if skip_next:
-            skip_next = False
-            # If it was -r, the next token is a requirements file — we can't audit individual names
-            continue
-        if token.startswith("-"):
-            # Flags that consume the next arg
-            if token in ("-r", "--requirement", "-c", "--constraint", "-e", "--editable",
-                         "-t", "--target", "--prefix", "-i", "--index-url",
-                         "--extra-index-url", "-f", "--find-links"):
-                skip_next = True
-            continue
-        packages.append(token)
 
     if not packages:
         # Could be -r requirements.txt or just `pip install` (installs from setup.py)
@@ -308,25 +308,13 @@ async def _audit_npm(
     result = AuditResult(allowed=True, confidence="high", manager="npm")
     threshold = Severity.from_str(block_severity)
 
-    # Step 1: Run the install with --dry-run first
-    # For npm, `npm install --dry-run` simulates without writing
-    dry_run_cmd = command
-    if "npm" in command.lower():
-        # Add --dry-run if not already present
-        if "--dry-run" not in command:
-            dry_run_cmd = command + " --dry-run"
-
-    returncode, stdout, stderr = await _run_subprocess(
-        ["sh", "-c", dry_run_cmd] if os.name != "nt" else ["cmd", "/c", dry_run_cmd],
-        timeout=timeout,
-        cwd=cwd,
-    )
-
-    if returncode != 0 and returncode != -1:
-        # Dry-run failed — could be invalid packages
-        result.warnings.append(f"Dry-run failed (exit {returncode}): {stderr[:200]}")
-
-    # Step 2: Run npm audit --json on the current project
+    # Note: We skip the simulated `--dry-run` phase!
+    # A dry run command does not modify package-lock.json anyway,
+    # so npm audit wouldn't pick up entirely new dependencies until after real installation.
+    # Additionally, if the user sends multiline shell scripts containing `npm run dev`,
+    # executing them during the audit phase causes hanging and timeout blocks.
+    
+    # Run npm audit --json on the current project
     audit_cmd = ["npm", "audit", "--json"]
     returncode, stdout, stderr = await _run_subprocess(
         audit_cmd, timeout=timeout, cwd=cwd,
