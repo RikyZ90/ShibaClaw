@@ -126,6 +126,7 @@ See the full [Easy Deploy Guide](./deploy_guide.md) for detailed instructions an
 <p align="center">
   <img src="assets/webui_welcome.png" width="380" alt="WebUI Welcome Screen">&nbsp;&nbsp;
   <img src="assets/webui_chat.png" width="380" alt="WebUI Chat with Agent">
+  <img src="assets/webui_settings_oauth.png" width="380" alt="Settings — OAuth Providers">
 </p>
 
 ### Features at a Glance
@@ -139,10 +140,6 @@ See the full [Easy Deploy Guide](./deploy_guide.md) for detailed instructions an
 - **Gateway monitor** — health check and one-click restart of the core AI engine
 - **Typing indicator** — animated feedback while the agent is working
 - **Responsive** — works on desktop and mobile
-
-<p align="center">
-  <img src="assets/webui_settings_oauth.png" width="380" alt="Settings — OAuth Providers">
-</p>
 
 ### Architecture
 
@@ -214,7 +211,11 @@ Status:
 - `docker logs shibaclaw-gateway` / `docker logs shibaclaw-agent` for container logs.
 - Refer to `shibaclaw/thinkers/registry.py` for provider list and prefixing behavior.
 
-## 🏗️ Project Structure
+## 🏗️ Project Structure & Architecture
+<p align="center">
+  <img src="assets/arch.png" width="800" alt="...">
+</p>
+
 - `shibaclaw/` - core implementation
   - `webui/` - web interface (server.py + static assets)
   - `agent/` - AI agent loop and brain
