@@ -329,19 +329,11 @@ class ShibaBrain:
             channel=msg.channel, chat_id=msg.chat_id, content=content,
         ))
 
-    _RESTART_ALLOWED_CHANNELS = {"cli", "webui"}
-
     async def _handle_restart(self, msg: InboundMessage) -> None:
         """Restart the process in-place via os.execv.
-
-        Only allowed from trusted local channels (cli, webui).
+        
+        Permitted for any user that passes the channel's `is_allowed` check.
         """
-        if msg.channel not in self._RESTART_ALLOWED_CHANNELS:
-            await self.bus.publish_outbound(OutboundMessage(
-                channel=msg.channel, chat_id=msg.chat_id,
-                content="🐕 Restart is only allowed from local interfaces (CLI/WebUI).",
-            ))
-            return
 
         await self.bus.publish_outbound(OutboundMessage(
             channel=msg.channel, chat_id=msg.chat_id, content="🐕 Woof! Restarting the hunt...",

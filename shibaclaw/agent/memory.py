@@ -107,12 +107,28 @@ class ScentKeeper:
     def _format_messages(messages: list[dict]) -> str:
         lines = []
         for message in messages:
-            if not message.get("content"):
+            role = message.get("role", "unknown").upper()
+            ts = message.get("timestamp", "?")[:16]
+            
+            content = message.get("content") or ""
+            
+            if role == "ASSISTANT" and message.get("tool_calls"):
+                calls = [tc.get("function", {}).get("name", "unknown") for tc in message["tool_calls"]]
+                if content:
+                    content += "\n"
+                content += f"[Tool Calls: {', '.join(calls)}]"
+                
+            if role == "TOOL" and content:
+                if len(content) > 300:
+                    content = content[:150] + "\n...[TRUNCATED]...\n" + content[-150:]
+            
+            if not content.strip():
                 continue
+                
+            # Keep legacy 'tools_used' logic if it exists (for old traces)
             tools = f" [skunted: {', '.join(message['tools_used'])}]" if message.get("tools_used") else ""
-            lines.append(
-                f"[{message.get('timestamp', '?')[:16]}] {message['role'].upper()}{tools}: {message['content']}"
-            )
+            lines.append(f"[{ts}] {role}{tools}: {content.strip()}")
+            
         return "\n".join(lines)
 
     async def consolidate(

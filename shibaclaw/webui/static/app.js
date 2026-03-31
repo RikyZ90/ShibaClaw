@@ -1467,6 +1467,52 @@ function populateSettings(cfg) {
         const displayName = name.charAt(0).toUpperCase() + name.slice(1);
         const card = document.createElement("div");
         card.className = "accordion";
+        
+        let fieldsHtml = `
+            <div class="field-row">
+                <label>Enabled</label>
+                <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
+            </div>
+        `;
+
+        for (const [key, val] of Object.entries(cc)) {
+            if (key === "enabled") continue;
+            let inputType = "text";
+            let valStr = "";
+            let originalType = typeof val;
+            if (Array.isArray(val)) {
+                originalType = "array";
+                valStr = val.join(", ");
+            } else if (val !== null && originalType === "object") {
+                originalType = "object";
+                valStr = JSON.stringify(val);
+            } else {
+                valStr = val === null ? "" : String(val);
+            }
+            
+            if (originalType === "boolean") {
+                fieldsHtml += `
+                    <div class="field-row">
+                        <label>${key}</label>
+                        <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label>
+                    </div>`;
+                continue;
+            }
+            
+            const lowerKey = key.toLowerCase();
+            if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
+                inputType = "password";
+            }
+            
+            const safeVal = String(valStr).replace(/"/g, '&quot;');
+            fieldsHtml += `
+                <div class="field-row">
+                    <label>${key}</label>
+                    <input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}">
+                </div>
+            `;
+        }
+
         card.innerHTML = `
             <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
                 <div class="accordion-title">
@@ -1479,10 +1525,7 @@ function populateSettings(cfg) {
                 </div>
             </div>
             <div class="accordion-body">
-                <div class="field-row">
-                    <label>Enabled</label>
-                    <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
-                </div>
+                ${fieldsHtml}
             </div>`;
         detail.appendChild(card);
     }
@@ -1543,11 +1586,31 @@ window.saveSettings = async function() {
         patch.providers[name].apiBase = el.value || null;
     });
 
-    // Collect channel enabled toggles
+    // Collect channel enabled toggles and other dynamically generated fields
     document.querySelectorAll(".ch-enabled").forEach(el => {
         const name = el.dataset.ch;
         if (!patch.channels[name]) patch.channels[name] = {};
         patch.channels[name].enabled = el.checked;
+    });
+    document.querySelectorAll(".ch-field").forEach(el => {
+        const name = el.dataset.ch;
+        const key = el.dataset.key;
+        const type = el.dataset.type;
+        if (!patch.channels[name]) patch.channels[name] = {};
+        
+        let val;
+        if (type === "boolean") {
+            val = el.checked;
+        } else if (type === "array") {
+            val = el.value ? el.value.split(",").map(s => s.trim()).filter(s => s) : [];
+        } else if (type === "object") {
+            try { val = JSON.parse(el.value); } catch(e) { val = {}; }
+        } else if (type === "number") {
+            val = Number(el.value);
+        } else {
+            val = el.value;
+        }
+        patch.channels[name][key] = val;
     });
 
     try {

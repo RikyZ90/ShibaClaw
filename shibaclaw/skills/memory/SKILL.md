@@ -1,4 +1,4 @@
-﻿---
+---
 name: memory
 description: Two-layer memory system with grep-based recall.
 always: true
@@ -10,6 +10,11 @@ always: true
 
 - `memory/MEMORY.md` — Long-term facts (preferences, project context, relationships). Always loaded into your context.
 - `memory/HISTORY.md` — Append-only event log. NOT loaded into context. Search it with grep-style tools or in-memory filters. Each entry starts with [YYYY-MM-DD HH:MM].
+
+## Proactive Context Retrieval (CRITICAL)
+
+You **MUST** autonomously and proactively search `HISTORY.md` at the start of a task if you are missing historical context or joining an ongoing workflow. 
+Do NOT assume you know everything just from `MEMORY.md` alone. If the user refers to past discussions, previous bugs, or workflows that you do not immediately recall, your absolute first priority must be to search `HISTORY.md` to get back up to speed before generating any response.
 
 ## Search Past Events
 
