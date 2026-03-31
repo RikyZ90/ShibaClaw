@@ -19,8 +19,8 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.
-> Includes heavily requested WebUI and Gateway stability improvements!
+> **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.<br>
+> Smart Install Guard — Package installations are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using 
 
 - **2026-03-31** 🔍 **Smart Install Guard** — Package installations (`pip install`, `npm install`, `apt install`, ...) are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using `pip-audit` and `npm audit` before execution. Only packages with critical/high severity vulnerabilities are blocked; clean packages install freely. Destructive operations (`uninstall`, `remove`, `purge`) remain blocked.
 - **2026-03-29** 🛡️ Security Hardening — Enhanced Indirect Prompt Injection protection via **Randomized Tool Output Wrapping** (using dynamic nonces per-session) to prevent instructions from untrusted data hijacking the agent.
@@ -126,6 +126,7 @@ See the full [Easy Deploy Guide](./deploy_guide.md) for detailed instructions an
 <p align="center">
   <img src="assets/webui_welcome.png" width="380" alt="WebUI Welcome Screen">&nbsp;&nbsp;
   <img src="assets/webui_chat.png" width="380" alt="WebUI Chat with Agent">
+  <img src="assets/webui_settings_oauth.png" width="380" alt="Settings — OAuth Providers">
 </p>
 
 ### Features at a Glance
@@ -139,10 +140,6 @@ See the full [Easy Deploy Guide](./deploy_guide.md) for detailed instructions an
 - **Gateway monitor** — health check and one-click restart of the core AI engine
 - **Typing indicator** — animated feedback while the agent is working
 - **Responsive** — works on desktop and mobile
-
-<p align="center">
-  <img src="assets/webui_settings_oauth.png" width="380" alt="Settings — OAuth Providers">
-</p>
 
 ### Architecture
 
@@ -214,7 +211,11 @@ Status:
 - `docker logs shibaclaw-gateway` / `docker logs shibaclaw-agent` for container logs.
 - Refer to `shibaclaw/thinkers/registry.py` for provider list and prefixing behavior.
 
-## 🏗️ Project Structure
+## 🏗️ Project Structure & Architecture
+<p align="center">
+  <img src="assets/arch.png" width="800" alt="...">
+</p>
+
 - `shibaclaw/` - core implementation
   - `webui/` - web interface (server.py + static assets)
   - `agent/` - AI agent loop and brain
