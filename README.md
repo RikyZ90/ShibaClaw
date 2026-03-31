@@ -19,7 +19,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.
+> **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.<br>
 > Smart Install Guard — Package installations are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using 
 
 - **2026-03-31** 🔍 **Smart Install Guard** — Package installations (`pip install`, `npm install`, `apt install`, ...) are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using `pip-audit` and `npm audit` before execution. Only packages with critical/high severity vulnerabilities are blocked; clean packages install freely. Destructive operations (`uninstall`, `remove`, `purge`) remain blocked.
