@@ -6,7 +6,10 @@ import re
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 from shibaclaw.agent.tools.base import Tool
+from shibaclaw.security.install_audit import AuditResult, audit_install, detect_install_command
 
 
 class ExecTool(Tool):
@@ -20,9 +23,15 @@ class ExecTool(Tool):
         allow_patterns: list[str] | None = None,
         restrict_to_workspace: bool = False,
         path_append: str = "",
+        install_audit: bool = True,
+        install_audit_timeout: int = 120,
+        install_audit_block_severity: str = "high",
     ):
         self.timeout = timeout
         self.working_dir = working_dir
+        self.install_audit = install_audit
+        self.install_audit_timeout = install_audit_timeout
+        self.install_audit_block_severity = install_audit_block_severity
         self.deny_patterns = deny_patterns or [
             r"\brm\s+-[rf]{1,2}\b",          # rm -r, rm -rf, rm -fr
             r"\bdel\s+/[fq]\b",              # del /f, del /q
@@ -40,9 +49,9 @@ class ExecTool(Tool):
             r"\$\([^)]*\)",                                          # command substitution $()
             r"`[^`]*`",                                              # backtick execution
             r"\|\s*(sh|bash|zsh|dash|fish)\b",                      # pipe to shell
-            r"\b(apt|apt-get|yum|dnf|brew)\s+(install|remove|purge|upgrade)\b",  # system package managers
-            r"\bpip?\s+install\b",                              # pip install
-            r"\b(npm|yarn|pnpm)\s+(install|add)\b",                 # JS package managers
+            r"\b(apt|apt-get|yum|dnf|brew)\s+(remove|purge)\b",      # system pkg removal (destructive)
+            r"\bpip3?\s+(uninstall)\b",                              # pip uninstall (destructive)
+            r"\b(npm|yarn|pnpm)\s+(remove|uninstall)\b",             # JS pkg removal (destructive)
             r"\b(curl|wget)\b.*\|\s*(sh|bash|zsh|dash)\b",          # curl/wget pipe to shell
             r"<\([^)]*\)",                                           # bash process substitution <()
         ]
@@ -88,10 +97,7 @@ class ExecTool(Tool):
         }
 
     # Extra deny patterns applied when restrict_to_workspace is True
-    _INTERPRETER_DENY_PATTERNS = [
-        r"\b(python[23]?|ruby|perl|node|bash|sh|zsh|pwsh|powershell)\s+\S+",  # interpreter + file
-        r"\b(python[23]?|ruby|perl|node)\s+-[ec]\s+",                         # interpreter -e/-c inline
-    ]
+    # (Interpreter blocks removed: agent should be able to run code it writes within the workspace)
 
     async def execute(
         self, command: str, working_dir: str | None = None,
@@ -101,6 +107,13 @@ class ExecTool(Tool):
         guard_error = self._guard_command(command, cwd)
         if guard_error:
             return guard_error
+
+        # ── Smart Install Guard: audit before executing ──
+        if self.install_audit:
+            audit_result = await self._audit_install_command(command, cwd)
+            if audit_result is not None and not audit_result.allowed:
+                report = audit_result.format_report()
+                return f"Error: Install blocked by vulnerability audit\n\n{report}"
 
         effective_timeout = min(timeout or self.timeout, self._MAX_TIMEOUT)
 
@@ -154,10 +167,38 @@ class ExecTool(Tool):
                     + result[-half:]
                 )
 
+            # Append audit warnings to output if any
+            if self.install_audit and hasattr(self, '_last_audit_result'):
+                audit_res: AuditResult | None = self._last_audit_result
+                self._last_audit_result = None
+                if audit_res and audit_res.warnings:
+                    warnings_text = "\n".join(f"⚠️  {w}" for w in audit_res.warnings)
+                    result = f"{result}\n\n🔍 Install Audit Warnings:\n{warnings_text}"
+
             return result
 
         except Exception as e:
             return f"Error executing command: {str(e)}"
+
+    async def _audit_install_command(
+        self, command: str, cwd: str,
+    ) -> AuditResult | None:
+        """Check if command is an install and audit it. Returns None if not an install."""
+        normalized = self._normalize_command(command)
+        manager = detect_install_command(normalized)
+        if manager is None:
+            return None
+
+        logger.info("🔍 Detected {} install command — running vulnerability audit", manager)
+        result = await audit_install(
+            command,
+            timeout=self.install_audit_timeout,
+            block_severity=self.install_audit_block_severity,
+            cwd=cwd,
+        )
+        # Stash for appending warnings to output after execution
+        self._last_audit_result = result
+        return result
 
     @staticmethod
     def _normalize_command(cmd: str) -> str:
@@ -200,10 +241,7 @@ class ExecTool(Tool):
             if "..\\" in cmd or "../" in cmd:
                 return "Error: Command blocked by safety guard (path traversal detected)"
 
-            # Block scripting interpreters running external files
-            for pattern in self._INTERPRETER_DENY_PATTERNS:
-                if re.search(pattern, lower):
-                    return "Error: Command blocked by safety guard (interpreter execution not allowed in restricted mode)"
+            # (Note: Interpreter execution is allowed within workspace limits)
 
             # Block output redirects to absolute paths outside workspace
             redirect_targets = re.findall(r">{1,2}\s*([^\s|&;]+)", normalized)

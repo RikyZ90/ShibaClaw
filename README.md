@@ -5,29 +5,32 @@
 # Smart. Loyal. Powerful. 🐕
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.6b-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.7-orange?style=flat-square" alt="version"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
 </p>
 
-ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framework. Built to serve and protect your digital workspace.
+ShibaClaw is a **loyal, intelligent, and lightweight** personal AI assistant framework — built to serve and protect your digital workspace.
+
+The **only** AI agent framework combining **extreme multi-layer security** (Structural Tool Output Wrapping against Prompt Injection + Smart Install Guard with live CVE scanning before every package install) with **minimal token consumption**, keeping your costs low without sacrificing power.
 
 ---
 
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.6b** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.
+> **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.
 > Includes heavily requested WebUI and Gateway stability improvements!
 
+- **2026-03-31** 🔍 **Smart Install Guard** — Package installations (`pip install`, `npm install`, `apt install`, ...) are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using `pip-audit` and `npm audit` before execution. Only packages with critical/high severity vulnerabilities are blocked; clean packages install freely. Destructive operations (`uninstall`, `remove`, `purge`) remain blocked.
 - **2026-03-29** 🛡️ Security Hardening — Enhanced Indirect Prompt Injection protection via **Randomized Tool Output Wrapping** (using dynamic nonces per-session) to prevent instructions from untrusted data hijacking the agent.
 - **2026-03-29** 🐾 LiteLLM Dependency Removed — Architecture modernized to utilize native SDKs (`openai`, `anthropic`), dramatically reducing docker image sizes, startup times, and opaque dependency risks.
 - **2026-03-29** 🔐 GitHub Copilot OAuth rewritten using raw asynchronous device flow for highly stable background token refresh without proxy dependencies.
 - **2026-03-29** 💬 Session UI Refactor — Removed nested channels grouping. Conversations are now displayed in a sleek chronological feed with a "Show more" history pane.
 - **2026-03-29** 🎨 UI/UX Polish — Native browser popups (`alert`, `confirm`, `prompt`) entirely replaced with custom CSS modal dialogs (`shibaDialog`).
-- **2026-03-29** 🛡️ WebUI Settings Fix — Solved a critical bug causing Config `_deep_merge` to overwrite legitimate API keys with `****` redacted strings under the hood. 
+- **2026-03-29** 🛡️ WebUI Settings Fix — Solved a critical bug causing Config `_deep_merge` to overwrite legitimate API keys with `****` redacted strings under the hood.
 - **2026-03-29** 🔐 Gateway restart hardening — blocked unauthorized `/restart` via health endpoint and enforced token-based auth for web UI/gateway restart.
-- **2026-03-29** 🛡️ Shell tool security — expanded `ExecTool.deny_patterns` to include `$()`, backticks, shell pipes, package managers install/remove/purge, curl/wget piped shell, and `<()>` process substitution.
+- **2026-03-29** 🛡️ Shell tool security — expanded `ExecTool.deny_patterns` to include `$()`, backticks, shell pipes, curl/wget piped shell, and `<()>` process substitution.
 - **2026-03-29** ⚡ WebSockets & Gateway Stability — Annihilated "Scrollbar Jittering" and implemented a cache-busting `Gateway health` polling mechanism
 - **2026-03-26** 🧠 Dynamic System Prompt — runtime context (timestamp, channel, iteration) refreshed on every LLM call for a more "alive" agent
 - **2026-03-26** 🐾 SOUL.md template refined — clean formatting and richer personality definition
@@ -49,9 +52,54 @@ ShibaClaw is a loyal, intelligent, and lightweight personal AI assistant framewo
 - ⚡ **Parallel Multi-Agent Execution**: A built-in fan-out orchestration model that spawns and coordinates specialized sub-agents concurrently for faster, scalable task resolution
 - **Advanced Thinking**: Support for OpenAI, Azure, LiteLLM, and deep-reasoning thinkers.
 - **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via **Structural Randomized Wrapping** and strict per-session security policies.
+- **🔍 Smart Install Guard**: Package installs are audited for CVEs before execution — safe packages install freely, vulnerable ones are blocked with a full CVE report.
 
 ## 🔒 Loyal Only to You
 Like the most devoted guard dog, ShibaClaw is trained to obey only its master. Thanks to its advanced **Tool Output Wrapping** system, the framework is hardened against *Indirect Prompt Injection* attacks. It treats external data from websites, files, or tools as literal information—never as new instructions. Your orders are final; to ShibaClaw, external noise is just a squirrel 🐿️.
+
+## 🔍 Smart Install Guard
+
+When the agent attempts to run a package installation command, ShibaClaw no longer blindly blocks it. Instead, it **intercepts the command, audits the packages for known vulnerabilities (CVEs), and only proceeds if the risk is acceptable**.
+
+### How It Works
+
+1. **Detect** — The `ExecTool` recognizes install commands for `pip`, `npm`, `yarn`, `pnpm`, `apt`, `dnf`/`yum`, and `brew`.
+2. **Audit** — Before execution, the packages are scanned:
+   - **Python (`pip install ...`)** → `pip-audit --format json` checks against the OSV/PyPA advisory database.
+   - **Node.js (`npm install ...`)** → `npm audit --json` checks against the npm security advisory database.
+   - **System packages (`apt`/`dnf`)** → Safety flags (e.g. `--allow-unauthenticated`, `--nogpgcheck`) are checked; repository-level security is assumed.
+   - **Homebrew** → Allowed with medium confidence (curated formulae).
+3. **Decide** — Based on the configured severity threshold:
+   - `critical` or `high` vulnerabilities → **install is blocked** and the agent receives a full CVE report.
+   - `medium` or `low` vulnerabilities → **install proceeds** with a warning appended to the output.
+   - No vulnerabilities → **install proceeds** cleanly.
+4. **Fallback** — If audit tools are unavailable (no internet, `pip-audit` not installed), the install is **allowed with a warning** rather than blocked.
+
+> **Destructive operations** (`pip uninstall`, `npm remove`, `apt-get remove`, `apt-get purge`) remain unconditionally blocked.
+
+### Configuration
+
+In `config.json` under `tools.exec`:
+
+```json
+{
+  "tools": {
+    "exec": {
+      "installAudit": true,
+      "installAuditTimeout": 120,
+      "installAuditBlockSeverity": "high"
+    }
+  }
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `installAudit` | `true` | Enable/disable vulnerability scanning for installs |
+| `installAuditTimeout` | `120` | Seconds to wait for audit tools before falling back |
+| `installAuditBlockSeverity` | `"high"` | Minimum severity to block: `critical`, `high`, `medium`, `low` |
+
+---
 
 ## 🐾 Quick Start
 

@@ -127,6 +127,9 @@ class ExecToolConfig(Base):
     enable: bool = True
     timeout: int = 60
     path_append: str = ""
+    install_audit: bool = True  # Enable vulnerability scanning for install commands
+    install_audit_timeout: int = 120  # Timeout in seconds for audit checks
+    install_audit_block_severity: str = "high"  # Min severity to block: critical, high, medium, low
 
 
 class MCPServerConfig(Base):
