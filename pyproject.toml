@@ -52,6 +52,7 @@ dependencies = [
     "python-socketio[asyncio]>=5.12.0,<6.0.0",
     "starlette>=0.45.0,<1.0.0",
     "aiofiles>=24.0.0,<25.0.0",
+    "pip-audit>=2.7.0,<3.0.0",
 ]
 
 [project.optional-dependencies]

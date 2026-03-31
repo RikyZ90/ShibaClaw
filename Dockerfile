@@ -10,6 +10,7 @@ COPY . .
 
 RUN if [ -d "ShibaClaw" ]; then mv ShibaClaw shibaclaw; fi
 RUN uv pip install --system --reinstall --no-cache .
+RUN uv pip install --system pip-audit
 
 
 # Installa curl (serve per scaricare gh)
