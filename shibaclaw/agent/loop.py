@@ -63,6 +63,8 @@ class ShibaBrain:
         channels_config: Any | None = None,
         learning_enabled: bool = True,
         learning_interval: int = 10,
+        memory_max_prompt_tokens: int = 2000,
+        memory_compact_threshold_tokens: int = 1600,
     ):
         from shibaclaw.agent.context import ScentBuilder
         from shibaclaw.agent.memory import PackMemory
@@ -113,6 +115,8 @@ class ShibaBrain:
             get_tool_definitions=self.tools.get_definitions,
             learning_enabled=learning_enabled,
             learning_interval=learning_interval,
+            memory_max_prompt_tokens=memory_max_prompt_tokens,
+            memory_compact_threshold_tokens=memory_compact_threshold_tokens,
         )
         self.memory = ScentKeeper(workspace)
         self._register_default_tools()
@@ -227,6 +231,7 @@ class ShibaBrain:
                     chat_id=chat_id,
                     iteration=iteration,
                     max_iterations=self.max_iterations,
+                    memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
                 ),
             }
 
@@ -426,6 +431,7 @@ class ShibaBrain:
                 history=history,
                 current_message=msg.content, channel=channel, chat_id=chat_id,
                 current_role=current_role,
+                memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
             )
             final_content, _, all_msgs = await self._run_agent_loop(
                 messages, channel=channel, chat_id=chat_id,
@@ -485,6 +491,7 @@ class ShibaBrain:
             current_message=msg.content,
             media=msg.media if msg.media else None,
             channel=msg.channel, chat_id=msg.chat_id,
+            memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
         )
 
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:
