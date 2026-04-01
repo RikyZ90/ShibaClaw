@@ -197,6 +197,17 @@ Both containers share the `.shibaclaw/` volume for config, workspace, tools, and
 
 > **📝 Bare metal:** The WebUI works fully without Docker — the agent runs in-process. The only unavailable feature is the gateway health monitor, which requires the separate gateway container.
 
+### Resource Footprint
+
+Approximate idle RAM usage in Docker:
+
+| Component | RAM |
+|-----------|-----|
+| `shibaclaw-gateway` | ~115 MB |
+| `shibaclaw-web` | ~115 MB |
+
+Values are indicative and can vary with model load, active sessions, and container runtime.
+
 ## 🧩 Supported Providers
 
 ShibaClaw includes a unified provider registry and supports a wide range of LLM backends.
