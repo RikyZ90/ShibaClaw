@@ -22,6 +22,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 > **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.<br>
 > Smart Install Guard — Package installations are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using 
 
+- **2026-04-01** 🧠 **Proactive Learning (Scent Mining)** — ShibaClaw now automatically reflects on your conversations in the background. Every 10 turns, it extracts key facts and preferences to update your long-term memory (`MEMORY.md`) without waiting for the context window to fill or the session to end.
 - **2026-03-31** 🔍 **Smart Install Guard** — Package installations (`pip install`, `npm install`, `apt install`, ...) are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using `pip-audit` and `npm audit` before execution. Only packages with critical/high severity vulnerabilities are blocked; clean packages install freely. Destructive operations (`uninstall`, `remove`, `purge`) remain blocked.
 - **2026-03-29** 🛡️ Security Hardening — Enhanced Indirect Prompt Injection protection via **Randomized Tool Output Wrapping** (using dynamic nonces per-session) to prevent instructions from untrusted data hijacking the agent.
 - **2026-03-29** 🐾 LiteLLM Dependency Removed — Architecture modernized to utilize native SDKs (`openai`, `anthropic`), dramatically reducing docker image sizes, startup times, and opaque dependency risks.
@@ -53,6 +54,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 - **Advanced Thinking**: Support for OpenAI, Azure, LiteLLM, and deep-reasoning thinkers.
 - **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via **Structural Randomized Wrapping** and strict per-session security policies.
 - **🔍 Smart Install Guard**: Package installs are audited for CVEs before execution — safe packages install freely, vulnerable ones are blocked with a full CVE report.
+- **🧠 Proactive Learning (Scent Mining)**: Periodic background analysis of the active conversation to extract and persist key facts into long-term memory, ensuring no "scent" is lost even in long sessions.
 
 ## 🔒 Loyal Only to You
 Like the most devoted guard dog, ShibaClaw is trained to obey only its master. Thanks to its advanced **Tool Output Wrapping** system, the framework is hardened against *Indirect Prompt Injection* attacks. It treats external data from websites, files, or tools as literal information—never as new instructions. Your orders are final; to ShibaClaw, external noise is just a squirrel 🐿️.
@@ -76,7 +78,6 @@ When the agent attempts to run a package installation command, ShibaClaw no long
 4. **Fallback** — If audit tools are unavailable (no internet, `pip-audit` not installed), the install is **allowed with a warning** rather than blocked.
 
 > **Destructive operations** (`pip uninstall`, `npm remove`, `apt-get remove`, `apt-get purge`) remain unconditionally blocked.
-
 ### Configuration
 
 In `config.json` under `tools.exec`:
@@ -98,6 +99,39 @@ In `config.json` under `tools.exec`:
 | `installAudit` | `true` | Enable/disable vulnerability scanning for installs |
 | `installAuditTimeout` | `120` | Seconds to wait for audit tools before falling back |
 | `installAuditBlockSeverity` | `"high"` | Minimum severity to block: `critical`, `high`, `medium`, `low` |
+
+---
+
+## 🧠 Proactive Learning (Scent Mining)
+
+ShibaClaw won't wait for your session to end or the context window to fill to remember important details. With **Proactive Learning**, the agent periodically "sniffs" the recent conversation in the background to extract facts and project context.
+
+### How It Works
+
+1. **Pulse** — Every 10 messages (default), a background task is triggered.
+2. **Reflect** — A specialized mini-LLM call analyzes the recent history since the last pulse.
+3. **Persist** — New facts, project status changes, or user preferences are extracted and merged into `MEMORY.md`.
+4. **Zero Latency** — The learning process runs asynchronously via `_schedule_background`. You can continue chatting without any interruption.
+
+### Configuration
+
+In `config.json` under `agents.defaults`:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "learning_enabled": true,
+      "learning_interval": 10
+    }
+  }
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `learning_enabled` | `true` | Enable periodic background fact extraction |
+| `learning_interval` | `10` | Number of messages between learning pulses |
 
 ---
 
@@ -192,10 +226,10 @@ OAuth providers require a one-time login. Use the **Settings → OAuth Provider*
 CLI fallback:
 ```bash
 shibaclaw provider login openai-codex   # oauth-cli-kit device flow
-shibaclaw provider login github-copilot # litellm device flow
+shibaclaw provider login github-copilot # async device flow
 ```
 
-Requirements: `pip install oauth-cli-kit` (Codex) · `pip install litellm` (Copilot)
+Requirements: `pip install oauth-cli-kit` (Codex)
 
 ### Useful commands
 - `shibaclaw status onboard --wizard`

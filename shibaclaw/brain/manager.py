@@ -30,7 +30,8 @@ class Session:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     metadata: dict[str, Any] = field(default_factory=dict)
-    last_consolidated: int = 0  # Number of messages already consolidated to files
+    last_consolidated: int = 0  # Number of messages already consolidated into HISTORY.md/MEMORY.md
+    last_learned: int = 0  # Index up to which the agent has "proactively leaned" from.
 
     def add_message(self, role: str, content: str, **kwargs: Any) -> None:
         """Add a message to the session."""
@@ -149,6 +150,7 @@ class PackManager:
             metadata = {}
             created_at = None
             last_consolidated = 0
+            last_learned = 0
 
             with open(path, encoding="utf-8") as f:
                 for line in f:
@@ -160,6 +162,7 @@ class PackManager:
                         metadata = data.get("metadata", {})
                         created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
                         last_consolidated = data.get("last_consolidated", 0)
+                        last_learned = data.get("last_learned", 0)
                     else:
                         messages.append(data)
 
@@ -168,7 +171,8 @@ class PackManager:
                 messages=messages,
                 created_at=created_at or datetime.now(),
                 metadata=metadata,
-                last_consolidated=last_consolidated
+                last_consolidated=last_consolidated,
+                last_learned=last_learned
             )
         except Exception as e:
             logger.warning("Failed to load session {}: {}", key, e)
@@ -186,7 +190,8 @@ class PackManager:
                     "created_at": session.created_at.isoformat(),
                     "updated_at": datetime.now().isoformat(),
                     "metadata": session.metadata,
-                    "last_consolidated": session.last_consolidated
+                    "last_consolidated": session.last_consolidated,
+                    "last_learned": session.last_learned
                 }
                 f.write(json.dumps(metadata_line, ensure_ascii=False) + "\n")
                 for msg in session.messages:

@@ -42,7 +42,7 @@ class MessageTool(Tool):
 
     @property
     def description(self) -> str:
-        return "Send a message to the user. Use this when you want to communicate something."
+        return "Send a message to the user. Use this to respond to the user, particularly when you need to ATTACH files or media that you have created or located."
 
     @property
     def parameters(self) -> dict[str, Any]:
@@ -51,7 +51,7 @@ class MessageTool(Tool):
             "properties": {
                 "content": {
                     "type": "string",
-                    "description": "The message content to send"
+                    "description": "The message content to send to the user."
                 },
                 "channel": {
                     "type": "string",
@@ -64,7 +64,7 @@ class MessageTool(Tool):
                 "media": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Optional: list of file paths to attach (images, audio, documents)"
+                    "description": "Optional: list of absolute file paths to attach/upload (images, audio, documents, etc.)"
                 }
             },
             "required": ["content"]

@@ -41,6 +41,24 @@ _SAVE_MEMORY_TOOL = [
                 "required": ["history_entry", "memory_update"],
             },
         },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_long_term_memory",
+            "description": "Update the long-term memory with new facts or refined preferences extracted from recent conversation. This does NOT summarize history, only updates the fact sheet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "memory_update": {
+                        "type": "string",
+                        "description": "Full updated long-term memory as markdown. Include all existing "
+                        "facts plus new ones. If nothing new, return the exact current content.",
+                    },
+                },
+                "required": ["memory_update"],
+            },
+        },
     }
 ]
 
@@ -52,6 +70,15 @@ def _ensure_text(value: Any) -> str:
 
 def _normalize_save_memory_args(args: Any) -> dict[str, Any] | None:
     """Normalize provider tool-call arguments to the expected dict shape."""
+    if isinstance(args, str):
+        args = json.loads(args)
+    if isinstance(args, list):
+        return args[0] if args and isinstance(args[0], dict) else None
+    return args if isinstance(args, dict) else None
+
+
+def _normalize_update_memory_args(args: Any) -> dict[str, Any] | None:
+    """Normalize update_long_term_memory payload."""
     if isinstance(args, str):
         args = json.loads(args)
     if isinstance(args, list):
@@ -218,6 +245,78 @@ class ScentKeeper:
             logger.exception("Memory consolidation failed")
             return self._fail_or_raw_archive(messages)
 
+    async def proactive_consolidate(
+        self,
+        messages: list[dict],
+        provider: Thinker,
+        model: str,
+    ) -> bool:
+        """Analyze recent messages for new facts and update MEMORY.md (Learning)."""
+        if not messages:
+            return True
+
+        current_memory = self.read_long_term()
+        prompt = f"""Review the recent interaction and update the long-term memory fact sheet.
+Call update_long_term_memory relative to these rules:
+1. Extract NEW facts (personal info, environment details, project status).
+2. Refine existing facts if they changed.
+3. Keep the file concise and structured as Markdown.
+4. If NO new information is found, return the current memory unchanged.
+
+## Current Long-term Memory
+{current_memory or "(empty)"}
+
+## Recent Interaction
+{self._format_messages(messages)}"""
+
+        chat_messages = [
+            {"role": "system", "content": "You are a learning-focused Shiba. Update your long-term memory with new findings from the hunt."},
+            {"role": "user", "content": prompt},
+        ]
+
+        try:
+            # We use auto choice here because some providers might not support forced choice for this tool
+            response = await provider.chat_with_retry(
+                messages=chat_messages,
+                tools=_SAVE_MEMORY_TOOL,
+                model=model,
+                tool_choice={"type": "function", "function": {"name": "update_long_term_memory"}},
+            )
+
+            # Fallback if forced fails or returns content instead
+            if response.finish_reason == "error" or not response.has_tool_calls:
+                response = await provider.chat_with_retry(
+                    messages=chat_messages,
+                    tools=_SAVE_MEMORY_TOOL,
+                    model=model,
+                    tool_choice="auto"
+                )
+
+            if not response.has_tool_calls:
+                return False
+
+            call = next((tc for tc in response.tool_calls if tc.name == "update_long_term_memory"), None)
+            if not call:
+                # Agent might have called save_memory instead
+                call = next((tc for tc in response.tool_calls if tc.name == "save_memory"), None)
+            
+            if not call:
+                return False
+
+            args = _normalize_update_memory_args(call.arguments)
+            if args is None or "memory_update" not in args:
+                return False
+
+            update = _ensure_text(args["memory_update"]).strip()
+            if update and update != current_memory:
+                self.write_long_term(update)
+                logger.info("🐕 Proactive Learning: updated long-term memory with new traces.")
+            
+            return True
+        except Exception as e:
+            logger.debug("Proactive Learning failed (swallowed): {}", e)
+            return False
+
     def _fail_or_raw_archive(self, messages: list[dict]) -> bool:
         """Increment failure count; after threshold, raw-archive messages and return True."""
         self._consecutive_failures += 1
@@ -253,12 +352,16 @@ class PackMemory:
         context_window_tokens: int,
         build_messages: Callable[..., list[dict[str, Any]]],
         get_tool_definitions: Callable[[], list[dict[str, Any]]],
+        learning_enabled: bool = True,
+        learning_interval: int = 10,
     ):
         self.store = ScentKeeper(workspace)
         self.provider = provider
         self.model = model
         self.sessions = sessions
         self.context_window_tokens = context_window_tokens
+        self.learning_enabled = learning_enabled
+        self.learning_interval = learning_interval
         self._build_messages = build_messages
         self._get_tool_definitions = get_tool_definitions
         self._locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
@@ -375,3 +478,30 @@ class PackMemory:
                 estimated, source = self.estimate_session_prompt_tokens(session)
                 if estimated <= 0:
                     return
+
+    async def maybe_proactive_learn(self, session: Session) -> None:
+        """Trigger background learning if interval is reached."""
+        if not self.learning_enabled or self.learning_interval <= 0:
+            return
+        
+        count = len(session.messages) - session.last_learned
+        if count < self.learning_interval:
+            return
+        
+        # Take messages from last_learned to current
+        chunk = session.messages[session.last_learned:]
+        if not chunk:
+            return
+            
+        logger.debug("🐕 Proactive Learning starting for {} ({} new messages)", session.key, len(chunk))
+        
+        # Important: update last_learned BEFORE calling, to avoid multiple parallel triggers 
+        # for the same chunk if the background task is slow.
+        session.last_learned = len(session.messages)
+        self.sessions.save(session)
+        
+        success = await self.store.proactive_consolidate(chunk, self.provider, self.model)
+        if not success:
+            # If it failed, we'll try again next time (optionally roll back last_learned but 
+            # let's keep it simple and skip this chunk to avoid infinite loops).
+            logger.debug("🐕 Proactive Learning skipped/failed for {}", session.key)

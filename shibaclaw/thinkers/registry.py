@@ -28,7 +28,7 @@ class ProviderSpec:
     # identity
     name: str  # config field name, e.g. "dashscope"
     keywords: tuple[str, ...]  # model-name keywords for matching (lowercase)
-    env_key: str  # LiteLLM env var, e.g. "DASHSCOPE_API_KEY"
+    env_key: str  # API key environment variable, e.g. "DASHSCOPE_API_KEY"
     display_name: str = ""  # shown in `shibaclaw status`
 
 
@@ -52,7 +52,7 @@ class ProviderSpec:
     # OAuth-based providers (e.g., OpenAI Codex) don't use API keys
     is_oauth: bool = False  # if True, uses OAuth flow instead of API key
 
-    # Direct providers bypass LiteLLM entirely (e.g., CustomThinker)
+    # Direct providers use native implementation (e.g., CustomThinker)
     is_direct: bool = False
 
     # Provider supports cache_control on content blocks (e.g. Anthropic prompt caching)
@@ -68,7 +68,7 @@ class ProviderSpec:
 # ---------------------------------------------------------------------------
 
 PROVIDERS: tuple[ProviderSpec, ...] = (
-    # === Custom (direct OpenAI-compatible endpoint, bypasses LiteLLM) ======
+    # === Custom (direct OpenAI-compatible endpoint) ========================
     ProviderSpec(
         name="custom",
         keywords=(),
@@ -202,7 +202,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
 
 
     # === Standard providers (matched by model-name keywords) ===============
-    # Anthropic: LiteLLM recognizes "claude-*" natively, no prefix needed.
+    # Anthropic: Direct native implementation, no prefix needed.
     ProviderSpec(
         name="anthropic",
         keywords=("anthropic", "claude"),
@@ -218,7 +218,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         model_overrides=(),
         supports_prompt_caching=True,
     ),
-    # OpenAI: LiteLLM recognizes "gpt-*" natively, no prefix needed.
+    # OpenAI: Direct native implementation, no prefix needed.
     ProviderSpec(
         name="openai",
         keywords=("openai", "gpt"),
@@ -265,7 +265,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         model_overrides=(),
         is_oauth=True,  # OAuth-based authentication
     ),
-    # DeepSeek: needs "deepseek/" prefix for LiteLLM routing.
+    # DeepSeek: needs "deepseek/" prefix for some routing paths.
     ProviderSpec(
         name="deepseek",
         keywords=("deepseek",),
@@ -280,7 +280,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
-    # Gemini: needs "gemini/" prefix for LiteLLM.
+    # Gemini: needs "gemini/" prefix.
     ProviderSpec(
         name="gemini",
         keywords=("gemini",),
@@ -295,8 +295,8 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
-    # Zhipu: LiteLLM uses "zai/" prefix.
-    # Also mirrors key to ZHIPUAI_API_KEY (some LiteLLM paths check that).
+    # Zhipu: uses "zai/" prefix.
+    # Also mirrors key to ZHIPUAI_API_KEY for consistency.
     # skip_prefixes: don't add "zai/" when already routed via gateway.
     ProviderSpec(
         name="zhipu",
@@ -328,7 +328,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         model_overrides=(),
     ),
     # Moonshot: Kimi models, needs "moonshot/" prefix.
-    # LiteLLM requires MOONSHOT_API_BASE env var to find the endpoint.
+    # Required: MOONSHOT_API_BASE env var to find the endpoint.
     # Kimi K2.5 API enforces temperature >= 1.0.
     ProviderSpec(
         name="moonshot",
@@ -344,7 +344,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(("kimi-k2.5", {"temperature": 1.0}),),
     ),
-    # MiniMax: needs "minimax/" prefix for LiteLLM routing.
+    # MiniMax: Support for OpenAI, Azure, and deep-reasoning thinkers.
     # Uses OpenAI-compatible API at api.minimax.io/v1.
     ProviderSpec(
         name="minimax",
@@ -394,7 +394,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
     ),
     # === Auxiliary (not a primary LLM provider) ============================
     # Groq: mainly used for Whisper voice transcription, also usable for LLM.
-    # Needs "groq/" prefix for LiteLLM routing. Placed last — it rarely wins fallback.
+    # Needs "groq/" prefix for routing. Placed last — it rarely wins fallback.
     ProviderSpec(
         name="groq",
         keywords=("groq",),
