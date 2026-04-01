@@ -42,6 +42,8 @@ class AgentDefaults(Base):
     reasoning_effort: str | None = None  # low / medium / high - enables LLM thinking mode
     learning_enabled: bool = True  # Periodically update long-term memory in background
     learning_interval: int = 10  # Number of new messages before triggering background learning
+    memory_max_prompt_tokens: int = 2000  # Max tokens from MEMORY.md injected into the system prompt
+    memory_compact_threshold_tokens: int = 1600  # Token threshold that triggers automatic memory compaction
 
 
 class AgentsConfig(Base):

@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Two-layer memory system with grep-based recall.
+description: Two-layer memory system with token-budgeted injection and auto-compaction of long-term facts.
 always: true
 ---
 
@@ -8,35 +8,30 @@ always: true
 
 ## Structure
 
-- `memory/MEMORY.md` — Long-term facts (preferences, project context, relationships). Always loaded into your context.
-- `memory/HISTORY.md` — Append-only event log. NOT loaded into context. Search it with grep-style tools or in-memory filters. Each entry starts with [YYYY-MM-DD HH:MM].
+- `memory/MEMORY.md` — Long-term facts. Injected into every system prompt under `# Memory`, **truncated by section** if it exceeds the token budget (~2000 tokens default).
+- `memory/HISTORY.md` — Append-only log with `[YYYY-MM-DD HH:MM] [#tag1 #tag2]` entries. Never injected. Search it with grep when historical context is missing.
 
-## Proactive Context Retrieval (CRITICAL)
+## Writing to MEMORY.md
 
-You **MUST** autonomously and proactively search `HISTORY.md` at the start of a task if you are missing historical context or joining an ongoing workflow. 
-Do NOT assume you know everything just from `MEMORY.md` alone. If the user refers to past discussions, previous bugs, or workflows that you do not immediately recall, your absolute first priority must be to search `HISTORY.md` to get back up to speed before generating any response.
+Write immediately with `edit_file` / `write_file` for: user preferences, project context, important entities.
 
-## Search Past Events
+- One fact per bullet, no prose paragraphs
+- **Update/replace** existing facts instead of appending duplicates
+- Keep the file concise — the system auto-compacts when it exceeds ~1600 tokens
+- Do not add speculative or redundant facts
 
-Choose the search method based on file size:
+## Missing Context
 
-- Small `memory/HISTORY.md`: use `read_file`, then search in-memory
-- Large or long-lived `memory/HISTORY.md`: use the `exec` tool for targeted search
+If a topic feels incomplete, **search `HISTORY.md` first** before assuming a fact was never recorded. Older sections of MEMORY.md may have been compacted away, but important facts are preserved.
 
-Examples:
-- **Linux/macOS:** `grep -i "keyword" memory/HISTORY.md`
-- **Windows:** `findstr /i "keyword" memory\HISTORY.md`
-- **Cross-platform Python:** `python -c "from pathlib import Path; text = Path('memory/HISTORY.md').read_text(encoding='utf-8'); print('\n'.join([l for l in text.splitlines() if 'keyword' in l.lower()][-20:]))"`
+```bash
+grep -i "keyword" memory/HISTORY.md
+```
 
-Prefer targeted command-line search for large history files.
+## Proactive Context Retrieval
 
-## When to Update MEMORY.md
-
-Write important facts immediately using `edit_file` or `write_file`:
-- User preferences ("I prefer dark mode")
-- Project context ("The API uses OAuth2")
-- Relationships ("Alice is the project lead")
+If the user refers to past discussions or ongoing workflows you don't recall: **search `HISTORY.md` before responding**.
 
 ## Auto-consolidation
 
-Old conversations are automatically summarized and appended to HISTORY.md when the session grows large. Long-term facts are extracted to MEMORY.md. You don't need to manage this.
+Handled automatically every ~10 messages. Long-term memory is auto-compacted by the system when it grows beyond the configured threshold.

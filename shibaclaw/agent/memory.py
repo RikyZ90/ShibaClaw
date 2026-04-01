@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from loguru import logger
 
-from shibaclaw.helpers.helpers import ensure_dir, estimate_message_tokens, estimate_prompt_tokens_chain
+from shibaclaw.helpers.helpers import ensure_dir, estimate_message_tokens, estimate_prompt_tokens, estimate_prompt_tokens_chain
 
 if TYPE_CHECKING:
     from shibaclaw.thinkers.base import Thinker
@@ -30,12 +30,15 @@ _SAVE_MEMORY_TOOL = [
                     "history_entry": {
                         "type": "string",
                         "description": "A paragraph summarizing key events/decisions/topics. "
-                        "Start with [YYYY-MM-DD HH:MM]. Include detail useful for grep search.",
+                        "Start with [YYYY-MM-DD HH:MM] [#tag1 #tag2 ...]. "
+                        "Tags are topic keywords prefixed with # for grep search (e.g. #python #debugging #project-foo). "
+                        "Include detail useful for grep search.",
                     },
                     "memory_update": {
                         "type": "string",
-                        "description": "Full updated long-term memory as markdown. Include all existing "
-                        "facts plus new ones. Return unchanged if nothing new.",
+                        "description": "Deduplicated, concise Markdown fact sheet. Preserve all important facts "
+                        "from current memory. Remove duplicates, redundant wording, and obsolete context. "
+                        "Target: under 1500 tokens. If nothing new, return current content unchanged.",
                     },
                 },
                 "required": ["history_entry", "memory_update"],
@@ -52,8 +55,9 @@ _SAVE_MEMORY_TOOL = [
                 "properties": {
                     "memory_update": {
                         "type": "string",
-                        "description": "Full updated long-term memory as markdown. Include all existing "
-                        "facts plus new ones. If nothing new, return the exact current content.",
+                        "description": "Deduplicated, concise Markdown fact sheet. Preserve all important facts "
+                        "from current memory. Add new findings and remove outdated or redundant entries. "
+                        "Target: under 1500 tokens. If nothing new, return the exact current content.",
                     },
                 },
                 "required": ["memory_update"],
@@ -129,9 +133,45 @@ class ScentKeeper:
             new_content = entry.rstrip() + "\n\n" + existing
             self.history_file.write_text(new_content, encoding="utf-8")
 
-    def get_memory_context(self) -> str:
+    def estimate_memory_tokens(self) -> int:
+        """Estimate token count of the current MEMORY.md content."""
+        content = self.read_long_term()
+        if not content:
+            return 0
+        return estimate_prompt_tokens([{"role": "user", "content": content}])
+
+    def get_memory_context(self, max_tokens: int = 0) -> str:
+        """Return long-term memory for system prompt injection.
+
+        If *max_tokens* > 0 and the content exceeds the budget, sections
+        are dropped from the bottom up (keeping headers) and a truncation
+        marker is appended.
+        """
         long_term = self.read_long_term()
-        return f"## Long-term Memory\n{long_term}" if long_term else ""
+        if not long_term:
+            return ""
+
+        if max_tokens > 0:
+            tokens = estimate_prompt_tokens([{"role": "user", "content": long_term}])
+            if tokens > max_tokens:
+                long_term = self._truncate_to_budget(long_term, max_tokens)
+
+        return f"## Long-term Memory\n{long_term}" if not long_term.lstrip().startswith("#") else long_term
+
+    @staticmethod
+    def _truncate_to_budget(text: str, max_tokens: int) -> str:
+        """Keep Markdown sections from the top until the token budget is exhausted."""
+        import re as _re
+        sections = _re.split(r'(?=^## )', text, flags=_re.MULTILINE)
+        kept: list[str] = []
+        for section in sections:
+            candidate = "\n".join(kept + [section])
+            tokens = estimate_prompt_tokens([{"role": "user", "content": candidate}])
+            if tokens > max_tokens and kept:
+                break
+            kept.append(section)
+        truncated = "\n".join(kept).rstrip()
+        return truncated + "\n\n[MEMORY TRUNCATED — search HISTORY.md for older context]"
 
     @staticmethod
     def _format_messages(messages: list[dict]) -> str:
@@ -248,6 +288,69 @@ class ScentKeeper:
             logger.exception("Memory consolidation failed")
             return await self._fail_or_raw_archive(messages)
 
+    async def compact_long_term(
+        self,
+        provider: Thinker,
+        model: str,
+        target_tokens: int = 1500,
+    ) -> bool:
+        """Compact MEMORY.md to fit within *target_tokens* by asking the LLM to deduplicate."""
+        current = self.read_long_term()
+        if not current:
+            return True
+
+        current_tokens = self.estimate_memory_tokens()
+        if current_tokens <= target_tokens:
+            return True
+
+        logger.info(
+            "🐕 Memory compaction triggered: {} tokens (target {})",
+            current_tokens, target_tokens,
+        )
+
+        prompt = (
+            f"Compact this long-term memory to under {target_tokens} tokens.\n"
+            "Rules:\n"
+            "1. Keep ALL unique, important facts (user prefs, env details, project status).\n"
+            "2. Remove duplicates, verbose explanations, and resolved/obsolete items.\n"
+            "3. Preserve Markdown structure with ## headings.\n"
+            "4. Return ONLY the compacted Markdown — no commentary.\n\n"
+            f"## Current MEMORY.md\n{current}"
+        )
+        chat_messages = [
+            {"role": "system", "content": "You are a memory compaction assistant. Output only the compacted Markdown."},
+            {"role": "user", "content": prompt},
+        ]
+
+        try:
+            response = await provider.chat_with_retry(
+                messages=chat_messages, tools=[], model=model,
+            )
+            compacted = (response.content or "").strip()
+
+            # Validate: non-empty and actually shorter
+            if not compacted:
+                logger.warning("Memory compaction returned empty — skipping")
+                return False
+
+            new_tokens = estimate_prompt_tokens([{"role": "user", "content": compacted}])
+            if new_tokens >= current_tokens:
+                logger.warning(
+                    "Memory compaction did not reduce size ({} -> {}) — skipping",
+                    current_tokens, new_tokens,
+                )
+                return False
+
+            await self.write_long_term(compacted)
+            logger.info(
+                "🐕 Memory compacted: {} -> {} tokens",
+                current_tokens, new_tokens,
+            )
+            return True
+        except Exception:
+            logger.exception("Memory compaction failed")
+            return False
+
     async def proactive_consolidate(
         self,
         messages: list[dict],
@@ -357,6 +460,8 @@ class PackMemory:
         get_tool_definitions: Callable[[], list[dict[str, Any]]],
         learning_enabled: bool = True,
         learning_interval: int = 10,
+        memory_max_prompt_tokens: int = 2000,
+        memory_compact_threshold_tokens: int = 1600,
     ):
         self.store = ScentKeeper(workspace)
         self.provider = provider
@@ -365,6 +470,8 @@ class PackMemory:
         self.context_window_tokens = context_window_tokens
         self.learning_enabled = learning_enabled
         self.learning_interval = learning_interval
+        self.memory_max_prompt_tokens = memory_max_prompt_tokens
+        self.memory_compact_threshold_tokens = memory_compact_threshold_tokens
         self._build_messages = build_messages
         self._get_tool_definitions = get_tool_definitions
         self._locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
@@ -408,6 +515,7 @@ class PackMemory:
             current_message="[token-probe]",
             channel=channel,
             chat_id=chat_id,
+            memory_max_prompt_tokens=self.memory_max_prompt_tokens,
         )
         return estimate_prompt_tokens_chain(
             self.provider,
@@ -508,3 +616,17 @@ class PackMemory:
             # If it failed, we'll try again next time (optionally roll back last_learned but 
             # let's keep it simple and skip this chunk to avoid infinite loops).
             logger.debug("🐕 Proactive Learning skipped/failed for {}", session.key)
+
+        # After learning, check if MEMORY.md grew beyond the compact threshold
+        await self.maybe_compact_memory()
+
+    async def maybe_compact_memory(self) -> None:
+        """Compact MEMORY.md if it exceeds the configured token threshold."""
+        if self.memory_compact_threshold_tokens <= 0:
+            return
+        mem_tokens = self.store.estimate_memory_tokens()
+        if mem_tokens > self.memory_compact_threshold_tokens:
+            await self.store.compact_long_term(
+                self.provider, self.model,
+                target_tokens=self.memory_compact_threshold_tokens,
+            )

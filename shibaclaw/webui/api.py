@@ -71,10 +71,19 @@ def _load_workspace_context(wp: Path):
     """Load and format workspace context files into readable sections."""
     global _workspace_context_cache
 
-    file_list = ["SOUL.md", "USER.md", "MEMORY.md", "AGENTS.md", "TOOLS.md"]
+    file_list = ["SOUL.md", "USER.md", "AGENTS.md", "TOOLS.md"]
+    context_paths = {
+        "MEMORY.md": wp / "memory" / "MEMORY.md",
+        "HISTORY.md": wp / "memory" / "HISTORY.md",
+    }
     current_state = {}
     for file in file_list:
         p = wp / file
+        if p.exists():
+            current_state[file] = p.stat().st_mtime
+        else:
+            current_state[file] = None
+    for file, p in context_paths.items():
         if p.exists():
             current_state[file] = p.stat().st_mtime
         else:
@@ -89,6 +98,11 @@ def _load_workspace_context(wp: Path):
 
     for file in file_list:
         p = wp / file
+        if p.exists():
+            content = p.read_text(encoding="utf-8")
+            file_parts.append(f"#### 📄 {file}\n```markdown\n{content}\n```")
+            file_tokens += len(content) // 4  # rough estimate
+    for file, p in context_paths.items():
         if p.exists():
             content = p.read_text(encoding="utf-8")
             file_parts.append(f"#### 📄 {file}\n```markdown\n{content}\n```")
