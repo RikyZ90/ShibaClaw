@@ -20,9 +20,12 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 > [!IMPORTANT]
 > **v0.0.7** is out! Massive core modernization: complete removal of `litellm` dependency for faster and strictly-controlled native LLM API integration.<br>
-> Smart Install Guard — Package installations are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using 
+> Smart Install Guard — Package installations are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using `pip-audit` and `npm audit` before execution.
 
-- **2026-04-01** 🧠 **Proactive Learning (Scent Mining)** — ShibaClaw now automatically reflects on your conversations in the background. Every 10 turns, it extracts key facts and preferences to update your long-term memory (`MEMORY.md`) without waiting for the context window to fill or the session to end.
+- **2026-04-01** 📂 **Integrated File Browser (WebUI)** — A fully integrated file explorer is now available directly from the WebUI sidebar. Browse the agent workspace, open and view files with syntax-preserving layout, edit them in a click-to-enable edit mode (pencil button), and save changes back to the server — or download them locally. Path-traversal protected and workspace-sandboxed.
+- **2026-04-01** 📎 **File Attachments & Images in WebUI** — Drag-and-drop or paste files and images directly into the chat. Images are previewed inline; other files are attached as downloadable links. All uploads are stored in `workspace/uploads/` and streamed to the agent as context.
+- **2026-04-01** 🧹 **Codebase Cleanup & Security Hardening** — Full production audit completed. All source files restructured, deduplicated and cleaned. 14 bugs fixed across CRITICAL/HIGH/MEDIUM/LOW severity classes: per-session asyncio locking, file I/O race conditions, agent double-init race, path traversal in file routes, CORS misconfiguration, unicode injection via codecs, pip-audit severity parsing, and TCP resource leaks.
+- **2026-04-01** 🧠 **Proactive Learning (Scent Mining)** — ShibaClaw now automatically reflects on your conversations in the background. It extracts key facts and preferences to update your long-term memory (`MEMORY.md`) without waiting for the context window to fill or the session to end.
 - **2026-03-31** 🔍 **Smart Install Guard** — Package installations (`pip install`, `npm install`, `apt install`, ...) are no longer blindly blocked. Instead they are **intercepted and audited for CVEs** using `pip-audit` and `npm audit` before execution. Only packages with critical/high severity vulnerabilities are blocked; clean packages install freely. Destructive operations (`uninstall`, `remove`, `purge`) remain blocked.
 - **2026-03-29** 🛡️ Security Hardening — Enhanced Indirect Prompt Injection protection via **Randomized Tool Output Wrapping** (using dynamic nonces per-session) to prevent instructions from untrusted data hijacking the agent.
 - **2026-03-29** 🐾 LiteLLM Dependency Removed — Architecture modernized to utilize native SDKs (`openai`, `anthropic`), dramatically reducing docker image sizes, startup times, and opaque dependency risks.
@@ -49,12 +52,14 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 - **Fast & Faithful**: Minimal startup time and dependencies.
 - **Multi-channel**: Support for Telegram, Discord, Slack, WhatsApp, and more.
 - **Always Alert**: Built-in cron and heartbeat task scheduler.
-- 🧩 **Skills Registry**: Modular and extensible skill system with native ClawhHub marketplace support
+- 🧩 **Skills Registry**: Modular and extensible skill system with native ClawHub marketplace support
 - ⚡ **Parallel Multi-Agent Execution**: A built-in fan-out orchestration model that spawns and coordinates specialized sub-agents concurrently for faster, scalable task resolution
-- **Advanced Thinking**: Support for OpenAI, Azure, LiteLLM, and deep-reasoning thinkers.
+- **Advanced Thinking**: Support for OpenAI, Azure, and deep-reasoning thinkers.
 - **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via **Structural Randomized Wrapping** and strict per-session security policies.
 - **🔍 Smart Install Guard**: Package installs are audited for CVEs before execution — safe packages install freely, vulnerable ones are blocked with a full CVE report.
 - **🧠 Proactive Learning (Scent Mining)**: Periodic background analysis of the active conversation to extract and persist key facts into long-term memory, ensuring no "scent" is lost even in long sessions.
+- **📂 Integrated File Browser**: Browse, view, edit and save workspace files directly from the WebUI — no terminal needed.
+- **📎 File Attachments & Images**: Drag-and-drop or paste files and images directly into the chat for the agent to use as context.
 
 ## 🔒 Loyal Only to You
 Like the most devoted guard dog, ShibaClaw is trained to obey only its master. Thanks to its advanced **Tool Output Wrapping** system, the framework is hardened against *Indirect Prompt Injection* attacks. It treats external data from websites, files, or tools as literal information—never as new instructions. Your orders are final; to ShibaClaw, external noise is just a squirrel 🐿️.
@@ -232,17 +237,14 @@ shibaclaw provider login github-copilot # async device flow
 Requirements: `pip install oauth-cli-kit` (Codex)
 
 ### Useful commands
-- `shibaclaw status onboard --wizard`
-- `shibaclaw status` (check provider status and OAuth flags)
+- `shibaclaw onboard --wizard`
+- `shibaclaw status` (check provider status and OAuth flags — shows `✓ (OAuth)` for authenticated OAuth providers)
 - `shibaclaw agent -m "Hello"`
-
-Status:
-- `shibaclaw status` will show `✓ (OAuth)` for authenticated OAuth providers.
 
 ## ✅ Check Status & Troubleshooting
 
 - `shibaclaw status` reports workspace, config path, and provider status.
-- `docker logs shibaclaw-gateway` / `docker logs shibaclaw-agent` for container logs.
+- `docker logs shibaclaw-gateway` / `docker logs shibaclaw-web` for container logs.
 - Refer to `shibaclaw/thinkers/registry.py` for provider list and prefixing behavior.
 
 ## 🏗️ Project Structure & Architecture

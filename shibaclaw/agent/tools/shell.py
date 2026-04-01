@@ -168,12 +168,9 @@ class ExecTool(Tool):
                 )
 
             # Append audit warnings to output if any
-            if self.install_audit and hasattr(self, '_last_audit_result'):
-                audit_res: AuditResult | None = self._last_audit_result
-                self._last_audit_result = None
-                if audit_res and audit_res.warnings:
-                    warnings_text = "\n".join(f"⚠️  {w}" for w in audit_res.warnings)
-                    result = f"{result}\n\n🔍 Install Audit Warnings:\n{warnings_text}"
+            if audit_result is not None and audit_result.warnings:
+                warnings_text = "\n".join(f"⚠️  {w}" for w in audit_result.warnings)
+                result = f"{result}\n\n🔍 Install Audit Warnings:\n{warnings_text}"
 
             return result
 
@@ -190,30 +187,27 @@ class ExecTool(Tool):
             return None
 
         logger.info("🔍 Detected {} install command — running vulnerability audit", manager)
-        result = await audit_install(
+        return await audit_install(
             command,
             timeout=self.install_audit_timeout,
             block_severity=self.install_audit_block_severity,
             cwd=cwd,
         )
-        # Stash for appending warnings to output after execution
-        self._last_audit_result = result
-        return result
 
     @staticmethod
     def _normalize_command(cmd: str) -> str:
-        """Normalize common encoding tricks before safety checks.
+        """Normalize explicit encoding tricks before safety checks.
 
-        Handles hex escapes (\\x41), unicode escapes (\\u0041),
-        and dollar-single-quote ($'\\x41') that bypass naive regex blocklists.
+        Handles hex escapes (\\x41) and unicode escapes (\\u0041) that bypass
+        naive regex blocklists.  Uses targeted regex substitution instead of
+        codecs.unicode_escape, which would also decode \\n, \\t, \\r, etc. —
+        characters that are valid in Windows path components and would corrupt
+        legitimate paths like C:\\new_folder or C:\\temp\\tables.
         """
-        import codecs
         result = cmd
-        # Decode Python-style hex/unicode escapes: \x41 → A, \u0041 → A
-        try:
-            result = codecs.decode(result, "unicode_escape")
-        except Exception:
-            pass  # leave as-is if decode fails (e.g. invalid sequences)
+        # Decode only explicit hex/unicode point escapes: \x41 → A, \u0041 → A
+        result = re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), result)
+        result = re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), result)
         # Collapse excessive whitespace (tab, multiple spaces → single space)
         result = re.sub(r"\s+", " ", result)
         return result

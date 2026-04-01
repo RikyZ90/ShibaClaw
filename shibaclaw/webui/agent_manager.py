@@ -24,6 +24,7 @@ class AgentManager:
         self._bg_tasks: List[asyncio.Task] = []
         self._sio: Optional[Any] = None
         self._sessions: Dict[str, Dict] = {}
+        self._init_lock = asyncio.Lock()
 
     def set_socket_io(self, sio: Any, sessions: Dict[str, Dict]):
         self._sio = sio
@@ -44,49 +45,52 @@ class AgentManager:
         """Ensure the agent and its background consumers are running."""
         if self.agent is not None:
             return
+        async with self._init_lock:
+            if self.agent is not None:  # double-checked under lock
+                return
 
-        if self.config is None:
-            self.load_latest_config()
-            
-        if self.config is None or self.provider is None:
-            return
+            if self.config is None:
+                self.load_latest_config()
 
-        from shibaclaw.agent.loop import ShibaBrain
-        from shibaclaw.bus.queue import MessageBus
-        from shibaclaw.config.paths import get_cron_dir
-        from shibaclaw.cron.service import CronService
+            if self.config is None or self.provider is None:
+                return
 
-        self.bus = MessageBus()
-        cron_store = get_cron_dir() / "jobs.json"
-        cron = CronService(cron_store)
+            from shibaclaw.agent.loop import ShibaBrain
+            from shibaclaw.bus.queue import MessageBus
+            from shibaclaw.config.paths import get_cron_dir
+            from shibaclaw.cron.service import CronService
 
-        self.agent = ShibaBrain(
-            bus=self.bus,
-            provider=self.provider,
-            workspace=self.config.workspace_path,
-            model=self.config.agents.defaults.model,
-            max_iterations=self.config.agents.defaults.max_tool_iterations,
-            context_window_tokens=self.config.agents.defaults.context_window_tokens,
-            web_search_config=self.config.tools.web.search,
-            web_proxy=self.config.tools.web.proxy or None,
-            exec_config=self.config.tools.exec,
-            cron_service=cron,
-            mcp_servers=self.config.tools.mcp_servers,
-            channels_config=self.config.channels,
-            learning_enabled=self.config.agents.defaults.learning_enabled,
-            learning_interval=self.config.agents.defaults.learning_interval,
-        )
-        await cron.start()
+            self.bus = MessageBus()
+            cron_store = get_cron_dir() / "jobs.json"
+            cron = CronService(cron_store)
 
-        # Shutdown old tasks if any
-        for t in self._bg_tasks:
-            t.cancel()
-        self._bg_tasks.clear()
+            self.agent = ShibaBrain(
+                bus=self.bus,
+                provider=self.provider,
+                workspace=self.config.workspace_path,
+                model=self.config.agents.defaults.model,
+                max_iterations=self.config.agents.defaults.max_tool_iterations,
+                context_window_tokens=self.config.agents.defaults.context_window_tokens,
+                web_search_config=self.config.tools.web.search,
+                web_proxy=self.config.tools.web.proxy or None,
+                exec_config=self.config.tools.exec,
+                cron_service=cron,
+                mcp_servers=self.config.tools.mcp_servers,
+                channels_config=self.config.channels,
+                learning_enabled=self.config.agents.defaults.learning_enabled,
+                learning_interval=self.config.agents.defaults.learning_interval,
+            )
+            await cron.start()
 
-        # Start new background tasks
-        task1 = asyncio.create_task(self.agent.run())
-        task2 = asyncio.create_task(self._consume_outbound())
-        self._bg_tasks.extend([task1, task2])
+            # Shutdown old tasks if any
+            for t in self._bg_tasks:
+                t.cancel()
+            self._bg_tasks.clear()
+
+            # Start new background tasks
+            task1 = asyncio.create_task(self.agent.run())
+            task2 = asyncio.create_task(self._consume_outbound())
+            self._bg_tasks.extend([task1, task2])
 
     async def _consume_outbound(self):
         """Consume messages from the bus and deliver to the WebUI clients."""

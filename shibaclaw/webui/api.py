@@ -361,10 +361,13 @@ async def api_gateway_health(request: Request):
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host, port), timeout=10.0
             )
-            writer.write(b"GET /health HTTP/1.0\r\nHost: health\r\n\r\n")
-            await writer.drain()
-            data = await asyncio.wait_for(reader.read(1024), timeout=5.0)
-            writer.close()
+            try:
+                writer.write(b"GET /health HTTP/1.0\r\nHost: health\r\n\r\n")
+                await writer.drain()
+                data = await asyncio.wait_for(reader.read(1024), timeout=5.0)
+            finally:
+                writer.close()
+                await writer.wait_closed()
             if b"200" in data:
                 body_start = data.find(b"\r\n\r\n")
                 if body_start > 0:
@@ -396,11 +399,14 @@ async def api_gateway_restart(request: Request):
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host, port), timeout=2.0
             )
-            auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
-            writer.write(f"POST /restart HTTP/1.0\r\nHost: gw\r\n{auth_hdr}\r\n".encode())
-            await writer.drain()
-            data = await asyncio.wait_for(reader.read(512), timeout=2.0)
-            writer.close()
+            try:
+                auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
+                writer.write(f"POST /restart HTTP/1.0\r\nHost: gw\r\n{auth_hdr}\r\n".encode())
+                await writer.drain()
+                data = await asyncio.wait_for(reader.read(512), timeout=2.0)
+            finally:
+                writer.close()
+                await writer.wait_closed()
             if b"200" in data:
                 agent_manager.reset_agent()
                 return JSONResponse({"status": "restarting"})
@@ -453,38 +459,88 @@ async def api_upload(request: Request):
 
 
 async def api_file_get(request: Request):
-    """Serve a file from the filesystem."""
+    """Serve a file from the filesystem — restricted to the agent workspace."""
     path_str = request.query_params.get("path")
     if not path_str:
         return JSONResponse({"error": "No path provided"}, status_code=400)
-    
-    path = Path(path_str)
-    if not path.exists() or not path.is_file():
+
+    if not agent_manager.config:
+        return JSONResponse({"error": "No config"}, status_code=503)
+
+    resolved = Path(path_str).resolve()
+    workspace = agent_manager.config.workspace_path.resolve()
+    # Resolve relative paths against workspace, not process CWD
+    raw = Path(path_str)
+    resolved = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
+    if not resolved.is_relative_to(workspace):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    if not resolved.exists() or not resolved.is_file():
         return JSONResponse({"error": "File not found"}, status_code=404)
-    
+
     mime_type, _ = mimetypes.guess_type(path_str)
     if not mime_type:
         mime_type = "application/octet-stream"
-    
+
     headers = {}
     if mime_type.startswith("image/"):
         headers["Cache-Control"] = "public, max-age=3600"
     else:
-        headers["Content-Disposition"] = f'attachment; filename="{path.name}"'
-        
-    return FileResponse(path, media_type=mime_type, headers=headers)
+        headers["Cache-Control"] = "no-store"
+
+    return FileResponse(resolved, media_type=mime_type, headers=headers)
+
+
+async def api_file_save(request: Request):
+    """Overwrite a workspace file with new text content."""
+    if not agent_manager.config:
+        return JSONResponse({"error": "No config"}, status_code=503)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    path_str = body.get("path")
+    content = body.get("content")
+    if not path_str or content is None:
+        return JSONResponse({"error": "path and content are required"}, status_code=400)
+
+    workspace = agent_manager.config.workspace_path.resolve()
+    raw = Path(path_str)
+    resolved = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
+    if not resolved.is_relative_to(workspace):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    if not resolved.exists() or not resolved.is_file():
+        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    try:
+        resolved.write_text(content, encoding="utf-8")
+        written = resolved.stat().st_size
+        logger.info("file-save: wrote {} bytes to {}", written, resolved)
+        return JSONResponse({"status": "ok", "path": str(resolved), "bytes": written})
+    except Exception as e:
+        logger.exception("file-save failed for {}", resolved)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 async def api_fs_explore(request: Request):
-    """List files in a directory."""
+    """List files in a directory — restricted to the agent workspace."""
+    if not agent_manager.config:
+        return JSONResponse({"error": "No config"}, status_code=503)
+
+    workspace = agent_manager.config.workspace_path.resolve()
     target_path_str = request.query_params.get("path")
     if not target_path_str:
-        if not agent_manager.config:
-            return JSONResponse({"error": "No config and no path provided"}, status_code=400)
-        target_path = agent_manager.config.workspace_path
+        target_path = workspace
     else:
-        target_path = Path(target_path_str)
-        
+        raw = Path(target_path_str)
+        # Resolve relative paths against the workspace root, not the process cwd
+        target_path = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
+        if not target_path.is_relative_to(workspace):
+            return JSONResponse({"error": "Forbidden"}, status_code=403)
+
     if not target_path.exists() or not target_path.is_dir():
         return JSONResponse({"error": "Directory not found"}, status_code=404)
     
@@ -495,7 +551,7 @@ async def api_fs_explore(request: Request):
                 try:
                     info = {
                         "name": entry.name,
-                        "path": str(Path(entry.path).absolute()),
+                        "path": Path(entry.path).relative_to(workspace).as_posix(),
                         "is_dir": entry.is_dir(),
                         "size": entry.stat().st_size if not entry.is_dir() else None,
                         "mtime": entry.stat().st_mtime

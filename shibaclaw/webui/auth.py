@@ -112,7 +112,7 @@ def get_cors_origins() -> list[str]:
     """Return allowed CORS origins from env or safe defaults."""
     env = os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip()
     if env == "*":
-        return "*"  # explicit opt-in to wildcard
+        return ["*"]  # explicit opt-in to wildcard
     if env:
         return [o.strip() for o in env.split(",") if o.strip()]
     return [

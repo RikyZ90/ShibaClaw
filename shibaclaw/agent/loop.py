@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sys
+import weakref
 from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
@@ -101,7 +102,7 @@ class ShibaBrain:
         self._mcp_connecting = False
         self._active_tasks: dict[str, list[asyncio.Task]] = {}  # session_key -> tasks
         self._background_tasks: list[asyncio.Task] = []
-        self._processing_lock = asyncio.Lock()
+        self._session_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
         self.memory_consolidator = PackMemory(
             workspace=workspace,
             provider=provider,
@@ -349,11 +350,12 @@ class ShibaBrain:
             await asyncio.sleep(1)
             os.execv(sys.executable, [sys.executable, "-m", "shibaclaw"] + sys.argv[1:])
 
-        asyncio.create_task(_do_restart())
+        self._schedule_background(_do_restart())
 
     async def _dispatch(self, msg: InboundMessage) -> None:
-        """Process a message under the global lock."""
-        async with self._processing_lock:
+        """Process a message under the per-session lock."""
+        lock = self._session_locks.setdefault(msg.session_key, asyncio.Lock())
+        async with lock:
             try:
                 response = await self._process_message(msg)
                 if response is not None:
@@ -476,9 +478,6 @@ class ShibaBrain:
         if message_tool := self.tools.get("message"):
             if isinstance(message_tool, MessageTool):
                 message_tool.start_turn()
-        
-        # Set tool context for this turn (so message/spawn/cron know the target)
-        self._set_tool_context(msg.channel, msg.chat_id, (msg.metadata or {}).get("sid"))
 
         history = session.get_history(max_messages=0)
         initial_messages = self.context.build_messages(

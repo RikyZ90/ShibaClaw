@@ -1317,6 +1317,8 @@ window.openModal = async function(id) {
         } catch(e) {
             $("settings-loading").innerHTML = `<span class="material-icons-round" style="color:var(--accent-red)">error</span> Failed to load settings`;
         }
+    } else if (id === "fs-modal") {
+        loadFs(state.currentFsPath || ".");
     }
 };
 
@@ -2066,7 +2068,7 @@ window.removeStagedFile = function(idx) {
 
 // ── File Explorer ─────────────────────────────────────────────
 window.loadFs = async function(path = ".") {
-    const list = $("fs-list");
+    const list = $("fs-content");
     const breadcrumb = $("fs-breadcrumb");
     if (!list) return;
 
@@ -2076,7 +2078,7 @@ window.loadFs = async function(path = ".") {
     </div>`;
 
     // Render breadcrumb
-    const parts = path.split(/[/\\]/).filter(p => p);
+    const parts = path.split(/[/\\]/).filter(p => p && p !== ".");
     let bcHtml = `<span class="breadcrumb-item" onclick="loadFs('.')">root</span>`;
     let currentPartPath = "";
     parts.forEach((p, i) => {
@@ -2123,7 +2125,7 @@ window.loadFs = async function(path = ".") {
                 if (f.is_dir) {
                     loadFs(f.path);
                 } else {
-                    window.open(`/api/file-get?path=${encodeURIComponent(f.path)}`, "_blank");
+                    openFileEditor(f.path, f.name);
                 }
             };
 
@@ -2148,6 +2150,155 @@ function formatSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
+
+// ── File Editor ───────────────────────────────────────────────
+const TEXT_EXTENSIONS = /\.(txt|md|py|js|ts|jsx|tsx|json|yaml|yml|toml|sh|bash|zsh|env|cfg|conf|ini|html|css|scss|xml|csv|log|rst|Dockerfile|gitignore|editorconfig|lock|sql|go|rs|rb|java|c|cpp|h|php)$/i;
+
+window.openFileEditor = async function(filePath, fileName) {
+    const content = $("fs-content");
+    const breadcrumb = $("fs-breadcrumb");
+    if (!content) return;
+
+    content.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-muted)">
+        <span class="material-icons-round spin">progress_activity</span>
+    </div>`;
+
+    const parts = state.currentFsPath.split(/[\/\\]/).filter(p => p && p !== ".");
+    let bcHtml = `<span class="breadcrumb-item" onclick="loadFs('.')">root</span>`;
+    let cur = "";
+    parts.forEach((p, i) => {
+        cur += (i === 0 ? "" : "/") + p;
+        const cp = cur;
+        bcHtml += ` <span class="material-icons-round" style="font-size:12px">chevron_right</span> `;
+        bcHtml += `<span class="breadcrumb-item" onclick="loadFs('${cp.replace(/'/g, "\\'")}')">${p}</span>`;
+    });
+    bcHtml += ` <span class="material-icons-round" style="font-size:12px">chevron_right</span> <span class="breadcrumb-item active">${fileName}</span>`;
+    breadcrumb.innerHTML = bcHtml;
+
+    const isText = TEXT_EXTENSIONS.test(fileName);
+    if (!isText) {
+        content.innerHTML = `<div style="padding:3rem;text-align:center;color:var(--text-muted)">
+            <span class="material-icons-round" style="font-size:48px;display:block;margin-bottom:8px">insert_drive_file</span>
+            <p>Binary file — preview not available</p>
+        </div>`;
+        return;
+    }
+
+    try {
+        const res = await authFetch(`/api/file-get?path=${encodeURIComponent(filePath)}&_t=${Date.now()}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: res.statusText }));
+            content.innerHTML = `<div style="padding:2rem;color:var(--accent-red)">${err.error || "Error loading file"}</div>`;
+            return;
+        }
+        const text = await res.text();
+
+        content.innerHTML = `
+            <div class="file-editor-toolbar">
+                <span class="file-editor-name">${fileName}</span>
+                <span id="save-status" class="file-editor-status"></span>
+                <button class="btn-edit-mode" id="btn-refresh-file" title="Reload file from disk">
+                    <span class="material-icons-round" style="font-size:15px">refresh</span>
+                </button>
+                <button class="btn-edit-mode" id="btn-download-file" title="Download file">
+                    <span class="material-icons-round" style="font-size:15px">download</span>
+                </button>
+                <button class="btn-edit-mode" id="btn-edit-mode" title="Enter edit mode">
+                    <span class="material-icons-round" style="font-size:15px">edit</span> Edit
+                </button>
+                <button class="btn-primary btn-sm" id="btn-save-file" style="display:none">
+                    <span class="material-icons-round" style="font-size:14px">save</span> Save
+                </button>
+            </div>
+            <textarea class="file-editor-area" id="file-editor-textarea" spellcheck="false" readonly></textarea>
+        `;
+        const ta = document.getElementById("file-editor-textarea");
+        const btnEdit = document.getElementById("btn-edit-mode");
+        const btnSave = document.getElementById("btn-save-file");
+        const btnRefresh = document.getElementById("btn-refresh-file");
+        const btnDownload = document.getElementById("btn-download-file");
+        btnDownload.onclick = () => {
+            const blob = new Blob([ta.value], { type: "text/plain;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        };
+        ta.value = text;
+        btnRefresh.onclick = async () => {
+            btnRefresh.disabled = true;
+            // Reset to read-only view
+            ta.setAttribute("readonly", "");
+            btnEdit.classList.remove("active");
+            btnEdit.innerHTML = `<span class="material-icons-round" style="font-size:15px">edit</span> Edit`;
+            btnSave.style.display = "none";
+            const ss = document.getElementById("save-status");
+            if (ss) ss.textContent = "";
+            try {
+                const r = await authFetch(`/api/file-get?path=${encodeURIComponent(filePath)}&_t=${Date.now()}`);
+                if (r.ok) ta.value = await r.text();
+            } finally {
+                btnRefresh.disabled = false;
+            }
+        };
+        btnEdit.onclick = () => {
+            const isEditing = !ta.hasAttribute("readonly");
+            if (isEditing) {
+                // back to read-only
+                ta.setAttribute("readonly", "");
+                btnEdit.classList.remove("active");
+                btnEdit.innerHTML = `<span class="material-icons-round" style="font-size:15px">edit</span> Edit`;
+                btnSave.style.display = "none";
+            } else {
+                ta.removeAttribute("readonly");
+                ta.focus();
+                btnEdit.classList.add("active");
+                btnEdit.innerHTML = `<span class="material-icons-round" style="font-size:15px">visibility</span> View`;
+                btnSave.style.display = "";
+            }
+        };
+        btnSave.onclick = () => saveFile(filePath);
+    } catch (e) {
+        content.innerHTML = `<div style="padding:2rem;color:var(--accent-red)">Error: ${e.message}</div>`;
+    }
+};
+
+window.saveFile = async function(filePath) {
+    const textarea = document.getElementById("file-editor-textarea");
+    const status = $("save-status");
+    if (!textarea || !status) return;
+    const btn = $("btn-save-file");
+    if (btn) btn.disabled = true;
+    status.textContent = "Saving\u2026";
+    status.style.color = "";
+
+    const body = { path: filePath, content: textarea.value };
+    console.log("[file-save] sending", { path: filePath, bytes: textarea.value.length });
+
+    try {
+        const res = await authFetch("/api/file-save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        console.log("[file-save] response", res.status, data);
+        if (!res.ok) {
+            throw new Error(data.error || `Server error ${res.status}`);
+        }
+        if (data.error) throw new Error(data.error);
+        status.style.color = "";
+        status.textContent = `Saved! (${data.bytes ?? "?"} bytes \u2192 ${data.path ?? filePath})`;
+        setTimeout(() => { status.textContent = ""; }, 4000);
+    } catch (e) {
+        console.error("[file-save] error", e);
+        status.style.color = "var(--accent-red, #f38ba8)";
+        status.textContent = "\u274c " + e.message;
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
 
 // ── Event Listeners ───────────────────────────────────────────
 function initListeners() {

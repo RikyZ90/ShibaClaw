@@ -36,7 +36,7 @@ from .api import (
     api_sessions_list, api_sessions_get, api_sessions_patch, api_sessions_delete, api_sessions_archive,
     api_context_get, api_gateway_health, api_gateway_restart,
     api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code,
-    api_upload, api_file_get, api_fs_explore
+    api_upload, api_file_get, api_file_save, api_fs_explore
 )
 
 # Static files directory
@@ -95,6 +95,7 @@ def create_app(
         Route("/api/oauth/code", api_oauth_code, methods=["POST"]),
         Route("/api/upload", api_upload, methods=["POST"]),
         Route("/api/file-get", api_file_get, methods=["GET"]),
+        Route("/api/file-save", api_file_save, methods=["POST"]),
         Route("/api/fs/explore", api_fs_explore, methods=["GET"]),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]

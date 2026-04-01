@@ -109,22 +109,25 @@ class ScentKeeper:
         self.memory_file = self.memory_dir / "MEMORY.md"
         self.history_file = self.memory_dir / "HISTORY.md"
         self._consecutive_failures = 0
+        self._file_lock = asyncio.Lock()
 
     def read_long_term(self) -> str:
         if self.memory_file.exists():
             return self.memory_file.read_text(encoding="utf-8")
         return ""
 
-    def write_long_term(self, content: str) -> None:
-        self.memory_file.write_text(content, encoding="utf-8")
+    async def write_long_term(self, content: str) -> None:
+        async with self._file_lock:
+            self.memory_file.write_text(content, encoding="utf-8")
 
-    def append_history(self, entry: str) -> None:
+    async def append_history(self, entry: str) -> None:
         """Prepend new entry so most recent archives appear at the top."""
-        existing = ""
-        if self.history_file.exists():
-            existing = self.history_file.read_text(encoding="utf-8")
-        new_content = entry.rstrip() + "\n\n" + existing
-        self.history_file.write_text(new_content, encoding="utf-8")
+        async with self._file_lock:
+            existing = ""
+            if self.history_file.exists():
+                existing = self.history_file.read_text(encoding="utf-8")
+            new_content = entry.rstrip() + "\n\n" + existing
+            self.history_file.write_text(new_content, encoding="utf-8")
 
     def get_memory_context(self) -> str:
         long_term = self.read_long_term()
@@ -210,40 +213,40 @@ class ScentKeeper:
                     len(response.content or ""),
                     (response.content or "")[:200],
                 )
-                return self._fail_or_raw_archive(messages)
+                return await self._fail_or_raw_archive(messages)
 
             args = _normalize_save_memory_args(response.tool_calls[0].arguments)
             if args is None:
                 logger.warning("Memory consolidation: unexpected save_memory arguments")
-                return self._fail_or_raw_archive(messages)
+                return await self._fail_or_raw_archive(messages)
 
             if "history_entry" not in args or "memory_update" not in args:
                 logger.warning("Memory consolidation: save_memory payload missing required fields")
-                return self._fail_or_raw_archive(messages)
+                return await self._fail_or_raw_archive(messages)
 
             entry = args["history_entry"]
             update = args["memory_update"]
 
             if entry is None or update is None:
                 logger.warning("Memory consolidation: save_memory payload contains null required fields")
-                return self._fail_or_raw_archive(messages)
+                return await self._fail_or_raw_archive(messages)
 
             entry = _ensure_text(entry).strip()
             if not entry:
                 logger.warning("Memory consolidation: history_entry is empty after normalization")
-                return self._fail_or_raw_archive(messages)
+                return await self._fail_or_raw_archive(messages)
 
-            self.append_history(entry)
+            await self.append_history(entry)
             update = _ensure_text(update)
             if update != current_memory:
-                self.write_long_term(update)
+                await self.write_long_term(update)
 
             self._consecutive_failures = 0
             logger.info("🐕 Memory consolidation done for {} traces", len(messages))
             return True
         except Exception:
             logger.exception("Memory consolidation failed")
-            return self._fail_or_raw_archive(messages)
+            return await self._fail_or_raw_archive(messages)
 
     async def proactive_consolidate(
         self,
@@ -309,7 +312,7 @@ Call update_long_term_memory relative to these rules:
 
             update = _ensure_text(args["memory_update"]).strip()
             if update and update != current_memory:
-                self.write_long_term(update)
+                await self.write_long_term(update)
                 logger.info("🐕 Proactive Learning: updated long-term memory with new traces.")
             
             return True
@@ -317,19 +320,19 @@ Call update_long_term_memory relative to these rules:
             logger.debug("Proactive Learning failed (swallowed): {}", e)
             return False
 
-    def _fail_or_raw_archive(self, messages: list[dict]) -> bool:
+    async def _fail_or_raw_archive(self, messages: list[dict]) -> bool:
         """Increment failure count; after threshold, raw-archive messages and return True."""
         self._consecutive_failures += 1
         if self._consecutive_failures < self._MAX_FAILURES_BEFORE_RAW_ARCHIVE:
             return False
-        self._raw_archive(messages)
+        await self._raw_archive(messages)
         self._consecutive_failures = 0
         return True
 
-    def _raw_archive(self, messages: list[dict]) -> None:
+    async def _raw_archive(self, messages: list[dict]) -> None:
         """Fallback: dump raw messages to HISTORY.md without summaries."""
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.append_history(
+        await self.append_history(
             f"[{ts}] [RAW] {len(messages)} messages\n"
             f"{self._format_messages(messages)}"
         )

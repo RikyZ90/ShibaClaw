@@ -212,15 +212,8 @@ async def _audit_pip(
         )
         return result
 
-    # Try pip-audit with the specific packages
-    audit_cmd = ["pip-audit", "--format", "json", "--desc", "--progress-spinner=off"]
-    for pkg in packages:
-        audit_cmd.extend(["-r", "/dev/stdin"])  # won't use this path
-
-    # Better approach: pip-audit can audit requirements passed directly
-    # Use --requirement with a temp approach, or just audit the package names
-    # pip-audit >= 2.6 supports: pip-audit <package_spec> ...
-    # For simplicity, we pipe package specs via -r /dev/stdin
+    # Pipe the package list via stdin to pip-audit using -r /dev/stdin.
+    # pip-audit treats stdin as a requirements file, so all packages are audited in one pass.
     pkg_list = "\n".join(packages)
     try:
         process = await asyncio.create_subprocess_exec(
@@ -284,7 +277,7 @@ def _parse_pip_audit_json(output: str) -> list[Vulnerability]:
                 package=pkg_name,
                 version=pkg_version,
                 cve_id=vuln.get("id", vuln.get("aliases", ["UNKNOWN"])[0] if vuln.get("aliases") else "UNKNOWN"),
-                severity=Severity.from_str(vuln.get("fix_versions", [{}])[0] if False else "unknown"),
+                severity=Severity.from_str(vuln.get("severity", "unknown")),
                 description=vuln.get("description", "")[:200],
             ))
             # Try to get proper severity from description or details
