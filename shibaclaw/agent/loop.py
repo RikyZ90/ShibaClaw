@@ -60,6 +60,8 @@ class ShibaBrain:
         session_manager: PackManager | None = None,
         mcp_servers: dict[str, dict] | None = None,
         channels_config: Any | None = None,
+        learning_enabled: bool = True,
+        learning_interval: int = 10,
     ):
         from shibaclaw.agent.context import ScentBuilder
         from shibaclaw.agent.memory import PackMemory
@@ -108,6 +110,8 @@ class ShibaBrain:
             context_window_tokens=context_window_tokens,
             build_messages=self.context.build_messages,
             get_tool_definitions=self.tools.get_definitions,
+            learning_enabled=learning_enabled,
+            learning_interval=learning_interval,
         )
         self.memory = ScentKeeper(workspace)
         self._register_default_tools()
@@ -162,9 +166,11 @@ class ShibaBrain:
 
     def _set_tool_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
         """Update context for all tools that need routing info."""
+        logger.debug("🛠️ Setting tool context: channel={}, chat_id={}, message_id={}", channel, chat_id, message_id)
         for name in ("message", "spawn", "cron"):
             if tool := self.tools.get(name):
                 if hasattr(tool, "set_context"):
+                    logger.debug("✅ Updating tool: {}", name)
                     tool.set_context(channel, chat_id, *([message_id] if name == "message" else []))
 
     @staticmethod
@@ -470,6 +476,9 @@ class ShibaBrain:
         if message_tool := self.tools.get("message"):
             if isinstance(message_tool, MessageTool):
                 message_tool.start_turn()
+        
+        # Set tool context for this turn (so message/spawn/cron know the target)
+        self._set_tool_context(msg.channel, msg.chat_id, (msg.metadata or {}).get("sid"))
 
         history = session.get_history(max_messages=0)
         initial_messages = self.context.build_messages(
@@ -498,6 +507,22 @@ class ShibaBrain:
         self._save_turn(session, all_msgs, 1 + len(history))
         self.sessions.save(session)
         self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
+        self._schedule_background(self.memory_consolidator.maybe_proactive_learn(session))
+
+        # Fallback: Detect JSON media block in response if agent didn't use message tool
+        media_list = []
+        import re
+        import json
+        # Simplified regex to find {"media": [...]} block
+        media_match = re.search(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content)
+        if media_match:
+            try:
+                media_json = json.loads(media_match.group(0))
+                media_list = media_json.get("media", [])
+                # Optional: strip the JSON from content to keep it clean
+                final_content = final_content.replace(media_match.group(0), "").strip()
+            except Exception:
+                pass
 
         if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
             return None
@@ -506,6 +531,7 @@ class ShibaBrain:
         logger.debug("Response to {}:{}: {}", msg.channel, msg.sender_id, preview)
         return OutboundMessage(
             channel=msg.channel, chat_id=msg.chat_id, content=final_content,
+            media=media_list,
             metadata=msg.metadata or {},
         )
 
@@ -553,9 +579,10 @@ class ShibaBrain:
         channel: str = "cli",
         chat_id: str = "direct",
         on_progress: Callable[[str], Awaitable[None]] | None = None,
-    ) -> str:
+        media: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> OutboundMessage | None:
         """Process a message directly (for CLI or cron usage)."""
         await self._connect_mcp()
-        msg = InboundMessage(channel=channel, sender_id="user", chat_id=chat_id, content=content)
-        response = await self._process_message(msg, session_key=session_key, on_progress=on_progress)
-        return response.content if response else ""
+        msg = InboundMessage(channel=channel, sender_id="user", chat_id=chat_id, content=content, media=media, metadata=metadata or {})
+        return await self._process_message(msg, session_key=session_key, on_progress=on_progress)

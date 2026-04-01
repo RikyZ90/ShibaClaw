@@ -56,7 +56,7 @@
                     <img src="/static/shibaclaw_logo.png" alt="ShibaClaw Logo" class="logo-icon">
                     <div class="logo-text">
                         <h1>ShibaClaw</h1>
-                        <span class="version">v0.0.6</span>
+                        <span class="version">v0.0.7</span>
                     </div>
                 </div>
                 <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
@@ -89,6 +89,9 @@
                 </button>
                 <button class="btn-command" onclick="openModal('settings-modal')">
                     <span class="material-icons-round">settings</span> Settings
+                </button>
+                <button class="btn-command" onclick="openModal('fs-modal')">
+                    <span class="material-icons-round">folder_open</span> Files
                 </button>
             </div>
 
@@ -164,7 +167,14 @@
                         </div>
                         <span class="thinking-text" id="thinking-text">Thinking...</span>
                     </div>
+                    <div id="attachment-staging" class="attachment-staging" style="display:none">
+                        <!-- Staged files appear here -->
+                    </div>
                     <div class="input-container">
+                        <button class="btn-attach" id="btn-attach" title="Attach files or images">
+                            <span class="material-icons-round">attach_file</span>
+                        </button>
+                        <input type="file" id="file-input" multiple style="display:none">
                         <textarea
                             id="chat-input"
                             placeholder="Send a message to ShibaClaw..."
@@ -306,6 +316,32 @@
             <div class="modal-body markdown-body" id="context-content">
                 <div class="loader">Loading context...</div>
             </div>
+        </div>
+    </div>
+
+    <!-- File Explorer Modal -->
+    <div id="fs-modal" class="modal-backdrop">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">folder_open</span> File Explorer</h2>
+                <button class="btn-icon" onclick="closeModal('fs-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="fs-breadcrumb" id="fs-breadcrumb">
+                <!-- Current path breadcrumbs -->
+            </div>
+            <div class="modal-body fs-body" id="fs-content">
+                <div class="loader">Loading files...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop Overlay -->
+    <div id="drag-overlay" class="drag-overlay">
+        <div class="drag-message">
+            <span class="material-icons-round">cloud_upload</span>
+            <p>Drop files here to attach</p>
         </div>
     </div>
 
