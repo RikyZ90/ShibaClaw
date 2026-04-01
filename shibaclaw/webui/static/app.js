@@ -502,6 +502,12 @@ function createMessageGroup(type) {
     }
     group.appendChild(avatar);
 
+    const prev = chatHistory ? chatHistory.lastElementChild : null;
+    const prevIsProcessGroup = prev && prev.classList.contains("process-group");
+    const prevGroup = prevIsProcessGroup ? chatHistory.children[chatHistory.children.length - 2] : prev;
+    const sameType = prevGroup && prevGroup.classList.contains("message-group") && prevGroup.classList.contains(type);
+    if (!sameType) group.classList.add("show-avatar");
+
     const content = document.createElement("div");
     content.className = "message-content";
     group.appendChild(content);
@@ -2274,7 +2280,6 @@ window.saveFile = async function(filePath) {
     status.style.color = "";
 
     const body = { path: filePath, content: textarea.value };
-    console.log("[file-save] sending", { path: filePath, bytes: textarea.value.length });
 
     try {
         const res = await authFetch("/api/file-save", {
@@ -2283,7 +2288,6 @@ window.saveFile = async function(filePath) {
             body: JSON.stringify(body)
         });
         const data = await res.json().catch(() => ({}));
-        console.log("[file-save] response", res.status, data);
         if (!res.ok) {
             throw new Error(data.error || `Server error ${res.status}`);
         }
@@ -2299,6 +2303,45 @@ window.saveFile = async function(filePath) {
         if (btn) btn.disabled = false;
     }
 };
+
+(function initChatWidth() {
+    const STORAGE_KEY = "shibaclaw_chat_width";
+    const DEFAULT = 860;
+    const root = document.documentElement;
+
+    const saved = parseInt(localStorage.getItem(STORAGE_KEY)) || DEFAULT;
+    root.style.setProperty("--chat-width", saved + "px");
+
+    function applyWidth(px) {
+        root.style.setProperty("--chat-width", px + "px");
+        document.querySelectorAll(".width-preset").forEach(btn => {
+            btn.classList.toggle("active", parseInt(btn.dataset.width) === px);
+        });
+        localStorage.setItem(STORAGE_KEY, px);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const toggleBtn = document.getElementById("btn-width-toggle");
+        const popover   = document.getElementById("width-popover");
+
+        applyWidth(saved);
+
+        toggleBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            popover.classList.toggle("open");
+        });
+        document.addEventListener("click", (e) => {
+            if (!toggleBtn.contains(e.target) && !popover.contains(e.target)) {
+                popover.classList.remove("open");
+            }
+        });
+        document.querySelectorAll(".width-preset").forEach(btn => {
+            btn.addEventListener("click", () => {
+                applyWidth(parseInt(btn.dataset.width));
+            });
+        });
+    });
+})();
 
 // ── Event Listeners ───────────────────────────────────────────
 function initListeners() {
