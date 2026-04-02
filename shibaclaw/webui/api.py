@@ -74,7 +74,6 @@ def _load_workspace_context(wp: Path):
     file_list = ["SOUL.md", "USER.md", "AGENTS.md", "TOOLS.md"]
     context_paths = {
         "MEMORY.md": wp / "memory" / "MEMORY.md",
-        "HISTORY.md": wp / "memory" / "HISTORY.md",
     }
     current_state = {}
     for file in file_list:
