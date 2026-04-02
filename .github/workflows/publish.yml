@@ -53,7 +53,9 @@ jobs:
 
       - name: Extract version from tag
         id: meta
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -61,5 +63,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/shibaclaw:latest
-            ghcr.io/${{ github.repository_owner }}/shibaclaw:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ steps.meta.outputs.owner }}/shibaclaw:latest
+            ghcr.io/${{ steps.meta.outputs.owner }}/shibaclaw:${{ steps.meta.outputs.version }}
