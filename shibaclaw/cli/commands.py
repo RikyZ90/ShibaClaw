@@ -60,7 +60,7 @@ def onboard(
 
 @app.command()
 def gateway(
-    host: str = typer.Option("127.0.0.1", "--host", "-H", help="Gateway host"),
+    host: Optional[str] = typer.Option(None, "--host", "-H", help="Gateway host (default: 127.0.0.1 or from config)"),
     port: Optional[int] = typer.Option(None, "--port", "-p", help="Gateway port"),
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),

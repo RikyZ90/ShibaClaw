@@ -79,6 +79,8 @@ class AgentManager:
                 channels_config=self.config.channels,
                 learning_enabled=self.config.agents.defaults.learning_enabled,
                 learning_interval=self.config.agents.defaults.learning_interval,
+                memory_max_prompt_tokens=self.config.agents.defaults.memory_max_prompt_tokens,
+                memory_compact_threshold_tokens=self.config.agents.defaults.memory_compact_threshold_tokens,
             )
             await cron.start()
 

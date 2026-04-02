@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import sys
 import time
 import logging
 from pathlib import Path
@@ -14,7 +16,7 @@ from .utils import console
 from shibaclaw.helpers.logging import setup_shiba_logging
 
 async def gateway_command(
-    host: str = "127.0.0.1",
+    host: Optional[str] = None,
     port_override: Optional[int] = None,
     workspace: Optional[str] = None,
     verbose: bool = False,
@@ -36,7 +38,7 @@ async def gateway_command(
 
     config = _load_runtime_config(config_path, workspace)
     port = port_override if port_override is not None else config.gateway.port
-    host = host if host != "127.0.0.1" else config.gateway.host
+    host = host if host is not None else (config.gateway.host or "127.0.0.1")
 
     auth_token = get_auth_token()
     if auth_token:
@@ -65,6 +67,8 @@ async def gateway_command(
         channels_config=config.channels,
         learning_enabled=config.agents.defaults.learning_enabled,
         learning_interval=config.agents.defaults.learning_interval,
+        memory_max_prompt_tokens=config.agents.defaults.memory_max_prompt_tokens,
+        memory_compact_threshold_tokens=config.agents.defaults.memory_compact_threshold_tokens,
     )
 
     # ── Cron Logic ──
@@ -112,15 +116,18 @@ async def gateway_command(
     c_status, hb_info = cron.status(), f"[green]✓[/green] [bold]Heartbeat:[/bold] {hb_cfg.interval_s}s" if hb_cfg.enabled else "[dim]Heartbeat: disabled[/dim]"
     status_parts.append(f"  [green]✓[/green] [bold]Cron:[/bold] {c_status['jobs']} jobs" if c_status["jobs"] > 0 else "  [dim]Cron: idle[/dim]")
     status_parts.append(f"  {hb_info}")
-    status_parts.append(f"\n  [cyan]🖥️  WebUI:[/cyan] [link=http://localhost:3000]http://localhost:3000[/link]")
+    webui_url = os.environ.get("SHIBACLAW_WEBUI_URL", "http://localhost:3000")
+    status_parts.append(f"\n  [cyan]🖥️  WebUI:[/cyan] [link={webui_url}]{webui_url}[/link]")
     console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
     # ── Server Loop ──
+    _state = {"restart": False}
+
     async def run():
-        _restart, _start_time = False, time.time()
+        _start_time = time.time()
         
         async def _health_handler(reader, writer):
-            nonlocal _restart
+            nonlocal _state
             try:
                 data = await asyncio.wait_for(reader.read(2048), timeout=2)
                 if b"POST" in data and b"/restart" in data:
@@ -128,7 +135,7 @@ async def gateway_command(
                         writer.write(b"HTTP/1.0 401 Unauthorized\r\n\r\n")
                     else:
                         writer.write(b"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n" + json.dumps({"status": "restarting"}).encode())
-                        _restart = True
+                        _state["restart"] = True
                         asyncio.get_event_loop().call_later(0.5, lambda: [t.cancel() for t in asyncio.all_tasks()])
                 elif b"GET" in data:
                     writer.write(b"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n" + json.dumps({
@@ -144,7 +151,7 @@ async def gateway_command(
             await heartbeat.start()
             await asyncio.gather(agent.run(), channels.start_all(), health_srv.serve_forever())
         except (KeyboardInterrupt, asyncio.CancelledError):
-            console.print("\n🔄 Restart requested..." if _restart else "\nShutting down...")
+            console.print("\n🔄 Restart requested..." if _state["restart"] else "\nShutting down...")
         finally:
             await agent.close_mcp()
             heartbeat.stop()
@@ -153,3 +160,7 @@ async def gateway_command(
             await channels.stop_all()
 
     await run()
+
+    if _state["restart"]:
+        # Re-exec the current process to apply new config (bare-metal + Docker)
+        os.execv(sys.executable, [sys.executable] + sys.argv)

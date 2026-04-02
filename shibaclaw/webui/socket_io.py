@@ -153,16 +153,18 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                         "type": res[0] or "application/octet-stream"
                     })
 
-                if response_content == "No response." and final_atts: return
+                content_to_send = response_content if response_content != "No response." else ""
+                if not content_to_send and not final_atts:
+                    return  # truly nothing to send
 
                 await sio.emit("agent_response", {
                     "id": message["id"],
-                    "content": response_content,
+                    "content": content_to_send,
                     "attachments": final_atts
                 }, room=sid)
 
             except asyncio.CancelledError:
-                await sio.emit("agent_response", {"id": message["id"], "content": "🐕 Hunt stopped."}, room=sid)
+                pass  # stop_agent handler already notified the user
             except Exception as e:
                 logger.exception("WebUI processing error")
                 await sio.emit("error", {"message": f"Error: {e}"}, room=sid)

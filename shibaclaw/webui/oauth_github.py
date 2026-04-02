@@ -74,6 +74,7 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
             elif error:
                 jobs[job_id]["status"] = "error"
                 jobs[job_id]["logs"].append(f"❌ GitHub error: {error}")
+                asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
                 return
 
             access_token = tj.get("access_token")
@@ -97,6 +98,7 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
 
                 jobs[job_id]["status"] = "done"
                 jobs[job_id]["logs"].append("✅ Authenticated with GitHub Copilot!")
+                asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
                 return
         except Exception as e:
             jobs[job_id]["logs"].append(f"Poll error: {e}")
@@ -104,3 +106,4 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
 
     jobs[job_id]["status"] = "error"
     jobs[job_id]["logs"].append("❌ Timed out waiting for authorization.")
+    asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))

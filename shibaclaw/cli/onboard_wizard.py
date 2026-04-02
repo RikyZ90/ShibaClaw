@@ -48,6 +48,7 @@ _SELECT_FIELD_HINTS: dict[str, tuple[list[str], str]] = {
 # --- Key Bindings for Navigation ---
 
 _BACK_PRESSED = object()  # Sentinel value for back navigation
+_CLEAR = object()  # Sentinel: user explicitly cleared a nullable field
 
 
 def _get_questionary():
@@ -367,14 +368,17 @@ def _input_bool(display_name: str, current: bool | None) -> bool | None:
     ).ask()
 
 
-def _input_text(display_name: str, current: Any, field_type: str) -> Any:
+def _input_text(display_name: str, current: Any, field_type: str, *, nullable: bool = False) -> Any:
     """Get text input and parse based on field type."""
     default = _format_value_for_input(current, field_type)
 
     value = _get_questionary().text(f"{display_name}:", default=default).ask()
 
-    if value is None or value == "":
+    if value is None:  # Ctrl+C — user cancelled, keep existing
         return None
+    if value == "":
+        # For nullable fields (str | None), empty input = explicit clear
+        return _CLEAR if nullable else None
 
     if field_type == "int":
         try:
@@ -401,7 +405,7 @@ def _input_text(display_name: str, current: Any, field_type: str) -> Any:
 
 
 def _input_with_existing(
-    display_name: str, current: Any, field_type: str
+    display_name: str, current: Any, field_type: str, *, nullable: bool = False
 ) -> Any:
     """Handle input with 'keep existing' option for non-empty values."""
     has_existing = current is not None and current != "" and current != {} and current != []
@@ -415,7 +419,7 @@ def _input_with_existing(
         if choice == "Keep existing value" or choice is None:
             return None
 
-    return _input_text(display_name, current, field_type)
+    return _input_text(display_name, current, field_type, nullable=nullable)
 
 
 # --- Pydantic Model Configuration ---
@@ -644,8 +648,15 @@ def _configure_pydantic_model(
         if ftype.type_name == "bool":
             new_value = _input_bool(field_display, current_value)
         else:
-            new_value = _input_with_existing(field_display, current_value, ftype.type_name)
-        if new_value is not None:
+            # Detect nullable fields (e.g. str | None) to allow explicit clearing
+            is_nullable = (
+                get_origin(field_info.annotation) is types.UnionType
+                and type(None) in get_args(field_info.annotation)
+            )
+            new_value = _input_with_existing(field_display, current_value, ftype.type_name, nullable=is_nullable)
+        if new_value is _CLEAR:
+            setattr(working_model, field_name, None)
+        elif new_value is not None:
             setattr(working_model, field_name, new_value)
 
 

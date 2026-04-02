@@ -108,20 +108,24 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-def get_cors_origins() -> list[str]:
+def get_cors_origins(port: int = 3000) -> list[str]:
     """Return allowed CORS origins from env or safe defaults."""
     env = os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip()
     if env == "*":
         return ["*"]  # explicit opt-in to wildcard
     if env:
         return [o.strip() for o in env.split(",") if o.strip()]
-    return [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://localhost:3000",
-        "https://127.0.0.1:3000",
+    origins = [
         "http://localhost",
         "http://127.0.0.1",
         "https://localhost",
         "https://127.0.0.1",
     ]
+    if port not in (80, 443):
+        origins += [
+            f"http://localhost:{port}",
+            f"http://127.0.0.1:{port}",
+            f"https://localhost:{port}",
+            f"https://127.0.0.1:{port}",
+        ]
+    return origins
