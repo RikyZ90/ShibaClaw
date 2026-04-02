@@ -830,27 +830,37 @@ function _buildSessionEl(sess) {
     const safeName = escapeHtml(name);
 
     el.innerHTML = `
-        <div class="session-info" onclick="selectSession(decodeURIComponent('${safeKey}'), this)">
+        <div class="session-info">
             <div class="session-name">${safeName}</div>
             <div class="session-meta">${date} ${time}</div>
         </div>
         <div class="session-actions">
-            <button class="btn-session-menu" onclick="toggleSessionMenu(event, this, decodeURIComponent('${safeKey}'))">
+            <button class="btn-session-menu">
                 <span class="material-icons-round">more_vert</span>
             </button>
             <div class="session-dropdown" data-session-key="${safeKey}">
-                <div class="dropdown-item" onclick="renameSessionPrompt(decodeURIComponent('${safeKey}'), '${safeName}')">
+                <div class="dropdown-item rename-action">
                     <span class="material-icons-round">edit</span> Rename
                 </div>
-                <div class="dropdown-item" onclick="archiveSession(decodeURIComponent('${safeKey}'))">
+                <div class="dropdown-item archive-action">
                     <span class="material-icons-round">archive</span> Archive
                 </div>
-                <div class="dropdown-item danger" onclick="deleteSession(decodeURIComponent('${safeKey}'))">
+                <div class="dropdown-item danger delete-action">
                     <span class="material-icons-round">delete</span> Delete
                 </div>
             </div>
         </div>
     `;
+
+    // Bind events programmatically to avoid JS injection via session names/keys
+    // (escapeHtml does not escape quotes, so inline onclick with string literals is unsafe)
+    const infoEl = el.querySelector(".session-info");
+    infoEl.addEventListener("click", () => selectSession(sess.key, infoEl));
+    el.querySelector(".btn-session-menu").addEventListener("click", (e) => toggleSessionMenu(e, e.currentTarget, sess.key));
+    el.querySelector(".rename-action").addEventListener("click", () => renameSessionPrompt(sess.key, name));
+    el.querySelector(".archive-action").addEventListener("click", () => archiveSession(sess.key));
+    el.querySelector(".delete-action").addEventListener("click", () => deleteSession(sess.key));
+
     return el;
 }
 
@@ -1751,28 +1761,10 @@ window.saveSettings = async function() {
         closeModal("settings-modal");
         fetchStatus();
 
-        // Mostra il popup di restart solo se sono cambiate impostazioni critiche
-        let needsRestart = false;
-        if (lastSettingsConfig) {
-            const oldGw = lastSettingsConfig.gateway || {};
-            const newGw = patch.gateway || {};
-            if (
-                oldGw.host !== newGw.host ||
-                String(oldGw.port) !== String(newGw.port) ||
-                (oldGw.heartbeat && newGw.heartbeat && (
-                    oldGw.heartbeat.enabled !== newGw.heartbeat.enabled ||
-                    String(oldGw.heartbeat.intervalS) !== String(newGw.heartbeat.intervalS)
-                ))
-            ) {
-                needsRestart = true;
-            }
-        }
-        if (state.gatewayUp && needsRestart) {
-            const ok = await shibaDialog("confirm", "Settings Saved", "Restart gateway to apply changes?", { confirmText: "Restart" });
-            if (ok) {
-                authFetch("/api/restart", { method: "POST" });
-                // Popup "Restarting" rimosso perché il restart è molto veloce
-            }
+        // Mostra sempre il popup di restart dopo aver salvato i settings
+        const ok = await shibaDialog("confirm", "Settings Saved", "Restart gateway to apply changes?", { confirmText: "Restart" });
+        if (ok) {
+            authFetch("/api/gateway-restart", { method: "POST" });
         }
     } catch(e) {
         shibaDialog("alert", "Error", "Error saving settings: " + e, { confirmText: "Close", danger: true });

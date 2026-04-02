@@ -217,7 +217,13 @@ async def api_settings_post(request: Request):
 
     from shibaclaw.config.loader import save_config
     save_config(new_cfg)
-    agent_manager.config.__dict__.update(new_cfg.__dict__)
+    agent_manager.config = new_cfg
+    # Rebuild provider so ensure_agent() picks up new API keys immediately
+    try:
+        from shibaclaw.cli.commands import _make_provider
+        agent_manager.provider = _make_provider(new_cfg, exit_on_error=False)
+    except Exception:
+        agent_manager.provider = None
     agent_manager.reset_agent()
     
     return JSONResponse({"status": "updated"})
@@ -365,9 +371,12 @@ async def api_gateway_health(request: Request):
 
     gw = agent_manager.config.gateway
     port = gw.port
-    hosts = ["shibaclaw-gateway", "127.0.0.1"]
-    if gw.host not in ("0.0.0.0", "::", ""):
-        hosts = [gw.host]
+    gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
+    if gw.host not in ("0.0.0.0", "::", "", "127.0.0.1"):
+        # Custom host: try it first, then fall back to 127.0.0.1 in case of IP change
+        hosts = [gw.host, "127.0.0.1"]
+    else:
+        hosts = [gateway_hostname, "127.0.0.1"]
 
     for host in hosts:
         try:
@@ -402,9 +411,12 @@ async def api_gateway_restart(request: Request):
 
     gw = agent_manager.config.gateway
     port = gw.port
-    hosts = ["shibaclaw-gateway", "127.0.0.1"]
-    if gw.host not in ("0.0.0.0", "::", ""):
-        hosts = [gw.host]
+    gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
+    if gw.host not in ("0.0.0.0", "::", "", "127.0.0.1"):
+        # Custom host: try it first, then fall back to 127.0.0.1 in case of IP change
+        hosts = [gw.host, "127.0.0.1"]
+    else:
+        hosts = [gateway_hostname, "127.0.0.1"]
 
     auth_token = get_auth_token()
     for host in hosts:
@@ -480,7 +492,6 @@ async def api_file_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
 
-    resolved = Path(path_str).resolve()
     workspace = agent_manager.config.workspace_path.resolve()
     # Resolve relative paths against workspace, not process CWD
     raw = Path(path_str)

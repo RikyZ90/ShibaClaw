@@ -125,6 +125,8 @@ def agent_command(
         channels_config=config_obj.channels,
         learning_enabled=config_obj.agents.defaults.learning_enabled,
         learning_interval=config_obj.agents.defaults.learning_interval,
+        memory_max_prompt_tokens=config_obj.agents.defaults.memory_max_prompt_tokens,
+        memory_compact_threshold_tokens=config_obj.agents.defaults.memory_compact_threshold_tokens,
     )
 
     _thinking: Optional[ThinkingSpinner] = None

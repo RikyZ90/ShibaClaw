@@ -46,6 +46,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 def create_app(
     config: Any | None = None,
     provider: Any | None = None,
+    port: int = 3000,
 ) -> tuple[socketio.ASGIApp, socketio.AsyncServer]:
     """Create the ASGI app with Socket.IO attached."""
     
@@ -58,7 +59,7 @@ def create_app(
     # 2. Socket.IO server
     sio = socketio.AsyncServer(
         async_mode="asgi",
-        cors_allowed_origins=get_cors_origins(),
+        cors_allowed_origins=get_cors_origins(port),
         logger=False,
         engineio_logger=False,
     )
@@ -112,7 +113,7 @@ def create_app(
 
 async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
     """Start the WebUI server."""
-    app, _ = create_app(config=config, provider=provider)
+    app, _ = create_app(config=config, provider=provider, port=port)
 
     token = get_auth_token()
     if token:
