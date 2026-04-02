@@ -19,11 +19,9 @@ services:
   shibaclaw-gateway:
     container_name: shibaclaw-gateway
     <<: *common-config
-    # 0.0.0.0: accetta connessioni dal container WebUI via rete Docker interna
     command: [ "shibaclaw", "gateway", "--host", "0.0.0.0" ]
     restart: unless-stopped
     ports:
-      # 127.0.0.1: esposta solo su localhost dell'host fisico, non sulla rete esterna
       - "127.0.0.1:19999:19999"
     deploy:
       resources:
@@ -50,7 +48,6 @@ services:
     restart: unless-stopped
     environment:
       <<: *common-env
-      # Permette connessioni WebSocket da qualsiasi origine (necessario per accesso da altri host)
       SHIBACLAW_CORS_ORIGINS: "*"
     ports:
       - "127.0.0.1:3000:3000"
