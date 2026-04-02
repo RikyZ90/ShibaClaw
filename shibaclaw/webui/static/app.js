@@ -610,8 +610,11 @@ async function fetchStatus() {
         if (res.ok) {
             const data = await res.json();
             state.agentConfigured = data.agent_configured;
-            
-            // Reset gateway failure trackers if overall status looks good.
+
+            // Update sidebar version display
+            const versionEl = $("sidebar-version");
+            if (versionEl && data.version) versionEl.textContent = "v" + data.version;
+
             // This prevents the UI from flipping back to "Gateway Down" 
             // after the backend just told us we are ready.
             if (data.agent_configured || oauthConfigured) {
@@ -1351,6 +1354,7 @@ window.switchSettingsTab = function(tab) {
     const panel = $("panel-" + tab);
     if (panel) panel.style.display = "block";
     if (tab === "oauth") loadOAuthPanel();
+    if (tab === "update") loadUpdatePanel();
 };
 
 async function loadOAuthPanel() {
@@ -2562,3 +2566,109 @@ document.addEventListener("DOMContentLoaded", async () => {
         startApp();
     }
 });
+
+// ── Update Panel ──────────────────────────────────────────────
+let _updateState = { manifestUrl: null };
+
+async function loadUpdatePanel(force = false) {
+    const panel = $("panel-update");
+    if (!panel) return;
+    panel.innerHTML = `<div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Checking for updates...</div>`;
+
+    try {
+        const url = "/api/update/check" + (force ? "?force=1" : "");
+        const res = await authFetch(url);
+        const data = await res.json();
+
+        if (data.error) {
+            panel.innerHTML = `<div class="update-error"><span class="material-icons-round">error_outline</span> ${escapeHtml(data.error)}<br><button class="btn-secondary" style="margin-top:12px" onclick="loadUpdatePanel(true)">Retry</button></div>`;
+            return;
+        }
+
+        const checkedAt = data.checked_at ? new Date(data.checked_at * 1000).toLocaleString() : "—";
+
+        if (!data.update_available) {
+            panel.innerHTML = `
+                <div class="update-ok">
+                    <span class="material-icons-round" style="font-size:48px;color:var(--accent-green)">check_circle</span>
+                    <div class="update-ok-text">You're up to date</div>
+                    <div class="update-version-row">
+                        <span class="update-badge current">v${escapeHtml(data.current)}</span>
+                    </div>
+                    <div class="update-meta">Last checked: ${checkedAt}</div>
+                    <button class="btn-secondary" style="margin-top:16px" onclick="loadUpdatePanel(true)">
+                        <span class="material-icons-round" style="font-size:14px;vertical-align:middle">refresh</span> Check again
+                    </button>
+                </div>`;
+            return;
+        }
+
+        // Update available — load manifest for details
+        let manifestSection = "";
+
+        if (data.manifest_url) {
+            try {
+                const mRes = await authFetch("/api/update/manifest?url=" + encodeURIComponent(data.manifest_url));
+                const mData = await mRes.json();
+                const manifest = mData.manifest || {};
+                const personal = mData.personal_files || [];
+
+                if (manifest.release_notes) {
+                    manifestSection = `
+                        <div class="update-notes">
+                            <div class="update-notes-title"><span class="material-icons-round">article</span> What's new</div>
+                            <div class="update-notes-body">${escapeHtml(manifest.release_notes)}</div>
+                        </div>`;
+                }
+
+                if (personal.length > 0) {
+                    const items = personal.map(f => {
+                        const note = f.note ? ` <span class="update-file-note">— ${escapeHtml(f.note)}</span>` : "";
+                        return `<li><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:var(--accent-orange)">description</span> <code>${escapeHtml(f.path)}</code>${note}</li>`;
+                    }).join("");
+                    manifestSection += `
+                        <div class="update-personal">
+                            <div class="update-personal-title"><span class="material-icons-round">folder_open</span> Personal files that may need review after update</div>
+                            <ul class="update-personal-list">${items}</ul>
+                        </div>`;
+                }
+            } catch (e) {
+                manifestSection = `<div class="update-notes" style="color:var(--text-muted);font-size:12px">Could not load update details.</div>`;
+            }
+        }
+
+        const pipCmd = `pip install --upgrade shibaclaw`;
+        const dockerCmd = `docker compose pull && docker compose up -d`;
+
+        panel.innerHTML = `
+            <div class="update-available">
+                <div class="update-version-row">
+                    <span class="update-badge current">v${escapeHtml(data.current)}</span>
+                    <span class="material-icons-round" style="color:var(--text-muted)">arrow_forward</span>
+                    <span class="update-badge latest">v${escapeHtml(data.latest)}</span>
+                </div>
+                ${manifestSection}
+                <div class="update-notes" style="margin-top:16px">
+                    <div class="update-notes-title"><span class="material-icons-round">terminal</span> How to update</div>
+                    <div style="margin-top:8px;font-size:13px;color:var(--text-muted)">pip / bare metal</div>
+                    <div class="update-cmd-row">
+                        <code id="cmd-pip">${pipCmd}</code>
+                        <button class="btn-link" onclick="navigator.clipboard.writeText('${pipCmd}')" title="Copy"><span class="material-icons-round" style="font-size:16px">content_copy</span></button>
+                    </div>
+                    <div style="margin-top:10px;font-size:13px;color:var(--text-muted)">Docker</div>
+                    <div class="update-cmd-row">
+                        <code id="cmd-docker">${dockerCmd}</code>
+                        <button class="btn-link" onclick="navigator.clipboard.writeText('${dockerCmd}')" title="Copy"><span class="material-icons-round" style="font-size:16px">content_copy</span></button>
+                    </div>
+                </div>
+                <div class="update-actions" style="margin-top:16px">
+                    ${data.release_url ? `<a href="${escapeHtml(data.release_url)}" target="_blank" class="btn-secondary">
+                        <span class="material-icons-round" style="font-size:14px;vertical-align:middle">open_in_new</span> Release notes
+                    </a>` : ""}
+                </div>
+                <div class="update-meta">Last checked: ${checkedAt} · <button class="btn-link" onclick="loadUpdatePanel(true)">Check again</button></div>
+            </div>`;
+    } catch (e) {
+        panel.innerHTML = `<div class="update-error"><span class="material-icons-round">error_outline</span> Failed to check for updates.<br><button class="btn-secondary" style="margin-top:12px" onclick="loadUpdatePanel(true)">Retry</button></div>`;
+    }
+}

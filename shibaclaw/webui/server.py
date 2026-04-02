@@ -36,7 +36,8 @@ from .api import (
     api_sessions_list, api_sessions_get, api_sessions_patch, api_sessions_delete, api_sessions_archive,
     api_context_get, api_gateway_health, api_gateway_restart,
     api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code,
-    api_upload, api_file_get, api_file_save, api_fs_explore
+    api_upload, api_file_get, api_file_save, api_fs_explore,
+    api_update_check, api_update_manifest, api_restart_server,
 )
 
 # Static files directory
@@ -98,6 +99,9 @@ def create_app(
         Route("/api/file-get", api_file_get, methods=["GET"]),
         Route("/api/file-save", api_file_save, methods=["POST"]),
         Route("/api/fs/explore", api_fs_explore, methods=["GET"]),
+        Route("/api/update/check", api_update_check, methods=["GET"]),
+        Route("/api/update/manifest", api_update_manifest, methods=["GET"]),
+        Route("/api/restart", api_restart_server, methods=["POST"]),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 
@@ -111,6 +115,22 @@ def create_app(
     return combined, sio
 
 
+async def _check_update_on_startup() -> None:
+    """Run a background update check once at startup without blocking."""
+    try:
+        await asyncio.sleep(3)  # let the server finish starting
+        from shibaclaw.updater.checker import check_for_update
+        result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
+        if result.get("update_available"):
+            logger.info(
+                "🆕 ShibaClaw update available: {} → {}",
+                result["current"],
+                result["latest"],
+            )
+    except Exception:
+        pass
+
+
 async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
     """Start the WebUI server."""
     app, _ = create_app(config=config, provider=provider, port=port)
@@ -121,6 +141,8 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
         logger.info("🔑 To retrieve the full token, run: docker exec -it shibaclaw-gateway shibaclaw print-token")
     else:
         logger.warning("\n" + "!"*60 + "\nWARNING: Authentication is DISABLED\n" + "!"*60)
+
+    asyncio.create_task(_check_update_on_startup())
 
     server_config = uvicorn.Config(
         app=app,

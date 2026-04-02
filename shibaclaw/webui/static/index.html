@@ -56,7 +56,7 @@
                     <img src="/static/shibaclaw_logo.png" alt="ShibaClaw Logo" class="logo-icon">
                     <div class="logo-text">
                         <h1>ShibaClaw</h1>
-                        <span class="version">v0.0.7</span>
+                        <span class="version" id="sidebar-version">loading...</span>
                     </div>
                 </div>
                 <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
@@ -251,6 +251,9 @@
                 <button class="settings-tab" data-tab="oauth" onclick="switchSettingsTab('oauth')">
                     <span class="material-icons-round">lock_open</span> OAuth Provider
                 </button>
+                <button class="settings-tab" data-tab="update" onclick="switchSettingsTab('update')">
+                    <span class="material-icons-round">system_update</span> Update
+                </button>
             </div>
             <div class="modal-body settings-scroll" id="settings-body">
                 <!-- Loading spinner -->
@@ -307,6 +310,11 @@
                     <div class="oauth-list" id="oauth-list">
                         <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
                     </div>
+                </div>
+
+                <!-- Tab: Update -->
+                <div class="settings-panel" id="panel-update" style="display:none">
+                    <div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Loading...</div>
                 </div>
             </div>
             <div class="modal-footer">

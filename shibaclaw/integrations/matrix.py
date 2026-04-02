@@ -34,7 +34,7 @@ try:
     from nio.exceptions import EncryptionError
 except ImportError as e:
     raise ImportError(
-        "Matrix dependencies not installed. Run: pip install shibaclaw-ai[matrix]"
+        "Matrix dependencies not installed. Run: pip install shibaclaw[matrix]"
     ) from e
 
 from shibaclaw.bus.events import OutboundMessage

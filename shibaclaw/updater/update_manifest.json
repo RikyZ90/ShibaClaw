@@ -1,0 +1,36 @@
+{
+  "version": "0.0.8",
+  "release_notes": "Bug fixes and improvements.\n- Fixed update version cache bug\n- Added pre-release version parsing\n- Added periodic update check with channel notification\n- Added update UI tab in settings",
+  "changes": [
+    {
+      "path": "templates/SOUL.md",
+      "overwrite": false,
+      "note": "Your personal agent personality — not overwritten"
+    },
+    {
+      "path": "templates/USER.md",
+      "overwrite": false,
+      "note": "Your personal user profile — not overwritten"
+    },
+    {
+      "path": "templates/AGENTS.md",
+      "overwrite": false,
+      "note": "Your agents configuration — not overwritten"
+    },
+    {
+      "path": "templates/HEARTBEAT.md",
+      "overwrite": false,
+      "note": "Your heartbeat template — not overwritten"
+    },
+    {
+      "path": "templates/TOOLS.md",
+      "overwrite": false,
+      "note": "Your tools configuration — not overwritten"
+    },
+    {
+      "path": "templates/memory/MEMORY.md",
+      "overwrite": false,
+      "note": "Your memory template — not overwritten"
+    }
+  ]
+}

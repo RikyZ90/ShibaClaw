@@ -54,7 +54,7 @@ class OpenAIThinker(Thinker):
         
         if self._gateway and self._gateway.is_gateway:
             # Some gateways like OpenRouter recommend sending a referrer
-            default_headers.setdefault("HTTP-Referer", "https://github.com/shibaclaw-ai")
+            default_headers.setdefault("HTTP-Referer", "https://github.com/RikyZ90/ShibaClaw")
             default_headers.setdefault("X-Title", "ShibaClaw")
             
         logger.debug(f"OpenAIThinker init: api_key={'SET' if api_key else 'UNSET'} resolved_key={'SET' if resolved_key else 'UNSET'} base_url={resolved_base}")

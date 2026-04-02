@@ -2148,6 +2148,200 @@ input[type="number"].form-input {
     to   { transform: rotate(360deg); }
 }
 
+/* ── Update Panel ──────────────────────────────────────────── */
+.update-checking, .update-applying {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 3rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+}
+.update-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 2rem;
+    color: var(--accent-red, #f87171);
+    text-align: center;
+    font-size: 0.9rem;
+}
+.update-ok, .update-available, .update-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+}
+.update-ok-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.update-version-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0;
+}
+.update-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+.update-badge.current {
+    background: rgba(255,255,255,0.06);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
+}
+.update-badge.latest {
+    background: rgba(232, 163, 23, 0.15);
+    color: var(--shiba-gold);
+    border: 1px solid var(--shiba-gold);
+}
+.update-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.update-notes {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: left;
+    max-width: 480px;
+    width: 100%;
+}
+.update-notes-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.update-notes-title .material-icons-round { font-size: 15px; }
+.update-notes-body {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    white-space: pre-line;
+    line-height: 1.6;
+}
+.update-personal {
+    background: rgba(232, 163, 23, 0.06);
+    border: 1px solid rgba(232, 163, 23, 0.25);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    text-align: left;
+    max-width: 480px;
+    width: 100%;
+}
+.update-personal-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--shiba-gold);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.update-personal-title .material-icons-round { font-size: 15px; }
+.update-personal-list {
+    list-style: none;
+    margin: 0 0 8px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.update-personal-list li {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.update-personal-list code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--bg-primary);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+.update-file-note {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+.update-personal-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+.update-personal-note code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    background: var(--bg-primary);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+.update-cmd-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+}
+.update-cmd-row code {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    word-break: break-all;
+    color: var(--accent-green);
+}
+.update-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 4px;
+}
+.update-log {
+    max-height: 160px;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 400px;
+    margin-top: 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    text-align: left;
+}
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--shiba-gold);
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+    text-decoration: underline;
+}
+.btn-link:hover { opacity: 0.8; }
+
 /* ── Responsive Settings ───────────────────────────────────── */
 @media (max-width: 600px) {
     .modal.modal-settings { width: 98vw; height: 92vh; }

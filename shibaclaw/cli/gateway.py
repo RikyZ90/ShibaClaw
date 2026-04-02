@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 from rich.panel import Panel
+from loguru import logger
 from shibaclaw import __logo__, __version__
 from .utils import console
 from shibaclaw.helpers.logging import setup_shiba_logging
@@ -123,6 +124,34 @@ async def gateway_command(
     # ── Server Loop ──
     _state = {"restart": False}
 
+    _UPDATE_CHECK_INTERVAL = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "12")) * 3600
+
+    async def _update_check_loop():
+        """Periodically check for updates and notify via the active channel."""
+        await asyncio.sleep(60)  # wait 1 min after startup before first check
+        while True:
+            try:
+                from shibaclaw.updater.checker import check_for_update
+                result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
+                if result.get("update_available"):
+                    current = result.get("current", "?")
+                    latest = result.get("latest", "?")
+                    release_url = result.get("release_url", "")
+                    msg = (
+                        f"🆕 *ShibaClaw update available!*\n"
+                        f"Version {current} → {latest}\n"
+                        f"pip: pip install --upgrade shibaclaw\n"
+                        f"Docker: docker compose pull && docker compose up -d\n"
+                        f"{release_url}"
+                    ).strip()
+                    logger.info("🆕 Update available: {} → {} (pip install --upgrade shibaclaw)", current, latest)
+                    await on_heartbeat_notify(msg)
+                else:
+                    logger.debug("Update check: already on latest version ({}).", result.get("current", "?"))
+            except Exception as e:
+                logger.debug("Update check failed: {}", e)
+            await asyncio.sleep(_UPDATE_CHECK_INTERVAL)
+
     async def run():
         _start_time = time.time()
         
@@ -149,7 +178,7 @@ async def gateway_command(
         try:
             await cron.start()
             await heartbeat.start()
-            await asyncio.gather(agent.run(), channels.start_all(), health_srv.serve_forever())
+            await asyncio.gather(agent.run(), channels.start_all(), health_srv.serve_forever(), _update_check_loop())
         except (KeyboardInterrupt, asyncio.CancelledError):
             console.print("\n🔄 Restart requested..." if _state["restart"] else "\nShutting down...")
         finally:
