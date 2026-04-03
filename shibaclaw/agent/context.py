@@ -43,6 +43,7 @@ class ScentBuilder:
         iteration: int | None = None,
         max_iterations: int | None = None,
         memory_max_prompt_tokens: int = 0,
+        available_channels: list[str] | None = None,
     ) -> str:
         """Build the system prompt from identity, bootstrap files, memory, skills, and live state.
 
@@ -80,6 +81,7 @@ Skills with available="false" need dependencies installed first - you can try in
             chat_id=chat_id,
             iteration=iteration,
             max_iterations=max_iterations,
+            available_channels=available_channels,
         )
         if live:
             parts.append(live)
@@ -97,6 +99,7 @@ Skills with available="false" need dependencies installed first - you can try in
         chat_id: str | None = None,
         iteration: int | None = None,
         max_iterations: int | None = None,
+        available_channels: list[str] | None = None,
     ) -> str:
         """Return a '## Live State' block for the system prompt.
 
@@ -111,6 +114,9 @@ Skills with available="false" need dependencies installed first - you can try in
             lines.append(f"Chat ID: {chat_id}")
         if iteration is not None and max_iterations is not None:
             lines.append(f"Agent Iteration: {iteration} / {max_iterations}")
+        if available_channels:
+            lines.append(f"Available Channels: {', '.join(available_channels)}")
+            lines.append('Use the message tool with channel="<name>" to send cross-channel messages.')
         return "## Live State\n\n" + "\n".join(lines)
 
     def _get_identity(self) -> str:
@@ -204,6 +210,7 @@ Root: {workspace_path}
         chat_id: str | None = None,
         current_role: str = "user",
         memory_max_prompt_tokens: int = 0,
+        available_channels: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Build the complete message list for an LLM call.
 
@@ -220,6 +227,7 @@ Root: {workspace_path}
                 channel=channel,
                 chat_id=chat_id,
                 memory_max_prompt_tokens=memory_max_prompt_tokens,
+                available_channels=available_channels,
             )},
             *history,
             {"role": current_role, "content": user_content},
