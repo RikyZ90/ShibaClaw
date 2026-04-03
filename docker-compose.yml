@@ -4,6 +4,7 @@ x-common-env: &common-env
   OR_APP_NAME: ShibaClaw
 
 x-common-config: &common-config
+  image: ghcr.io/rikyz90/shibaclaw:latest
   build:
     context: .
     dockerfile: Dockerfile

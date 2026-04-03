@@ -10,7 +10,8 @@ This method ensures you have all dependencies ready to go in a contained environ
 
 1. **Launch**: Run the following command in the project root:
    ```bash
-   docker compose up -d
+   docker compose pull          # pull the latest image from GHCR
+   docker compose up -d         # start gateway + webUI
    ```
 2. **Onboard**: Launch the interactive configuration wizard:
    ```bash
@@ -21,6 +22,8 @@ This method ensures you have all dependencies ready to go in a contained environ
    ```bash
    docker logs -f shibaclaw-gateway
    ```
+
+> **To update**: just run `docker compose pull && docker compose up -d` — no rebuild needed.
 
 ---
 
