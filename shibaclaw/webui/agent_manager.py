@@ -21,6 +21,7 @@ class AgentManager:
         self.bus: Optional[Any] = None
         self.config: Optional[Any] = None
         self.provider: Optional[Any] = None
+        self._channel_manager: Optional[Any] = None
         self._bg_tasks: List[asyncio.Task] = []
         self._sio: Optional[Any] = None
         self._sessions: Dict[str, Dict] = {}
@@ -59,6 +60,7 @@ class AgentManager:
             from shibaclaw.bus.queue import MessageBus
             from shibaclaw.config.paths import get_cron_dir
             from shibaclaw.cron.service import CronService
+            from shibaclaw.integrations.manager import ChannelManager
 
             self.bus = MessageBus()
             cron_store = get_cron_dir() / "jobs.json"
@@ -83,6 +85,14 @@ class AgentManager:
                 memory_compact_threshold_tokens=self.config.agents.defaults.memory_compact_threshold_tokens,
             )
             await cron.start()
+
+            # Start channel integrations (Telegram, Discord, etc.) sharing the same bus.
+            # We do NOT start ChannelManager._dispatch_outbound() — _consume_outbound() handles routing.
+            self._channel_manager = ChannelManager(self.config, self.bus)
+            for name, channel in self._channel_manager.channels.items():
+                task = asyncio.create_task(self._channel_manager._start_channel(name, channel))
+                self._bg_tasks.append(task)
+                logger.info("🔌 Started channel integration: {}", name)
 
             # Shutdown old tasks if any
             for t in self._bg_tasks:
@@ -146,6 +156,17 @@ class AgentManager:
                         logger.debug("⏭️ Skipping progress message in _consume_outbound")
                 else:
                     logger.debug("⏩ Outbound message not for webui: {}:{}", msg.channel, msg.chat_id)
+                    # Route cross-channel messages (Telegram, Discord, etc.) via ChannelManager
+                    if self._channel_manager:
+                        ch = self._channel_manager.channels.get(msg.channel)
+                        if ch:
+                            try:
+                                await ch.send(msg)
+                                logger.debug("📨 Delivered to {} channel", msg.channel)
+                            except Exception as e:
+                                logger.error("Error delivering to {}: {}", msg.channel, e)
+                        else:
+                            logger.warning("No channel handler for: {}", msg.channel)
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:
@@ -164,6 +185,7 @@ class AgentManager:
             t.cancel()
         self._bg_tasks.clear()
         self.agent = None
+        self._channel_manager = None
 
     async def archive_in_background(self, snapshot):
         """Fire-and-forget LLM archive to memory."""
