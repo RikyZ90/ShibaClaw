@@ -227,7 +227,7 @@ class WebFetchTool(Tool):
         "required": ["url"],
     }
 
-    def __init__(self, max_chars: int = 50000, proxy: str | None = None):
+    def __init__(self, max_chars: int = 8_000, proxy: str | None = None):
         self.max_chars = max_chars
         self.proxy = proxy
 

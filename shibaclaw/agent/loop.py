@@ -44,6 +44,10 @@ class ShibaBrain:
     """
 
     _TOOL_RESULT_MAX_CHARS = 16_000
+    # Max chars for tool results injected into the live loop context.
+    # Smaller than _TOOL_RESULT_MAX_CHARS because every subsequent iteration
+    # carries ALL previous tool results — keeping them tight saves tokens.
+    _TOOL_RESULT_LOOP_MAX_CHARS = 8_000
 
     def __init__(
         self,
@@ -293,6 +297,12 @@ class ShibaBrain:
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                     logger.debug("Tool call: {}({})", tool_call.name, args_str[:200])
                     result = await self.tools.execute(tool_call.name, tool_call.arguments)
+                    # Truncate large results before injecting into the live context.
+                    # Every subsequent LLM call carries all accumulated tool results,
+                    # so keeping them bounded prevents quadratic token growth.
+                    if len(result) > self._TOOL_RESULT_LOOP_MAX_CHARS:
+                        half = self._TOOL_RESULT_LOOP_MAX_CHARS // 2
+                        result = result[:half] + f"\n...[TRUNCATED — {len(result)} chars total]...\n" + result[-half:]
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )
