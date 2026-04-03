@@ -1,6 +1,6 @@
 {
-  "version": "0.0.8b",
-  "release_notes": "Bug fixes and improvements.\n- Fixed update version cache bug\n- Added pre-release version parsing\n- Added periodic update check with channel notification\n- Added update UI tab in settings",
+  "version": "0.0.9",
+  "release_notes": "Bug fixes and improvements.\n- Optimized token consumption\n- Fixed update version cache bug\n- Added pre-release version parsing\n- Added periodic update check with channel notification\n- Added update UI tab in settings",
   "changes": [
     {
       "path": "templates/SOUL.md",
