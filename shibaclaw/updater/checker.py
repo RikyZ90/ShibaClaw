@@ -23,6 +23,10 @@ def _load_cache() -> dict:
     try:
         if _CACHE_FILE.exists():
             data = json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
+            # If the running version changed (e.g. user just updated) discard the
+            # stale cache so the notification disappears immediately.
+            if data.get("current") != __version__:
+                return {}
             if time.time() - data.get("checked_at", 0) < _CACHE_TTL:
                 return data
     except Exception:
@@ -73,8 +77,8 @@ def check_for_update(force: bool = False) -> dict[str, Any]:
 
     Returns a dict:
         {
-            "current": "0.0.7",
-            "latest": "0.0.8",
+            "current": "0.0.9",
+            "latest": "0.0.9",
             "update_available": True,
             "release_url": "https://github.com/...",
             "manifest_url": "https://.../update_manifest.json",  # or None
