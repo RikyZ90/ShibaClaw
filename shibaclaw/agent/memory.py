@@ -524,13 +524,15 @@ class PackMemory:
             self._get_tool_definitions(),
         )
 
-    async def archive_messages(self, messages: list[dict[str, object]]) -> bool:
-        """Archive messages with guaranteed persistence (retries until raw-dump fallback)."""
+    async def archive_snapshot(self, messages: list[dict[str, object]]) -> bool:
+        """Archive a session snapshot and then run the normal memory compaction check."""
         if not messages:
             return True
         for _ in range(self.store._MAX_FAILURES_BEFORE_RAW_ARCHIVE):
             if await self.consolidate_messages(messages):
+                await self.maybe_compact_memory()
                 return True
+        await self.maybe_compact_memory()
         return True
 
     async def maybe_consolidate_by_tokens(self, session: Session) -> None:

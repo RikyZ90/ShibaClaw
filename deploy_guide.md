@@ -10,7 +10,7 @@ This method ensures you have all dependencies ready to go in a contained environ
 
 1. **Launch**: Run the following command in the project root:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 2. **Onboard**: Launch the interactive configuration wizard:
    ```bash
@@ -28,7 +28,14 @@ This method ensures you have all dependencies ready to go in a contained environ
 
 Ideal for local development or lightweight environments.
 
-1. **Install**: Clone the repo and install the package:
+1. **Install**: Choose your preferred method:
+
+   **From PyPI (recommended):**
+   ```bash
+   pip install shibaclaw
+   ```
+
+   **From source (edge/develop):**
    ```bash
    git clone https://github.com/RikyZ90/ShibaClaw.git
    cd ShibaClaw
@@ -54,7 +61,7 @@ Ideal for local development or lightweight environments.
 
 | Command | Action |
 | :--- | :--- |
-| `shibaclaw --version` | Check if you have the latest Shiba (v0.0.7). |
+| `shibaclaw --version` | Check if you have the latest Shiba (v0.0.8). |
 | `shibaclaw onboard` | Refresh settings without overwriting everything. |
 | `shibaclaw onboard --wizard` | Forced step-by-step setup. |
 

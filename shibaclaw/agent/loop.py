@@ -119,9 +119,25 @@ class ShibaBrain:
             memory_compact_threshold_tokens=memory_compact_threshold_tokens,
         )
         self.memory = ScentKeeper(workspace)
+        self._available_channels = self._extract_enabled_channels()
         self._register_default_tools()
         logger.debug("Agent initialized for workspace: {}", workspace)
 
+    def _extract_enabled_channels(self) -> list[str]:
+        """Return names of enabled channels from channels_config."""
+        if not self.channels_config:
+            return []
+        names: list[str] = []
+        extras = getattr(self.channels_config, "__pydantic_extra__", None) or {}
+        for name, section in extras.items():
+            enabled = (
+                section.get("enabled", False)
+                if isinstance(section, dict)
+                else getattr(section, "enabled", False)
+            )
+            if enabled:
+                names.append(name)
+        return names
 
     def _register_default_tools(self) -> None:
         """Register the default set of tools."""
@@ -232,6 +248,7 @@ class ShibaBrain:
                     iteration=iteration,
                     max_iterations=self.max_iterations,
                     memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
+                    available_channels=self._available_channels,
                 ),
             }
 
@@ -432,6 +449,7 @@ class ShibaBrain:
                 current_message=msg.content, channel=channel, chat_id=chat_id,
                 current_role=current_role,
                 memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
+                available_channels=self._available_channels,
             )
             final_content, _, all_msgs = await self._run_agent_loop(
                 messages, channel=channel, chat_id=chat_id,
@@ -463,7 +481,7 @@ class ShibaBrain:
             self.sessions.invalidate(session.key)
 
             if snapshot:
-                self._schedule_background(self.memory_consolidator.archive_messages(snapshot))
+                self._schedule_background(self.memory_consolidator.archive_snapshot(snapshot))
 
             return OutboundMessage(channel=msg.channel, chat_id=msg.chat_id,
                                   content="New session started.")
@@ -492,6 +510,7 @@ class ShibaBrain:
             media=msg.media if msg.media else None,
             channel=msg.channel, chat_id=msg.chat_id,
             memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
+            available_channels=self._available_channels,
         )
 
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:

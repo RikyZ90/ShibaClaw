@@ -1083,7 +1083,7 @@ window.deleteSession = async function(key) {
 };
 
 window.archiveSession = async function(key) {
-    const ok = await shibaDialog("confirm", "Archive Session", "This session will be archived to HISTORY.md and removed.", { confirmText: "Archive" });
+    const ok = await shibaDialog("confirm", "Archive Session", "This session will run the same consolidation flow as /new and then be removed.", { confirmText: "Archive" });
     if (!ok) return;
 
     removeSessionFromUI(key);

@@ -171,7 +171,7 @@ class AgentManager:
             return
         
         try:
-            await self.agent.memory_consolidator.archive_messages(snapshot)
+            await self.agent.memory_consolidator.archive_snapshot(snapshot)
         except Exception:
             logger.exception("Background archive failed (messages already deleted from session)")
 
