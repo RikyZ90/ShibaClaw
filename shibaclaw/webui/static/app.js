@@ -44,6 +44,7 @@ async function authFetch(url, opts = {}) {
 const state = {
     socket: null,
     sessionId: null,
+    _initialConnectDone: false,
     processing: false,
     messageCount: 0,
     queueCount: 0,
@@ -129,6 +130,19 @@ function initSocket() {
     });
 
     socket.on("connected", (data) => {
+        // On auto-reconnect, the server reassigns based on the original query param
+        // (set when io() was called). If the user has since switched sessions we must
+        // NOT override their current selection — just resync the server key instead.
+        if (state._initialConnectDone) {
+            // Reconnect: tell the server to use whatever session the client is on now.
+            if (state.sessionId && state.sessionId !== data.session_id) {
+                console.debug("[SHIBA] reconnect — resyncing server to client session:", state.sessionId);
+                socket.emit("switch_session", { session_id: state.sessionId });
+            }
+            return;
+        }
+        state._initialConnectDone = true;
+
         state.sessionId = data.session_id;
         sessionIdEl.textContent = data.session_id;
         localStorage.setItem("shiba_session_id", data.session_id);
@@ -966,7 +980,13 @@ async function renameSession(key, nickname) {
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({ nickname })
         });
-        if (res.ok) loadHistory();
+        if (res.ok) {
+            // Update the header immediately if we renamed the active session
+            if (key === state.sessionId) {
+                sessionIdEl.textContent = nickname || key;
+            }
+            await loadHistory();
+        }
     } catch(e) { console.error("Rename error:", e); }
 }
 
@@ -1108,6 +1128,11 @@ async function loadSession(sessionId) {
     }
     state.sessionId = sessionId;
     localStorage.setItem("shiba_session_id", sessionId);
+
+    // Notify the server so future messages are stored in the correct session.
+    if (state.socket && state.socket.connected) {
+        state.socket.emit("switch_session", { session_id: sessionId });
+    }
     
     // Select in sidebar (use data-session-key for reliability)
     document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));

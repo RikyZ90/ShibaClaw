@@ -193,3 +193,13 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         new_key = f"webui:{uuid.uuid4().hex[:8]}"
         if sid in sessions: sessions[sid]["session_key"] = new_key
         await sio.emit("session_reset", {"session_id": new_key, "message": "New session started."}, room=sid)
+
+    @sio.event
+    async def switch_session(sid, data=None):
+        """Switch the active session key for an existing client without resetting the UI."""
+        session_id = (data or {}).get("session_id", "").strip()
+        if not session_id:
+            return
+        if sid in sessions:
+            sessions[sid]["session_key"] = session_id
+            logger.info("🔀 WebUI {} switched to session: {}", sid, session_id)
