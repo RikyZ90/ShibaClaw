@@ -127,6 +127,7 @@ def agent_command(
         learning_interval=config_obj.agents.defaults.learning_interval,
         memory_max_prompt_tokens=config_obj.agents.defaults.memory_max_prompt_tokens,
         memory_compact_threshold_tokens=config_obj.agents.defaults.memory_compact_threshold_tokens,
+        consolidation_model=config_obj.agents.defaults.consolidation_model,
     )
 
     _thinking: Optional[ThinkingSpinner] = None

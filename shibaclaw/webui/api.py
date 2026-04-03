@@ -65,56 +65,44 @@ _workspace_context_cache = {
     "sections": [],
 }
 _session_context_cache: Dict[str, Dict[str, Any]] = {}
+_system_prompt_cache: Dict[str, Any] = {
+    "prompt": "",
+    "tokens": 0,
+    "file_state": {},
+}
 
 
-def _load_workspace_context(wp: Path):
-    """Load and format workspace context files into readable sections."""
-    global _workspace_context_cache
+def _build_real_system_prompt(wp: Path, defaults) -> tuple[str, int]:
+    """Build the real system prompt via ScentBuilder and return (prompt, tokens).
 
-    file_list = ["SOUL.md", "USER.md", "AGENTS.md", "TOOLS.md"]
-    context_paths = {
-        "MEMORY.md": wp / "memory" / "MEMORY.md",
-    }
+    Uses a mtime-based cache to avoid re-reading disk on every poll.
+    """
+    from shibaclaw.agent.context import ScentBuilder
+    from shibaclaw.helpers.helpers import estimate_prompt_tokens
+
+    # Check mtime of all files that feed into the system prompt
+    builder = ScentBuilder(wp)
+    check_files = [wp / f for f in ScentBuilder.BOOTSTRAP_FILES] + [
+        wp / "memory" / "MEMORY.md",
+    ]
     current_state = {}
-    for file in file_list:
-        p = wp / file
+    for p in check_files:
         if p.exists():
-            current_state[file] = p.stat().st_mtime
-        else:
-            current_state[file] = None
-    for file, p in context_paths.items():
-        if p.exists():
-            current_state[file] = p.stat().st_mtime
-        else:
-            current_state[file] = None
+            current_state[str(p)] = p.stat().st_mtime
 
-    if current_state == _workspace_context_cache["file_state"]:
-        return _workspace_context_cache["file_tokens"], _workspace_context_cache["sections"]
+    if current_state == _system_prompt_cache["file_state"] and _system_prompt_cache["prompt"]:
+        return _system_prompt_cache["prompt"], _system_prompt_cache["tokens"]
 
-    file_tokens = 0
-    sections = []
-    file_parts = []
+    prompt = builder.build_system_prompt(
+        memory_max_prompt_tokens=defaults.memory_max_prompt_tokens,
+    )
+    tokens = estimate_prompt_tokens([{"role": "system", "content": prompt}])
 
-    for file in file_list:
-        p = wp / file
-        if p.exists():
-            content = p.read_text(encoding="utf-8")
-            file_parts.append(f"#### 📄 {file}\n```markdown\n{content}\n```")
-            file_tokens += len(content) // 4  # rough estimate
-    for file, p in context_paths.items():
-        if p.exists():
-            content = p.read_text(encoding="utf-8")
-            file_parts.append(f"#### 📄 {file}\n```markdown\n{content}\n```")
-            file_tokens += len(content) // 4  # rough estimate
+    _system_prompt_cache["prompt"] = prompt
+    _system_prompt_cache["tokens"] = tokens
+    _system_prompt_cache["file_state"] = current_state
 
-    if file_parts:
-        sections.append(f"## 🧠 Workspace Context\n\n" + "\n\n".join(file_parts))
-
-    _workspace_context_cache["file_state"] = current_state
-    _workspace_context_cache["file_tokens"] = file_tokens
-    _workspace_context_cache["sections"] = sections
-
-    return file_tokens, sections
+    return prompt, tokens
 
 
 def _compute_session_tokens(session_id: str, wp: Path, pm, estimate_message_tokens):
@@ -312,21 +300,29 @@ async def api_sessions_archive(request: Request):
 
 
 async def api_context_get(request: Request):
-    """Generate a context summary for the workspace and session."""
+    """Generate a context summary for the workspace and session.
+
+    The 'system_prompt' section now reflects the real prompt assembled by
+    ScentBuilder (identity, bootstrap files, memory, skills) — the same
+    text that is sent to the LLM.  Token counts use tiktoken instead of
+    the old ``len // 4`` heuristic.
+    """
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     
     wp = agent_manager.config.workspace_path
     session_id = request.query_params.get("session_id", "")
+    defaults = agent_manager.config.agents.defaults
     sections = []
     
     from shibaclaw.helpers.helpers import estimate_message_tokens
-    total_tokens = 0
 
-    file_tokens, workspace_sections = _load_workspace_context(wp)
-    sections.extend(workspace_sections)
-    total_tokens += file_tokens
+    # ── Real system prompt (identity + bootstrap + memory + skills) ──
+    system_prompt, prompt_tokens = _build_real_system_prompt(wp, defaults)
+    total_tokens = prompt_tokens
+    sections.append(f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```")
 
+    # ── Session messages ──
     msg_tokens = 0
     if session_id:
         from shibaclaw.brain.manager import PackManager
@@ -339,13 +335,13 @@ async def api_context_get(request: Request):
             )
     total_tokens += msg_tokens
 
-    ctx_window = agent_manager.config.agents.defaults.context_window_tokens or 0
+    ctx_window = defaults.context_window_tokens or 0
     pct = min(100, round(total_tokens / ctx_window * 100)) if ctx_window > 0 else 0
 
     if request.query_params.get("summary", "").lower() in ("1", "true", "yes"):
         return JSONResponse({
             "tokens": {
-                "workspace": file_tokens,
+                "system_prompt": prompt_tokens,
                 "messages": msg_tokens,
                 "total": total_tokens,
                 "context_window": ctx_window,
@@ -357,7 +353,7 @@ async def api_context_get(request: Request):
     return JSONResponse({
         "context": context_md,
         "tokens": {
-            "workspace": file_tokens,
+            "system_prompt": prompt_tokens,
             "messages": msg_tokens,
             "total": total_tokens,
             "context_window": ctx_window,

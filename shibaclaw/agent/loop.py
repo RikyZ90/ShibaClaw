@@ -64,7 +64,8 @@ class ShibaBrain:
         learning_enabled: bool = True,
         learning_interval: int = 10,
         memory_max_prompt_tokens: int = 2000,
-        memory_compact_threshold_tokens: int = 1600,
+        memory_compact_threshold_tokens: int = 1000,
+        consolidation_model: str | None = None,
     ):
         from shibaclaw.agent.context import ScentBuilder
         from shibaclaw.agent.memory import PackMemory
@@ -117,6 +118,7 @@ class ShibaBrain:
             learning_interval=learning_interval,
             memory_max_prompt_tokens=memory_max_prompt_tokens,
             memory_compact_threshold_tokens=memory_compact_threshold_tokens,
+            consolidation_model=consolidation_model,
         )
         self.memory = ScentKeeper(workspace)
         self._available_channels = self._extract_enabled_channels()
@@ -235,24 +237,31 @@ class ShibaBrain:
         # Regenerate tool-output nonce for this interaction
         self.context.regenerate_nonce()
 
+        # Build the static (non-live) portion of the system prompt once per interaction.
+        # Only the ## Live State block changes on each iteration (timestamp + counter).
+        static_prompt = self.context.build_static_prompt(
+            skill_names,
+            memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
+        )
+
+        # Tool definitions don't change mid-loop; compute once.
+        tool_defs = self.tools.get_definitions()
+
         while iteration < self.max_iterations:
             iteration += 1
 
-            # --- Refresh the system prompt with live runtime state ---
+            # --- Refresh only the live runtime block (tiny, changes every iteration) ---
+            live_block = self.context.build_runtime_block(
+                channel=channel,
+                chat_id=chat_id,
+                iteration=iteration,
+                max_iterations=self.max_iterations,
+                available_channels=self._available_channels,
+            )
             messages[0] = {
                 "role": "system",
-                "content": self.context.build_system_prompt(
-                    skill_names,
-                    channel=channel,
-                    chat_id=chat_id,
-                    iteration=iteration,
-                    max_iterations=self.max_iterations,
-                    memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
-                    available_channels=self._available_channels,
-                ),
+                "content": static_prompt + "\n\n---\n\n" + live_block,
             }
-
-            tool_defs = self.tools.get_definitions()
 
             response = await self.provider.chat_with_retry(
                 messages=messages,
