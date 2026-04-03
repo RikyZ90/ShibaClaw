@@ -4,9 +4,12 @@ Guided by the spirit of the Shiba, built for the modern age.
 """
 
 from importlib.metadata import version, PackageNotFoundError
+import re
 
 try:
-    __version__ = version("shibaclaw")
+    _raw = version("shibaclaw")
+    # PEP 440 normalizes "0.0.8a" → "0.0.8a0"; strip trailing 0 on pre-release suffix.
+    __version__ = re.sub(r"((?:a|b|rc)\d*?)0$", r"\1", _raw)
 except PackageNotFoundError:
     __version__ = "dev"
 
