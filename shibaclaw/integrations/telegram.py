@@ -226,17 +226,8 @@ class TelegramChannel(BaseChannel):
 
         return sid in allow_list or username in allow_list
 
-    async def start(self) -> None:
-        """Start the Telegram bot with long polling."""
-        if not self.config.token:
-            logger.error("Telegram bot token not configured")
-            return
-
-        self._running = True
-
-        proxy = self.config.proxy or None
-
-        # Separate pools so long-polling (getUpdates) never starves outbound sends.
+    def _build_app(self, proxy: str | None = None) -> None:
+        """Build the Telegram Application with separate HTTP pools."""
         api_request = HTTPXRequest(
             connection_pool_size=self.config.connection_pool_size,
             pool_timeout=self.config.pool_timeout,
@@ -258,9 +249,36 @@ class TelegramChannel(BaseChannel):
             .get_updates_request(poll_request)
         )
         self._app = builder.build()
+
+    async def start_for_sending(self) -> None:
+        """Initialize the bot for outbound-only sending without starting inbound polling.
+
+        Calls Application.initialize() so HTTP requests work, but never calls
+        start_polling() so only one instance (the gateway) polls Telegram.
+        """
+        if not self.config.token:
+            logger.warning("Telegram token not configured — outbound sending unavailable")
+            return
+        self._build_app(proxy=self.config.proxy or None)
+        self._app.add_error_handler(self._on_error)
+        await self._app.initialize()
+        bot_info = await self._app.bot.get_me()
+        self._bot_username = getattr(bot_info, "username", None)
+        logger.info("Telegram bot @{} ready for sending (outbound-only)", self._bot_username)
+
+    async def start(self) -> None:
+        """Start the Telegram bot with long polling."""
+        if not self.config.token:
+            logger.error("Telegram bot token not configured")
+            return
+
+        self._running = True
+
+        proxy = self.config.proxy or None
+        self._build_app(proxy=proxy)
         self._app.add_error_handler(self._on_error)
 
-        # Add command handlers
+        # Add command handlers (inbound only — not needed for sending-only mode)
         self._app.add_handler(CommandHandler("start", self._on_start))
         self._app.add_handler(CommandHandler("new", self._forward_command))
         self._app.add_handler(CommandHandler("stop", self._forward_command))

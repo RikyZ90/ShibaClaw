@@ -61,6 +61,14 @@ class BaseChannel(ABC):
         """
         pass
 
+    async def start_for_sending(self) -> None:
+        """Initialize this channel for outbound-only sending without starting inbound polling.
+
+        Subclasses that support outbound-only mode should override this.
+        Default: no-op (channel won't be available for cross-channel sending in web mode).
+        """
+        pass
+
     @abstractmethod
     async def stop(self) -> None:
         """Stop the channel and clean up resources."""

@@ -91,13 +91,13 @@ class AgentManager:
                 t.cancel()
             self._bg_tasks.clear()
 
-            # Start channel integrations (Telegram, Discord, etc.) sharing the same bus.
-            # We do NOT start ChannelManager._dispatch_outbound() — _consume_outbound() handles routing.
+            # Initialize channels for OUTBOUND sending only — no inbound polling.
+            # Polling is the gateway's responsibility; starting it here too would
+            # cause a Telegram/Discord conflict when both containers run together.
             self._channel_manager = ChannelManager(self.config, self.bus)
             for name, channel in self._channel_manager.channels.items():
-                task = asyncio.create_task(self._channel_manager._start_channel(name, channel))
-                self._bg_tasks.append(task)
-                logger.info("🔌 Started channel integration: {}", name)
+                await self._channel_manager._init_channel_for_sending(name, channel)
+                logger.info("🔌 Channel {} ready for outbound sending", name)
 
             # Start core background tasks
             task1 = asyncio.create_task(self.agent.run())
