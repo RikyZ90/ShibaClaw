@@ -493,7 +493,8 @@ function createMessageGroup(type) {
     const avatar = document.createElement("div");
     avatar.className = "message-avatar";
     if (type === "user") {
-        avatar.textContent = "👤";
+        // No user avatar icon, only ShibaClaw agent avatar remains.
+        avatar.style.display = "none";
     } else {
         const img = document.createElement("img");
         img.src = "/static/shibaclaw_logo.png";

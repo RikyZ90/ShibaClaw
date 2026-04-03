@@ -622,6 +622,7 @@ html, body {
 }
 
 .message-group.user .message-avatar {
+    display: none;
     background: transparent;
     border: none;
 }
@@ -629,8 +630,8 @@ html, body {
 .message-group.agent .message-avatar {
     background: transparent;
     border: none;
-    width: 28px;
-    height: 28px;
+    width: 40px;
+    height: 40px;
     min-width: 28px;
 }
 
@@ -1732,6 +1733,7 @@ input[type="range"] {
 }
 
 input[type="number"].form-input {
+    appearance: textfield;
     -moz-appearance: textfield;
 }
 
