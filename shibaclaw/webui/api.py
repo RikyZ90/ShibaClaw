@@ -315,12 +315,20 @@ async def api_context_get(request: Request):
     defaults = agent_manager.config.agents.defaults
     sections = []
     
-    from shibaclaw.helpers.helpers import estimate_message_tokens
+    from shibaclaw.helpers.helpers import estimate_message_tokens, estimate_prompt_tokens
 
     # ── Real system prompt (identity + bootstrap + memory + skills) ──
     system_prompt, prompt_tokens = _build_real_system_prompt(wp, defaults)
     total_tokens = prompt_tokens
     sections.append(f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```")
+
+    # ── Tool definitions (sent alongside messages on every LLM call) ──
+    tools_tokens = 0
+    if agent_manager.agent and hasattr(agent_manager.agent, "tools"):
+        tool_defs = agent_manager.agent.tools.get_definitions()
+        if tool_defs:
+            tools_tokens = estimate_prompt_tokens([], tool_defs)
+            total_tokens += tools_tokens
 
     # ── Session messages ──
     msg_tokens = 0
@@ -342,6 +350,7 @@ async def api_context_get(request: Request):
         return JSONResponse({
             "tokens": {
                 "system_prompt": prompt_tokens,
+                "tools": tools_tokens,
                 "messages": msg_tokens,
                 "total": total_tokens,
                 "context_window": ctx_window,
@@ -354,6 +363,7 @@ async def api_context_get(request: Request):
         "context": context_md,
         "tokens": {
             "system_prompt": prompt_tokens,
+            "tools": tools_tokens,
             "messages": msg_tokens,
             "total": total_tokens,
             "context_window": ctx_window,

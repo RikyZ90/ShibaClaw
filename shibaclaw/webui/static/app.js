@@ -1871,6 +1871,7 @@ function buildTokenCard(t) {
         <h3>📊 Token Estimate</h3>
         <table class="context-token-table">
             <tr><td>System Prompt</td><td>~${(t.system_prompt || 0).toLocaleString()}</td></tr>
+            <tr><td>Tool definitions</td><td>~${(t.tools || 0).toLocaleString()}</td></tr>
             <tr><td>Session messages</td><td>~${(t.messages || 0).toLocaleString()}</td></tr>
             <tr class="total"><td>Total</td><td>~${(t.total || 0).toLocaleString()}</td></tr>
         </table>
