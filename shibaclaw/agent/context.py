@@ -33,22 +33,24 @@ class ScentBuilder:
         self.history_path = workspace / "memory" / "HISTORY.md"
         self.memory = ScentKeeper(workspace)
         self.skills = SkillsLoader(workspace)
+        # Cache for bootstrap files (SOUL.md, AGENTS.md, USER.md, TOOLS.md).
+        # These files rarely change at runtime; read once and reuse.
+        self._bootstrap_cache: str | None = None
+        self._bootstrap_mtimes: dict[str, float] = {}
 
-    def build_system_prompt(
+    def build_static_prompt(
         self,
         skill_names: list[str] | None = None,
         *,
-        channel: str | None = None,
-        chat_id: str | None = None,
-        iteration: int | None = None,
-        max_iterations: int | None = None,
         memory_max_prompt_tokens: int = 0,
-        available_channels: list[str] | None = None,
     ) -> str:
-        """Build the system prompt from identity, bootstrap files, memory, skills, and live state.
+        """Build the static (non-live) portion of the system prompt.
 
-        All keyword arguments are optional; when omitted the prompt is
-        identical to the previous static version.
+        This is everything except the ## Live State block: identity,
+        bootstrap files, memory, and skills.  Call this once per agent
+        interaction and cache the result; then concatenate
+        ``'\\n\\n---\\n\\n' + build_runtime_block(...)`` on every LLM
+        iteration to avoid re-sending thousands of tokens unchanged.
         """
         parts = [self._get_identity()]
 
@@ -75,7 +77,29 @@ Skills with available="false" need dependencies installed first - you can try in
 
 {skills_summary}""")
 
-        # --- Live runtime state (refreshed on every LLM call) ---
+        return "\n\n---\n\n".join(parts)
+
+    def build_system_prompt(
+        self,
+        skill_names: list[str] | None = None,
+        *,
+        channel: str | None = None,
+        chat_id: str | None = None,
+        iteration: int | None = None,
+        max_iterations: int | None = None,
+        memory_max_prompt_tokens: int = 0,
+        available_channels: list[str] | None = None,
+    ) -> str:
+        """Build the full system prompt (static parts + live state).
+
+        Kept for callers outside the agent loop (e.g. build_messages,
+        token-probe in PackMemory) that need a single complete prompt.
+        """
+        static = self.build_static_prompt(
+            skill_names,
+            memory_max_prompt_tokens=memory_max_prompt_tokens,
+        )
+
         live = self.build_runtime_block(
             channel=channel,
             chat_id=chat_id,
@@ -84,9 +108,8 @@ Skills with available="false" need dependencies installed first - you can try in
             available_channels=available_channels,
         )
         if live:
-            parts.append(live)
-
-        return "\n\n---\n\n".join(parts)
+            return static + "\n\n---\n\n" + live
+        return static
 
     # ------------------------------------------------------------------ #
     # Public: live runtime block (called once per LLM iteration)          #
@@ -189,16 +212,31 @@ Root: {workspace_path}
         return ScentBuilder._RUNTIME_CONTEXT_TAG + "\n" + "\n".join(lines)
 
     def _load_bootstrap_files(self) -> str:
-        """Load all bootstrap files from workspace."""
-        parts = []
+        """Load all bootstrap files from workspace, using a cache.
 
+        The cache is invalidated when any file's mtime changes so that
+        edits to SOUL.md / USER.md etc. are picked up without restarting.
+        """
+        # Check whether any file has changed since we last cached.
+        current_mtimes: dict[str, float] = {}
+        for filename in self.BOOTSTRAP_FILES:
+            file_path = self.workspace / filename
+            if file_path.exists():
+                current_mtimes[filename] = file_path.stat().st_mtime
+
+        if self._bootstrap_cache is not None and current_mtimes == self._bootstrap_mtimes:
+            return self._bootstrap_cache
+
+        parts = []
         for filename in self.BOOTSTRAP_FILES:
             file_path = self.workspace / filename
             if file_path.exists():
                 content = file_path.read_text(encoding="utf-8")
                 parts.append(f"## {filename}\n\n{content}")
 
-        return "\n\n".join(parts) if parts else ""
+        self._bootstrap_cache = "\n\n".join(parts) if parts else ""
+        self._bootstrap_mtimes = current_mtimes
+        return self._bootstrap_cache
 
     def build_messages(
         self,

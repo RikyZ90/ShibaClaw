@@ -191,6 +191,10 @@ class ScentKeeper:
             if role == "TOOL" and content:
                 if len(content) > 300:
                     content = content[:150] + "\n...[TRUNCATED]...\n" + content[-150:]
+
+            # Cap user and assistant messages to keep consolidation prompts lean.
+            if role in ("USER", "ASSISTANT") and len(content) > 500:
+                content = content[:250] + "\n...[TRUNCATED]...\n" + content[-250:]
             
             if not content.strip():
                 continue
@@ -461,11 +465,15 @@ class PackMemory:
         learning_enabled: bool = True,
         learning_interval: int = 10,
         memory_max_prompt_tokens: int = 2000,
-        memory_compact_threshold_tokens: int = 1600,
+        memory_compact_threshold_tokens: int = 1000,
+        consolidation_model: str | None = None,
     ):
         self.store = ScentKeeper(workspace)
         self.provider = provider
         self.model = model
+        # Cheaper model used exclusively for memory consolidation/compaction.
+        # Falls back to self.model when not set.
+        self.consolidation_model = consolidation_model or model
         self.sessions = sessions
         self.context_window_tokens = context_window_tokens
         self.learning_enabled = learning_enabled
@@ -482,7 +490,7 @@ class PackMemory:
 
     async def consolidate_messages(self, messages: list[dict[str, object]]) -> bool:
         """Archive a selected message chunk into persistent memory."""
-        return await self.store.consolidate(messages, self.provider, self.model)
+        return await self.store.consolidate(messages, self.provider, self.consolidation_model)
 
     def pick_consolidation_boundary(
         self,
@@ -613,7 +621,7 @@ class PackMemory:
         session.last_learned = len(session.messages)
         self.sessions.save(session)
         
-        success = await self.store.proactive_consolidate(chunk, self.provider, self.model)
+        success = await self.store.proactive_consolidate(chunk, self.provider, self.consolidation_model)
         if not success:
             # If it failed, we'll try again next time (optionally roll back last_learned but 
             # let's keep it simple and skip this chunk to avoid infinite loops).
@@ -629,6 +637,6 @@ class PackMemory:
         mem_tokens = self.store.estimate_memory_tokens()
         if mem_tokens > self.memory_compact_threshold_tokens:
             await self.store.compact_long_term(
-                self.provider, self.model,
+                self.provider, self.consolidation_model,
                 target_tokens=self.memory_compact_threshold_tokens,
             )

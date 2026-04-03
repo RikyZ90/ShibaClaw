@@ -75,27 +75,51 @@ class TestChecker:
         assert result["update_available"] is False
 
     def test_prerelease_same_numeric_no_update(self):
-        """0.0.7a vs 0.0.7 current → no update (same numeric base)."""
-        from shibaclaw import __version__
+        """Pre-release of the same base version → no update.
+
+        e.g. current=0.0.8b, remote=0.0.8a → alpha < beta → no update.
+        """
         github_resp = {
-            "tag_name": f"v{__version__}a",
+            "tag_name": "v0.0.8a",
             "html_url": "https://github.com/example",
             "assets": [],
         }
-        with patch("urllib.request.urlopen", return_value=_fake_urlopen(github_resp)):
+        with patch("shibaclaw.updater.checker.__version__", "0.0.8b"), \
+             patch("urllib.request.urlopen", return_value=_fake_urlopen(github_resp)):
             from shibaclaw.updater.checker import check_for_update
             result = check_for_update(force=True)
 
         assert result["update_available"] is False
 
     def test_prerelease_higher_numeric_triggers_update(self):
-        """0.0.8a > 0.0.7 current → update triggered."""
+        """Higher base version pre-release → update triggered.
+
+        e.g. current=0.0.7, remote=v0.0.8a → (0,0,8,0,0) > (0,0,7,3,0) → update.
+        """
         github_resp = {
             "tag_name": "v0.0.8a",
             "html_url": "https://github.com/example",
             "assets": [],
         }
-        with patch("urllib.request.urlopen", return_value=_fake_urlopen(github_resp)):
+        with patch("shibaclaw.updater.checker.__version__", "0.0.7"), \
+             patch("urllib.request.urlopen", return_value=_fake_urlopen(github_resp)):
+            from shibaclaw.updater.checker import check_for_update
+            result = check_for_update(force=True)
+
+        assert result["update_available"] is True
+
+    def test_final_upgrades_prerelease(self):
+        """Final release > same-base pre-release.
+
+        e.g. current=0.0.8b, remote=v0.0.8 → (0,0,8,3,0) > (0,0,8,1,0) → update.
+        """
+        github_resp = {
+            "tag_name": "v0.0.8",
+            "html_url": "https://github.com/example",
+            "assets": [],
+        }
+        with patch("shibaclaw.updater.checker.__version__", "0.0.8b"), \
+             patch("urllib.request.urlopen", return_value=_fake_urlopen(github_resp)):
             from shibaclaw.updater.checker import check_for_update
             result = check_for_update(force=True)
 

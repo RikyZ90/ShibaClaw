@@ -38,22 +38,33 @@ def _save_cache(data: dict) -> None:
         pass
 
 
-def _parse_version(v: str) -> tuple[int, ...]:
-    """Convert 'v1.2.3', '1.2.3a', '1.2.3-beta' etc. to (1, 2, 3) for comparison.
+def _parse_version(v: str) -> tuple:
+    """Convert version strings to comparable tuples following PEP 440 ordering.
 
-    Only the leading numeric part of each segment is used, so pre-release
-    suffixes like 'a', 'b', 'rc1' are stripped. This means:
-      0.0.7a  == 0.0.7   (no update triggered)
-      0.0.8a  >  0.0.7   (update triggered)
+    Pre-release suffixes are properly ordered so that:
+      0.0.8a < 0.0.8b < 0.0.8rc1 < 0.0.8 (final)
+      0.0.8b < 0.0.9a
+
+    The tuple format is ``(major, minor, patch, pre_kind, pre_num)`` where
+    *pre_kind* is 0 for alpha, 1 for beta, 2 for rc, and 3 for final.
     """
     v = v.lstrip("v")
-    parts = re.split(r"[.\-]", v)
-    result = []
-    for p in parts:
-        m = re.match(r"^(\d+)", p)
-        if m:
-            result.append(int(m.group(1)))
-    return tuple(result) if result else (0,)
+    # Split main version from pre-release suffix:  "0.0.8b2" → "0.0.8", "b", "2"
+    m = re.match(r'^(\d+(?:\.\d+)*)\s*[-.]?\s*(a|alpha|b|beta|rc)?(\d*)\s*$', v, re.IGNORECASE)
+    if not m:
+        # Fallback: try to extract just numeric parts
+        nums = re.findall(r'\d+', v)
+        return tuple(int(n) for n in nums) + (3, 0) if nums else (0, 3, 0)
+
+    numeric = tuple(int(x) for x in m.group(1).split('.'))
+    suffix = (m.group(2) or '').lower()
+    suffix_num = int(m.group(3)) if m.group(3) else 0
+
+    _PRE_ORDER = {'a': 0, 'alpha': 0, 'b': 1, 'beta': 1, 'rc': 2}
+    if suffix in _PRE_ORDER:
+        return numeric + (_PRE_ORDER[suffix], suffix_num)
+    # No pre-release suffix → final release (sorts after all pre-releases)
+    return numeric + (3, 0)
 
 
 def check_for_update(force: bool = False) -> dict[str, Any]:
