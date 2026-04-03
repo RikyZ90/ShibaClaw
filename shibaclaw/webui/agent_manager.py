@@ -86,6 +86,11 @@ class AgentManager:
             )
             await cron.start()
 
+            # Shutdown old tasks if any
+            for t in self._bg_tasks:
+                t.cancel()
+            self._bg_tasks.clear()
+
             # Start channel integrations (Telegram, Discord, etc.) sharing the same bus.
             # We do NOT start ChannelManager._dispatch_outbound() — _consume_outbound() handles routing.
             self._channel_manager = ChannelManager(self.config, self.bus)
@@ -94,12 +99,7 @@ class AgentManager:
                 self._bg_tasks.append(task)
                 logger.info("🔌 Started channel integration: {}", name)
 
-            # Shutdown old tasks if any
-            for t in self._bg_tasks:
-                t.cancel()
-            self._bg_tasks.clear()
-
-            # Start new background tasks
+            # Start core background tasks
             task1 = asyncio.create_task(self.agent.run())
             task2 = asyncio.create_task(self._consume_outbound())
             self._bg_tasks.extend([task1, task2])
