@@ -73,6 +73,13 @@ class ChannelManager:
         except Exception as e:
             logger.error("Failed to start channel {}: {}", name, e)
 
+    async def _init_channel_for_sending(self, name: str, channel: BaseChannel) -> None:
+        """Initialize a channel for outbound-only sending (no inbound polling)."""
+        try:
+            await channel.start_for_sending()
+        except Exception as e:
+            logger.error("Failed to init channel {} for sending: {}", name, e)
+
     async def start_all(self) -> None:
         """Start all channels and the outbound dispatcher."""
         if not self.channels:
