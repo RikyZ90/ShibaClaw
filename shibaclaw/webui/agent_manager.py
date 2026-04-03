@@ -145,7 +145,7 @@ class AgentManager:
                     else:
                         logger.debug("⏭️ Skipping progress message in _consume_outbound")
                 else:
-                    logger.warning("⚠️ Outbound message target not found: {}:{}", msg.channel, msg.chat_id)
+                    logger.debug("⏩ Outbound message not for webui: {}:{}", msg.channel, msg.chat_id)
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:

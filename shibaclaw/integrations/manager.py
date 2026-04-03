@@ -7,6 +7,7 @@ from typing import Any
 
 from loguru import logger
 
+from shibaclaw.bus.events import OutboundMessage
 from shibaclaw.bus.queue import MessageBus
 from shibaclaw.integrations.base import BaseChannel
 from shibaclaw.config.schema import Config

@@ -461,15 +461,14 @@ class ShibaBrain:
                                   content=final_content or "Background task completed.")
 
         preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
+        key = session_key or msg.session_key
         logger.debug(
             "Processing inbound message from {}:{} for session {}: {}",
             msg.channel,
             msg.sender_id,
-            session_key,
+            key,
             preview,
         )
-
-        key = session_key or msg.session_key
         session = self.sessions.get_or_create(key)
 
         # Slash commands
@@ -536,8 +535,6 @@ class ShibaBrain:
 
         # Fallback: Detect JSON media block in response if agent didn't use message tool
         media_list = []
-        import re
-        import json
         # Simplified regex to find {"media": [...]} block
         media_match = re.search(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content)
         if media_match:
