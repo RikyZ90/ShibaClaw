@@ -23,7 +23,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.8b** is out! Update notifications, PyPI package, and Docker images on GHCR.
+> **v0.0.9** is out! Update notifications, PyPI package, and Docker images on GHCR.
 
 - **2026-04-03** 🔄 **Update Notifications** — A new **Update** tab in Settings shows the current vs latest version, and active channels (Telegram, Discord, ...) receive an automatic notification with ready-to-copy `pip` / `docker` upgrade commands.
 - **2026-04-03** 📦 **Available on PyPI & Docker** — Install in one line: `pip install shibaclaw`. Docker images are published automatically on every release to `ghcr.io/rikyz90/shibaclaw`.
