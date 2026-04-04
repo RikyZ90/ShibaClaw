@@ -632,6 +632,10 @@ class TelegramChannel(BaseChannel):
         if not update.message or not update.effective_user:
             return
 
+        sender_id = self._sender_id(update.effective_user)
+        if not self.is_allowed(sender_id):
+            return
+
         user = update.effective_user
         await update.message.reply_text(
             f"👋 Hi {user.first_name}! I'm shibaclaw.\n\n"
@@ -640,9 +644,14 @@ class TelegramChannel(BaseChannel):
         )
 
     async def _on_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /help command, bypassing ACL so all users can access it."""
-        if not update.message:
+        """Handle /help command."""
+        if not update.message or not update.effective_user:
             return
+
+        sender_id = self._sender_id(update.effective_user)
+        if not self.is_allowed(sender_id):
+            return
+
         await update.message.reply_text(
             "🐕 shibaclaw commands:\n"
             "/new — Start a new conversation\n"
@@ -889,6 +898,11 @@ class TelegramChannel(BaseChannel):
         metadata = self._build_message_metadata(message, user)
         session_key = self._derive_topic_session_key(message)
 
+        # Reject unauthorised senders before doing anything visible
+        if not self.is_allowed(sender_id):
+            logger.debug("Telegram: ignoring message from unauthorised sender {}", sender_id)
+            return
+
         # Telegram media groups: buffer briefly, forward as one aggregated turn.
         if media_group_id := getattr(message, "media_group_id", None):
             key = f"{str_chat_id}:{media_group_id}"
@@ -908,7 +922,7 @@ class TelegramChannel(BaseChannel):
                 self._media_group_tasks[key] = asyncio.create_task(self._flush_media_group(key))
             return
 
-        # Start typing indicator before processing
+        # Start typing indicator only after authorisation is confirmed
         self._start_typing(str_chat_id)
 
         # Forward to the message bus
