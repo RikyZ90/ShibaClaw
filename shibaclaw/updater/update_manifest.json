@@ -1,6 +1,6 @@
 {
-  "version": "0.0.10",
-  "release_notes": "Bug fixes and improvements.\n- Optimized token consumption\n- Fixed update version cache bug\n- Added pre-release version parsing\n- Added periodic update check with channel notification\n- Added update UI tab in settings",
+  "version": "0.0.11",
+  "release_notes": "Bug fixes and improvements.\n- Policy applied uniformly across all four Telegram entry points: reject early, expose nothing. Unauthorised senders receive no response, no typing indicator, and no information about the bot's existence",
   "changes": [
     {
       "path": "templates/SOUL.md",
