@@ -10,8 +10,8 @@ This method ensures you have all dependencies ready to go in a contained environ
 
 1. **Launch**: Run the following command in the project root:
    ```bash
-   docker compose pull          # pull the latest image from GHCR
-   docker compose up -d         # start gateway + webUI
+   git clone https://github.com/RikyZ90/ShibaClaw.git .
+   docker compose up --build        # start gateway + webUI
    ```
 2. **Onboard**: Launch the interactive configuration wizard:
    ```bash
