@@ -1206,7 +1206,7 @@ html, body {
     resize: none;
     min-height: 24px;
     max-height: 200px;
-    padding: 6px 0px 6px 0;
+    padding: 0px 0px 8px 0;
 }
 
 #chat-input::placeholder {
@@ -1241,9 +1241,9 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
     border-radius: 50%;
     border: none;
     background: var(--shiba-gold);
