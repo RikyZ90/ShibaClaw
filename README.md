@@ -16,12 +16,14 @@ ShibaClaw is a **loyal, intelligent, and lightweight** personal AI assistant fra
 
 The **only** AI agent framework combining **extreme multi-layer security** (Structural Tool Output Wrapping against Prompt Injection + Smart Install Guard with live CVE scanning before every package install) with **minimal token consumption**, keeping your costs low without sacrificing power.
 
+**🛡️ Built-in Security**: Protected against Indirect Prompt Injection via **Structural Randomized Wrapping** and strict per-session security policies.
+
 ---
 
 ## 📢 News
 
 > [!IMPORTANT]
-> **v0.0.8b** is out! Update notifications, PyPI package, and Docker images on GHCR.
+> **v0.0.9** is out! Update notifications, PyPI package, and Docker images on GHCR.
 
 - **2026-04-03** 🔄 **Update Notifications** — A new **Update** tab in Settings shows the current vs latest version, and active channels (Telegram, Discord, ...) receive an automatic notification with ready-to-copy `pip` / `docker` upgrade commands.
 - **2026-04-03** 📦 **Available on PyPI & Docker** — Install in one line: `pip install shibaclaw`. Docker images are published automatically on every release to `ghcr.io/rikyz90/shibaclaw`.
@@ -37,7 +39,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 🐾 Key Features
 - **Fast & Faithful**: Minimal startup time and dependencies.
-- **📢 Multi-channel**: Support for Telegram, Discord, Slack, WhatsApp, and more.
+- **📢 Multi-channel**: Support for Telegram, Discord, Slack, WhatsApp, Matrix, and more.
 - **⏰ Always Alert**: Built-in cron and heartbeat task scheduler.
 - 🧩 **Skills Registry**: Modular and extensible skill system with native ClawHub marketplace support
 - ⚡ **Parallel Multi-Agent Execution**: A built-in fan-out orchestration model that spawns and coordinates specialized sub-agents concurrently for faster, scalable task resolution
@@ -138,7 +140,7 @@ docker compose up -d --build                                  # gateway + webUI
 docker exec -it shibaclaw-gateway shibaclaw onboard --wizard  # first-time setup
 ```
 > **To update**: `docker compose pull && docker compose up -d`  
-Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen or use the direct URL with the token appended.
+Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen
 
 ### 🐍 Bare Metal
 ```bash
