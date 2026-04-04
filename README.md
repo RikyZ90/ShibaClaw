@@ -3,15 +3,12 @@
 </p>
 
 # Smart. Loyal. Powerful. 🐕
-
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.8b-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.9-orange?style=flat-square" alt="version"></a>
+  <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=INTERNATIONAL_SYSTEM&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
-  <a href="https://pypi.org/project/shibaclaw/"><img src="https://img.shields.io/pypi/v/shibaclaw?style=flat-square&logo=pypi&logoColor=white&label=PyPI" alt="PyPI"></a>
-  <a href="https://ghcr.io/rikyz90/shibaclaw"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Frikyz90%2Fshibaclaw-blue?style=flat-square&logo=docker&logoColor=white" alt="GHCR"></a>
 </p>
-
 ShibaClaw is a **loyal, intelligent, and lightweight** personal AI assistant framework — built to serve and protect your digital workspace.
 
 The **only** AI agent framework combining **extreme multi-layer security** (Structural Tool Output Wrapping against Prompt Injection + Smart Install Guard with live CVE scanning before every package install) with **minimal token consumption**, keeping your costs low without sacrificing power.
