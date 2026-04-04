@@ -1183,7 +1183,7 @@ html, body {
     border: 1px solid rgba(255,255,255,0.05);
     border-bottom: 2px solid rgba(255,255,255,0.07);
     border-radius: var(--radius-md);
-    padding: 8px 12px;
+    padding: 2px 9px;
     transition: border-color var(--transition-fast);
 }
 
@@ -1205,7 +1205,7 @@ html, body {
     resize: none;
     min-height: 24px;
     max-height: 200px;
-    padding: 4px 0;
+    padding: 6px 0px 6px 0;
 }
 
 #chat-input::placeholder {
