@@ -108,7 +108,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-def get_cors_origins(port: int = 3000) -> list[str]:
+def get_cors_origins(port: int = 3000, host: str = "127.0.0.1") -> list[str]:
     """Return allowed CORS origins from env or safe defaults."""
     env = os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip()
     if env == "*":
@@ -128,4 +128,9 @@ def get_cors_origins(port: int = 3000) -> list[str]:
             f"https://localhost:{port}",
             f"https://127.0.0.1:{port}",
         ]
+    # Include the actual bind host when it's a specific non-loopback address
+    if host not in ("127.0.0.1", "localhost", "0.0.0.0", "::"):
+        origins += [f"http://{host}", f"https://{host}"]
+        if port not in (80, 443):
+            origins += [f"http://{host}:{port}", f"https://{host}:{port}"]
     return origins

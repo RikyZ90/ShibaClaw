@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import argparse
+import os
 import uvicorn
 import socketio
 from pathlib import Path
@@ -48,6 +49,7 @@ def create_app(
     config: Any | None = None,
     provider: Any | None = None,
     port: int = 3000,
+    host: str = "127.0.0.1",
 ) -> tuple[socketio.ASGIApp, socketio.AsyncServer]:
     """Create the ASGI app with Socket.IO attached."""
     
@@ -60,7 +62,7 @@ def create_app(
     # 2. Socket.IO server
     sio = socketio.AsyncServer(
         async_mode="asgi",
-        cors_allowed_origins=get_cors_origins(port),
+        cors_allowed_origins=get_cors_origins(port, host),
         logger=False,
         engineio_logger=False,
     )
@@ -133,7 +135,10 @@ async def _check_update_on_startup() -> None:
 
 async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
     """Start the WebUI server."""
-    app, _ = create_app(config=config, provider=provider, port=port)
+    app, _ = create_app(config=config, provider=provider, port=port, host=host)
+
+    if host in ("0.0.0.0", "::") and not os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip():
+        logger.warning("Binding to {} — set SHIBACLAW_CORS_ORIGINS for non-loopback clients", host)
 
     token = get_auth_token()
     if token:
@@ -158,7 +163,8 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ShibaClaw WebUI Server")
     parser.add_argument("--port", type=int, default=3000)
+    parser.add_argument("--host", type=str, default="127.0.0.1")
     args = parser.parse_args()
 
-    print(f"🐕 Starting ShibaClaw WebUI on http://localhost:{args.port}")
-    asyncio.run(run_server(port=args.port))
+    print(f"🐕 Starting ShibaClaw WebUI on http://{args.host}:{args.port}")
+    asyncio.run(run_server(port=args.port, host=args.host))
