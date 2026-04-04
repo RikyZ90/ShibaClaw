@@ -85,15 +85,26 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                 with open(os.path.join(token_dir, "access-token"), "w") as f:
                     f.write(access_token)
 
-                # Attempt gateway restart
+                # Attempt gateway restart (use same host resolution as api.py)
                 try:
                     from .agent_manager import agent_manager
                     if agent_manager.config and agent_manager.config.gateway:
-                        gw_port = agent_manager.config.gateway.port
-                        req = urllib.request.Request(f"http://127.0.0.1:{gw_port}/restart", method="POST", data=b"")
+                        gw = agent_manager.config.gateway
+                        gw_port = gw.port
+                        gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
+                        if gw.host not in ("0.0.0.0", "::", "", "127.0.0.1"):
+                            targets = [gw.host, "127.0.0.1"]
+                        else:
+                            targets = [gateway_hostname, "127.0.0.1"]
                         auth = get_auth_token()
-                        if auth: req.add_header("Authorization", f"Bearer {auth}")
-                        urllib.request.urlopen(req, timeout=1)
+                        for h in targets:
+                            try:
+                                req = urllib.request.Request(f"http://{h}:{gw_port}/restart", method="POST", data=b"")
+                                if auth: req.add_header("Authorization", f"Bearer {auth}")
+                                urllib.request.urlopen(req, timeout=2)
+                                break
+                            except Exception:
+                                continue
                 except Exception: pass
 
                 jobs[job_id]["status"] = "done"
