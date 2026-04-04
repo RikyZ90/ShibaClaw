@@ -2655,8 +2655,9 @@ async function loadUpdatePanel(force = false) {
                     }).join("");
                     manifestSection += `
                         <div class="update-personal">
-                            <div class="update-personal-title"><span class="material-icons-round">folder_open</span> Personal files that may need review after update</div>
+                            <div class="update-personal-title"><span class="material-icons-round">folder_open</span> Files changed by this release</div>
                             <ul class="update-personal-list">${items}</ul>
+                            <div class="update-personal-note">If you customized any of these tracked files, back them up before updating. After the update, run <code>shibaclaw onboard</code> again to refresh them. If you keep personal information in these files, save a copy first so you can restore it afterward.</div>
                         </div>`;
                 }
             } catch (e) {
