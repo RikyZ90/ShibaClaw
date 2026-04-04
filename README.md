@@ -22,6 +22,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 > **v0.0.11** is out! Telegram ACL hardening
 
+- **2026-04-04** 🛡️**Telegram** Policy applied uniformly across all four entry points: reject early, expose nothing. Unauthorised senders receive no response, no typing indicator, and no information about the bot's existence.
 - **2026-04-03** 🔄 **Update Notifications** — A new **Update** tab in Settings shows the current vs latest version, and active channels (Telegram, Discord, ...) receive an automatic notification with ready-to-copy `pip` / `docker` upgrade commands.
 - **2026-04-03** 📦 **Available on PyPI & Docker** — Install in one line: `pip install shibaclaw`. Docker images are published automatically on every release to `ghcr.io/rikyz90/shibaclaw`.
 - **2026-04-01** 📂 **Integrated File Browser** — A full file explorer in the WebUI sidebar: browse, view, edit and save workspace files directly from the browser. Path-traversal protected and workspace-sandboxed.
