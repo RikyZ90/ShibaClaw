@@ -1834,6 +1834,13 @@ html, body {
     color: var(--text-secondary);
     font-weight: 500;
 }
+.auto-hb-info .hb-file-link {
+    color: var(--accent);
+    text-decoration: none;
+}
+.auto-hb-info .hb-file-link:hover {
+    text-decoration: underline;
+}
 
 .auto-empty {
     padding: 6px 8px 6px 28px;
