@@ -7,7 +7,9 @@ from shibaclaw.brain.manager import PackManager
 from shibaclaw.cli.gateway import resolve_cron_target, resolve_webui_session_key, select_heartbeat_target
 from shibaclaw.cron.service import CronService
 from shibaclaw.cron.types import CronJob, CronJobState, CronPayload, CronSchedule
+from shibaclaw.helpers.evaluator import evaluate_response
 from shibaclaw.heartbeat.service import HeartbeatService
+from shibaclaw.thinkers.base import LLMResponse, ToolCallRequest
 from shibaclaw.webui.agent_manager import AgentManager
 
 
@@ -17,6 +19,21 @@ class FakeSocketIO:
 
     async def emit(self, event, payload, room=None):
         self.calls.append((event, payload, room))
+
+
+class RecordingProvider:
+    def __init__(self, response):
+        self.response = response
+        self.calls = []
+
+    async def chat_with_retry(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.response
+
+    @staticmethod
+    def _is_transient_error(content):
+        text = (content or "").lower()
+        return "429" in text or "rate limit" in text
 
 
 class TestHeartbeatTargetSelection:
@@ -217,6 +234,26 @@ class TestHeartbeatService:
         await asyncio.wait_for(tick_seen.wait(), timeout=0.2)
         await asyncio.sleep(0)
 
+    @pytest.mark.asyncio
+    async def test_decide_disables_transient_retry_logging(self, tmp_path):
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})],
+            )
+        )
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+        )
+
+        action, tasks = await service._decide("Check tasks")
+
+        assert action == "skip"
+        assert tasks == ""
+        assert provider.calls[0]["log_transient_errors"] is False
+
     def test_status_returns_telemetry(self, tmp_path):
         service = HeartbeatService(
             workspace=tmp_path,
@@ -251,3 +288,30 @@ class TestHeartbeatService:
         assert s["last_action"] == "skip"
         assert s["last_run_ms"] == now_ms - 5000
         assert s["last_error"] == "boom"
+
+
+class TestBackgroundEvaluation:
+    @pytest.mark.asyncio
+    async def test_evaluate_response_disables_transient_retry_logging(self):
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[
+                    ToolCallRequest(
+                        id="eval-1",
+                        name="evaluate_notification",
+                        arguments={"should_notify": False, "reason": "Routine heartbeat"},
+                    )
+                ],
+            )
+        )
+
+        result = await evaluate_response(
+            response="All good",
+            task_context="Heartbeat check",
+            provider=provider,
+            model="test-model",
+        )
+
+        assert result is False
+        assert provider.calls[0]["log_transient_errors"] is False

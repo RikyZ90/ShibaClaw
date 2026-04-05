@@ -107,10 +107,14 @@ class HeartbeatService:
             ],
             tools=_HEARTBEAT_TOOL,
             model=self.model,
+            log_transient_errors=False,
         )
 
         if response.finish_reason == "error":
-            logger.warning("Heartbeat: decision request failed: {}", (response.content or "")[:200])
+            if self.provider._is_transient_error(response.content):
+                logger.warning("Heartbeat: provider rate limited while checking tasks, skipping this cycle")
+            else:
+                logger.warning("Heartbeat: decision request failed: {}", (response.content or "")[:200])
 
         if not response.has_tool_calls:
             logger.warning("Heartbeat: decision request returned no tool call, skipping")

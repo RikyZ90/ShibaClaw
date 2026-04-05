@@ -75,7 +75,12 @@ async def evaluate_response(
             model=model,
             max_tokens=256,
             temperature=0.0,
+            log_transient_errors=False,
         )
+
+        if llm_response.finish_reason == "error" and provider._is_transient_error(llm_response.content):
+            logger.info("evaluate_response: provider rate limited, defaulting to notify")
+            return True
 
         if not llm_response.has_tool_calls:
             logger.warning("evaluate_response: no tool call returned, defaulting to notify")

@@ -232,6 +232,7 @@ class Thinker(ABC):
         temperature: object = _SENTINEL,
         reasoning_effort: object = _SENTINEL,
         tool_choice: str | dict[str, Any] | None = None,
+        log_transient_errors: bool = True,
     ) -> LLMResponse:
         """Call chat() with retry on transient provider failures.
 
@@ -265,11 +266,12 @@ class Thinker(ABC):
                     return await self._safe_chat(**{**kw, "messages": stripped})
                 return response
 
-            logger.warning(
-                "LLM transient error (attempt {}/{}), retrying in {}s: {}",
-                attempt, len(self._CHAT_RETRY_DELAYS), delay,
-                (response.content or "")[:120].lower(),
-            )
+            if log_transient_errors:
+                logger.warning(
+                    "LLM transient error (attempt {}/{}), retrying in {}s: {}",
+                    attempt, len(self._CHAT_RETRY_DELAYS), delay,
+                    (response.content or "")[:120].lower(),
+                )
             await asyncio.sleep(delay)
 
         return await self._safe_chat(**kw)
