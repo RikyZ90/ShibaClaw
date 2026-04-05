@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Two-layer memory system with token-budgeted injection and auto-compaction of long-term facts.
+description: Split memory system with USER.md for durable personal profile and MEMORY.md for token-budgeted operational context.
 always: true
 ---
 
@@ -8,21 +8,29 @@ always: true
 
 ## Structure
 
-- `memory/MEMORY.md` — Long-term facts. Injected into every system prompt under `# Memory`, **truncated by section** if it exceeds the token budget (~2000 tokens default).
-- `memory/HISTORY.md` — Append-only log with `[YYYY-MM-DD HH:MM] [#tag1 #tag2]` entries. Never injected. Search it with grep when historical context is missing.
+- `USER.md` — Durable personal profile and preferences. Not token-compacted; keep it focused on long-lived user facts.
+- `memory/MEMORY.md` — Operational long-term facts. Injected into every system prompt under `# Memory`, **truncated from the bottom** if it exceeds the token budget (~2000 tokens default).
+- `memory/HISTORY.md` — Append-only log with `[YYYY-MM-DD HH:MM] [#tag1 #tag2]` entries. Never injected. Search it with `memory_search` or grep when historical context is missing.
 
-## Writing to MEMORY.md
+## MEMORY.md Layout
 
-Write immediately with `edit_file` / `write_file` for: user preferences, project context, important entities.
+Sections are ordered by **survival priority** — top sections persist under truncation, bottom sections are dropped first.
 
+1. `## Environment` — OS, runtime, tooling constraints, local services, provider setup
+2. `## Entities` — people, projects, repos, services referenced often
+3. `## Project State` — milestones, blockers, medium-term status, important decisions
+4. `## Dynamic Context` — current tasks, recent decisions, in-progress work
+
+**Rules:**
 - One fact per bullet, no prose paragraphs
 - **Update/replace** existing facts instead of appending duplicates
+- Put personal profile and preferences in `USER.md`, not in `memory/MEMORY.md`
+- Put durable operational facts in the top three MEMORY sections; only transient state goes in Dynamic Context
 - Keep the file concise — the system auto-compacts when it exceeds ~1600 tokens
-- Do not add speculative or redundant facts
 
 ## Missing Context
 
-If a topic feels incomplete, **search `HISTORY.md` first** before assuming a fact was never recorded. Older sections of MEMORY.md may have been compacted away, but important facts are preserved.
+If a topic feels incomplete, **search `HISTORY.md` first** before assuming a fact was never recorded. Use the `memory_search` tool for semantic queries, or grep for exact matches:
 
 ```bash
 grep -i "keyword" memory/HISTORY.md

@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 from rich.panel import Panel
@@ -15,6 +16,133 @@ from loguru import logger
 from shibaclaw import __logo__, __version__
 from .utils import console
 from shibaclaw.helpers.logging import setup_shiba_logging
+
+
+@dataclass(frozen=True)
+class HeartbeatTarget:
+    channel: str
+    chat_id: str
+    session_key: str
+
+
+def resolve_webui_session_key(session_key: str | None, chat_id: str | None) -> str | None:
+    if session_key:
+        return session_key
+    if not chat_id:
+        return None
+    if chat_id.startswith("webui:"):
+        return chat_id
+    return f"webui:{chat_id[:8]}"
+
+
+def resolve_cron_target(job: Any) -> HeartbeatTarget:
+    channel = job.payload.channel or "cli"
+    chat_id = job.payload.to or "direct"
+    session_key = job.payload.session_key or f"{channel}:{chat_id}"
+
+    if channel == "webui":
+        session_key = resolve_webui_session_key(job.payload.session_key, job.payload.to) or session_key
+        chat_id = session_key.split(":", 1)[1] if ":" in session_key else session_key
+
+    return HeartbeatTarget(channel=channel, chat_id=chat_id, session_key=session_key)
+
+
+def select_heartbeat_target(
+    sessions: list[dict[str, Any]], enabled_channels: set[str],
+) -> HeartbeatTarget:
+    webui_candidate: HeartbeatTarget | None = None
+
+    for item in sessions:
+        key = item.get("key", "")
+        if ":" not in key:
+            continue
+
+        channel, chat_id = key.split(":", 1)
+        target = HeartbeatTarget(channel=channel, chat_id=chat_id, session_key=key)
+
+        if channel == "webui":
+            webui_candidate = webui_candidate or target
+            continue
+
+        if channel not in {"cli", "system"} and channel in enabled_channels:
+            return target
+
+    if webui_candidate:
+        return webui_candidate
+
+    return HeartbeatTarget(channel="cli", chat_id="direct", session_key="cli:direct")
+
+
+def _iter_webui_notify_urls() -> list[str]:
+    raw_urls = [
+        os.environ.get("SHIBACLAW_WEBUI_NOTIFY_URL", "").strip(),
+        os.environ.get("SHIBACLAW_WEBUI_URL", "").strip(),
+        "http://shibaclaw-web:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ]
+    seen: set[str] = set()
+    urls: list[str] = []
+
+    for url in raw_urls:
+        if not url:
+            continue
+        normalized = url.rstrip("/")
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        urls.append(normalized)
+
+    return urls
+
+
+async def notify_webui_session(
+    session_key: str,
+    response: str,
+    auth_token: str | None,
+    *,
+    source: str = "heartbeat",
+    persist: bool = True,
+) -> bool:
+    if not session_key or not response:
+        return False
+
+    import httpx
+
+    headers = {}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+
+    payload = {
+        "session_key": session_key,
+        "content": response,
+        "source": source,
+        "persist": persist,
+    }
+
+    for base_url in _iter_webui_notify_urls():
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                result = await client.post(
+                    f"{base_url}/api/internal/session-notify",
+                    json=payload,
+                    headers=headers,
+                )
+            if result.is_success:
+                logger.info("{}: delivered response to WebUI session {}", source.capitalize(), session_key)
+                return True
+            logger.debug(
+                "{}: WebUI notify endpoint returned {} from {}",
+                source.capitalize(),
+                result.status_code,
+                base_url,
+            )
+        except Exception as exc:
+            logger.debug("{}: failed to notify WebUI via {}: {}", source.capitalize(), base_url, exc)
+
+    logger.warning("{}: unable to deliver response to WebUI session {}", source.capitalize(), session_key)
+    return False
+
 
 async def gateway_command(
     host: Optional[str] = None,
@@ -35,21 +163,19 @@ async def gateway_command(
     from shibaclaw.webui.server import get_auth_token
 
     setup_shiba_logging(level="DEBUG" if verbose else "INFO")
-    if verbose: logging.basicConfig(level=logging.DEBUG)
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
 
     config = _load_runtime_config(config_path, workspace)
     port = port_override if port_override is not None else config.gateway.port
     host = host if host is not None else (config.gateway.host or "127.0.0.1")
 
     auth_token = get_auth_token()
-    if auth_token:
-        console.print(f"  [dim]🔑 To retrieve the WebUI token, run:[/dim] [bold cyan]docker exec -it shibaclaw-gateway shibaclaw print-token[/bold cyan]")
-
     bus = MessageBus()
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
         console.print("[yellow]🐾 Entering idle mode...[/yellow]")
-        console.print("[yellow]You can now run:[/yellow] [bold]docker exec -it shibaclaw-gateway shibaclaw onboard --wizard[/bold]")
+        console.print("[dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
 
     session_manager = PackManager(config.workspace_path)
     cron = CronService(get_cron_dir() / "jobs.json")
@@ -72,35 +198,43 @@ async def gateway_command(
         memory_compact_threshold_tokens=config.agents.defaults.memory_compact_threshold_tokens,
     )
 
-    # ── Cron Logic ──
-    async def on_cron_job(job) -> str | None:
-        reminder_note = f"[Scheduled Task] Timer finished.\n\nTask '{job.name}' triggered.\nMessage: {job.payload.message}"
-        outbound = await agent.process_direct(reminder_note, f"cron:{job.id}", job.payload.channel or "cli", job.payload.to or "direct")
-        return outbound.content if outbound else ""
-    cron.on_job = on_cron_job
-
     channels = ChannelManager(config, bus)
 
-    # ── Heartbeat Logic ──
-    def _pick_heartbeat_target() -> tuple[str, str]:
-        enabled = set(channels.enabled_channels)
-        for item in session_manager.list_sessions():
-            key = item.get("key", "")
-            if ":" in key:
-                c, cid = key.split(":", 1)
-                if c not in {"cli", "system"} and c in enabled: return c, cid
-        return "cli", "direct"
+    def _pick_heartbeat_target() -> HeartbeatTarget:
+        return select_heartbeat_target(
+            session_manager.list_sessions(),
+            set(channels.enabled_channels),
+        )
 
     async def on_heartbeat_execute(tasks: str) -> str:
-        c, cid = _pick_heartbeat_target()
-        outbound = await agent.process_direct(tasks, "heartbeat", c, cid, on_progress=lambda *_: None)
+        async def _noop_progress(*_args, **_kwargs) -> None:
+            return None
+
+        target = _pick_heartbeat_target()
+        outbound = await agent.process_direct(
+            tasks,
+            "heartbeat",
+            target.channel,
+            target.chat_id,
+            on_progress=_noop_progress,
+        )
         return outbound.content if outbound else ""
 
     async def on_heartbeat_notify(response: str) -> None:
         from shibaclaw.bus.events import OutboundMessage
-        c, cid = _pick_heartbeat_target()
-        if c != "cli" and response:
-            await bus.publish_outbound(OutboundMessage(channel=c, chat_id=cid, content=response))
+
+        target = _pick_heartbeat_target()
+        if not response:
+            return
+        if target.channel == "webui":
+            await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
+            return
+        if target.channel != "cli":
+            await bus.publish_outbound(
+                OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
+            )
+            return
+        logger.info("Heartbeat: generated a response but found no deliverable session")
 
     hb_cfg = config.gateway.heartbeat
     heartbeat = HeartbeatService(
@@ -109,26 +243,34 @@ async def gateway_command(
         interval_s=hb_cfg.interval_s, enabled=hb_cfg.enabled
     )
 
-    # ── Unified Status ──
-    status_parts = [f"[bold gold1]{__logo__} ShibaClaw Gateway v{__version__}[/bold gold1] [dim](port {port})[/dim]", ""]
-    if channels.enabled_channels: status_parts.append(f"  [green]✓[/green] [bold]Channels:[/bold] {', '.join(channels.enabled_channels)}")
-    else: status_parts.append("  [yellow]⚠ No channels enabled[/yellow]")
-    
-    c_status, hb_info = cron.status(), f"[green]✓[/green] [bold]Heartbeat:[/bold] {hb_cfg.interval_s}s" if hb_cfg.enabled else "[dim]Heartbeat: disabled[/dim]"
-    status_parts.append(f"  [green]✓[/green] [bold]Cron:[/bold] {c_status['jobs']} jobs" if c_status["jobs"] > 0 else "  [dim]Cron: idle[/dim]")
+    status_parts = [
+        f"[bold gold1]{__logo__} ShibaClaw Gateway v{__version__}[/bold gold1] [dim](port {port})[/dim]",
+        "",
+    ]
+    if channels.enabled_channels:
+        status_parts.append(f"  [green]✓[/green] Channels: {', '.join(channels.enabled_channels)}")
+    if provider is None:
+        status_parts.append("  [yellow]⚠ No AI provider configured[/yellow]")
+        status_parts.append("  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
+    c_status = cron.status()
+    hb_info = f"✓ Heartbeat: {hb_cfg.interval_s}s" if hb_cfg.enabled else "Heartbeat: disabled"
+    status_parts.append(
+        f"  [green]✓[/green] Cron: {c_status['jobs']} jobs"
+        if c_status["jobs"] > 0
+        else "  [dim]Cron: idle[/dim]"
+    )
     status_parts.append(f"  {hb_info}")
     webui_url = os.environ.get("SHIBACLAW_WEBUI_URL", "http://localhost:3000")
-    status_parts.append(f"\n  [cyan]🖥️  WebUI:[/cyan] [link={webui_url}]{webui_url}[/link]")
+    status_parts.append(f"  [cyan]🖥️  WebUI:[/cyan] [link={webui_url}]{webui_url}[/link]")
+    status_parts.append("  [dim]Run [bold]shibaclaw print-token[/bold] to show the WebUI auth token[/dim]")
     console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
-    # ── Server Loop ──
     _state = {"restart": False}
 
     _UPDATE_CHECK_INTERVAL = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "12")) * 3600
 
     async def _update_check_loop():
-        """Periodically check for updates and notify via the active channel."""
-        await asyncio.sleep(60)  # wait 1 min after startup before first check
+        await asyncio.sleep(60)
         while True:
             try:
                 from shibaclaw.updater.checker import check_for_update
@@ -154,42 +296,84 @@ async def gateway_command(
 
     async def run():
         _start_time = time.time()
-        
+
         async def _health_handler(reader, writer):
             nonlocal _state
             try:
-                data = await asyncio.wait_for(reader.read(2048), timeout=2)
-                if b"POST" in data and b"/restart" in data:
-                    if auth_token and f"Authorization: Bearer {auth_token}".encode() not in data:
-                        writer.write(b"HTTP/1.0 401 Unauthorized\r\n\r\n")
+                data = await asyncio.wait_for(reader.read(4096), timeout=2)
+                request_line = data.split(b"\r\n", 1)[0].decode(errors="ignore")
+
+                def _check_auth() -> bool:
+                    if not auth_token:
+                        return True
+                    return f"Authorization: Bearer {auth_token}".encode() in data
+
+                def _json_response(body: dict, status: int = 200) -> bytes:
+                    phrase = "OK" if status == 200 else ("Unauthorized" if status == 401 else "Not Found")
+                    payload = json.dumps(body, ensure_ascii=False).encode()
+                    return (
+                        f"HTTP/1.0 {status} {phrase}\r\n"
+                        f"Content-Type: application/json\r\n"
+                        f"Content-Length: {len(payload)}\r\n"
+                        f"\r\n"
+                    ).encode() + payload
+
+                if "POST" in request_line and "/restart" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
                     else:
-                        writer.write(b"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n" + json.dumps({"status": "restarting"}).encode())
+                        writer.write(_json_response({"status": "restarting"}))
                         _state["restart"] = True
-                        asyncio.get_event_loop().call_later(0.5, lambda: [t.cancel() for t in asyncio.all_tasks()])
-                elif b"GET" in data:
-                    writer.write(b"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n" + json.dumps({
-                        "status": "ok" if provider else "idle", "uptime": int(time.time() - _start_time), "provider_ready": provider is not None
-                    }).encode())
+                        asyncio.get_event_loop().call_later(
+                            0.5,
+                            lambda: [t.cancel() for t in asyncio.all_tasks()]
+                        )
+                elif "GET" in request_line and "/heartbeat/status" in request_line:
+                    writer.write(_json_response(heartbeat.status()))
+                elif "POST" in request_line and "/heartbeat/trigger" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        try:
+                            result = await heartbeat.trigger_now()
+                            writer.write(_json_response({"triggered": True, "response": result}))
+                        except Exception as e:
+                            writer.write(_json_response({"triggered": False, "error": str(e)}))
+                elif "GET" in request_line:
+                    writer.write(_json_response({
+                        "status": "ok" if provider else "idle",
+                        "uptime": int(time.time() - _start_time),
+                        "provider_ready": provider is not None,
+                    }))
+                else:
+                    writer.write(_json_response({"error": "not found"}, 404))
                 await writer.drain()
-            except Exception: pass
-            finally: writer.close()
+            except Exception:
+                pass
+            finally:
+                writer.close()
 
         health_srv = await asyncio.start_server(_health_handler, host, port)
         try:
-            await cron.start()
             await heartbeat.start()
-            await asyncio.gather(agent.run(), channels.start_all(), health_srv.serve_forever(), _update_check_loop())
+            await asyncio.gather(
+                agent.run(),
+                channels.start_all(),
+                health_srv.serve_forever(),
+                _update_check_loop(),
+            )
         except (KeyboardInterrupt, asyncio.CancelledError):
-            console.print("\n🔄 Restart requested..." if _state["restart"] else "\nShutting down...")
+            if _state["restart"]:
+                console.print("\n🔄 Restarting...")
+            else:
+                console.print("\nShutting down...")
         finally:
             await agent.close_mcp()
             heartbeat.stop()
-            cron.stop()
             agent.stop()
             await channels.stop_all()
 
     await run()
 
     if _state["restart"]:
-        # Re-exec the current process to apply new config (bare-metal + Docker)
         os.execv(sys.executable, [sys.executable] + sys.argv)

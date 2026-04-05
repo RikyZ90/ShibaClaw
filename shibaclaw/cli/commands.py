@@ -12,7 +12,6 @@ from shibaclaw import __logo__, __version__
 from .utils import console, setup_shiba_logging
 from .base import _load_runtime_config, _make_provider
 
-# Create the primary Typer app
 app = typer.Typer(
     name="shibaclaw",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -20,12 +19,12 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# ── Metadata ──
 
 def version_callback(value: bool):
     if value:
         console.print(f"{__logo__} shibaclaw v{__version__}")
         raise typer.Exit()
+
 
 @app.callback()
 def main(
@@ -33,6 +32,7 @@ def main(
 ):
     """shibaclaw - Personal AI Assistant."""
     pass
+
 
 @app.command()
 def print_token():
@@ -45,17 +45,14 @@ def print_token():
         console.print("[yellow]No token found or authentication disabled.[/yellow]")
 
 
-# ── Core Commands ──
-
 @app.command()
 def onboard(
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
-    wizard: bool = typer.Option(False, "--wizard", help="Use interactive wizard"),
 ):
     """Initialize shibaclaw configuration and workspace."""
     from .onboard import onboard_command
-    onboard_command(workspace=workspace, config_override=config, wizard=wizard)
+    onboard_command(workspace=workspace, config_override=config)
 
 
 @app.command()
@@ -81,17 +78,20 @@ def web(
     """Start the ShibaClaw WebUI in the browser."""
     from .base import _load_runtime_config, _make_provider
     from shibaclaw.webui.server import run_server, get_auth_token
-    
+
     setup_shiba_logging()
     cfg = _load_runtime_config(config, workspace)
     provider = _make_provider(cfg, exit_on_error=False)
-    
+
     token = get_auth_token()
     console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     console.print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
     if token:
         console.print(f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token)-4)}[/bold]")
-    
+    if provider is None:
+        console.print("")
+        console.print("  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
+
     asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
 
 
@@ -127,16 +127,18 @@ def status():
         for spec in PROVIDERS:
             p = getattr(cfg.providers, spec.name, None)
             if p:
-                if spec.is_oauth: status_text = _oauth_provider_status(spec)
-                elif spec.is_local: status_text = f"[green]✓ {p.api_base}[/green]" if p.api_base else "[dim]not set[/dim]"
-                else: status_text = "[green]✓[/green]" if p.api_key else "[dim]not set[/dim]"
+                if spec.is_oauth:
+                    status_text = _oauth_provider_status(spec)
+                elif spec.is_local:
+                    status_text = f"[green]✓ {p.api_base}[/green]" if p.api_base else "[dim]not set[/dim]"
+                else:
+                    status_text = "[green]✓[/green]" if p.api_key else "[dim]not set[/dim]"
                 console.print(f"{spec.label}: {status_text}")
 
 
-# ── Sub-Apps ──
-
 channels_app = typer.Typer(help="Manage channels")
 app.add_typer(channels_app, name="channels")
+
 
 @channels_app.command("status")
 def channels_status():
@@ -145,18 +147,22 @@ def channels_status():
     from shibaclaw.config.loader import load_config
     cfg = load_config()
     table = Table(title="Channel Status")
-    table.add_column("Channel", style="cyan"); table.add_column("Enabled", style="green")
+    table.add_column("Channel", style="cyan")
+    table.add_column("Enabled", style="green")
     for name, cls in sorted(discover_all().items()):
         enabled = False
         section = getattr(cfg.channels, name, None)
-        if isinstance(section, dict): enabled = section.get("enabled", False)
-        elif section: enabled = getattr(section, "enabled", False)
+        if isinstance(section, dict):
+            enabled = section.get("enabled", False)
+        elif section:
+            enabled = getattr(section, "enabled", False)
         table.add_row(cls.display_name, "[green]✓[/green]" if enabled else "[dim]✗[/dim]")
     console.print(table)
 
 
 provider_app = typer.Typer(help="Manage providers")
 app.add_typer(provider_app, name="provider")
+
 
 @provider_app.command("login")
 def provider_login_cmd(provider: str = typer.Argument(..., help="OAuth provider")):

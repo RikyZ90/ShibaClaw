@@ -4,8 +4,8 @@
 
 # Smart. Loyal. Powerful. 🐕
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.10-orange?style=flat-square" alt="version"></a>
-  <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=INTERNATIONAL_SYSTEM&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.12-orange?style=flat-square" alt="version"></a>
+  <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
   <a href="https://deepwiki.com/RikyZ90/ShibaClaw"><img src="https://img.shields.io/badge/DeepWiki-docs-blue?style=flat-square&logo=gitbook&logoColor=white" alt="DeepWiki"></a>
@@ -20,15 +20,19 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.11** is out! Telegram ACL hardening
+> **v0.0.12** is out! Guided onboarding, smarter memory, and reliable automation
 
+- **2026-04-05** 🚀 **Guided Onboarding Everywhere** — `shibaclaw onboard` now drives a single guided setup flow across CLI and WebUI: provider detection, OAuth handoff, model selection, template refresh, and optional channel setup.
+- **2026-04-05** 🧠 **Smarter Persistent Memory** — Durable personal data now lives in `USER.md`, operational context lives in `memory/MEMORY.md`, and the new `memory_search` tool ranks `HISTORY.md` entries by recency, importance, and relevance.
+- **2026-04-05** ⏰ **Reliable Automation Runtime** — Cron jobs now keep stable session targets, overdue one-shot jobs fire on startup, and the WebUI owns cron execution so Docker no longer races on shared schedules.
+- **2026-04-05** 📡 **Automation Sidebar** — The WebUI sidebar now shows live cron jobs and heartbeat telemetry, with manual trigger controls for both.
 - **2026-04-04** 🛡️**Telegram** Policy applied uniformly across all four entry points: reject early, expose nothing. Unauthorised senders receive no response, no typing indicator, and no information about the bot's existence.
 - **2026-04-03** 🔄 **Update Notifications** — A new **Update** tab in Settings shows the current vs latest version, and active channels (Telegram, Discord, ...) receive an automatic notification with ready-to-copy `pip` / `docker` upgrade commands.
 - **2026-04-03** 📦 **Available on PyPI & Docker** — Install in one line: `pip install shibaclaw`. Docker images are published automatically on every release to `ghcr.io/rikyz90/shibaclaw`.
 - **2026-04-01** 📂 **Integrated File Browser** — A full file explorer in the WebUI sidebar: browse, view, edit and save workspace files directly from the browser. Path-traversal protected and workspace-sandboxed.
 - **2026-04-01** 📎 **File Attachments & Images** — Drag-and-drop or paste files and images directly into the chat. Images are previewed inline; other files are streamed to the agent as context.
 - **2026-04-01** 🧹 **Security Hardening & Cleanup** — Full production audit: 14 bugs fixed across asyncio locking, path traversal, CORS misconfiguration, unicode injection, pip-audit parsing, and TCP resource leaks.
-- **2026-04-01** 🧠 **Proactive Learning (Scent Mining)** — The agent periodically reflects on your conversation in the background, extracting key facts into long-term memory (`MEMORY.md`) without any interruption.
+- **2026-04-01** 🧠 **Proactive Learning (Scent Mining)** — The agent periodically reflects on your conversation in the background, updating your personal profile in `USER.md` and operational context in `memory/MEMORY.md` without any interruption.
 - **2026-03-31** 🔍 **Smart Install Guard** — Package installs (`pip`, `npm`, `apt`, ...) are intercepted and audited for CVEs before execution. Critical/high severity packages are blocked with a full report; clean packages install freely.
 - **2026-03-29** 🛡️ **Security & Core Modernization** — Enhanced **Indirect Prompt Injection** protection via **Randomized Tool Output Wrapping**: every tool response is enclosed in a dynamic per-session nonce boundary, so malicious instructions embedded in external data (web pages, files, API responses) cannot hijack the agent. LiteLLM fully removed in favor of native SDKs (`openai`, `anthropic`) for leaner images and stricter control. GitHub Copilot OAuth rewritten with raw async device flow for stable background token refresh. Shell tool hardened against `$()`, backticks, piped shells (`curl | bash`), and process substitution. Gateway restart endpoint secured with token-based auth.
 - **2026-03-22** 🧩 **Settings & WebUI Overhaul** — Tabbed settings modal, real-time Socket.IO streaming with process groups, Jupyter-style token auth, OAuth login directly from the browser, and interactive onboard wizard.
@@ -44,7 +48,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 - **Advanced Thinking**: Support for OpenAI, Azure, and deep-reasoning thinkers.
 - **🛡️ Built-in Security**: Protected against Indirect Prompt Injection via **Structural Randomized Wrapping** and strict per-session security policies.
 - **🔍 Smart Install Guard**: Package installs are audited for CVEs before execution — safe packages install freely, vulnerable ones are blocked with a full CVE report.
-- **🧠 Proactive Learning (Scent Mining)**: Periodic background analysis of the active conversation to extract and persist key facts into long-term memory, ensuring no "scent" is lost even in long sessions.
+- **🧠 Proactive Learning (Scent Mining)**: Periodic background analysis of the active conversation to persist personal profile updates in `USER.md` and operational context in `memory/MEMORY.md`, ensuring no "scent" is lost even in long sessions.
 - **📂 Integrated File Browser**: Browse, view, edit and save workspace files directly from the WebUI — no terminal needed.
 - **📎 File Attachments & Images**: Drag-and-drop or paste files and images directly into the chat for the agent to use as context.
 - **🔄 Auto Update Check**: Periodic GitHub release monitoring every 12 hours — notifies via WebUI **and** active channels with ready-to-copy upgrade commands.
@@ -97,13 +101,13 @@ In `config.json` under `tools.exec`:
 
 ## 🧠 Proactive Learning (Scent Mining)
 
-ShibaClaw won't wait for your session to end or the context window to fill to remember important details. With **Proactive Learning**, the agent periodically "sniffs" the recent conversation in the background to extract facts and project context.
+ShibaClaw won't wait for your session to end or the context window to fill to remember important details. With **Proactive Learning**, the agent periodically "sniffs" the recent conversation in the background to extract profile facts and project context.
 
 ### How It Works
 
 1. **Pulse** — Every 10 messages (default), a background task is triggered.
 2. **Reflect** — A specialized mini-LLM call analyzes the recent history since the last pulse.
-3. **Persist** — New facts, project status changes, or user preferences are extracted and merged into `MEMORY.md`.
+3. **Persist** — Personal facts and preferences are merged into `USER.md`, while environment details and project status are merged into `memory/MEMORY.md`.
 4. **Zero Latency** — The learning process runs asynchronously via `_schedule_background`. You can continue chatting without any interruption.
 
 ### Configuration
@@ -134,17 +138,30 @@ Ready to hunt? Choose your path:
 
 ### 🐋 Docker (Recommended)
 ```bash
-docker compose up -d --build                                  # gateway + webUI
-docker exec -it shibaclaw-gateway shibaclaw onboard --wizard  # first-time setup
+# Optional: define a fixed WebUI token before startup
+# .env
+# SHIBACLAW_AUTH_TOKEN=your-secret-token
+
+docker compose up -d --build                             # gateway + webUI
+docker exec -it shibaclaw-gateway shibaclaw onboard      # first-time setup
 ```
 > **To update**: `docker compose pull && docker compose up -d`  
-Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen
+Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen.
+
+If `SHIBACLAW_AUTH_TOKEN` is set in your shell or `.env`, that value is used as the WebUI token and takes precedence over the auto-generated `auth_token` file.
 
 ### 🐍 Bare Metal
 ```bash
 pip install shibaclaw
-shibaclaw onboard --wizard       # first-time setup
+shibaclaw onboard                # first-time setup
 shibaclaw web --port 3000        # start the WebUI (agent runs in-process)
+```
+
+Optional fixed token:
+
+```bash
+export SHIBACLAW_AUTH_TOKEN=your-secret-token
+shibaclaw web --port 3000
 ```
 
 > Install from source: `pip install .` (develop/edge builds)
@@ -185,6 +202,7 @@ See the full [Easy Deploy Guide](./deploy_guide.md) for detailed instructions an
 | `shibaclaw-web` | `shibaclaw web --port 3000` | 3000 | WebUI (Starlette + Socket.IO) |
 
 Both containers share the `.shibaclaw/` volume for config, workspace, tools, and cache.
+Scheduled jobs (cron) are executed exclusively by the WebUI container.
 
 ### Resource Footprint
 
@@ -237,7 +255,7 @@ shibaclaw provider login github-copilot # async device flow
 Requirements: `pip install oauth-cli-kit` (Codex)
 
 ### Useful commands
-- `shibaclaw onboard --wizard`
+- `shibaclaw onboard`
 - `shibaclaw status` (check provider status and OAuth flags — shows `✓ (OAuth)` for authenticated OAuth providers)
 - `shibaclaw agent -m "Hello"`
 

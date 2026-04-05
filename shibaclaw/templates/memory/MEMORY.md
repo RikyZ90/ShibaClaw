@@ -1,23 +1,15 @@
-﻿## Long-term Memory
+## Environment
 
-This file stores important information that should persist across sessions.
+(OS, runtime, local machines, tooling constraints, provider setup, services relevant to work)
 
-## User Information
+## Entities
 
-(Important facts about the user)
+(People, projects, repos, services the user works with regularly)
 
-## Preferences
+## Project State
 
-(User preferences learned over time)
+(Medium-term project status, milestones, blockers, and important decisions)
 
-## Project Context
+## Dynamic Context
 
-(Information about ongoing projects)
-
-## Important Notes
-
-(Things to remember)
-
----
-
-*This file is automatically updated by shibaclaw when important information should be remembered.*
+(Current tasks, short-lived focus, recent notes — safe to drop under token pressure)

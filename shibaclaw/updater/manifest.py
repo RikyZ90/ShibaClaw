@@ -16,17 +16,16 @@ def fetch_manifest(manifest_url: str) -> dict[str, Any]:
 
     Expected manifest shape:
     {
-        "version": "0.0.8",
-        "from_version": "0.0.7",
+        "version": "0.0.12",
         "release_notes": "Short human-readable summary...",
         "changes": [
             {
-                "path": "shibaclaw/templates/USER.md",
+                "path": "USER.md",
                 "overwrite": true,
                 "note": "Added Language Preferences section"
             },
             {
-                "path": "shibaclaw/agent/loop.py",
+                "path": "skills/memory/SKILL.md",
                 "overwrite": true
             }
         ]
@@ -40,21 +39,37 @@ def fetch_manifest(manifest_url: str) -> dict[str, Any]:
         return json.loads(resp.read().decode("utf-8"))
 
 
+def normalize_manifest_path(path: str) -> str:
+    """Normalize manifest paths to workspace-relative form."""
+    normalized = (path or "").replace("\\", "/").lstrip("./")
+    prefixes = (
+        ("shibaclaw/templates/memory/", "memory/"),
+        ("templates/memory/", "memory/"),
+        ("shibaclaw/templates/", ""),
+        ("templates/", ""),
+        ("shibaclaw/", ""),
+    )
+    for prefix, replacement in prefixes:
+        if normalized.startswith(prefix):
+            return replacement + normalized[len(prefix):]
+    return normalized
+
+
 def personal_files_in_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     """Return only the changes that involve personal/template files requiring user attention."""
     _PERSONAL_PATHS = {
-        "shibaclaw/templates/USER.md",
-        "shibaclaw/templates/SOUL.md",
-        "shibaclaw/templates/AGENTS.md",
-        "shibaclaw/templates/HEARTBEAT.md",
-        "shibaclaw/templates/TOOLS.md",
-        "shibaclaw/templates/memory/MEMORY.md",
+        "USER.md",
+        "SOUL.md",
+        "AGENTS.md",
+        "HEARTBEAT.md",
+        "TOOLS.md",
+        "memory/MEMORY.md",
+        "memory/HISTORY.md",
     }
     result = []
     for change in manifest.get("changes", []):
-        path = change.get("path", "")
-        # Skill SKILL.md files are also personal
-        is_skill = path.startswith("shibaclaw/skills/") and path.endswith("SKILL.md")
+        path = normalize_manifest_path(change.get("path", ""))
+        is_skill = path.startswith("skills/") and path.endswith("SKILL.md")
         if path in _PERSONAL_PATHS or is_skill:
-            result.append(change)
+            result.append({**change, "path": path})
     return result

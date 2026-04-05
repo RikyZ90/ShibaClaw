@@ -23,47 +23,57 @@ _SAVE_MEMORY_TOOL = [
         "type": "function",
         "function": {
             "name": "save_memory",
-            "description": "Save the memory consolidation result to persistent storage.",
+            "description": "Persist consolidated memory: history entry + updated MEMORY.md + updated USER.md.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "history_entry": {
                         "type": "string",
-                        "description": "A paragraph summarizing key events/decisions/topics. "
-                        "Start with [YYYY-MM-DD HH:MM] [#tag1 #tag2 ...]. "
-                        "Tags are topic keywords prefixed with # for grep search (e.g. #python #debugging #project-foo). "
-                        "Include detail useful for grep search.",
+                        "description": "Paragraph: [YYYY-MM-DD HH:MM] [#tag1 #tag2] [★1-5] summary of key events/decisions.",
                     },
                     "memory_update": {
                         "type": "string",
-                        "description": "Deduplicated, concise Markdown fact sheet. Preserve all important facts "
-                        "from current memory. Remove duplicates, redundant wording, and obsolete context. "
-                        "Target: under 1500 tokens. If nothing new, return current content unchanged.",
+                        "description": "Deduplicated Markdown MEMORY.md. Sections: ## Environment, ## Entities, "
+                        "## Project State, ## Dynamic Context. Remove obsolete/duplicate items. "
+                        "Personal profile → USER.md. Target ≤1500 tokens. Return current content if unchanged.",
+                    },
+                    "user_update": {
+                        "type": "string",
+                        "description": "Updated USER.md. Keep existing structure. Store durable personal facts/preferences. "
+                        "Return current content if unchanged.",
                     },
                 },
-                "required": ["history_entry", "memory_update"],
+                "required": ["history_entry", "memory_update", "user_update"],
             },
         },
     },
+]
+
+_PROACTIVE_LEARN_TOOL = [
     {
         "type": "function",
         "function": {
             "name": "update_long_term_memory",
-            "description": "Update the long-term memory with new facts or refined preferences extracted from recent conversation. This does NOT summarize history, only updates the fact sheet.",
+            "description": "Update USER.md and MEMORY.md with new durable facts. Does NOT create history entries.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "memory_update": {
                         "type": "string",
-                        "description": "Deduplicated, concise Markdown fact sheet. Preserve all important facts "
-                        "from current memory. Add new findings and remove outdated or redundant entries. "
-                        "Target: under 1500 tokens. If nothing new, return the exact current content.",
+                        "description": "Deduplicated Markdown MEMORY.md. Sections: ## Environment, ## Entities, "
+                        "## Project State, ## Dynamic Context. Add new findings, remove outdated entries. "
+                        "Personal profile → USER.md. Target ≤1500 tokens. Return current content if unchanged.",
+                    },
+                    "user_update": {
+                        "type": "string",
+                        "description": "Updated USER.md. Keep existing structure. Store durable personal facts/preferences. "
+                        "Return current content if unchanged.",
                     },
                 },
-                "required": ["memory_update"],
+                "required": ["memory_update", "user_update"],
             },
         },
-    }
+    },
 ]
 
 
@@ -104,16 +114,26 @@ def _is_tool_choice_unsupported(content: str | None) -> bool:
 
 
 class ScentKeeper:
-    """Two-layer memory: MEMORY.md (long-term facts) + HISTORY.md (grep-searchable log)."""
+    """Persistent memory files: USER.md, MEMORY.md, and HISTORY.md."""
 
     _MAX_FAILURES_BEFORE_RAW_ARCHIVE = 3
 
     def __init__(self, workspace: Path):
         self.memory_dir = ensure_dir(workspace / "memory")
+        self.user_file = workspace / "USER.md"
         self.memory_file = self.memory_dir / "MEMORY.md"
         self.history_file = self.memory_dir / "HISTORY.md"
         self._consecutive_failures = 0
         self._file_lock = asyncio.Lock()
+
+    def read_user_profile(self) -> str:
+        if self.user_file.exists():
+            return self.user_file.read_text(encoding="utf-8")
+        return ""
+
+    async def write_user_profile(self, content: str) -> None:
+        async with self._file_lock:
+            self.user_file.write_text(content, encoding="utf-8")
 
     def read_long_term(self) -> str:
         if self.memory_file.exists():
@@ -179,30 +199,21 @@ class ScentKeeper:
         for message in messages:
             role = message.get("role", "unknown").upper()
             ts = message.get("timestamp", "?")[:16]
-            
             content = message.get("content") or ""
-            
             if role == "ASSISTANT" and message.get("tool_calls"):
                 calls = [tc.get("function", {}).get("name", "unknown") for tc in message["tool_calls"]]
                 if content:
                     content += "\n"
                 content += f"[Tool Calls: {', '.join(calls)}]"
-                
             if role == "TOOL" and content:
                 if len(content) > 300:
                     content = content[:150] + "\n...[TRUNCATED]...\n" + content[-150:]
-
-            # Cap user and assistant messages to keep consolidation prompts lean.
             if role in ("USER", "ASSISTANT") and len(content) > 500:
                 content = content[:250] + "\n...[TRUNCATED]...\n" + content[-250:]
-            
             if not content.strip():
                 continue
-                
-            # Keep legacy 'tools_used' logic if it exists (for old traces)
-            tools = f" [skunted: {', '.join(message['tools_used'])}]" if message.get("tools_used") else ""
+            tools = f" [executed: {', '.join(message['tools_used'])}]" if message.get("tools_used") else ""
             lines.append(f"[{ts}] {role}{tools}: {content.strip()}")
-            
         return "\n".join(lines)
 
     async def consolidate(
@@ -211,21 +222,27 @@ class ScentKeeper:
         provider: Thinker,
         model: str,
     ) -> bool:
-        """Consolidate the provided message chunk into MEMORY.md + HISTORY.md."""
         if not messages:
             return True
 
+        current_user = self.read_user_profile()
         current_memory = self.read_long_term()
-        prompt = f"""Process this conversation and call the save_memory tool with your consolidation.
+        prompt = f"""Consolidate this conversation. Call save_memory with:
+- history_entry: timestamped tagged summary
+- memory_update: updated MEMORY.md (operational facts only, personal profile → USER.md)
+- user_update: updated USER.md (personal facts/preferences only)
 
-## Current Long-term Memory
+## Current USER.md
+{current_user or "(empty)"}
+
+## Current MEMORY.md
 {current_memory or "(empty)"}
 
-## Conversation to Process
+## Conversation
 {self._format_messages(messages)}"""
 
         chat_messages = [
-            {"role": "system", "content": "You are a memory consolidation Shiba. Call the save_memory tool with your consolidation of the hunt."},
+            {"role": "system", "content": "You are a memory consolidation assistant. Call save_memory."},
             {"role": "user", "content": prompt},
         ]
 
@@ -238,9 +255,7 @@ class ScentKeeper:
                 tool_choice=forced,
             )
 
-            if response.finish_reason == "error" and _is_tool_choice_unsupported(
-                response.content
-            ):
+            if response.finish_reason == "error" and _is_tool_choice_unsupported(response.content):
                 logger.warning("Forced tool_choice unsupported, retrying with auto")
                 response = await provider.chat_with_retry(
                     messages=chat_messages,
@@ -270,8 +285,9 @@ class ScentKeeper:
 
             entry = args["history_entry"]
             update = args["memory_update"]
+            user_update = args.get("user_update", current_user)
 
-            if entry is None or update is None:
+            if entry is None or update is None or user_update is None:
                 logger.warning("Memory consolidation: save_memory payload contains null required fields")
                 return await self._fail_or_raw_archive(messages)
 
@@ -282,8 +298,11 @@ class ScentKeeper:
 
             await self.append_history(entry)
             update = _ensure_text(update)
+            user_update = _ensure_text(user_update)
             if update != current_memory:
                 await self.write_long_term(update)
+            if user_update.strip() and user_update != current_user:
+                await self.write_user_profile(user_update)
 
             self._consecutive_failures = 0
             logger.info("🐕 Memory consolidation done for {} traces", len(messages))
@@ -298,7 +317,6 @@ class ScentKeeper:
         model: str,
         target_tokens: int = 1500,
     ) -> bool:
-        """Compact MEMORY.md to fit within *target_tokens* by asking the LLM to deduplicate."""
         current = self.read_long_term()
         if not current:
             return True
@@ -315,10 +333,11 @@ class ScentKeeper:
         prompt = (
             f"Compact this long-term memory to under {target_tokens} tokens.\n"
             "Rules:\n"
-            "1. Keep ALL unique, important facts (user prefs, env details, project status).\n"
+            "1. Keep all unique, important operational facts (environment details, recurring entities, project state).\n"
             "2. Remove duplicates, verbose explanations, and resolved/obsolete items.\n"
             "3. Preserve Markdown structure with ## headings.\n"
-            "4. Return ONLY the compacted Markdown — no commentary.\n\n"
+            "4. Remove personal profile or communication preference details that belong in USER.md.\n"
+            "5. Return only the compacted Markdown.\n\n"
             f"## Current MEMORY.md\n{current}"
         )
         chat_messages = [
@@ -331,8 +350,6 @@ class ScentKeeper:
                 messages=chat_messages, tools=[], model=model,
             )
             compacted = (response.content or "").strip()
-
-            # Validate: non-empty and actually shorter
             if not compacted:
                 logger.warning("Memory compaction returned empty — skipping")
                 return False
@@ -361,43 +378,42 @@ class ScentKeeper:
         provider: Thinker,
         model: str,
     ) -> bool:
-        """Analyze recent messages for new facts and update MEMORY.md (Learning)."""
         if not messages:
             return True
 
+        current_user = self.read_user_profile()
         current_memory = self.read_long_term()
-        prompt = f"""Review the recent interaction and update the long-term memory fact sheet.
-Call update_long_term_memory relative to these rules:
-1. Extract NEW facts (personal info, environment details, project status).
-2. Refine existing facts if they changed.
-3. Keep the file concise and structured as Markdown.
-4. If NO new information is found, return the current memory unchanged.
+        prompt = f"""Extract new durable facts from the recent interaction. Call update_long_term_memory.
+- Personal profile/preferences → user_update (USER.md)
+- Operational facts (env, entities, project state) → memory_update (MEMORY.md)
+- If nothing new, return current content unchanged.
 
-## Current Long-term Memory
+## Current USER.md
+{current_user or "(empty)"}
+
+## Current MEMORY.md
 {current_memory or "(empty)"}
 
 ## Recent Interaction
 {self._format_messages(messages)}"""
 
         chat_messages = [
-            {"role": "system", "content": "You are a learning-focused Shiba. Update your long-term memory with new findings from the hunt."},
+            {"role": "system", "content": "You are a fact-extraction assistant. Call update_long_term_memory."},
             {"role": "user", "content": prompt},
         ]
 
         try:
-            # We use auto choice here because some providers might not support forced choice for this tool
             response = await provider.chat_with_retry(
                 messages=chat_messages,
-                tools=_SAVE_MEMORY_TOOL,
+                tools=_PROACTIVE_LEARN_TOOL,
                 model=model,
                 tool_choice={"type": "function", "function": {"name": "update_long_term_memory"}},
             )
 
-            # Fallback if forced fails or returns content instead
             if response.finish_reason == "error" or not response.has_tool_calls:
                 response = await provider.chat_with_retry(
                     messages=chat_messages,
-                    tools=_SAVE_MEMORY_TOOL,
+                    tools=_PROACTIVE_LEARN_TOOL,
                     model=model,
                     tool_choice="auto"
                 )
@@ -405,30 +421,26 @@ Call update_long_term_memory relative to these rules:
             if not response.has_tool_calls:
                 return False
 
-            call = next((tc for tc in response.tool_calls if tc.name == "update_long_term_memory"), None)
-            if not call:
-                # Agent might have called save_memory instead
-                call = next((tc for tc in response.tool_calls if tc.name == "save_memory"), None)
-            
-            if not call:
-                return False
-
+            call = response.tool_calls[0]
             args = _normalize_update_memory_args(call.arguments)
             if args is None or "memory_update" not in args:
                 return False
 
             update = _ensure_text(args["memory_update"]).strip()
+            user_update = _ensure_text(args.get("user_update", current_user))
             if update and update != current_memory:
                 await self.write_long_term(update)
-                logger.info("🐕 Proactive Learning: updated long-term memory with new traces.")
-            
+            if user_update.strip() and user_update != current_user:
+                await self.write_user_profile(user_update)
+            if (update and update != current_memory) or (user_update.strip() and user_update != current_user):
+                logger.info("🐕 Proactive Learning: updated USER.md and long-term memory with new traces.")
+
             return True
         except Exception as e:
             logger.debug("Proactive Learning failed (swallowed): {}", e)
             return False
 
     async def _fail_or_raw_archive(self, messages: list[dict]) -> bool:
-        """Increment failure count; after threshold, raw-archive messages and return True."""
         self._consecutive_failures += 1
         if self._consecutive_failures < self._MAX_FAILURES_BEFORE_RAW_ARCHIVE:
             return False
@@ -437,7 +449,6 @@ Call update_long_term_memory relative to these rules:
         return True
 
     async def _raw_archive(self, messages: list[dict]) -> None:
-        """Fallback: dump raw messages to HISTORY.md without summaries."""
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
         await self.append_history(
             f"[{ts}] [RAW] {len(messages)} messages\n"
@@ -449,7 +460,6 @@ Call update_long_term_memory relative to these rules:
 
 
 class PackMemory:
-    """Owns consolidation policy, locking, and session offset updates."""
 
     _MAX_CONSOLIDATION_ROUNDS = 5
 
@@ -465,14 +475,12 @@ class PackMemory:
         learning_enabled: bool = True,
         learning_interval: int = 10,
         memory_max_prompt_tokens: int = 2000,
-        memory_compact_threshold_tokens: int = 1000,
+        memory_compact_threshold_tokens: int = 1600,
         consolidation_model: str | None = None,
     ):
         self.store = ScentKeeper(workspace)
         self.provider = provider
         self.model = model
-        # Cheaper model used exclusively for memory consolidation/compaction.
-        # Falls back to self.model when not set.
         self.consolidation_model = consolidation_model or model
         self.sessions = sessions
         self.context_window_tokens = context_window_tokens
@@ -485,11 +493,9 @@ class PackMemory:
         self._locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
     def get_lock(self, session_key: str) -> asyncio.Lock:
-        """Return the shared consolidation lock for one session."""
         return self._locks.setdefault(session_key, asyncio.Lock())
 
     async def consolidate_messages(self, messages: list[dict[str, object]]) -> bool:
-        """Archive a selected message chunk into persistent memory."""
         return await self.store.consolidate(messages, self.provider, self.consolidation_model)
 
     def pick_consolidation_boundary(
@@ -515,7 +521,6 @@ class PackMemory:
         return last_boundary
 
     def estimate_session_prompt_tokens(self, session: Session) -> tuple[int, str]:
-        """Estimate current prompt size for the normal session history view."""
         history = session.get_history(max_messages=0)
         channel, chat_id = (session.key.split(":", 1) if ":" in session.key else (None, None))
         probe_messages = self._build_messages(
@@ -533,7 +538,6 @@ class PackMemory:
         )
 
     async def archive_snapshot(self, messages: list[dict[str, object]]) -> bool:
-        """Archive a session snapshot and then run the normal memory compaction check."""
         if not messages:
             return True
         for _ in range(self.store._MAX_FAILURES_BEFORE_RAW_ARCHIVE):
@@ -544,7 +548,6 @@ class PackMemory:
         return True
 
     async def maybe_consolidate_by_tokens(self, session: Session) -> None:
-        """Loop: archive old messages until prompt fits within half the context window."""
         if not session.messages or self.context_window_tokens <= 0:
             return
 
@@ -601,37 +604,27 @@ class PackMemory:
                     return
 
     async def maybe_proactive_learn(self, session: Session) -> None:
-        """Trigger background learning if interval is reached."""
         if not self.learning_enabled or self.learning_interval <= 0:
             return
-        
         count = len(session.messages) - session.last_learned
         if count < self.learning_interval:
             return
-        
-        # Take messages from last_learned to current
         chunk = session.messages[session.last_learned:]
         if not chunk:
             return
-            
-        logger.debug("🐕 Proactive Learning starting for {} ({} new messages)", session.key, len(chunk))
-        
-        # Important: update last_learned BEFORE calling, to avoid multiple parallel triggers 
-        # for the same chunk if the background task is slow.
-        session.last_learned = len(session.messages)
-        self.sessions.save(session)
-        
-        success = await self.store.proactive_consolidate(chunk, self.provider, self.consolidation_model)
-        if not success:
-            # If it failed, we'll try again next time (optionally roll back last_learned but 
-            # let's keep it simple and skip this chunk to avoid infinite loops).
-            logger.debug("🐕 Proactive Learning skipped/failed for {}", session.key)
 
-        # After learning, check if MEMORY.md grew beyond the compact threshold
+        lock = self.get_lock(session.key)
+        async with lock:
+            logger.debug("🐕 Proactive Learning starting for {} ({} new messages)", session.key, len(chunk))
+            session.last_learned = len(session.messages)
+            self.sessions.save(session)
+
+            success = await self.store.proactive_consolidate(chunk, self.provider, self.consolidation_model)
+            if not success:
+                logger.debug("🐕 Proactive Learning skipped/failed for {}", session.key)
         await self.maybe_compact_memory()
 
     async def maybe_compact_memory(self) -> None:
-        """Compact MEMORY.md if it exceeds the configured token threshold."""
         if self.memory_compact_threshold_tokens <= 0:
             return
         mem_tokens = self.store.estimate_memory_tokens()

@@ -1,6 +1,8 @@
 ﻿# User Profile
 
-Information about the user to help personalize interactions.
+Persistent personal profile used to personalize interactions.
+Store durable user facts and preferences here.
+Project status and workspace context belong in memory/MEMORY.md.
 
 ## Onboarding Behavior
 

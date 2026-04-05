@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
@@ -69,6 +70,12 @@ class HeartbeatService:
         self.enabled = enabled
         self._running = False
         self._task: asyncio.Task | None = None
+        self._provider_warning_logged = False
+        self._content_notice_logged = False
+        self._last_check_ms: int | None = None
+        self._last_action: str | None = None
+        self._last_run_ms: int | None = None
+        self._last_error: str | None = None
 
     @property
     def heartbeat_file(self) -> Path:
@@ -102,7 +109,11 @@ class HeartbeatService:
             model=self.model,
         )
 
+        if response.finish_reason == "error":
+            logger.warning("Heartbeat: decision request failed: {}", (response.content or "")[:200])
+
         if not response.has_tool_calls:
+            logger.warning("Heartbeat: decision request returned no tool call, skipping")
             return "skip", ""
 
         args = response.tool_calls[0].arguments
@@ -116,10 +127,12 @@ class HeartbeatService:
         if self._running:
             logger.warning("Heartbeat already running")
             return
+        if not self.provider:
+            logger.warning("Heartbeat enabled but no AI provider is configured")
 
         self._running = True
         self._task = asyncio.create_task(self._run_loop())
-        logger.info("Heartbeat started (every {}s)", self.interval_s)
+        logger.info("Heartbeat started (every {}s, first check immediately)", self.interval_s)
 
     def stop(self) -> None:
         """Stop the heartbeat service."""
@@ -130,9 +143,13 @@ class HeartbeatService:
 
     async def _run_loop(self) -> None:
         """Main heartbeat loop."""
+        first_tick = True
         while self._running:
             try:
-                await asyncio.sleep(self.interval_s)
+                if first_tick:
+                    first_tick = False
+                else:
+                    await asyncio.sleep(self.interval_s)
                 if self._running:
                     await self._tick()
             except asyncio.CancelledError:
@@ -143,18 +160,27 @@ class HeartbeatService:
     async def _tick(self) -> None:
         """Execute a single heartbeat tick."""
         if not self.provider:
+            if not self._provider_warning_logged:
+                logger.warning("Heartbeat skipped: no AI provider is configured")
+                self._provider_warning_logged = True
             return
+        self._provider_warning_logged = False
         from shibaclaw.helpers.evaluator import evaluate_response
 
         content = self._read_heartbeat_file()
-        if not content:
-            logger.debug("Heartbeat: HEARTBEAT.md missing or empty")
+        if not content or not content.strip():
+            if not self._content_notice_logged:
+                logger.info("Heartbeat: HEARTBEAT.md missing or empty, skipping")
+                self._content_notice_logged = True
             return
+        self._content_notice_logged = False
 
         logger.info("Heartbeat: checking for tasks...")
 
         try:
             action, tasks = await self._decide(content)
+            self._last_check_ms = int(time.time() * 1000)
+            self._last_action = action
 
             if action != "run":
                 logger.info("Heartbeat: OK (nothing to report)")
@@ -162,6 +188,7 @@ class HeartbeatService:
 
             logger.info("Heartbeat: tasks found, executing...")
             if self.on_execute:
+                self._last_run_ms = int(time.time() * 1000)
                 response = await self.on_execute(tasks)
 
                 if response:
@@ -173,8 +200,24 @@ class HeartbeatService:
                         await self.on_notify(response)
                     else:
                         logger.info("Heartbeat: silenced by post-run evaluation")
+            self._last_error = None
         except Exception:
+            self._last_error = "execution failed"
             logger.exception("Heartbeat execution failed")
+
+    def status(self) -> dict:
+        """Return serializable telemetry for the sidebar UI."""
+        hb_file = self.heartbeat_file
+        return {
+            "enabled": self.enabled,
+            "running": self._running,
+            "interval_s": self.interval_s,
+            "heartbeat_file_exists": hb_file.exists(),
+            "last_check_ms": self._last_check_ms,
+            "last_action": self._last_action,
+            "last_run_ms": self._last_run_ms,
+            "last_error": self._last_error,
+        }
 
     async def trigger_now(self) -> str | None:
         """Manually trigger a heartbeat."""
@@ -182,6 +225,15 @@ class HeartbeatService:
         if not content:
             return None
         action, tasks = await self._decide(content)
+        self._last_check_ms = int(time.time() * 1000)
+        self._last_action = action
         if action != "run" or not self.on_execute:
             return None
-        return await self.on_execute(tasks)
+        self._last_run_ms = int(time.time() * 1000)
+        try:
+            result = await self.on_execute(tasks)
+            self._last_error = None
+            return result
+        except Exception as e:
+            self._last_error = str(e)
+            raise

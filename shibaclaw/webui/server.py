@@ -1,11 +1,4 @@
-"""ShibaBridge — FastAPI + Socket.IO server for the ShibaClaw WebUI.
-
-Usage (standalone):
-    python -m shibaclaw.webui.server --port 3000
-
-Or via CLI:
-    shibaclaw web --port 3000
-"""
+"""WebUI server module."""
 
 from __future__ import annotations
 
@@ -35,13 +28,14 @@ from .api import (
     api_auth_verify, api_auth_status, api_status,
     api_settings_get, api_settings_post,
     api_sessions_list, api_sessions_get, api_sessions_patch, api_sessions_delete, api_sessions_archive,
-    api_context_get, api_gateway_health, api_gateway_restart,
+    api_context_get, api_gateway_health, api_gateway_restart, api_internal_session_notify,
+    api_cron_list, api_cron_trigger, api_heartbeat_status, api_heartbeat_trigger,
     api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code,
     api_upload, api_file_get, api_file_save, api_fs_explore,
     api_update_check, api_update_manifest, api_restart_server,
+    api_onboard_providers, api_onboard_templates, api_onboard_submit,
 )
 
-# Static files directory
 STATIC_DIR = Path(__file__).parent / "static"
 
 
@@ -51,30 +45,20 @@ def create_app(
     port: int = 3000,
     host: str = "127.0.0.1",
 ) -> tuple[socketio.ASGIApp, socketio.AsyncServer]:
-    """Create the ASGI app with Socket.IO attached."""
-    
-    # 1. Initialize logic manager
     if config:
         agent_manager.config = config
     if provider:
         agent_manager.provider = provider
-    
-    # 2. Socket.IO server
     sio = socketio.AsyncServer(
         async_mode="asgi",
         cors_allowed_origins=get_cors_origins(port, host),
         logger=False,
         engineio_logger=False,
     )
-    
-    # Shared sessions state
     sessions: dict[str, dict] = {}
     agent_manager.set_socket_io(sio, sessions)
-    
-    # Register handlers
     register_socket_handlers(sio, sessions)
 
-    # 3. Starlette routes
     async def index(request):
         return FileResponse(STATIC_DIR / "index.html")
 
@@ -93,6 +77,11 @@ def create_app(
         Route("/api/context", api_context_get),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
+        Route("/api/internal/session-notify", api_internal_session_notify, methods=["POST"]),
+        Route("/api/cron/jobs", api_cron_list, methods=["GET"]),
+        Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
+        Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
+        Route("/api/heartbeat/trigger", api_heartbeat_trigger, methods=["POST"]),
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
         Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
         Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),
@@ -104,6 +93,9 @@ def create_app(
         Route("/api/update/check", api_update_check, methods=["GET"]),
         Route("/api/update/manifest", api_update_manifest, methods=["GET"]),
         Route("/api/restart", api_restart_server, methods=["POST"]),
+        Route("/api/onboard/providers", api_onboard_providers, methods=["GET"]),
+        Route("/api/onboard/templates", api_onboard_templates, methods=["GET"]),
+        Route("/api/onboard/submit", api_onboard_submit, methods=["POST"]),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 
@@ -111,16 +103,13 @@ def create_app(
 
     if _auth_enabled():
         app.add_middleware(AuthMiddleware)
-
-    # Combine Socket.IO and Starlette
     combined = socketio.ASGIApp(sio, app)
     return combined, sio
 
 
 async def _check_update_on_startup() -> None:
-    """Run a background update check once at startup without blocking."""
     try:
-        await asyncio.sleep(3)  # let the server finish starting
+        await asyncio.sleep(3)
         from shibaclaw.updater.checker import check_for_update
         result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
         if result.get("update_available"):
@@ -133,27 +122,35 @@ async def _check_update_on_startup() -> None:
         pass
 
 
-async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
-    """Start the WebUI server."""
-    app, _ = create_app(config=config, provider=provider, port=port, host=host)
+async def _ensure_agent_on_startup() -> None:
+    """Initialize the agent and cron service eagerly so scheduled jobs fire even without user interaction."""
+    try:
+        await asyncio.sleep(2)
+        await agent_manager.ensure_agent()
+        logger.info("Agent and cron service initialized on startup")
+    except Exception:
+        logger.exception("Failed to initialize agent on startup")
 
+
+async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
+    app, _ = create_app(config=config, provider=provider, port=port, host=host)
     if host in ("0.0.0.0", "::") and not os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip():
         logger.warning("Binding to {} — set SHIBACLAW_CORS_ORIGINS for non-loopback clients", host)
 
     token = get_auth_token()
     if token:
         logger.info("🔒 Auth enabled — token: {}", mask_token(token))
-        logger.info("🔑 To retrieve the full token, run: docker exec -it shibaclaw-gateway shibaclaw print-token")
     else:
-        logger.warning("\n" + "!"*60 + "\nWARNING: Authentication is DISABLED\n" + "!"*60)
+        logger.warning("WARNING: Authentication is DISABLED")
 
     asyncio.create_task(_check_update_on_startup())
+    asyncio.create_task(_ensure_agent_on_startup())
 
     server_config = uvicorn.Config(
         app=app,
         host=host,
         port=port,
-        log_level="info",
+        log_level="warning",
         access_log=False,
     )
     server = uvicorn.Server(server_config)

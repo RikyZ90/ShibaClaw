@@ -13,9 +13,9 @@ This method ensures you have all dependencies ready to go in a contained environ
    git clone https://github.com/RikyZ90/ShibaClaw.git .
    docker compose up --build        # start gateway + webUI
    ```
-2. **Onboard**: Launch the interactive configuration wizard:
+2. **Onboard**: Configure your LLM provider:
    ```bash
-   docker exec -it shibaclaw-gateway shibaclaw onboard --wizard
+   docker exec -it shibaclaw-gateway shibaclaw onboard
    ```
    *Follow the prompts to add your LLM API keys.*
 3. **Verify**: Check the logs to ensure your Shiba is hunting:
@@ -44,9 +44,9 @@ Ideal for local development or lightweight environments.
    cd ShibaClaw
    pip install .
    ```
-2. **Configure**: Start the onboarding wizard:
+2. **Configure**: Run the onboarding setup:
    ```bash
-   shibaclaw onboard --wizard
+   shibaclaw onboard
    ```
 3. **Run**: Choose your mode:
    - **Chat Mode**: Interact directly in the terminal.
@@ -64,8 +64,7 @@ Ideal for local development or lightweight environments.
 
 | Command | Action |
 | :--- | :--- |
-| `shibaclaw --version` | Check if you have the latest Shiba (v0.0.8). |
-| `shibaclaw onboard` | Refresh settings without overwriting everything. |
-| `shibaclaw onboard --wizard` | Forced step-by-step setup. |
+| `shibaclaw --version` | Check the installed ShibaClaw version. |
+| `shibaclaw onboard` | Reconfigure provider, model, and channels. |
 
 **Happy hunting!** 🐕‍🦺🔥

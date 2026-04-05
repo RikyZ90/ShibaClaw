@@ -53,11 +53,14 @@ const state = {
     gatewayProviderReady: true,
     agentConfigured: false,
     healthTimer: null,
+    historyTimer: null,
     processGroups: {},   // msgId → { el, startTime, stepCount, collapsed }
     authRequired: false,
     stagedFiles: [],     // { name, url, type, stagedAt }
     currentFsPath: ".",  // current path for file explorer
 };
+
+let clockTimer = null;
 
 // ── DOM References ────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -648,10 +651,12 @@ async function fetchStatus() {
                     }
                 }
                 closeModal("onboard-modal");
+                state.onboardModalShown = false;
             } else {
                 setStatusIndicator("not-configured");
-                if (!data.agent_configured && !oauthConfigured) {
-                    openModal("onboard-modal");
+                if (!data.agent_configured && !oauthConfigured && !state.onboardModalShown) {
+                    state.onboardModalShown = true;
+                    openOnboardWizard();
                 }
             }
         }
@@ -821,7 +826,6 @@ const CHANNEL_META = {
     _default: { icon: "chat_bubble",     label: "Other" }
 };
 const RECENT_COUNT = 4;
-const GROUP_PREVIEW = 3;
 
 // Track collapsed state across reloads
 const _channelCollapsed = {};
@@ -907,40 +911,18 @@ async function loadHistory() {
             return;
         }
 
-        const sessions = data.sessions; // already sorted by updated_at desc
-        const recentSessions = sessions.slice(0, RECENT_COUNT);
+        const sessions = data.sessions;
+        const visibleSessions = sessions.slice(0, RECENT_COUNT);
         const remaining = sessions.slice(RECENT_COUNT);
 
-        const recentLabel = document.createElement("div");
-        recentLabel.className = "session-recent-label";
-        recentLabel.innerHTML = `<span class="material-icons-round">schedule</span> Recent`;
-        list.appendChild(recentLabel);
+        visibleSessions.forEach(s => list.appendChild(_buildSessionEl(s)));
 
-        recentSessions.forEach(s => list.appendChild(_buildSessionEl(s)));
-
-        if (remaining.length === 0) return;
-
-        // Divider
-        const divider = document.createElement("div");
-        divider.className = "sessions-divider";
-        list.appendChild(divider);
-
-        const olderLabel = document.createElement("div");
-        olderLabel.className = "session-recent-label";
-        olderLabel.innerHTML = `<span class="material-icons-round">history</span> Older`;
-        list.appendChild(olderLabel);
-
-        const showInitially = remaining.slice(0, GROUP_PREVIEW);
-        const showLater = remaining.slice(GROUP_PREVIEW);
-
-        showInitially.forEach(s => list.appendChild(_buildSessionEl(s)));
-
-        if (showLater.length > 0) {
+        if (remaining.length > 0) {
             const moreBtn = document.createElement("button");
             moreBtn.className = "btn-show-more";
-            moreBtn.innerHTML = `<span class="material-icons-round">unfold_more</span> Show ${showLater.length} more`;
+            moreBtn.innerHTML = `<span class="material-icons-round">expand_more</span> Show ${remaining.length} more`;
             moreBtn.onclick = () => {
-                showLater.forEach(s => list.insertBefore(_buildSessionEl(s), moreBtn));
+                remaining.forEach(s => list.insertBefore(_buildSessionEl(s), moreBtn));
                 moreBtn.remove();
             };
             list.appendChild(moreBtn);
@@ -948,6 +930,170 @@ async function loadHistory() {
     } catch(e) {
         list.innerHTML = `<div class="history-item">Error loading history</div>`;
     }
+}
+
+/* ── Automation: Cron & Heartbeat ───────────────────────────── */
+
+const _autoCollapsed = JSON.parse(localStorage.getItem("autoCollapsed") || "{}");
+
+function _saveAutoCollapsed() {
+    localStorage.setItem("autoCollapsed", JSON.stringify(_autoCollapsed));
+}
+
+function _toggleAutoSection(key, headerEl) {
+    _autoCollapsed[key] = !_autoCollapsed[key];
+    const items = headerEl.nextElementSibling;
+    if (_autoCollapsed[key]) {
+        headerEl.classList.add("collapsed");
+        items.classList.add("collapsed");
+    } else {
+        headerEl.classList.remove("collapsed");
+        items.classList.remove("collapsed");
+        items.style.maxHeight = items.scrollHeight + "px";
+    }
+    _saveAutoCollapsed();
+}
+
+function _formatSchedule(s) {
+    if (s.kind === "cron") {
+        const tz = s.tz ? ` (${s.tz})` : "";
+        return `cron: ${s.expr}${tz}`;
+    }
+    if (s.kind === "every" && s.everyMs) {
+        const ms = s.everyMs;
+        if (ms % 3600000 === 0) return `every ${ms / 3600000}h`;
+        if (ms % 60000 === 0) return `every ${ms / 60000}m`;
+        if (ms % 1000 === 0) return `every ${ms / 1000}s`;
+        return `every ${ms}ms`;
+    }
+    if (s.kind === "at" && s.atMs) {
+        return new Date(s.atMs).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"});
+    }
+    return s.kind;
+}
+
+function _timeAgo(ms) {
+    if (!ms) return "";
+    const sec = Math.floor((Date.now() - ms) / 1000);
+    if (sec < 60) return "just now";
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+    return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function _cronStatusClass(job) {
+    if (!job.enabled) return "st-disabled";
+    if (job.state.lastStatus === "error") return "st-error";
+    if (job.state.lastStatus === "ok") return "st-ok";
+    return "st-pending";
+}
+
+async function loadCronSection() {
+    const list = $("cron-list");
+    const count = $("cron-count");
+    try {
+        const res = await authFetch("/api/cron/jobs");
+        const data = await res.json();
+        const jobs = data.jobs || [];
+        count.textContent = jobs.length;
+
+        if (jobs.length === 0) {
+            list.innerHTML = `<div class="auto-empty">No scheduled jobs</div>`;
+            return;
+        }
+
+        list.innerHTML = "";
+        for (const job of jobs) {
+            const row = document.createElement("div");
+            row.className = "auto-row";
+            const stCls = _cronStatusClass(job);
+            const meta = job.state.lastRunAtMs ? _timeAgo(job.state.lastRunAtMs) : _formatSchedule(job.schedule);
+            const safeName = escapeHtml(job.name || job.payload.message.slice(0, 30));
+            row.innerHTML = `
+                <div class="auto-status ${stCls}"></div>
+                <div class="auto-name" title="${escapeHtml(job.payload.message)}">${safeName}</div>
+                <div class="auto-meta">${escapeHtml(meta)}</div>
+                <button class="btn-auto-trigger" title="Run now">▶</button>
+            `;
+            row.querySelector(".btn-auto-trigger").addEventListener("click", async (e) => {
+                const btn = e.currentTarget;
+                btn.disabled = true;
+                btn.textContent = "…";
+                try {
+                    await authFetch(`/api/cron/jobs/${encodeURIComponent(job.id)}/trigger`, {method: "POST"});
+                } catch(_) {}
+                await loadCronSection();
+            });
+            list.appendChild(row);
+        }
+    } catch(e) {
+        list.innerHTML = `<div class="auto-empty">Error loading jobs</div>`;
+    }
+}
+
+async function loadHeartbeatSection() {
+    const list = $("heartbeat-list");
+    const badge = $("heartbeat-badge");
+    try {
+        const res = await authFetch("/api/heartbeat/status");
+        const data = await res.json();
+
+        if (!data.reachable) {
+            badge.className = "automation-badge badge-off";
+            badge.textContent = "offline";
+            list.innerHTML = `<div class="auto-empty">Gateway unreachable</div>`;
+            return;
+        }
+
+        if (!data.enabled) {
+            badge.className = "automation-badge badge-off";
+            badge.textContent = "off";
+            list.innerHTML = `<div class="auto-empty">Heartbeat disabled</div>`;
+            return;
+        }
+
+        badge.className = "automation-badge " + (data.last_error ? "badge-error" : (data.running ? "badge-ok" : "badge-off"));
+        badge.textContent = data.last_error ? "error" : (data.running ? "active" : "idle");
+
+        let info = `<div class="auto-hb-info">`;
+        info += `<span class="hb-label">Interval:</span> ${data.interval_s}s<br>`;
+        if (data.last_check_ms) info += `<span class="hb-label">Last check:</span> ${_timeAgo(data.last_check_ms)} — ${data.last_action || "?"}<br>`;
+        if (data.last_run_ms) info += `<span class="hb-label">Last run:</span> ${_timeAgo(data.last_run_ms)}<br>`;
+        if (data.last_error) info += `<span class="hb-label">Error:</span> ${escapeHtml(data.last_error)}<br>`;
+        info += `<span class="hb-label">File:</span> ${data.heartbeat_file_exists ? "present" : "missing"}`;
+        info += `</div>`;
+        info += `<div class="auto-row"><button class="btn-auto-trigger" id="btn-hb-trigger" title="Run heartbeat now">▶ Trigger</button></div>`;
+
+        list.innerHTML = info;
+        $("btn-hb-trigger").addEventListener("click", async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            btn.textContent = "…";
+            try {
+                await authFetch("/api/heartbeat/trigger", {method: "POST"});
+            } catch(_) {}
+            await loadHeartbeatSection();
+        });
+    } catch(e) {
+        badge.className = "automation-badge badge-off";
+        badge.textContent = "";
+        list.innerHTML = `<div class="auto-empty">Error loading status</div>`;
+    }
+}
+
+function initAutomationSections() {
+    const cronHeader = $("cron-header");
+    const hbHeader = $("heartbeat-header");
+    if (cronHeader) {
+        cronHeader.addEventListener("click", () => _toggleAutoSection("cron", cronHeader));
+        if (_autoCollapsed["cron"]) { cronHeader.classList.add("collapsed"); $("cron-list").classList.add("collapsed"); }
+    }
+    if (hbHeader) {
+        hbHeader.addEventListener("click", () => _toggleAutoSection("heartbeat", hbHeader));
+        if (_autoCollapsed["heartbeat"]) { hbHeader.classList.add("collapsed"); $("heartbeat-list").classList.add("collapsed"); }
+    }
+    loadCronSection();
+    loadHeartbeatSection();
 }
 
 window.toggleSessionMenu = function(event, btn, key) {
@@ -1370,6 +1516,11 @@ window.openModal = async function(id) {
 window.closeModal = function(id) {
     const modal = $(id);
     if (modal) modal.classList.remove("active");
+};
+
+window.openOnboardFromSettings = function() {
+    closeModal("settings-modal");
+    openOnboardWizard();
 };
 
 window.switchSettingsTab = function(tab) {
@@ -2432,7 +2583,7 @@ function initListeners() {
     // Close modals on backdrop click
     document.querySelectorAll(".modal-backdrop").forEach(bg => {
         bg.addEventListener("click", (e) => {
-            if (e.target === bg) {
+            if (e.target === bg && bg.dataset.backdropClose !== "false") {
                 bg.classList.remove("active");
             }
         });
@@ -2440,17 +2591,40 @@ function initListeners() {
 
     // Clock
     function updateClock() {
+        const clockEl = $("clock");
+        if (!clockEl) return;
         const now = new Date();
-        $("clock").textContent = now.toLocaleTimeString([], {
+        clockEl.textContent = now.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
         });
     }
-    updateClock();
-    setInterval(updateClock, 30000);
+
+    function startClock() {
+        if (clockTimer) {
+            clearTimeout(clockTimer);
+        }
+
+        const tick = () => {
+            updateClock();
+            const now = new Date();
+            const elapsedMs = now.getSeconds() * 1000 + now.getMilliseconds();
+            const delay = Math.max(1000, 60000 - elapsedMs);
+            clockTimer = window.setTimeout(tick, delay + 50);
+        };
+
+        tick();
+    }
+
+    startClock();
 }
 
 // ── Login/Logout UI ───────────────────────────────────────────
+function syncFooterActions() {
+    const logoutBtn = document.getElementById("btn-logout");
+    if (logoutBtn) logoutBtn.hidden = !state.authRequired;
+}
+
 function showLogin(errorMsg = "") {
     const overlay = document.getElementById("login-overlay");
     const appContainer = document.getElementById("app-container");
@@ -2507,7 +2681,20 @@ async function attemptLogin(token) {
 
 function logout() {
     clearStoredToken();
-    if (state.socket) state.socket.disconnect();
+    if (state.socket) {
+        state.socket.disconnect();
+        state.socket = null;
+    }
+    if (state.healthTimer) {
+        clearInterval(state.healthTimer);
+        state.healthTimer = null;
+    }
+    if (state.historyTimer) {
+        clearInterval(state.historyTimer);
+        state.historyTimer = null;
+    }
+    const logoutBtn = document.getElementById("btn-logout");
+    if (logoutBtn) logoutBtn.hidden = true;
     showLogin();
 }
 
@@ -2516,13 +2703,13 @@ function startApp() {
     initListeners();
     fetchStatus();
     loadHistory();
+    initAutomationSections();
     refreshTokenBadge();
     initFileHandlers();
+    initOnboardWizard();
     chatInput.focus();
 
-    // Show logout button if auth is required
-    const logoutBtn = document.getElementById("btn-logout");
-    if (logoutBtn && state.authRequired) logoutBtn.style.display = "";
+    syncFooterActions();
 
     // Gateway health check every 5s
     checkGatewayHealth();
@@ -2530,7 +2717,12 @@ function startApp() {
     state.healthTimer = setInterval(checkGatewayHealth, 5000);
 
     // Auto-refresh history every 30s
-    setInterval(loadHistory, 30000);
+    if (state.historyTimer) clearInterval(state.historyTimer);
+    state.historyTimer = setInterval(loadHistory, 30000);
+
+    // Auto-refresh automation every 30s
+    if (state.autoTimer) clearInterval(state.autoTimer);
+    state.autoTimer = setInterval(() => { loadCronSection(); loadHeartbeatSection(); }, 30000);
 }
 
 // ── Initialize ────────────────────────────────────────────────
@@ -2700,3 +2892,278 @@ async function loadUpdatePanel(force = false) {
         panel.innerHTML = `<div class="update-error"><span class="material-icons-round">error_outline</span> Failed to check for updates.<br><button class="btn-secondary" style="margin-top:12px" onclick="loadUpdatePanel(true)">Retry</button></div>`;
     }
 }
+
+// ── Onboard Wizard ──────────────────────────────────────────
+const _ob = { step: 1, provider: null, providers: [], templates: { existing: [] } };
+
+function initOnboardWizard() {
+    const eye = document.getElementById("ob-eye-toggle");
+    const keyInput = document.getElementById("ob-api-key");
+    if (eye && keyInput) {
+        eye.addEventListener("click", () => {
+            const show = keyInput.type === "password";
+            keyInput.type = show ? "text" : "password";
+            eye.querySelector("span").textContent = show ? "visibility" : "visibility_off";
+        });
+    }
+}
+
+window.openOnboardWizard = async function() {
+    _ob.step = 1;
+    _ob.provider = null;
+    _ob._lastModelProvider = null;
+    document.getElementById("ob-api-key").value = "";
+    document.getElementById("ob-model-input").value = "";
+    document.getElementById("ob-btn-finish").style.width = "";
+    _obShowStep(1);
+    openModal("onboard-modal");
+    await _obLoadProviders();
+    await _obLoadTemplates();
+};
+
+async function _obLoadProviders() {
+    const grid = document.getElementById("ob-provider-grid");
+    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)"><span class="material-icons-round spin">progress_activity</span></div>';
+    try {
+        const res = await authFetch("/api/onboard/providers");
+        const data = await res.json();
+        _ob.providers = data.providers || [];
+        _ob.currentProvider = data.current_provider;
+        _ob.currentModel = data.current_model;
+        _obRenderGrid();
+    } catch(e) {
+        grid.innerHTML = '<p style="color:var(--accent-red)">Failed to load providers</p>';
+    }
+}
+
+async function _obLoadTemplates() {
+    try {
+        const res = await authFetch("/api/onboard/templates");
+        const data = await res.json();
+        _ob.templates = { existing: data.existing_files || [], new_files: data.new_files || [] };
+    } catch(e) { _ob.templates = { existing: [], new_files: [] }; }
+}
+
+function _obRenderGrid() {
+    const grid = document.getElementById("ob-provider-grid");
+    grid.innerHTML = "";
+    const ICONS = {
+        openrouter:"route", anthropic:"psychology", openai:"auto_awesome", gemini:"diamond",
+        deepseek:"explore", groq:"speed", ollama:"dns", github_copilot:"code"
+    };
+    for (const p of _ob.providers) {
+        const card = document.createElement("div");
+        card.className = "provider-card" + (p.name === _ob.currentProvider ? " selected" : "");
+        card.dataset.name = p.name;
+        let badge = "";
+        if (p.status === "env_detected") badge = '<span class="ob-badge env">ENV</span>';
+        else if (p.status === "configured") badge = '<span class="ob-badge configured">Configured</span>';
+        else if (p.status === "oauth_ok") badge = '<span class="ob-badge oauth">OAuth \u2713</span>';
+        else if (p.is_local) badge = '<span class="ob-badge local">Local</span>';
+        else if (p.is_oauth) badge = '<span class="ob-badge oauth">OAuth</span>';
+        const icon = ICONS[p.name] || "smart_toy";
+        card.innerHTML = `
+            <div class="pc-icon"><span class="material-icons-round">${icon}</span></div>
+            <div class="pc-info">
+                <div class="pc-name">${p.label}${badge}</div>
+                <div class="pc-note">${p.env_key ? 'env: ' + p.env_key : (p.is_local ? 'No key needed' : (p.is_oauth ? 'OAuth login' : ''))}</div>
+            </div>`;
+        card.addEventListener("click", () => {
+            grid.querySelectorAll(".provider-card").forEach(c => c.classList.remove("selected"));
+            card.classList.add("selected");
+            _ob.provider = p;
+        });
+        if (p.name === _ob.currentProvider) _ob.provider = p;
+        grid.appendChild(card);
+    }
+}
+
+function _obShowStep(n) {
+    _ob.step = n;
+    for (let i = 1; i <= 4; i++) {
+        const panel = document.getElementById("ob-step-" + i);
+        if (panel) panel.style.display = i === n ? "" : "none";
+        const dot = document.querySelector(`.ob-step[data-step="${i}"]`);
+        if (dot) {
+            dot.classList.toggle("active", i === n);
+            dot.classList.toggle("done", i < n);
+        }
+    }
+    document.getElementById("ob-btn-back").style.display = n > 1 ? "" : "none";
+    document.getElementById("ob-btn-next").style.display = n < 4 ? "" : "none";
+    document.getElementById("ob-btn-finish").style.display = n === 4 ? "" : "none";
+
+    if (n === 2) _obSetupStep2();
+    if (n === 3) _obSetupStep3();
+    if (n === 4) _obSetupStep4();
+}
+
+function _obSetupStep2() {
+    const p = _ob.provider;
+    if (!p) return;
+    const keySection = document.getElementById("ob-key-section");
+    const oauthSection = document.getElementById("ob-oauth-section");
+    const localSection = document.getElementById("ob-local-section");
+    keySection.style.display = "none";
+    oauthSection.style.display = "none";
+    localSection.style.display = "none";
+
+    if (p.is_local) {
+        localSection.style.display = "";
+    } else if (p.is_oauth) {
+        oauthSection.style.display = "";
+        document.getElementById("ob-key-title").textContent = p.label + " \u2014 OAuth";
+        const btn = document.getElementById("ob-oauth-btn");
+        const statusEl = document.getElementById("ob-oauth-status");
+        if (p.status === "oauth_ok") {
+            statusEl.innerHTML = '<span style="color:#4ade80"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check_circle</span> Already authenticated</span>';
+        } else {
+            statusEl.innerHTML = "";
+            btn.onclick = async () => {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> Starting...';
+                try {
+                    const resp = await authFetch("/api/oauth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({provider:p.name}) });
+                    const jd = await resp.json();
+                    if (jd.user_code && jd.verification_uri) {
+                        statusEl.innerHTML = '<div style="text-align:center;margin-top:1rem">' +
+                            '<a href="' + jd.verification_uri + '" target="_blank" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">' +
+                            '<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open GitHub</a>' +
+                            '<div style="margin-top:10px;font-size:22px;letter-spacing:3px;font-weight:700;color:var(--shiba-gold);font-family:monospace;cursor:pointer" ' +
+                            'onclick="navigator.clipboard.writeText(\'' + jd.user_code + '\')" title="Click to copy">' + jd.user_code + '</div>' +
+                            '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">' +
+                            '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...</div></div>';
+                    }
+                    if (jd.job_id) {
+                        const poll = setInterval(async () => {
+                            try {
+                                const r2 = await authFetch("/api/oauth/job/" + jd.job_id);
+                                const j = await r2.json();
+                                if (j.job && j.job.status === "done") {
+                                    clearInterval(poll);
+                                    statusEl.innerHTML = '<span style="color:#4ade80"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check_circle</span> Authenticated!</span>';
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Done';
+                                } else if (j.job && j.job.status === "error") {
+                                    clearInterval(poll);
+                                    statusEl.innerHTML = '<span style="color:#f87171">Authentication failed</span>';
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
+                                }
+                            } catch(ex) {}
+                        }, 2000);
+                    }
+                } catch(e) {
+                    statusEl.innerHTML = '<span style="color:#f87171">Error: ' + e + '</span>';
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
+                }
+            };
+        }
+    } else {
+        keySection.style.display = "";
+        document.getElementById("ob-key-title").textContent = p.label + " \u2014 API Key";
+        document.getElementById("ob-key-hint").textContent = p.env_key ? "You can also set the " + p.env_key + " environment variable." : "";
+        if (p.status === "env_detected" || p.status === "configured") {
+            document.getElementById("ob-api-key").placeholder = "Leave blank to keep current key";
+        } else {
+            document.getElementById("ob-api-key").value = "";
+            document.getElementById("ob-api-key").placeholder = "sk-...";
+        }
+    }
+}
+
+function _obSetupStep3() {
+    const p = _ob.provider;
+    if (!p) return;
+    document.getElementById("ob-model-hint").textContent = "Provider: " + p.label + ". Check the provider docs for available models.";
+    const modelInput = document.getElementById("ob-model-input");
+    if (!modelInput.value || _ob._lastModelProvider !== p.name) {
+        _ob._lastModelProvider = p.name;
+        modelInput.value = (_ob.currentProvider === p.name && _ob.currentModel) ? _ob.currentModel : p.default_model;
+    }
+}
+
+function _obSetupStep4() {
+    const p = _ob.provider;
+    document.getElementById("ob-sum-provider").textContent = p ? p.label : "\u2014";
+    document.getElementById("ob-sum-model").textContent = document.getElementById("ob-model-input").value || "\u2014";
+
+    const tplSection = document.getElementById("ob-tpl-section");
+    const tplList = document.getElementById("ob-tpl-list");
+    if (_ob.templates.existing.length > 0) {
+        tplSection.style.display = "";
+        tplList.innerHTML = "";
+        for (const f of _ob.templates.existing) {
+            const item = document.createElement("label");
+            item.className = "ob-tpl-item";
+            item.innerHTML = '<input type="checkbox" value="' + f + '"> <span class="material-icons-round" style="font-size:16px;color:var(--text-muted)">description</span> ' + f;
+            tplList.appendChild(item);
+        }
+    } else {
+        tplSection.style.display = "none";
+    }
+}
+
+window.obGoStep = function(dir) {
+    let next = _ob.step + dir;
+    if (next < 1) return;
+
+    if (_ob.step === 1 && dir > 0 && !_ob.provider) {
+        const grid = document.getElementById("ob-provider-grid");
+        grid.style.animation = "none"; grid.offsetHeight; grid.style.animation = "shake 0.3s";
+        return;
+    }
+
+    if (next === 2 && dir > 0 && _ob.provider && _ob.provider.is_local) {
+        next = 3;
+    }
+    if (next === 2 && dir < 0 && _ob.provider && _ob.provider.is_local) {
+        next = 1;
+    }
+
+    if (next > 4) return;
+    _obShowStep(next);
+};
+
+window.obSubmit = async function() {
+    const btn = document.getElementById("ob-btn-finish");
+    btn.style.width = btn.offsetWidth + "px";
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> Saving...';
+
+    const overwrite = [];
+    document.querySelectorAll("#ob-tpl-list input:checked").forEach(cb => overwrite.push(cb.value));
+
+    try {
+        const res = await authFetch("/api/onboard/submit", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                provider: _ob.provider.name,
+                api_key: document.getElementById("ob-api-key").value.trim(),
+                model: document.getElementById("ob-model-input").value.trim(),
+                overwrite_templates: overwrite,
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw data.error || "Setup failed";
+
+        btn.style.width = "";
+        closeModal("onboard-modal");
+        state.onboardModalShown = false;
+        fetchStatus();
+        loadHistory();
+
+        const toast = document.createElement("div");
+        toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;background:#4ade80;color:#000;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:fadeIn .3s";
+        toast.textContent = "\u2713 Setup complete! Shiba is ready to hunt.";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    } catch(e) {
+        btn.style.width = "";
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Finish Setup';
+        await shibaDialog("alert", "Error", "Setup failed: " + e, { danger: true });
+    }
+};

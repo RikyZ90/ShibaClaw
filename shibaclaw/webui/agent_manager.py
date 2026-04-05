@@ -31,6 +31,50 @@ class AgentManager:
         self._sio = sio
         self._sessions = sessions
 
+    async def deliver_background_notification(
+        self,
+        session_key: str,
+        content: str,
+        *,
+        source: str = "background",
+        persist: bool = True,
+    ) -> dict[str, Any]:
+        """Persist and emit a background notification to matching WebUI sessions."""
+        if not session_key or not content:
+            return {"delivered": False, "matched_sessions": 0}
+
+        if persist:
+            if not self.config:
+                self.load_latest_config()
+            if not self.config:
+                return {"delivered": False, "matched_sessions": 0}
+
+            from shibaclaw.brain.manager import PackManager
+
+            pm = PackManager(self.config.workspace_path)
+            session = pm.get_or_create(session_key)
+            session.add_message(
+                "assistant",
+                content,
+                metadata={"background": True, "source": source},
+            )
+            pm.save(session)
+
+        delivered = 0
+        payload = {
+            "id": str(uuid.uuid4())[:8],
+            "content": content,
+            "attachments": [],
+        }
+        if self._sio:
+            for sid, state in list(self._sessions.items()):
+                if state.get("session_key") != session_key:
+                    continue
+                await self._sio.emit("agent_response", payload, room=sid)
+                delivered += 1
+
+        return {"delivered": delivered > 0, "matched_sessions": delivered}
+
     def load_latest_config(self):
         """Load the latest config from disk."""
         from shibaclaw.config.loader import load_config
@@ -41,6 +85,52 @@ class AgentManager:
             self.provider = _make_provider(self.config, exit_on_error=False)
         except Exception:
             self.provider = None
+
+    async def _run_local_cron_job(self, job: Any) -> str | None:
+        """Execute and deliver a scheduled job inside the WebUI process."""
+        if not self.agent:
+            logger.warning("Cron: WebUI runner triggered before agent initialization")
+            return None
+
+        from shibaclaw.bus.events import OutboundMessage
+        from shibaclaw.cli.gateway import resolve_cron_target
+
+        async def _noop_progress(*_args, **_kwargs) -> None:
+            return None
+
+        target = resolve_cron_target(job)
+        reminder_note = (
+            f"[Scheduled Task] Timer finished.\n\n"
+            f"Task '{job.name}' triggered.\n"
+            f"Message: {job.payload.message}"
+        )
+        outbound = await self.agent.process_direct(
+            reminder_note,
+            target.session_key,
+            target.channel,
+            target.chat_id,
+            on_progress=_noop_progress,
+        )
+        response = outbound.content if outbound else ""
+
+        if response and job.payload.deliver:
+            if target.channel == "webui":
+                result = await self.deliver_background_notification(
+                    target.session_key,
+                    response,
+                    source="cron",
+                    persist=False,
+                )
+                if not result["delivered"]:
+                    logger.info("Cron: no active WebUI client matched session {}", target.session_key)
+            elif target.channel != "cli" and self.bus:
+                await self.bus.publish_outbound(
+                    OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
+                )
+            else:
+                logger.info("Cron: completed but found no deliverable session for job {}", job.id)
+
+        return response
 
     async def ensure_agent(self):
         """Ensure the agent and its background consumers are running."""
@@ -85,6 +175,7 @@ class AgentManager:
                 memory_compact_threshold_tokens=self.config.agents.defaults.memory_compact_threshold_tokens,
                 consolidation_model=self.config.agents.defaults.consolidation_model,
             )
+            cron.on_job = self._run_local_cron_job
             await cron.start()
 
             # Shutdown old tasks if any

@@ -1,36 +1,27 @@
 {
-  "version": "0.0.11",
-  "release_notes": "Bug fixes and improvements.\n- Policy applied uniformly across all four Telegram entry points: reject early, expose nothing. Unauthorised senders receive no response, no typing indicator, and no information about the bot's existence",
+  "version": "0.0.12",
+  "release_notes": "Guided onboarding, smarter memory, and reliable automation.\n- CLI and WebUI onboarding now share a guided flow for provider setup, OAuth handoff, model selection, template refresh, and optional channel setup.\n- Long-term memory is split into USER.md and memory/MEMORY.md, with a new memory_search tool that ranks HISTORY.md entries by recency, importance, and relevance.\n- Cron and heartbeat reliability improved with stable session routing, overdue one-shot execution on startup, and a new automation sidebar with live status and manual triggers.",
+  "upgrade_notes": "Recommended after upgrading:\n  1. Run `shibaclaw onboard` once if you want to refresh workspace templates and built-in skills.\n  2. Existing USER.md, memory/MEMORY.md, memory/HISTORY.md, and workspace skill files are preserved unless you explicitly overwrite them.\n  3. Restart the WebUI or Docker stack so cron and heartbeat services pick up the new routing behavior.",
   "changes": [
     {
-      "path": "templates/SOUL.md",
+      "path": "USER.md",
       "overwrite": false,
-      "note": "Your personal agent personality — not overwritten"
+      "note": "User profile template refreshed; your existing file stays untouched unless you choose to overwrite it during onboarding."
     },
     {
-      "path": "templates/USER.md",
+      "path": "memory/MEMORY.md",
       "overwrite": false,
-      "note": "Your personal user profile — not overwritten"
+      "note": "Operational memory template now uses Environment, Entities, Project State, and Dynamic Context sections."
     },
     {
-      "path": "templates/AGENTS.md",
+      "path": "memory/HISTORY.md",
       "overwrite": false,
-      "note": "Your agents configuration — not overwritten"
+      "note": "History entries can now include importance markers like [★N]; your existing archive is preserved."
     },
     {
-      "path": "templates/HEARTBEAT.md",
+      "path": "skills/memory/SKILL.md",
       "overwrite": false,
-      "note": "Your heartbeat template — not overwritten"
-    },
-    {
-      "path": "templates/TOOLS.md",
-      "overwrite": false,
-      "note": "Your tools configuration — not overwritten"
-    },
-    {
-      "path": "templates/memory/MEMORY.md",
-      "overwrite": false,
-      "note": "Your memory template — not overwritten"
+      "note": "The built-in memory skill was updated for the USER.md plus MEMORY.md split; your workspace copy stays untouched until you resync it."
     }
   ]
 }

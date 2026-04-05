@@ -109,6 +109,7 @@ class CronService:
                             deliver=j["payload"].get("deliver", False),
                             channel=j["payload"].get("channel"),
                             to=j["payload"].get("to"),
+                            session_key=j["payload"].get("sessionKey"),
                         ),
                         state=CronJobState(
                             next_run_at_ms=j.get("state", {}).get("nextRunAtMs"),
@@ -165,6 +166,7 @@ class CronService:
                         "deliver": j.payload.deliver,
                         "channel": j.payload.channel,
                         "to": j.payload.to,
+                        "sessionKey": j.payload.session_key,
                     },
                     "state": {
                         "nextRunAtMs": j.state.next_run_at_ms,
@@ -196,10 +198,28 @@ class CronService:
         """Start the cron service."""
         self._running = True
         self._load_store()
+        await self._fire_overdue_at_jobs()
         self._recompute_next_runs()
         self._save_store()
         self._arm_timer()
         logger.info("Cron service started with {} jobs", len(self._store.jobs if self._store else []))
+
+    async def _fire_overdue_at_jobs(self) -> None:
+        """Execute one-shot 'at' jobs whose trigger time has already passed."""
+        if not self._store:
+            return
+        now = _now_ms()
+        overdue = [
+            j for j in self._store.jobs
+            if j.enabled
+            and j.schedule.kind == "at"
+            and j.schedule.at_ms
+            and j.schedule.at_ms <= now
+            and not j.state.last_run_at_ms
+        ]
+        for job in overdue:
+            logger.info("Cron: firing overdue job '{}' (was scheduled at {})", job.name, job.schedule.at_ms)
+            await self._execute_job(job)
 
     def stop(self) -> None:
         """Stop the cron service."""
@@ -319,6 +339,7 @@ class CronService:
         deliver: bool = False,
         channel: str | None = None,
         to: str | None = None,
+        session_key: str | None = None,
         delete_after_run: bool = False,
     ) -> CronJob:
         """Add a new job."""
@@ -337,6 +358,7 @@ class CronService:
                 deliver=deliver,
                 channel=channel,
                 to=to,
+                session_key=session_key,
             ),
             state=CronJobState(next_run_at_ms=_compute_next_run(schedule, now)),
             created_at_ms=now,

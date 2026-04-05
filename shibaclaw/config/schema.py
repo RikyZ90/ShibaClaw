@@ -31,7 +31,7 @@ class AgentDefaults(Base):
     """Default agent configuration."""
 
     workspace: str = "~/.shibaclaw/workspace"
-    model: str = "anthropic/claude-opus-4-5"
+    model: str = ""
     provider: str = (
         "auto"  # Provider name (e.g. "anthropic", "openrouter") or "auto" for auto-detection
     )
@@ -43,7 +43,7 @@ class AgentDefaults(Base):
     learning_enabled: bool = True  # Periodically update long-term memory in background
     learning_interval: int = 10  # Number of new messages before triggering background learning
     memory_max_prompt_tokens: int = 2000  # Max tokens from MEMORY.md injected into the system prompt
-    memory_compact_threshold_tokens: int = 1000  # Token threshold that triggers automatic memory compaction
+    memory_compact_threshold_tokens: int = 1600  # Token threshold that triggers automatic memory compaction (should be < memory_max_prompt_tokens)
     consolidation_model: str | None = None  # Cheaper model for memory consolidation/compaction (None = use main model)
 
 

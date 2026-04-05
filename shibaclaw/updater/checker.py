@@ -1,9 +1,7 @@
-"""Check GitHub releases for a newer version of ShibaClaw."""
+"""Check GitHub releases for a newer version."""
 
 from __future__ import annotations
-
 import json
-import os
 import re
 import time
 import urllib.request
@@ -15,7 +13,7 @@ from shibaclaw import __version__
 
 GITHUB_REPO = "RikyZ90/ShibaClaw"
 _API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-_CACHE_TTL = 3600  # seconds — re-check at most once per hour
+_CACHE_TTL = 3600
 _CACHE_FILE = Path.home() / ".shibaclaw" / "update_cache.json"
 
 
@@ -23,8 +21,6 @@ def _load_cache() -> dict:
     try:
         if _CACHE_FILE.exists():
             data = json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
-            # If the running version changed (e.g. user just updated) discard the
-            # stale cache so the notification disappears immediately.
             if data.get("current") != __version__:
                 return {}
             if time.time() - data.get("checked_at", 0) < _CACHE_TTL:
@@ -43,49 +39,21 @@ def _save_cache(data: dict) -> None:
 
 
 def _parse_version(v: str) -> tuple:
-    """Convert version strings to comparable tuples following PEP 440 ordering.
-
-    Pre-release suffixes are properly ordered so that:
-      0.0.8a < 0.0.8b < 0.0.8rc1 < 0.0.8 (final)
-      0.0.8b < 0.0.9a
-
-    The tuple format is ``(major, minor, patch, pre_kind, pre_num)`` where
-    *pre_kind* is 0 for alpha, 1 for beta, 2 for rc, and 3 for final.
-    """
     v = v.lstrip("v")
-    # Split main version from pre-release suffix:  "0.0.8b2" → "0.0.8", "b", "2"
     m = re.match(r'^(\d+(?:\.\d+)*)\s*[-.]?\s*(a|alpha|b|beta|rc)?(\d*)\s*$', v, re.IGNORECASE)
     if not m:
-        # Fallback: try to extract just numeric parts
         nums = re.findall(r'\d+', v)
         return tuple(int(n) for n in nums) + (3, 0) if nums else (0, 3, 0)
-
     numeric = tuple(int(x) for x in m.group(1).split('.'))
     suffix = (m.group(2) or '').lower()
     suffix_num = int(m.group(3)) if m.group(3) else 0
-
     _PRE_ORDER = {'a': 0, 'alpha': 0, 'b': 1, 'beta': 1, 'rc': 2}
     if suffix in _PRE_ORDER:
         return numeric + (_PRE_ORDER[suffix], suffix_num)
-    # No pre-release suffix → final release (sorts after all pre-releases)
     return numeric + (3, 0)
 
 
 def check_for_update(force: bool = False) -> dict[str, Any]:
-    """
-    Check GitHub for the latest release.
-
-    Returns a dict:
-        {
-            "current": "0.0.9",
-            "latest": "0.0.9",
-            "update_available": True,
-            "release_url": "https://github.com/...",
-            "manifest_url": "https://.../update_manifest.json",  # or None
-            "checked_at": 1234567890,
-            "error": None,
-        }
-    """
     if not force:
         cached = _load_cache()
         if cached:
@@ -133,7 +101,6 @@ def check_for_update(force: bool = False) -> dict[str, Any]:
 
 
 def invalidate_cache() -> None:
-    """Remove the cached check result so the next call hits GitHub."""
     try:
         if _CACHE_FILE.exists():
             _CACHE_FILE.unlink()

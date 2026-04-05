@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from shibaclaw.updater.manifest import normalize_manifest_path
+
 
 def _old_dir(workspace_root: Path, new_version: str) -> Path:
     """Return the _old/<version>/ directory inside the workspace root."""
@@ -60,7 +62,7 @@ def _backup_personal_files(
     skipped: list[str] = []
 
     for change in manifest.get("changes", []):
-        rel_path: str = change.get("path", "")
+        rel_path = normalize_manifest_path(change.get("path", ""))
         overwrite: bool = change.get("overwrite", True)
 
         if not rel_path:

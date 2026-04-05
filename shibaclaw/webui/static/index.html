@@ -99,19 +99,49 @@
             <div class="sidebar-section history-section">
                 <div class="section-title">SESSIONS</div>
                 <div id="history-list" class="history-list">
-                    <!-- Loaded via API -->
                     <div class="history-item loading">Loading...</div>
                 </div>
             </div>
 
+            <!-- Automation Section -->
+            <div class="sidebar-section automation-section">
+                <div class="section-title">AUTOMATION</div>
+                <div id="cron-section" class="automation-subsection">
+                    <div class="automation-header" id="cron-header">
+                        <span class="material-icons-round">schedule_send</span>
+                        <span>Cron Jobs</span>
+                        <span class="automation-count" id="cron-count">0</span>
+                        <span class="material-icons-round group-chevron">expand_more</span>
+                    </div>
+                    <div class="automation-items" id="cron-list"></div>
+                </div>
+                <div id="heartbeat-section" class="automation-subsection">
+                    <div class="automation-header" id="heartbeat-header">
+                        <span class="material-icons-round">favorite</span>
+                        <span>Heartbeat</span>
+                        <span class="automation-badge" id="heartbeat-badge"></span>
+                        <span class="material-icons-round group-chevron">expand_more</span>
+                    </div>
+                    <div class="automation-items" id="heartbeat-list"></div>
+                </div>
+            </div>
+
             <div class="sidebar-footer">
-                <div class="footer-info">
-                    <span class="material-icons-round">schedule</span>
+                <div class="footer-actions">
+                    <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" rel="noopener noreferrer" class="btn-command btn-github" title="Open GitHub repository" aria-label="Open ShibaClaw GitHub repository in a new tab">
+                        <span class="material-icons-round" aria-hidden="true">open_in_new</span>
+                        <span>GitHub</span>
+                    </a>
+                    <button class="btn-command btn-logout" id="btn-logout" type="button" title="Logout" aria-label="Logout from ShibaClaw" hidden>
+                        <span class="material-icons-round" aria-hidden="true">logout</span>
+                        <span>Logout</span>
+                    </button>
+                </div>
+                <div class="footer-info" aria-label="Local time">
+                    <span class="material-icons-round" aria-hidden="true">schedule</span>
+                    <span class="footer-info-label">Local time</span>
                     <span id="clock">--:--</span>
                 </div>
-                <button class="btn-logout" id="btn-logout" title="Logout" style="display:none">
-                    <span class="material-icons-round" style="font-size:16px">logout</span>
-                </button>
             </div>
         </aside>
 
@@ -148,21 +178,21 @@
                     <h2 class="welcome-title">Welcome to <span class="gradient-text">ShibaClaw</span></h2>
                     <p class="welcome-subtitle">Your personal AI assistant, ready to hunt for answers.</p>
                     <div class="welcome-hints">
-                        <button class="hint-card" data-hint="Explain how async/await works in Python">
-                            <span class="material-icons-round">code</span>
-                            <span>Explain async/await</span>
+                        <button class="hint-card" data-hint="Help me set up my personal info. Ask me one question at a time and build a clean profile I can refine later.">
+                            <span class="material-icons-round">manage_accounts</span>
+                            <span>Set up my profile</span>
                         </button>
-                        <button class="hint-card" data-hint="Write a FastAPI endpoint with authentication">
-                            <span class="material-icons-round">api</span>
-                            <span>FastAPI endpoint</span>
+                        <button class="hint-card" data-hint="Help me start a new project. Ask what I want to build, then propose the stack, structure, and first files.">
+                            <span class="material-icons-round">rocket_launch</span>
+                            <span>New project setup</span>
                         </button>
-                        <button class="hint-card" data-hint="Help me debug this error and suggest fixes">
-                            <span class="material-icons-round">bug_report</span>
-                            <span>Debug my code</span>
+                        <button class="hint-card" data-hint="Help me schedule something. Ask what needs to happen, when it should run, and whether it should repeat.">
+                            <span class="material-icons-round">event_repeat</span>
+                            <span>Schedule a task</span>
                         </button>
-                        <button class="hint-card" data-hint="Create a comprehensive README for my project">
-                            <span class="material-icons-round">description</span>
-                            <span>Write a README</span>
+                        <button class="hint-card" data-hint="Analyze this workspace and give me a clear map of the project, key files, entry points, and what matters first.">
+                            <span class="material-icons-round">travel_explore</span>
+                            <span>Explore this repo</span>
                         </button>
                     </div>
                 </div>
@@ -272,6 +302,14 @@
                     <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
                     <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
                     <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+                    <div class="field-row field-row-stack">
+                        <label>Onboarding</label>
+                        <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
+                        <button type="button" class="btn-secondary settings-onboard-btn" onclick="openOnboardFromSettings()">
+                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle">rocket_launch</span>
+                            Open onboarding wizard
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Tab: Providers (dynamic collapsible) -->
@@ -369,26 +407,74 @@
         </div>
     </div>
 
-    <!-- Onboarding Modal -->
-    <div id="onboard-modal" class="modal-backdrop" style="z-index: 2000;">
-        <div class="modal">
+    <div id="onboard-modal" class="modal-backdrop" data-backdrop-close="false" style="z-index: 2000;">
+        <div class="modal modal-onboard">
             <div class="modal-header">
-                <h2><span class="material-icons-round">warning</span> Configuration Required</h2>
+                <h2><span class="material-icons-round">rocket_launch</span> Welcome to ShibaClaw</h2>
+                <button class="btn-icon" onclick="closeModal('onboard-modal')" title="Close"><span class="material-icons-round">close</span></button>
             </div>
-            <div class="modal-body" style="text-align: center; padding: 2rem;">
-                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Welcome to ShibaClaw! It looks like your agent is not fully configured yet.</p>
-                <p style="margin-bottom: 1rem; font-weight: 500;">Please run the following command in your terminal to set up your API keys and provider:</p>
-                <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); border: 1px solid var(--border-light); margin-bottom: 1.5rem;">
-                    shibaclaw onboard
-                </div>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">If you are running in Docker, open a terminal and run:</p>
-                <div style="background: var(--bg-primary); padding: 0.7rem 1rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); border: 1px solid var(--border-light); margin-bottom: 1.5rem; font-size: 0.95em;">
-                    docker exec -it shibaclaw-gateway shibaclaw onboard --wizard
-                </div>
-                <p style="color: var(--text-secondary); font-size: 0.9rem;">Once completed, please restart the WebUI.</p>
+            <div class="ob-steps">
+                <div class="ob-step active" data-step="1"><span class="ob-dot">1</span><span class="ob-label">Provider</span></div>
+                <div class="ob-line"></div>
+                <div class="ob-step" data-step="2"><span class="ob-dot">2</span><span class="ob-label">Credentials</span></div>
+                <div class="ob-line"></div>
+                <div class="ob-step" data-step="3"><span class="ob-dot">3</span><span class="ob-label">Model</span></div>
+                <div class="ob-line"></div>
+                <div class="ob-step" data-step="4"><span class="ob-dot">4</span><span class="ob-label">Finish</span></div>
             </div>
-            <div class="modal-footer" style="justify-content: center;">
-                <button class="btn-primary" onclick="closeModal('onboard-modal')">I Understand</button>
+            <div class="modal-body ob-body" id="ob-body">
+                <div class="ob-panel" id="ob-step-1">
+                    <p class="ob-subtitle">Choose your LLM provider</p>
+                    <div class="provider-grid" id="ob-provider-grid">
+                        <div style="text-align:center;padding:2rem;color:var(--text-muted)"><span class="material-icons-round spin">progress_activity</span></div>
+                    </div>
+                    <p class="ob-extra-note"><span class="material-icons-round">info</span>More providers can be configured later in Settings &gt; Provider.</p>
+                </div>
+                <div class="ob-panel" id="ob-step-2" style="display:none">
+                    <p class="ob-subtitle" id="ob-key-title">Enter your API key</p>
+                    <div id="ob-key-section">
+                        <div class="ob-key-wrap">
+                            <input type="password" id="ob-api-key" class="form-input ob-key-input" placeholder="sk-..." autocomplete="off">
+                            <button class="ob-eye" id="ob-eye-toggle" type="button"><span class="material-icons-round">visibility_off</span></button>
+                        </div>
+                        <p class="ob-hint" id="ob-key-hint"></p>
+                    </div>
+                    <div id="ob-oauth-section" style="display:none">
+                        <p class="ob-hint">This provider uses OAuth authentication.</p>
+                        <button class="btn-primary" id="ob-oauth-btn" style="margin-top:1rem"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Login with OAuth</button>
+                        <div id="ob-oauth-status" style="margin-top:1rem"></div>
+                    </div>
+                    <div id="ob-local-section" style="display:none">
+                        <div style="text-align:center;padding:2rem">
+                            <span class="material-icons-round" style="font-size:48px;color:var(--shiba-gold)">dns</span>
+                            <p style="margin-top:1rem;color:var(--text-secondary)">No API key needed for local providers.<br>Make sure the server is running locally.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="ob-panel" id="ob-step-3" style="display:none">
+                    <p class="ob-subtitle">Choose your model</p>
+                    <p class="ob-hint" id="ob-model-hint" style="margin-bottom:1rem"></p>
+                    <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o" autocomplete="off">
+                </div>
+                <div class="ob-panel" id="ob-step-4" style="display:none">
+                    <div id="ob-tpl-section" style="display:none">
+                        <p class="ob-subtitle">Workspace Templates</p>
+                        <p class="ob-hint" style="margin-bottom:0.8rem">These template files already exist in your workspace. Check any you'd like to reset to defaults:</p>
+                        <div id="ob-tpl-list" class="ob-tpl-list"></div>
+                    </div>
+                    <div class="ob-summary" id="ob-summary">
+                        <span class="material-icons-round" style="font-size:48px;color:var(--shiba-gold)">check_circle</span>
+                        <h3 style="margin:0.5rem 0">Ready to go!</h3>
+                        <div class="ob-summary-row"><span>Provider</span><strong id="ob-sum-provider"></strong></div>
+                        <div class="ob-summary-row"><span>Model</span><strong id="ob-sum-model"></strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer ob-footer">
+                <button class="btn-secondary" id="ob-btn-back" onclick="obGoStep(-1)" style="display:none"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">arrow_back</span> Back</button>
+                <div style="flex:1"></div>
+                <button class="btn-primary" id="ob-btn-next" onclick="obGoStep(1)">Next <span class="material-icons-round" style="font-size:16px;vertical-align:middle">arrow_forward</span></button>
+                <button class="btn-primary" id="ob-btn-finish" onclick="obSubmit()" style="display:none"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Finish Setup</button>
             </div>
         </div>
     </div>

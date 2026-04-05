@@ -27,6 +27,7 @@ class CronPayload:
     deliver: bool = False
     channel: str | None = None  # e.g. "whatsapp"
     to: str | None = None  # e.g. phone number
+    session_key: str | None = None  # Stable session key for threaded/WebUI jobs
 
 
 @dataclass
