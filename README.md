@@ -211,8 +211,8 @@ Approximate idle RAM usage in Docker:
 
 | Component | RAM |
 |-----------|-----|
-| `shibaclaw-gateway` | ~115 MB |
-| `shibaclaw-web` | ~115 MB |
+| `shibaclaw-gateway` | <200 MB |
+| `shibaclaw-web` | <200 MB |
 
 Values are indicative and can vary with model load, active sessions, and container runtime.
 
