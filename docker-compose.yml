@@ -7,6 +7,14 @@ x-common-config: &common-config
   build:
     context: .
     dockerfile: Dockerfile
+  deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 200M  
   environment:
     <<: *common-env
   volumes:
@@ -23,14 +31,6 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:19999:19999"
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
 
   shibaclaw-cli:
     container_name: shibaclaw-cli
