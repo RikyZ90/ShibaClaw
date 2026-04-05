@@ -1061,7 +1061,7 @@ async function loadHeartbeatSection() {
         if (data.last_check_ms) info += `<span class="hb-label">Last check:</span> ${_timeAgo(data.last_check_ms)} — ${data.last_action || "?"}<br>`;
         if (data.last_run_ms) info += `<span class="hb-label">Last run:</span> ${_timeAgo(data.last_run_ms)}<br>`;
         if (data.last_error) info += `<span class="hb-label">Error:</span> ${escapeHtml(data.last_error)}<br>`;
-        info += `<span class="hb-label">File:</span> ${data.heartbeat_file_exists ? "present" : "missing"}`;
+        info += `<span class="hb-label">File:</span> ${data.heartbeat_file_exists ? `<a class="hb-file-link" href="#" onclick="openHeartbeatFile(event)">HEARTBEAT.md</a>` : "missing"}`;
         info += `</div>`;
         info += `<div class="auto-row"><button class="btn-auto-trigger" id="btn-hb-trigger" title="Run heartbeat now">▶ Trigger</button></div>`;
 
@@ -1510,8 +1510,22 @@ window.openModal = async function(id) {
             $("settings-loading").innerHTML = `<span class="material-icons-round" style="color:var(--accent-red)">error</span> Failed to load settings`;
         }
     } else if (id === "fs-modal") {
-        loadFs(state.currentFsPath || ".");
+        await loadFs(state.currentFsPath || ".");
+        if (state.fsOpenTarget) {
+            const target = state.fsOpenTarget;
+            state.fsOpenTarget = null;
+            openFileEditor(target, target.split(/[\\/\\]/).pop());
+        }
     }
+};
+
+window.openHeartbeatFile = function(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const filePath = "HEARTBEAT.md";
+    const dir = filePath.includes("/") ? filePath.replace(/\\/g, "/").split("/").slice(0, -1).join("/") : ".";
+    state.currentFsPath = dir || ".";
+    state.fsOpenTarget = filePath;
+    openModal("fs-modal");
 };
 
 window.closeModal = function(id) {
