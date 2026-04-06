@@ -391,11 +391,10 @@ async def api_gateway_health(request: Request):
     gw = agent_manager.config.gateway
     port = gw.port
     gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-    if gw.host not in ("0.0.0.0", "::", "", "127.0.0.1"):
-        # Custom host: try it first, then fall back to 127.0.0.1 in case of IP change
-        hosts = [gw.host, "127.0.0.1"]
+    if gw.host in ("0.0.0.0", "::", ""):
+        hosts = ["127.0.0.1", gateway_hostname]
     else:
-        hosts = [gateway_hostname, "127.0.0.1"]
+        hosts = [gw.host]
 
     for host in hosts:
         try:
@@ -492,7 +491,10 @@ async def _gateway_request(method: str, path: str) -> dict | None:
     gw = agent_manager.config.gateway
     port = gw.port
     gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-    hosts = [gateway_hostname, "127.0.0.1"] if gw.host in ("0.0.0.0", "::", "", "127.0.0.1") else [gw.host, "127.0.0.1"]
+    if gw.host in ("0.0.0.0", "::", ""):
+        hosts = ["127.0.0.1", gateway_hostname]
+    else:
+        hosts = [gw.host]
 
     auth_token = get_auth_token()
     auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
@@ -583,11 +585,10 @@ async def api_gateway_restart(request: Request):
     gw = agent_manager.config.gateway
     port = gw.port
     gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-    if gw.host not in ("0.0.0.0", "::", "", "127.0.0.1"):
-        # Custom host: try it first, then fall back to 127.0.0.1 in case of IP change
-        hosts = [gw.host, "127.0.0.1"]
+    if gw.host in ("0.0.0.0", "::", ""):
+        hosts = ["127.0.0.1", gateway_hostname]
     else:
-        hosts = [gateway_hostname, "127.0.0.1"]
+        hosts = [gw.host]
 
     auth_token = get_auth_token()
     for host in hosts:
