@@ -1,27 +1,6 @@
 {
-  "version": "0.0.12",
-  "release_notes": "Guided onboarding, smarter memory, and reliable automation.\n- CLI and WebUI onboarding now share a guided flow for provider setup, OAuth handoff, model selection, template refresh, and optional channel setup.\n- Long-term memory is split into USER.md and memory/MEMORY.md, with a new memory_search tool that ranks HISTORY.md entries by recency, importance, and relevance.\n- Cron and heartbeat reliability improved with stable session routing, overdue one-shot execution on startup, and a new automation sidebar with live status and manual triggers.",
-  "upgrade_notes": "Recommended after upgrading:\n  1. Run `shibaclaw onboard` once if you want to refresh workspace templates and built-in skills.\n  2. Existing USER.md, memory/MEMORY.md, memory/HISTORY.md, and workspace skill files are preserved unless you explicitly overwrite them.\n  3. Restart the WebUI or Docker stack so cron and heartbeat services pick up the new routing behavior.",
-  "changes": [
-    {
-      "path": "USER.md",
-      "overwrite": false,
-      "note": "User profile template refreshed; your existing file stays untouched unless you choose to overwrite it during onboarding."
-    },
-    {
-      "path": "memory/MEMORY.md",
-      "overwrite": false,
-      "note": "Operational memory template now uses Environment, Entities, Project State, and Dynamic Context sections."
-    },
-    {
-      "path": "memory/HISTORY.md",
-      "overwrite": false,
-      "note": "History entries can now include importance markers like [★N]; your existing archive is preserved."
-    },
-    {
-      "path": "skills/memory/SKILL.md",
-      "overwrite": false,
-      "note": "The built-in memory skill was updated for the USER.md plus MEMORY.md split; your workspace copy stays untouched until you resync it."
-    }
-  ]
+  "version": "0.0.13",
+  "release_notes": "Security hardening and stability fixes.\n- Socket.IO authentication bypass fixed: WebSocket connections now require a valid auth token.\n- Auth token leakage in URLs prevented by removing tokens from upload response URLs.\n- SSRF in update manifest validation mitigated with proper urlparse() validation and hostname allowlist.\n- Timing attack on token comparison prevented with hmac.compare_digest() constant-time verification.\n- Race condition in task callback cleanup resolved with safe task removal.\n- Severity comparison logic corrected with explicit score mapping.",
+  "upgrade_notes": "Security-related fixes. No configuration changes required.\n  1. WebSocket connections now require valid auth tokens — ensure your token is set.\n  2. Auth token is no longer exposed in URLs — update any scripts that relied on URL-based tokens.",
+  "changes": []
 }
