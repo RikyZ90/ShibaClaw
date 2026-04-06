@@ -92,10 +92,10 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                         gw = agent_manager.config.gateway
                         gw_port = gw.port
                         gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-                        if gw.host not in ("0.0.0.0", "::", "", "127.0.0.1"):
-                            targets = [gw.host, "127.0.0.1"]
+                        if gw.host in ("0.0.0.0", "::", ""):
+                            targets = ["127.0.0.1", gateway_hostname]
                         else:
-                            targets = [gateway_hostname, "127.0.0.1"]
+                            targets = [gw.host]
                         auth = get_auth_token()
                         for h in targets:
                             try:
