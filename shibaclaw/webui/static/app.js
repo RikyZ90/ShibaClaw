@@ -259,9 +259,8 @@ function addUserMessage(content, attachments = []) {
     bubble.className = "message-bubble";
     
     if (content) {
-        const text = document.createElement("div");
-        text.textContent = content;
-        bubble.appendChild(text);
+        bubble.innerHTML = renderMarkdown(content);
+        enhanceCodeBlocks(bubble);
     }
     
     // Add attachments to UI
