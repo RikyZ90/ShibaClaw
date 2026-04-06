@@ -1,6 +1,9 @@
 {
-  "version": "0.0.13",
-  "release_notes": "Security hardening and stability fixes.\n- Socket.IO authentication bypass fixed: WebSocket connections now require a valid auth token.\n- Auth token leakage in URLs prevented by removing tokens from upload response URLs.\n- SSRF in update manifest validation mitigated with proper urlparse() validation and hostname allowlist.\n- Timing attack on token comparison prevented with hmac.compare_digest() constant-time verification.\n- Race condition in task callback cleanup resolved with safe task removal.\n- Severity comparison logic corrected with explicit score mapping.",
-  "upgrade_notes": "Security-related fixes. No configuration changes required.\n  1. WebSocket connections now require valid auth tokens — ensure your token is set.\n  2. Auth token is no longer exposed in URLs — update any scripts that relied on URL-based tokens.",
-  "changes": []
+  "version": "0.0.14",
+  "release_notes": "Gateway health check fix for bare metal setups.\n- Fixed false 'Gateway Down' status in WebUI when running pip install setups.\n- Health check now correctly uses the configured gateway.host value instead of defaulting to the Docker-only hostname.",
+  "upgrade_notes": "No configuration changes required. Restart the WebUI and gateway after upgrading.",
+  "changes": [
+    "shibaclaw/webui/api.py",
+    "shibaclaw/webui/oauth_github.py"
+  ]
 }
