@@ -166,6 +166,8 @@ def estimate_prompt_tokens(
         enc = tiktoken.get_encoding("cl100k_base")
         parts: list[str] = []
         for msg in messages:
+            role = msg.get("role", "")
+            parts.append(role)
             content = msg.get("content")
             if isinstance(content, str):
                 parts.append(content)
@@ -175,9 +177,16 @@ def estimate_prompt_tokens(
                         txt = part.get("text", "")
                         if txt:
                             parts.append(txt)
+            if msg.get("name"):
+                parts.append(msg["name"])
+            if msg.get("tool_call_id"):
+                parts.append(msg["tool_call_id"])
+            if msg.get("tool_calls"):
+                parts.append(json.dumps(msg["tool_calls"], ensure_ascii=False))
         if tools:
             parts.append(json.dumps(tools, ensure_ascii=False))
-        return len(enc.encode("\n".join(parts)))
+        base = len(enc.encode("\n".join(parts)))
+        return base + max(0, len(messages)) * 4
     except Exception:
         return 0
 

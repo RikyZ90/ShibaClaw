@@ -386,7 +386,7 @@ function addProcessStep(msgId, content, badge) {
     // Update title with latest step text
     const title = pg.headerEl.querySelector(".pg-title");
     title.textContent = truncate(content, 60);
-    title.title = content;
+    title.title = escapeHtml(content);
     title.classList.add("shiny-text");
 
     // Add the step row
