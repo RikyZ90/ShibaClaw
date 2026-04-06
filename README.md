@@ -24,9 +24,6 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 > **v0.0.13** is out! Security hardening and stability fixes
 
 - **2026-04-06** 🛡️ **Security Hardening** — Socket.IO auth bypass fixed, auth token leakage in URLs prevented, SSRF mitigation in update manifest validation, constant-time token comparison, race condition in task callback resolved, severity comparison logic corrected.
-
-> **v0.0.12** — Guided onboarding, smarter memory, and reliable automation
-
 - **2026-04-05** 🚀 **Guided Onboarding Everywhere** — `shibaclaw onboard` now drives a single guided setup flow across CLI and WebUI: provider detection, OAuth handoff, model selection, template refresh, and optional channel setup.
 - **2026-04-05** 🧠 **Smarter Persistent Memory** — Durable personal data now lives in `USER.md`, operational context lives in `memory/MEMORY.md`, and the new `memory_search` tool ranks `HISTORY.md` entries by recency, importance, and relevance.
 - **2026-04-05** ⏰ **Reliable Automation Runtime** — Cron jobs now keep stable session targets, overdue one-shot jobs fire on startup, and the WebUI owns cron execution so Docker no longer races on shared schedules.
