@@ -147,6 +147,7 @@ docker compose up -d --build                             # gateway + webUI
 docker exec -it shibaclaw-gateway shibaclaw onboard      # first-time setup
 ```
 > **To update**: `docker compose pull && docker compose up -d`  
+> **Security note**: the app is currently bound to `localhost` for safety, so if the server is remote use an SSH tunnel such as `ssh -L 3001:localhost:3001 root@MACHINE_IP`, then open **http://localhost:3000**.
 Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen.
 
 If `SHIBACLAW_AUTH_TOKEN` is set in your shell or `.env`, that value is used as the WebUI token and takes precedence over the auto-generated `auth_token` file.
@@ -157,6 +158,8 @@ pip install shibaclaw
 shibaclaw onboard                # first-time setup
 shibaclaw web --port 3000        # start the WebUI (agent runs in-process)
 ```
+
+> **Security note**: the app is currently bound to `localhost` for safety, so if the server is remote use an SSH tunnel such as `ssh -L 3001:localhost:3001 root@MACHINE_IP`, then open **http://localhost:3000**.
 
 Optional fixed token:
 
