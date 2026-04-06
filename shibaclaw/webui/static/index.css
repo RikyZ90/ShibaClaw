@@ -2393,8 +2393,9 @@ input[type="number"].form-input {
     transition: max-height 0.25s ease, padding 0.25s ease;
 }
 .accordion.open .accordion-body {
-    max-height: 300px;
+    max-height: 1200px;
     padding: 0.6rem 0.9rem;
+    overflow-y: auto;
 }
 
 /* ── Settings Loader ───────────────────────────────────────── */

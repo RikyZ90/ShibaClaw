@@ -78,4 +78,37 @@ def _migrate_config(data: dict) -> dict:
     exec_cfg = tools.get("exec", {})
     if "restrictToWorkspace" in exec_cfg and "restrictToWorkspace" not in tools:
         tools["restrictToWorkspace"] = exec_cfg.pop("restrictToWorkspace")
+
+    # Ensure email channel has all default fields (transparent migration)
+    channels = data.get("channels", {})
+    email = channels.get("email", {})
+    _EMAIL_DEFAULTS: dict = {
+        "enabled": False,
+        "consentGranted": False,
+        "imapHost": "",
+        "imapPort": 993,
+        "imapUsername": "",
+        "imapPassword": "",
+        "imapUseSsl": True,
+        "imapMailbox": "INBOX",
+        "smtpHost": "",
+        "smtpPort": 587,
+        "smtpUsername": "",
+        "smtpPassword": "",
+        "smtpUseTls": True,
+        "smtpUseSsl": False,
+        "fromAddress": "",
+        "autoReplyEnabled": True,
+        "pollIntervalSeconds": 30,
+        "markSeen": True,
+        "maxBodyChars": 12000,
+        "subjectPrefix": "Re: ",
+        "allowFrom": [],
+    }
+    for key, default_val in _EMAIL_DEFAULTS.items():
+        if key not in email:
+            email[key] = default_val
+    channels["email"] = email
+    data["channels"] = channels
+
     return data

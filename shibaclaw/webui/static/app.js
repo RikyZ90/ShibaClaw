@@ -1793,23 +1793,39 @@ function populateSettings(cfg) {
     const detail = $("channels-detail");
     detail.innerHTML = "";
     const skip = ["sendProgress", "sendToolHints"];
-    for (const [name, cc] of Object.entries(ch)) {
-        if (skip.includes(name) || typeof cc !== "object") continue;
-        const enabled = cc.enabled === true;
-        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-        const card = document.createElement("div");
-        card.className = "accordion";
-        
-        let fieldsHtml = `
-            <div class="field-row">
-                <label>Enabled</label>
-                <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
-            </div>
-        `;
 
+    // Email field configuration with human-readable labels and sections
+    const EMAIL_FIELD_CONFIG = {
+        // INBOUND (IMAP)
+        imapHost:       { label: "IMAP Server",       section: "inbound",  type: "text",     placeholder: "imap.gmail.com" },
+        imapPort:       { label: "IMAP Port",          section: "inbound",  type: "number",   placeholder: "993" },
+        imapUsername:   { label: "IMAP Username",      section: "inbound",  type: "text",     placeholder: "email@gmail.com" },
+        imapPassword:   { label: "IMAP Password",      section: "inbound",  type: "password", placeholder: "App password" },
+        imapUseSsl:     { label: "IMAP SSL",           section: "inbound",  type: "boolean" },
+        imapMailbox:    { label: "IMAP Mailbox",       section: "inbound",  type: "text",     placeholder: "INBOX" },
+        // OUTBOUND (SMTP)
+        smtpHost:       { label: "SMTP Server",        section: "outbound", type: "text",     placeholder: "smtp.gmail.com" },
+        smtpPort:       { label: "SMTP Port",          section: "outbound", type: "number",   placeholder: "587" },
+        smtpUsername:   { label: "SMTP Username",      section: "outbound", type: "text",     placeholder: "email@gmail.com" },
+        smtpPassword:   { label: "SMTP Password",      section: "outbound", type: "password", placeholder: "App password" },
+        smtpUseTls:     { label: "SMTP STARTTLS",      section: "outbound", type: "boolean" },
+        smtpUseSsl:     { label: "SMTP SSL",           section: "outbound", type: "boolean" },
+        fromAddress:    { label: "From Address",       section: "outbound", type: "text",     placeholder: "shibaclaw@gmail.com" },
+        // GENERAL
+        autoReplyEnabled:       { label: "Auto Reply",           section: "general", type: "boolean" },
+        pollIntervalSeconds:    { label: "Poll Interval (sec)",  section: "general", type: "number",  placeholder: "30" },
+        markSeen:               { label: "Mark as Read",         section: "general", type: "boolean" },
+        maxBodyChars:           { label: "Max Body Length",      section: "general", type: "number",  placeholder: "12000" },
+        subjectPrefix:          { label: "Reply Prefix",         section: "general", type: "text",    placeholder: "Re: " },
+        allowFrom:              { label: "Allowed Senders",      section: "general", type: "array",   placeholder: "email1@test.com, email2@test.com" },
+    };
+
+    function formatEmailFields(fieldsHtml, config, cc) {
+        const sections = { inbound: [], outbound: [], general: [] };
+        
         for (const [key, val] of Object.entries(cc)) {
             if (key === "enabled") continue;
-            let inputType = "text";
+            
             let valStr = "";
             let originalType = typeof val;
             if (Array.isArray(val)) {
@@ -1836,7 +1852,7 @@ function populateSettings(cfg) {
                 inputType = "password";
             }
             
-            const safeVal = String(valStr).replace(/"/g, '&quot;');
+            const safeVal = String(valStr).replace(/"/g, '"');
             fieldsHtml += `
                 <div class="field-row">
                     <label>${key}</label>
@@ -1844,11 +1860,144 @@ function populateSettings(cfg) {
                 </div>
             `;
         }
+        return fieldsHtml;
+    }
+
+    for (const [name, cc] of Object.entries(ch)) {
+        if (skip.includes(name) || typeof cc !== "object") continue;
+        const enabled = cc.enabled === true;
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+        const card = document.createElement("div");
+        card.className = "accordion";
+        
+        let fieldsHtml = `
+            <div class="field-row">
+                <label>Enabled</label>
+                <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row">
+                <label>Consent Granted</label>
+                <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="consentGranted" data-type="boolean" ${(cc.consentGranted || cc.consent_granted) ? "checked" : ""}><span class="toggle-slider"></span></label>
+            </div>
+        `;
+
+        // Use custom layout for email channel
+        if (name === "email" && EMAIL_FIELD_CONFIG) {
+            // Group fields by section
+            const sections = { inbound: [], outbound: [], general: [] };
+            
+            for (const [key, val] of Object.entries(cc)) {
+                if (key === "enabled" || key === "consentGranted" || key === "consent_granted") continue;
+                
+                const fieldConfig = EMAIL_FIELD_CONFIG[key] || EMAIL_FIELD_CONFIG[key.replace(/([A-Z])/g, (m) => m.toLowerCase())] || null;
+                const section = fieldConfig?.section || "general";
+                const label = fieldConfig?.label || key;
+                const inputType = fieldConfig?.type || "text";
+                const placeholder = fieldConfig?.placeholder || "";
+                
+                let valStr = "";
+                let originalType = typeof val;
+                if (Array.isArray(val)) {
+                    originalType = "array";
+                    valStr = val.join(", ");
+                } else if (val !== null && originalType === "object") {
+                    originalType = "object";
+                    valStr = JSON.stringify(val);
+                } else {
+                    valStr = val === null ? "" : String(val);
+                }
+                
+                let inputHtml = "";
+                if (originalType === "boolean" || fieldConfig?.type === "boolean") {
+                    inputHtml = `
+                        <div class="field-row">
+                            <label>${label}</label>
+                            <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${valStr === "true" || val === true ? "checked" : ""}><span class="toggle-slider"></span></label>
+                        </div>`;
+                } else {
+                    const isPassword = fieldConfig?.type === "password" || key.toLowerCase().includes("password") || key.toLowerCase().includes("secret");
+                    const safeVal = String(valStr).replace(/"/g, '"');
+                    inputHtml = `
+                        <div class="field-row">
+                            <label>${label}</label>
+                            <input type="${isPassword ? "password" : (fieldConfig?.type || "text")}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}" placeholder="${placeholder}">
+                        </div>
+                    `;
+                }
+                
+                if (!sections[section]) sections[section] = [];
+                sections[section].push(inputHtml);
+            }
+            
+            // Build sections HTML
+            const sectionLabels = {
+                inbound: '📥 Email IN (IMAP)',
+                outbound: '📤 Email OUT (SMTP)',
+                general: '⚙️ General'
+            };
+            
+            for (const [sectionKey, sectionFields] of Object.entries(sections)) {
+                if (sectionFields.length > 0) {
+                    fieldsHtml += `<div style="padding: 8px 0 4px; font-weight: 600; color: var(--text-muted); font-size: 13px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">${sectionLabels[sectionKey] || sectionKey}</div>`;
+                    fieldsHtml += sectionFields.join("");
+                }
+            }
+        } else {
+            // Generic fallback for other channels
+            for (const [key, val] of Object.entries(cc)) {
+                if (key === "enabled") continue;
+                let inputType = "text";
+                let valStr = "";
+                let originalType = typeof val;
+                if (Array.isArray(val)) {
+                    originalType = "array";
+                    valStr = val.join(", ");
+                } else if (val !== null && originalType === "object") {
+                    originalType = "object";
+                    valStr = JSON.stringify(val);
+                } else {
+                    valStr = val === null ? "" : String(val);
+                }
+                
+                if (originalType === "boolean") {
+                    fieldsHtml += `
+                        <div class="field-row">
+                            <label>${key}</label>
+                            <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label>
+                        </div>`;
+                    continue;
+                }
+                
+                const lowerKey = key.toLowerCase();
+                if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
+                    inputType = "password";
+                }
+                
+                const safeVal = String(valStr).replace(/"/g, '"');
+                fieldsHtml += `
+                    <div class="field-row">
+                        <label>${key}</label>
+                        <input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}">
+                    </div>
+                `;
+            }
+        }
+
+        const iconMap = {
+            telegram: "send",
+            discord: "forum",
+            slack: "tag",
+            whatsapp: "chat",
+            webui: "language",
+            cli: "terminal",
+            email: "email",
+        };
+        const iconName = iconMap[name] || "chat";
 
         card.innerHTML = `
             <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
                 <div class="accordion-title">
-                    <span class="material-icons-round" style="font-size:18px">chat</span>
+                    <span class="material-icons-round" style="font-size:18px">${iconName}</span>
                     ${displayName}
                 </div>
                 <div class="accordion-right">
