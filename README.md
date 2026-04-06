@@ -21,7 +21,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.13** is out! Security hardening and stability fixes
+> **v0.0.14** is out! Security hardening and stability fixes
 
 - **2026-04-06** 🛡️ **Security Hardening** — Socket.IO auth bypass fixed, auth token leakage in URLs prevented, SSRF mitigation in update manifest validation, constant-time token comparison, race condition in task callback resolved, severity comparison logic corrected.
 - **2026-04-05** 🚀 **Guided Onboarding Everywhere** — `shibaclaw onboard` now drives a single guided setup flow across CLI and WebUI: provider detection, OAuth handoff, model selection, template refresh, and optional channel setup.
