@@ -192,6 +192,7 @@ async def gateway_command(
         cron_service=cron,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        restrict_to_workspace=config.tools.restrict_to_workspace,
         learning_enabled=config.agents.defaults.learning_enabled,
         learning_interval=config.agents.defaults.learning_interval,
         memory_max_prompt_tokens=config.agents.defaults.memory_max_prompt_tokens,
