@@ -146,8 +146,10 @@ Ready to hunt? Choose your path:
 docker compose up -d --build                             # gateway + webUI
 docker exec -it shibaclaw-gateway shibaclaw onboard      # first-time setup
 ```
-> **To update**: `docker compose pull && docker compose up -d`  
-> **Security note**: the app is currently bound to `localhost` for safety, so if the server is remote use an SSH tunnel such as `ssh -L 3001:localhost:3001 root@MACHINE_IP`, then open **http://localhost:3000**.
+
+> 🔒 **Security Note**: By default, the app is bound to `localhost` (via `127.0.0.1:3000:3000`).
+> - **Remote Access (Recommended)**: Use an SSH tunnel (e.g., `ssh -L 3000:127.0.0.1:3000 user@host`).
+> - **Direct LAN Access**: Change `127.0.0.1:3000:3000` to `3000:3000` in `docker-compose.yml`.
 Open **http://localhost:3000** — to get your access token, run `shibaclaw print-token` and paste it in the login screen.
 
 If `SHIBACLAW_AUTH_TOKEN` is set in your shell or `.env`, that value is used as the WebUI token and takes precedence over the auto-generated `auth_token` file.
@@ -159,7 +161,9 @@ shibaclaw onboard                # first-time setup
 shibaclaw web --port 3000        # start the WebUI (agent runs in-process)
 ```
 
-> **Security note**: the app is currently bound to `localhost` for safety, so if the server is remote use an SSH tunnel such as `ssh -L 3001:localhost:3001 root@MACHINE_IP`, then open **http://localhost:3000**.
+> 🔒 **Security Note**: By default, the app binds to `localhost`.
+> - **Remote Access (Recommended)**: Use an SSH tunnel (e.g., `ssh -L 3000:127.0.0.1:3000 user@host`).
+> - **Direct LAN Access**: Run `shibaclaw web --host 0.0.0.0`.
 
 Optional fixed token:
 

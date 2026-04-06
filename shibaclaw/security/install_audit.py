@@ -35,12 +35,22 @@ class Severity(str, Enum):
         except ValueError:
             return cls.UNKNOWN
 
+    _ORDER: dict[str, int] = {
+        "critical": 4,
+        "high": 3,
+        "medium": 2,
+        "low": 1,
+        "unknown": 0,
+    }
+
+    def _score(self) -> int:
+        return self._ORDER.get(self, 0)
+
     def __ge__(self, other: "Severity") -> bool:
-        order = [self.CRITICAL, self.HIGH, self.MEDIUM, self.LOW, self.UNKNOWN]
-        return order.index(self) <= order.index(other)
+        return self._score() >= other._score()
 
     def __gt__(self, other: "Severity") -> bool:
-        return self != other and self >= other
+        return self._score() > other._score()
 
 
 # Severity threshold ordering for comparison

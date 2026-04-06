@@ -9,6 +9,7 @@ import asyncio
 import mimetypes
 import urllib.parse
 import urllib.request
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any, Dict, List, Set, Optional
 
@@ -548,9 +549,9 @@ async def api_update_manifest(request: Request):
     if not manifest_url:
         return JSONResponse({"error": "Missing url parameter"}, status_code=400)
 
-    # Only allow GitHub release asset URLs to prevent SSRF
-    if not manifest_url.startswith("https://github.com/") and \
-       not manifest_url.startswith("https://raw.githubusercontent.com/"):
+    parsed = urlparse(manifest_url)
+    allowed_hosts = {"github.com", "raw.githubusercontent.com"}
+    if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
         return JSONResponse({"error": "Invalid manifest URL"}, status_code=400)
 
     try:
@@ -644,7 +645,7 @@ async def api_upload(request: Request):
             target_path.write_bytes(content)
             results.append({
                 "filename": target_path.name,
-                "url": f"/api/file-get?path={urllib.parse.quote(str(target_path.absolute()))}&token={auth_token}"
+                "url": f"/api/file-get?path={urllib.parse.quote(str(target_path.absolute()))}"
             })
         
         return JSONResponse({"status": "success", "files": results})

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import hmac
 from pathlib import Path
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -55,15 +56,16 @@ def check_token(request: Request) -> bool:
     if not _auth_enabled() or not _AUTH_TOKEN:
         return True
     auth_header = request.headers.get("authorization", "")
-    if auth_header.startswith("Bearer ") and auth_header[7:].strip() == _AUTH_TOKEN:
+    token_candidate = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
+    if hmac.compare_digest(token_candidate, _AUTH_TOKEN) and token_candidate:
         return True
-    token_param = request.query_params.get("token")
-    if token_param == _AUTH_TOKEN:
+    token_param = request.query_params.get("token", "")
+    if hmac.compare_digest(token_param, _AUTH_TOKEN) and token_param:
         return True
     return False
 
 
-PUBLIC_PATHS = ("/static/", "/api/auth/", "/socket.io")
+PUBLIC_PATHS = ("/static/", "/api/auth/")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

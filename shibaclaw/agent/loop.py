@@ -353,7 +353,10 @@ class ShibaBrain:
             else:
                 task = asyncio.create_task(self._dispatch(msg))
                 self._active_tasks.setdefault(msg.session_key, []).append(task)
-                task.add_done_callback(lambda t, k=msg.session_key: self._active_tasks.get(k, []) and self._active_tasks[k].remove(t) if t in self._active_tasks.get(k, []) else None)
+                task.add_done_callback(
+                    lambda t, k=msg.session_key: self._active_tasks.get(k, [])
+                    and self._safe_remove_task(self._active_tasks.get(k, []), t)
+                )
 
     async def _handle_stop(self, msg: InboundMessage) -> None:
         """Cancel all active tasks and subagents for the session."""
@@ -420,7 +423,14 @@ class ShibaBrain:
     def _schedule_background(self, coro) -> None:
         task = asyncio.create_task(coro)
         self._background_tasks.append(task)
-        task.add_done_callback(self._background_tasks.remove)
+        task.add_done_callback(lambda t: self._safe_remove_task(self._background_tasks, t))
+
+    @staticmethod
+    def _safe_remove_task(tasks: list, task) -> None:
+        try:
+            tasks.remove(task)
+        except ValueError:
+            pass
 
     def stop(self) -> None:
         self._running = False
