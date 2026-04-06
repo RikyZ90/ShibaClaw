@@ -169,6 +169,7 @@ class AgentManager:
                 cron_service=cron,
                 mcp_servers=self.config.tools.mcp_servers,
                 channels_config=self.config.channels,
+                restrict_to_workspace=self.config.tools.restrict_to_workspace,
                 learning_enabled=self.config.agents.defaults.learning_enabled,
                 learning_interval=self.config.agents.defaults.learning_interval,
                 memory_max_prompt_tokens=self.config.agents.defaults.memory_max_prompt_tokens,

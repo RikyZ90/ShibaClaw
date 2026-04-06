@@ -123,6 +123,7 @@ def agent_command(
         exec_config=config_obj.tools.exec,
         mcp_servers=config_obj.tools.mcp_servers,
         channels_config=config_obj.channels,
+        restrict_to_workspace=config_obj.tools.restrict_to_workspace,
         learning_enabled=config_obj.agents.defaults.learning_enabled,
         learning_interval=config_obj.agents.defaults.learning_interval,
         memory_max_prompt_tokens=config_obj.agents.defaults.memory_max_prompt_tokens,
