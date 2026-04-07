@@ -161,6 +161,7 @@ async def gateway_command(
     from shibaclaw.heartbeat.service import HeartbeatService
     from shibaclaw.brain.manager import PackManager
     from shibaclaw.webui.server import get_auth_token
+    from shibaclaw.helpers.helpers import sync_skills
 
     setup_shiba_logging(level="DEBUG" if verbose else "INFO")
     if verbose:
@@ -169,6 +170,8 @@ async def gateway_command(
     config = _load_runtime_config(config_path, workspace)
     port = port_override if port_override is not None else config.gateway.port
     host = host if host is not None else (config.gateway.host or "127.0.0.1")
+
+    sync_skills(config.workspace_path)
 
     auth_token = get_auth_token()
     bus = MessageBus()

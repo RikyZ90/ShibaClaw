@@ -122,6 +122,19 @@ async def _check_update_on_startup() -> None:
         pass
 
 
+async def _sync_skills_on_startup() -> None:
+    """Sync built-in skills to workspace on startup."""
+    try:
+        await asyncio.sleep(1)
+        from shibaclaw.helpers.helpers import sync_skills
+        cfg = agent_manager.config
+        if cfg:
+            sync_skills(cfg.workspace_path)
+            logger.info("Skills synced on startup")
+    except Exception:
+        logger.exception("Failed to sync skills on startup")
+
+
 async def _ensure_agent_on_startup() -> None:
     """Initialize the agent and cron service eagerly so scheduled jobs fire even without user interaction."""
     try:
@@ -144,6 +157,7 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
         logger.warning("WARNING: Authentication is DISABLED")
 
     asyncio.create_task(_check_update_on_startup())
+    asyncio.create_task(_sync_skills_on_startup())
     asyncio.create_task(_ensure_agent_on_startup())
 
     server_config = uvicorn.Config(

@@ -1000,7 +1000,8 @@ async def api_onboard_submit(request: Request):
         if not hist_dest.exists():
             hist_dest.write_text("", encoding="utf-8")
 
-    (wp / "skills").mkdir(exist_ok=True)
+    from shibaclaw.helpers.helpers import sync_skills
+    sync_skills(wp)
 
     # Reset agent and reload from freshly saved config on disk.
     # This ensures the provider is correctly initialised from the new config

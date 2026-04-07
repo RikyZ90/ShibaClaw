@@ -214,7 +214,7 @@ class ShibaBrain:
             val = next(iter(args.values()), None) if isinstance(args, dict) else None
             if not isinstance(val, str):
                 return tc.name
-            return f'{tc.name}("{val[:40]}…")' if len(val) > 40 else f'{tc.name}("{val}")'
+            return f'{tc.name}("{val}")'
         return ", ".join(_fmt(tc) for tc in tool_calls)
 
     async def _run_agent_loop(

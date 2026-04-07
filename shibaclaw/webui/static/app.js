@@ -73,6 +73,7 @@ const thinkingText = $("thinking-text");
 const statusDot = $("status-dot");
 const statusText = $("status-text");
 const sessionIdEl = $("session-id");
+const processTooltip = $("process-tooltip");
 
 // ── Marked.js Configuration ──────────────────────────────────
 if (typeof marked !== "undefined") {
@@ -386,7 +387,7 @@ function addProcessStep(msgId, content, badge) {
     // Update title with latest step text
     const title = pg.headerEl.querySelector(".pg-title");
     title.textContent = truncate(content, 60);
-    title.title = escapeHtml(content);
+    title.dataset.tooltip = content;
     title.classList.add("shiny-text");
 
     // Add the step row
@@ -394,8 +395,9 @@ function addProcessStep(msgId, content, badge) {
     step.className = "pg-step";
     step.innerHTML = `
         <span class="step-badge ${badge}">${badge}</span>
-        <span class="pg-step-text" title="${escapeHtml(content)}">${escapeHtml(truncate(content, 200))}</span>
+        <span class="pg-step-text">${escapeHtml(truncate(content, 200))}</span>
     `;
+    step.querySelector(".pg-step-text").dataset.tooltip = content;
 
     pg.stepsEl.appendChild(step);
     scrollToBottom();
@@ -486,6 +488,7 @@ function renderProcessGroupFromHistory(turnId, steps) {
         </span>
     `;
     container.appendChild(header);
+    header.querySelector(".pg-title").dataset.tooltip = lastStep.text;
 
     const stepsContainer = document.createElement("div");
     stepsContainer.className = "pg-content";
@@ -496,6 +499,7 @@ function renderProcessGroupFromHistory(turnId, steps) {
             <span class="step-badge ${step.badge}">${step.badge}</span>
             <span class="pg-step-text">${escapeHtml(truncate(step.text, 200))}</span>
         `;
+        row.querySelector(".pg-step-text").dataset.tooltip = step.text;
         stepsContainer.appendChild(row);
     }
     container.appendChild(stepsContainer);
@@ -2682,6 +2686,49 @@ window.saveFile = async function(filePath) {
 
 // ── Event Listeners ───────────────────────────────────────────
 function initListeners() {
+    chatHistory.addEventListener("mouseover", (e) => {
+        const target = e.target.closest(".pg-step-text[data-tooltip], .pg-title[data-tooltip]");
+        if (!target || !chatHistory.contains(target)) return;
+
+        processTooltip.textContent = target.dataset.tooltip || "";
+        processTooltip.hidden = false;
+
+        const rect = target.getBoundingClientRect();
+        const tooltipRect = processTooltip.getBoundingClientRect();
+        let left = rect.left;
+        let top = rect.bottom + 8;
+
+        if (left + tooltipRect.width > window.innerWidth - 12) {
+            left = window.innerWidth - tooltipRect.width - 12;
+        }
+        if (left < 12) {
+            left = 12;
+        }
+        if (top + tooltipRect.height > window.innerHeight - 12) {
+            top = rect.top - tooltipRect.height - 8;
+        }
+        if (top < 12) {
+            top = 12;
+        }
+
+        processTooltip.style.left = `${left}px`;
+        processTooltip.style.top = `${top}px`;
+    });
+
+    chatHistory.addEventListener("mouseout", (e) => {
+        const target = e.target.closest(".pg-step-text[data-tooltip], .pg-title[data-tooltip]");
+        if (!target || !chatHistory.contains(target)) return;
+        processTooltip.hidden = true;
+    });
+
+    window.addEventListener("scroll", () => {
+        processTooltip.hidden = true;
+    }, true);
+
+    window.addEventListener("resize", () => {
+        processTooltip.hidden = true;
+    });
+
     // Send button
     btnSend.addEventListener("click", sendMessage);
 

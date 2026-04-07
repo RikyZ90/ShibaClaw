@@ -247,6 +247,11 @@ def estimate_prompt_tokens_chain(
     return 0, "none"
 
 
+def sync_skills(workspace: Path) -> list[str]:
+    """Sync built-in skills to workspace/skills without asking for confirmation."""
+    return _sync_builtin_skills_to_workspace(workspace, silent=True)
+
+
 def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]:
     """Sync bundled templates to workspace.
 
@@ -304,9 +309,6 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
             con.print("  [dim]Skipped — your templates unchanged.[/dim]")
 
     (workspace / "skills").mkdir(exist_ok=True)
-
-    # Sync built-in skills
-    _sync_builtin_skills_to_workspace(workspace, silent)
 
     if added and not silent:
         from rich.console import Console
