@@ -3,12 +3,49 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
 import unicodedata
 from typing import Any, Literal
 
 from loguru import logger
+
+# Suppress noisy CancelledError tracebacks from python-telegram-bot during shutdown.
+# The library logs the full traceback even though the exception is suppressed internally.
+_PTB_LOGGERS = (
+    "telegram._bot",
+    "telegram._update",
+    "telegram._telegramobject",
+    "telegram.ext._application",
+    "telegram.ext._extbot",
+    "telegram.ext._updater",
+    "telegram.ext._utils",
+)
+_PREVIOUS_LEVELS: dict[str, int] = {}
+
+
+def _suppress_ptb_shutdown_logs() -> None:
+    """Temporarily raise PTB log levels to suppress CancelledError tracebacks on shutdown."""
+    for name in _PTB_LOGGERS:
+        try:
+            lgr = logging.getLogger(name)
+            _PREVIOUS_LEVELS[name] = lgr.level
+            lgr.setLevel(logging.CRITICAL + 1)  # silence everything below catastrophic
+        except Exception:
+            pass
+
+
+def _restore_ptb_shutdown_logs() -> None:
+    """Restore PTB log levels after shutdown."""
+    for name, level in _PREVIOUS_LEVELS.items():
+        try:
+            logging.getLogger(name).setLevel(level)
+        except Exception:
+            pass
+    _PREVIOUS_LEVELS.clear()
+
+
 from pydantic import Field
 from telegram import BotCommand, ReplyParameters, Update
 from telegram.error import TimedOut
@@ -337,9 +374,15 @@ class TelegramChannel(BaseChannel):
 
         if self._app:
             logger.info("Stopping Telegram bot...")
-            await self._app.updater.stop()
-            await self._app.stop()
-            await self._app.shutdown()
+            # Suppress noisy CancelledError tracebacks from python-telegram-bot
+            # during graceful shutdown (the library logs them even when suppressed).
+            _suppress_ptb_shutdown_logs()
+            try:
+                await self._app.updater.stop()
+                await self._app.stop()
+                await self._app.shutdown()
+            finally:
+                _restore_ptb_shutdown_logs()
             self._app = None
 
     @staticmethod
