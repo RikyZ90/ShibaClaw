@@ -1831,11 +1831,13 @@ function populateSettings(cfg) {
             if (Array.isArray(val)) {
                 originalType = "array";
                 valStr = val.join(", ");
-            } else if (val !== null && originalType === "object") {
-                originalType = "object";
+            } else if (val === null) {
+                originalType = "null";
+                valStr = "";
+            } else if (originalType === "object") {
                 valStr = JSON.stringify(val);
             } else {
-                valStr = val === null ? "" : String(val);
+                valStr = String(val);
             }
             
             if (originalType === "boolean") {
@@ -1952,11 +1954,13 @@ function populateSettings(cfg) {
                 if (Array.isArray(val)) {
                     originalType = "array";
                     valStr = val.join(", ");
-                } else if (val !== null && originalType === "object") {
-                    originalType = "object";
+                } else if (val === null) {
+                    originalType = "null";
+                    valStr = "";
+                } else if (originalType === "object") {
                     valStr = JSON.stringify(val);
                 } else {
-                    valStr = val === null ? "" : String(val);
+                    valStr = String(val);
                 }
                 
                 if (originalType === "boolean") {
@@ -2085,7 +2089,9 @@ window.saveSettings = async function() {
         } else if (type === "array") {
             val = el.value ? el.value.split(",").map(s => s.trim()).filter(s => s) : [];
         } else if (type === "object") {
-            try { val = JSON.parse(el.value); } catch(e) { val = {}; }
+            try { val = el.value ? JSON.parse(el.value) : null; } catch(e) { val = null; }
+        } else if (type === "null") {
+            val = el.value || null;
         } else if (type === "number") {
             val = Number(el.value);
         } else {
