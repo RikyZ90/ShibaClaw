@@ -26,6 +26,7 @@ class AgentManager:
         self._sio: Optional[Any] = None
         self._sessions: Dict[str, Dict] = {}
         self._init_lock = asyncio.Lock()
+        self.heartbeat: Optional[Any] = None
 
     def set_socket_io(self, sio: Any, sessions: Dict[str, Dict]):
         self._sio = sio
@@ -197,6 +198,34 @@ class AgentManager:
             task2 = asyncio.create_task(self._consume_outbound())
             self._bg_tasks.extend([task1, task2])
 
+            hb_cfg = self.config.gateway.heartbeat
+            if hb_cfg.enabled:
+                from shibaclaw.heartbeat.service import HeartbeatService
+
+                async def _noop_progress(*_a, **_kw):
+                    return None
+
+                async def _hb_execute(tasks: str) -> str:
+                    out = await self.agent.process_direct(
+                        tasks, "heartbeat", "webui", "direct", on_progress=_noop_progress,
+                    )
+                    return out.content if out else ""
+
+                async def _hb_notify(response: str) -> None:
+                    pass
+
+                self.heartbeat = HeartbeatService(
+                    workspace=self.config.workspace_path,
+                    provider=self.provider,
+                    model=self.agent.model,
+                    on_execute=_hb_execute,
+                    on_notify=_hb_notify,
+                    interval_s=hb_cfg.interval_s,
+                    enabled=True,
+                )
+                await self.heartbeat.start()
+                self._bg_tasks.append(asyncio.create_task(asyncio.sleep(0)))
+
     async def _consume_outbound(self):
         """Consume messages from the bus and deliver to the WebUI clients."""
         if not self.bus or not self._sio:
@@ -269,6 +298,9 @@ class AgentManager:
 
     def reset_agent(self):
         """Stop tasks and clear agent instance so it recreates on next access."""
+        if self.heartbeat:
+            self.heartbeat.stop()
+            self.heartbeat = None
         if self.agent:
             try:
                 self.agent.stop()
