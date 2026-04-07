@@ -4,7 +4,7 @@
 
 # Smart. Loyal. Powerful. 🐕
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.15-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.16-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -21,7 +21,7 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.15** is out! Standalone mode stability and health check fixes
+> **v0.0.16** is out! Standalone mode stability and health check fixes
 
 - **2026-04-07** 🐕 **Standalone Mode Reliability** — Fixed false "Gateway Down" in bare-metal standalone mode (`shibaclaw web`). The health check and heartbeat services now correctly fall back to the local agent instance when a separate gateway process is not present.
 - **2026-04-06** 🛡️ **Security Hardening** — Socket.IO auth bypass fixed, auth token leakage in URLs prevented, SSRF mitigation in update manifest validation, constant-time token comparison, race condition in task callback resolved, severity comparison logic corrected.
