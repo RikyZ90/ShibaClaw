@@ -49,7 +49,8 @@ const state = {
     messageCount: 0,
     queueCount: 0,
     gatewayUp: false,
-    gatewayUnreachableCount: 0,
+    gatewayKnown: false,     // Whether health state has been confirmed via API
+    gatewayUnreachableCount: 0,  // Consecutive unreachable attempts
     gatewayProviderReady: true,
     agentConfigured: false,
     healthTimer: null,
@@ -632,23 +633,13 @@ async function fetchStatus() {
             const versionEl = $("sidebar-version");
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;
 
-            // This prevents the UI from flipping back to "Gateway Down" 
-            // after the backend just told us we are ready.
-            if (data.agent_configured || oauthConfigured) {
+            const isConfigured = data.agent_configured || oauthConfigured;
+            if (isConfigured && state.socket && state.socket.connected) {
+                // Assume gateway is working if agent is configured and WebUI is connected
                 state.gatewayUp = true;
+                state.gatewayKnown = true;
                 state.gatewayUnreachableCount = 0;
-            }
-
-            if ((data.agent_configured || oauthConfigured) && state.socket && state.socket.connected) {
-                if (!state.processing) {
-                    // Only say ready if the gateway is also up (or we are on bare metal where they are the same)
-                    // If we just got a config success, we should check health soon
-                    if (state.gatewayUp || state.agentConfigured) {
-                        setStatusIndicator("ready");
-                    } else {
-                        setStatusIndicator("gateway-down");
-                    }
-                }
+                setStatusIndicator("ready");
                 closeModal("onboard-modal");
                 state.onboardModalShown = false;
             } else {
@@ -666,60 +657,84 @@ async function fetchStatus() {
 
 // ── Gateway Health Polling ─────────────────────────────────────
 async function checkGatewayHealth() {
-    const wasGatewayUp = state.gatewayUp;
+    // If we're disconnected from WebUI server, skip health check entirely
+    if (!state.socket || !state.socket.connected) {
+        state.gatewayUp = false;
+        state.gatewayKnown = true;
+        if (!state.processing) setStatusIndicator("disconnected");
+        return;
+    }
+
     let reachable = false;
+    let providerReady = true;
 
     try {
         const res = await authFetch("/api/gateway-health?_t=" + Date.now());
         const data = await res.json();
         reachable = data.reachable === true;
-        state.gatewayProviderReady = data.provider_ready !== false;
+        providerReady = data.provider_ready !== false;
     } catch(e) {
         reachable = false;
-        state.gatewayProviderReady = true;
+        providerReady = true;
     }
 
-    // Important: if we're disconnected from WebUI server, that takes priority
-    if (!state.socket || !state.socket.connected) {
-        state.gatewayUp = false; // assumed down if we can't even talk to our backend
-        state.gatewayUnreachableCount = 2;
-        if (!state.processing) setStatusIndicator("disconnected");
-        return;
-    }
+    // Mark that we have received at least one health check response
+    state.gatewayKnown = true;
+    state.gatewayProviderReady = providerReady;
 
     if (reachable) {
-        state.gatewayUnreachableCount = 0;
         state.gatewayUp = true;
+        state.gatewayUnreachableCount = 0;
     } else {
-        // Se l'agente è configurato, aumentiamo la tolleranza (10 errori)
+        // Increment failure counter, but with high tolerance for configured agents
         const maxFailures = state.agentConfigured ? 10 : 3;
         state.gatewayUnreachableCount = Math.min(maxFailures, state.gatewayUnreachableCount + 1);
+
+        // Only mark gateway as down after exceeding the threshold
         if (state.gatewayUnreachableCount >= maxFailures) {
             state.gatewayUp = false;
         }
     }
 
+    // Update UI based on determined state (only when not processing user requests)
     if (!state.processing) {
-        if (!state.gatewayUp) {
-            // Mostra "Gateway Down" solo dopo aver raggiunto la nuova soglia
-            const maxFailures = state.agentConfigured ? 10 : 3;
-            if (state.gatewayUnreachableCount >= maxFailures) {
-                setStatusIndicator("gateway-down");
-            }
-        } else {
-            // Gateway is up — check if provider is ready
-            if (state.gatewayProviderReady === false) {
-                setStatusIndicator("model-offline");
-            } else if (statusText.textContent === "Gateway Down" || statusText.textContent === "Model Offline") {
-                // Restoration check
-                fetchStatus();
-            } else if (statusText.textContent === "Shiba ready") {
-                // stable
-            } else if (statusText.textContent !== "Working...") {
-                fetchStatus();
-            }
-        }
+        updateUIFromHealthState();
     }
+}
+
+/**
+ * Updates the UI status indicator based on the current health and configuration state.
+ * Must be called when not processing a user request.
+ */
+function updateUIFromHealthState() {
+    // WebUI server disconnected — top priority
+    if (!state.socket || !state.socket.connected) {
+        setStatusIndicator("disconnected");
+        return;
+    }
+
+    // Health not yet confirmed — wait for first health check
+    if (!state.gatewayKnown) {
+        return;
+    }
+
+    // Gateway confirmed reachable
+    if (state.gatewayUp) {
+        if (!state.gatewayProviderReady) {
+            setStatusIndicator("model-offline");
+        } else {
+            setStatusIndicator("ready");
+        }
+        return;
+    }
+
+    // Gateway confirmed down (after threshold reached)
+    if (state.gatewayUnreachableCount >= (state.agentConfigured ? 10 : 3)) {
+        setStatusIndicator("gateway-down");
+        return;
+    }
+
+    // Transient unreachable — do nothing, keep previous state
 }
 
 function setStatusIndicator(mode) {
@@ -761,14 +776,8 @@ function setWorkingState(working) {
     if (working) {
         setStatusIndicator("working");
     } else {
-        // Restore based on actual state
-        if (!state.socket || !state.socket.connected) {
-            setStatusIndicator("disconnected");
-        } else if (!state.gatewayUp && !state.agentConfigured) {
-            setStatusIndicator("gateway-down");
-        } else {
-            setStatusIndicator("ready");
-        }
+        // Restore based on actual health state
+        updateUIFromHealthState();
     }
 }
 
@@ -2009,7 +2018,83 @@ function populateSettings(cfg) {
             </div>`;
         detail.appendChild(card);
     }
+
+    const mcpServers = cfg.tools?.mcp_servers || {};
+    const mcpList = $("mcp-servers-list");
+    mcpList.innerHTML = "";
+    for (const [name, sc] of Object.entries(mcpServers)) {
+        mcpList.appendChild(buildMcpServerCard(name, sc));
+    }
 }
+
+function buildMcpServerCard(name, sc) {
+    const card = document.createElement("div");
+    card.className = "accordion mcp-server-card";
+    const escName = name.replace(/"/g, "&quot;");
+    card.innerHTML = `
+        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+            <div class="accordion-title">
+                <span class="material-icons-round" style="font-size:18px">hub</span>
+                <span class="mcp-server-title">${escName}</span>
+            </div>
+            <div class="accordion-right">
+                <button type="button" class="btn-icon" onclick="event.stopPropagation();removeMcpServer(this)" title="Remove">
+                    <span class="material-icons-round" style="font-size:16px;color:var(--accent-red)">delete</span>
+                </button>
+                <span class="material-icons-round accordion-arrow">expand_more</span>
+            </div>
+        </div>
+        <div class="accordion-body">
+            <div class="field-row"><label>Server Name</label><input type="text" class="form-input mcp-name" value="${escName}" placeholder="my-server"></div>
+            <div class="field-row"><label>Type</label>
+                <select class="form-input mcp-type">
+                    <option value="" ${!sc.type ? "selected" : ""}>Auto-detect</option>
+                    <option value="stdio" ${sc.type === "stdio" ? "selected" : ""}>stdio</option>
+                    <option value="sse" ${sc.type === "sse" ? "selected" : ""}>sse</option>
+                    <option value="streamableHttp" ${sc.type === "streamableHttp" ? "selected" : ""}>streamableHttp</option>
+                </select>
+            </div>
+            <div class="field-row"><label>Command</label><input type="text" class="form-input mcp-command" value="${(sc.command || "").replace(/"/g, "&quot;")}" placeholder="npx, node, python..."></div>
+            <div class="field-row"><label>Args</label><input type="text" class="form-input mcp-args" value="${(sc.args || []).join(", ")}" placeholder="arg1, arg2, ..."></div>
+            <div class="field-row"><label>URL</label><input type="text" class="form-input mcp-url" value="${(sc.url || "").replace(/"/g, "&quot;")}" placeholder="http://localhost:3000/sse"></div>
+            <div class="field-row"><label>Headers (JSON)</label><input type="text" class="form-input mcp-headers" value="${Object.keys(sc.headers || {}).length ? JSON.stringify(sc.headers).replace(/"/g, "&quot;") : ""}" placeholder='{"Authorization": "Bearer ..."}'></div>
+            <div class="field-row"><label>Env Vars (JSON)</label><input type="text" class="form-input mcp-env" value="${Object.keys(sc.env || {}).length ? JSON.stringify(sc.env).replace(/"/g, "&quot;") : ""}" placeholder='{"API_KEY": "..."}'></div>
+            <div class="field-row"><label>Tool Timeout (s)</label><input type="number" class="form-input mcp-timeout" value="${sc.tool_timeout ?? 30}"></div>
+            <div class="field-row"><label>Enabled Tools</label><input type="text" class="form-input mcp-tools" value="${(sc.enabled_tools || ["*"]).join(", ")}" placeholder="*, tool_name, ..."></div>
+        </div>`;
+    return card;
+}
+
+function collectMcpServers() {
+    const result = {};
+    document.querySelectorAll(".mcp-server-card").forEach(card => {
+        const name = card.querySelector(".mcp-name").value.trim();
+        if (!name) return;
+        const parseJson = val => { try { return JSON.parse(val || "{}"); } catch { return {}; } };
+        result[name] = {
+            type: card.querySelector(".mcp-type").value || null,
+            command: card.querySelector(".mcp-command").value,
+            args: card.querySelector(".mcp-args").value ? card.querySelector(".mcp-args").value.split(",").map(s => s.trim()).filter(Boolean) : [],
+            url: card.querySelector(".mcp-url").value,
+            headers: parseJson(card.querySelector(".mcp-headers").value),
+            env: parseJson(card.querySelector(".mcp-env").value),
+            tool_timeout: parseInt(card.querySelector(".mcp-timeout").value) || 30,
+            enabled_tools: card.querySelector(".mcp-tools").value ? card.querySelector(".mcp-tools").value.split(",").map(s => s.trim()).filter(Boolean) : ["*"],
+        };
+    });
+    return result;
+}
+
+window.addMcpServer = function() {
+    const card = buildMcpServerCard("", { args: [], enabled_tools: ["*"], tool_timeout: 30 });
+    card.classList.add("open");
+    $("mcp-servers-list").appendChild(card);
+    card.querySelector(".mcp-name").focus();
+};
+
+window.removeMcpServer = function(btn) {
+    btn.closest(".mcp-server-card").remove();
+};
 
 window.saveSettings = async function() {
     // Rebuild the config from form fields
@@ -2039,6 +2124,7 @@ window.saveSettings = async function() {
                 timeout: parseInt($("s-tool-execTimeout").value),
             },
             restrictToWorkspace: $("s-tool-restrict").checked,
+            mcp_servers: collectMcpServers(),
         },
         gateway: {
             host: $("s-gw-host").value,

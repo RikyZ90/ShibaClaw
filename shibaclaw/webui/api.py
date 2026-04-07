@@ -20,6 +20,35 @@ from loguru import logger
 from .auth import get_auth_token, _auth_enabled
 from .agent_manager import agent_manager
 
+
+# ── Gateway host resolution ──────────────────────────────────
+_LOCAL_HOSTS = frozenset(("0.0.0.0", "::", "", "127.0.0.1", "localhost"))
+
+def _resolve_gateway_hosts() -> tuple[list[str], int]:
+    """Return (hosts, port) for reaching the gateway health server.
+
+    Covers bare-metal (127.0.0.1) and Docker (container hostname) transparently.
+    Custom hosts set explicitly are always tried first.
+    """
+    if not agent_manager.config:
+        return [], 0
+    gw = agent_manager.config.gateway
+    port = gw.port
+    env_host = os.environ.get("SHIBACLAW_GATEWAY_HOST", "").strip()
+    docker_host = env_host or "shibaclaw-gateway"
+
+    if gw.host in _LOCAL_HOSTS:
+        hosts = ["127.0.0.1"]
+        if docker_host != "127.0.0.1":
+            hosts.append(docker_host)
+    else:
+        hosts = [gw.host]
+        # If the user also set an explicit env override, try it as fallback
+        if env_host and env_host != gw.host:
+            hosts.append(env_host)
+    return hosts, port
+
+
 # ── Helpers ──────────────────────────────────────────────────
 def _deep_merge(base: dict, patch: dict):
     """Deep merge a dictionary patch onto base."""
@@ -392,26 +421,19 @@ async def api_context_get(request: Request):
 
 async def api_gateway_health(request: Request):
     """Proxy health check to the gateway."""
-    if not agent_manager.config:
+    hosts, port = _resolve_gateway_hosts()
+    if not hosts:
         return JSONResponse({"reachable": False, "reason": "no_config"})
-
-    gw = agent_manager.config.gateway
-    port = gw.port
-    gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-    if gw.host in ("0.0.0.0", "::", ""):
-        hosts = ["127.0.0.1", gateway_hostname]
-    else:
-        hosts = [gw.host]
 
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=10.0
+                asyncio.open_connection(host, port), timeout=3.0
             )
             try:
                 writer.write(b"GET /health HTTP/1.0\r\nHost: health\r\n\r\n")
                 await writer.drain()
-                data = await asyncio.wait_for(reader.read(1024), timeout=5.0)
+                data = await asyncio.wait_for(reader.read(1024), timeout=2.0)
             finally:
                 writer.close()
                 await writer.wait_closed()
@@ -493,15 +515,9 @@ async def api_cron_trigger(request: Request):
 
 async def _gateway_request(method: str, path: str) -> dict | None:
     """Send a raw HTTP request to the gateway and return parsed JSON or None."""
-    if not agent_manager.config:
+    hosts, port = _resolve_gateway_hosts()
+    if not hosts:
         return None
-    gw = agent_manager.config.gateway
-    port = gw.port
-    gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-    if gw.host in ("0.0.0.0", "::", ""):
-        hosts = ["127.0.0.1", gateway_hostname]
-    else:
-        hosts = [gw.host]
 
     auth_token = get_auth_token()
     auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
@@ -529,7 +545,8 @@ async def api_heartbeat_status(request: Request):
     """Proxy heartbeat status from the gateway."""
     result = await _gateway_request("GET", "/heartbeat/status")
     if result is None:
-        return JSONResponse({"reachable": False})
+        logger.warning("heartbeat_status: gateway request failed, marking as unreachable")
+        return JSONResponse({"reachable": False, "reason": "gateway_unreachable"})
     return JSONResponse({"reachable": True, **result})
 
 
@@ -586,16 +603,9 @@ async def api_restart_server(request: Request):
 
 async def api_gateway_restart(request: Request):
     """Proxy restart command to the gateway."""
-    if not agent_manager.config:
+    hosts, port = _resolve_gateway_hosts()
+    if not hosts:
         return JSONResponse({"error": "No config"}, status_code=400)
-
-    gw = agent_manager.config.gateway
-    port = gw.port
-    gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
-    if gw.host in ("0.0.0.0", "::", ""):
-        hosts = ["127.0.0.1", gateway_hostname]
-    else:
-        hosts = [gw.host]
 
     auth_token = get_auth_token()
     for host in hosts:

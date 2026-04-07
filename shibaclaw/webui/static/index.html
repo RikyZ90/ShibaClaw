@@ -272,6 +272,9 @@
                 <button class="settings-tab" data-tab="tools" onclick="switchSettingsTab('tools')">
                     <span class="material-icons-round">build</span> Tools
                 </button>
+                <button class="settings-tab" data-tab="mcp" onclick="switchSettingsTab('mcp')">
+                    <span class="material-icons-round">hub</span> MCP
+                </button>
                 <button class="settings-tab" data-tab="gateway" onclick="switchSettingsTab('gateway')">
                     <span class="material-icons-round">dns</span> Gateway
                 </button>
@@ -326,6 +329,16 @@
                     <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label></div>
                     <div class="field-row"><label>Exec Timeout (s)</label><input type="number" id="s-tool-execTimeout" class="form-input" value="60"></div>
                     <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label></div>
+                </div>
+
+                <!-- Tab: MCP Servers -->
+                <div class="settings-panel" id="panel-mcp" style="display:none">
+                    <div id="mcp-servers-list"></div>
+                    <div style="padding:0.5rem 0">
+                        <button type="button" class="btn-secondary" onclick="addMcpServer()">
+                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle">add</span> Add MCP Server
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Tab: Gateway -->
