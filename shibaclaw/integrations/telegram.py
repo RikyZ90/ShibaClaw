@@ -11,8 +11,6 @@ from typing import Any, Literal
 
 from loguru import logger
 
-# Suppress noisy CancelledError tracebacks from python-telegram-bot during shutdown.
-# The library logs the full traceback even though the exception is suppressed internally.
 _PTB_LOGGERS = (
     "telegram._bot",
     "telegram._update",
