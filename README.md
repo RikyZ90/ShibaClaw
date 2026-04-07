@@ -142,11 +142,11 @@ Ready to hunt? Choose your path:
 ### 🐋 Docker (Recommended)
 ```bash
 # Optional: define a fixed WebUI token before startup
-# .env
+# .env and add SHIBACLAW_AUTH_TOKEN in your docker-compose
 # SHIBACLAW_AUTH_TOKEN=your-secret-token
 
 docker compose up -d --build                             # gateway + webUI
-docker exec -it shibaclaw-gateway shibaclaw onboard      # first-time setup
+docker exec -it shibaclaw-gateway shibaclaw onboard      # first-time setup or login via WebUI
 ```
 
 > 🔒 **Security Note**: By default, the app is bound to `localhost` (via `127.0.0.1:3000:3000`).
@@ -167,7 +167,7 @@ shibaclaw web --port 3000        # start the WebUI (agent runs in-process)
 
 > �🔒 **Security Note**: By default, the app binds to `localhost`.
 > - **Remote Access (Recommended)**: Use an SSH tunnel (e.g., `ssh -L 3000:127.0.0.1:3000 user@host`).
-> - **Direct LAN Access**: Run `shibaclaw web --host 0.0.0.0`.
+> - **Direct LAN Access**: Run `shibaclaw web --host 0.0.0.0 --port 3000`.
 
 Optional fixed token:
 
