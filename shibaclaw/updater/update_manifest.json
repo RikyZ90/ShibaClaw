@@ -1,6 +1,6 @@
 {
   "version": "0.0.14",
-  "release_notes": "Gateway health check fix for bare metal setups.\n- Fixed false 'Gateway Down' status in WebUI when running pip install setups.\n- Health check now correctly uses the configured gateway.host value instead of defaulting to the Docker-only hostname.",
+  "release_notes": "Gateway health check fix for bare metal setups.\n- Fixed false 'Gateway Down' status in WebUI when running pip install setups.\n- Health check now correctly uses the configured gateway.host value instead of defaulting to the Docker-only hostname.\n-Added MCP settings in a settings tab\n-Telegram proxy saved as `{}` instead of `null`",
   "upgrade_notes": "No configuration changes required. Restart the WebUI and gateway after upgrading.",
   "changes": [
     "shibaclaw/webui/api.py",
