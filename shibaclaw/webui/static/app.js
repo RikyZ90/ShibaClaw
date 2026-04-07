@@ -2176,7 +2176,7 @@ function autoResizeInput() {
 function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str;
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, """).replace(/'/g, "&#39;");
 }
 
 function truncate(str, maxLen) {
