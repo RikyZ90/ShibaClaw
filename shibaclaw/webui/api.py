@@ -24,8 +24,15 @@ from .agent_manager import agent_manager
 def _deep_merge(base: dict, patch: dict):
     """Deep merge a dictionary patch onto base."""
     for k, v in patch.items():
-        if isinstance(v, dict) and isinstance(base.get(k), dict):
-            _deep_merge(base[k], v)
+        if v is None:
+            base[k] = None
+        elif isinstance(v, dict):
+            if isinstance(base.get(k), dict):
+                _deep_merge(base[k], v)
+            elif not v:
+                base[k] = None
+            else:
+                base[k] = v
         elif isinstance(v, str) and isinstance(base.get(k), str):
             if v == _redact_one(base.get(k)):
                 continue
