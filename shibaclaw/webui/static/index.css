@@ -960,28 +960,6 @@ html, body {
     word-break: break-word;
 }
 
-.process-tooltip {
-    position: fixed;
-    left: 0;
-    top: 0;
-    max-width: min(420px, calc(100vw - 24px));
-    max-height: min(320px, calc(100vh - 24px));
-    padding: 10px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    box-shadow: var(--shadow-md);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-y: auto;
-    pointer-events: none;
-    z-index: 1000;
-}
-
 /* Step detail (terminal output, expandable) */
 .pg-step-detail {
     width: 100%;
