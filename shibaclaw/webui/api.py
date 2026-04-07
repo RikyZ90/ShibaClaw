@@ -420,7 +420,7 @@ async def api_context_get(request: Request):
 
 
 async def api_gateway_health(request: Request):
-    """Proxy health check to the gateway."""
+    """Proxy health check to the gateway, fall back to 'ready' if in standalone mode."""
     hosts, port = _resolve_gateway_hosts()
     if not hosts:
         return JSONResponse({"reachable": False, "reason": "no_config"})
@@ -448,6 +448,17 @@ async def api_gateway_health(request: Request):
                 return JSONResponse({"reachable": True})
         except Exception:
             continue
+
+    # Standalone mode fallback: if we are running as 'shibaclaw web' and have an agent,
+    # the system is "reachable" even if there's no separate gateway process.
+    if agent_manager.agent:
+        return JSONResponse({
+            "reachable": True,
+            "status": "ok" if agent_manager.provider else "idle",
+            "standalone": True,
+            "provider_ready": agent_manager.provider is not None
+        })
+
     return JSONResponse({"reachable": False, "reason": "unreachable"})
 
 
@@ -542,20 +553,27 @@ async def _gateway_request(method: str, path: str) -> dict | None:
 
 
 async def api_heartbeat_status(request: Request):
-    """Proxy heartbeat status from the gateway."""
+    """Proxy heartbeat status from the gateway, fall back to local service."""
     result = await _gateway_request("GET", "/heartbeat/status")
-    if result is None:
-        logger.warning("heartbeat_status: gateway request failed, marking as unreachable")
-        return JSONResponse({"reachable": False, "reason": "gateway_unreachable"})
-    return JSONResponse({"reachable": True, **result})
+    if result is not None:
+        return JSONResponse({"reachable": True, **result})
+    if agent_manager.heartbeat:
+        return JSONResponse({"reachable": True, **agent_manager.heartbeat.status()})
+    return JSONResponse({"reachable": False, "reason": "gateway_unreachable"})
 
 
 async def api_heartbeat_trigger(request: Request):
-    """Proxy heartbeat trigger to the gateway."""
+    """Proxy heartbeat trigger to the gateway, fall back to local service."""
     result = await _gateway_request("POST", "/heartbeat/trigger")
-    if result is None:
-        return JSONResponse({"error": "Gateway unreachable"}, status_code=503)
-    return JSONResponse(result)
+    if result is not None:
+        return JSONResponse(result)
+    if agent_manager.heartbeat:
+        try:
+            resp = await agent_manager.heartbeat.trigger_now()
+            return JSONResponse({"triggered": True, "response": resp})
+        except Exception as e:
+            return JSONResponse({"triggered": False, "error": str(e)})
+    return JSONResponse({"error": "Gateway unreachable"}, status_code=503)
 
 
 async def api_update_check(request: Request):
