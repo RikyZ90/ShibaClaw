@@ -4,7 +4,7 @@
 
 # Smart. Loyal. Powerful. 🐕
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.14-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.15-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -21,8 +21,9 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.14** is out! Security hardening and stability fixes
+> **v0.0.15** is out! Standalone mode stability and health check fixes
 
+- **2026-04-07** 🐕 **Standalone Mode Reliability** — Fixed false "Gateway Down" in bare-metal standalone mode (`shibaclaw web`). The health check and heartbeat services now correctly fall back to the local agent instance when a separate gateway process is not present.
 - **2026-04-06** 🛡️ **Security Hardening** — Socket.IO auth bypass fixed, auth token leakage in URLs prevented, SSRF mitigation in update manifest validation, constant-time token comparison, race condition in task callback resolved, severity comparison logic corrected.
 - **2026-04-05** 🚀 **Guided Onboarding Everywhere** — `shibaclaw onboard` now drives a single guided setup flow across CLI and WebUI: provider detection, OAuth handoff, model selection, template refresh, and optional channel setup.
 - **2026-04-05** 🧠 **Smarter Persistent Memory** — Durable personal data now lives in `USER.md`, operational context lives in `memory/MEMORY.md`, and the new `memory_search` tool ranks `HISTORY.md` entries by recency, importance, and relevance.
@@ -162,7 +163,9 @@ shibaclaw onboard                # first-time setup
 shibaclaw web --port 3000        # start the WebUI (agent runs in-process)
 ```
 
-> 🔒 **Security Note**: By default, the app binds to `localhost`.
+> � **Standalone Mode**: In bare-metal mode, `shibaclaw web` runs the agent brain internally. You don't need to run a separate `shibaclaw gateway` unless you want to bridge other channels (Telegram, Discord, etc.) while the WebUI is down.
+
+> �🔒 **Security Note**: By default, the app binds to `localhost`.
 > - **Remote Access (Recommended)**: Use an SSH tunnel (e.g., `ssh -L 3000:127.0.0.1:3000 user@host`).
 > - **Direct LAN Access**: Run `shibaclaw web --host 0.0.0.0`.
 
