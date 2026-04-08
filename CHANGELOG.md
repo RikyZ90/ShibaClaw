@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.16] - 2026-04-08
+
+### Changed
+- **WebUI & API**
+    - All `/api/file-get` APIs are now public and no longer require the authentication token in the query string. Attachment handling in WebUI and Socket.IO updated to remove the token from URLs.
+    - Improved message ID handling in WebUI responses: `message_id` is now propagated if present in metadata.
+    - Thread-safe settings synchronization in WebUI (`api_settings_post` now uses an asyncio lock).
+    - Refactored restart functions (`_safe_argv`) to accept only flags and known subcommands, both in agent loop and WebUI.
+
+### Fixed
+- **Authentication**
+    - Hardened: token comparison now only on Authorization header, no longer on query parameters.
+    - `/api/file-get` added to `PUBLIC_PATHS` to avoid authentication errors on attachment downloads.
+- **WebUI**
+    - Fixed MCP settings display and save: the field is always `mcpServers` (camelCase) and a note is shown if only the example server is present.
+    - Fixed attachment handling in WebUI and Socket.IO responses (token removed from URLs).
+- **Config**
+    - Automatic migration: MCP servers are now populated with all default fields if missing, and an example is added if the section is empty.
+    - Onboarding plugins/channels is executed both on new creation and on loading existing config.
+- **Agent loop**
+    - Fixed regex for multiline media parsing in responses.
+    - Corrected the position of the `MessageTool._sent_in_turn` check to avoid duplicate responses.
+
+### Added
+- **WebUI**
+    - Asyncio lock for settings update.
+    - Shared `_safe_argv` function between agent loop and WebUI for safe restart.
+    - UI note for example MCP server.
+    - Propagation of `message_id` in agent → WebUI responses.
+
 ## [0.0.15] - 2026-04-07
 
 ### Added

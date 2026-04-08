@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Optional, Dict, List
 
 from loguru import logger
-from .auth import get_auth_token
 
 class AgentManager:
     """Manages the ShibaBrain agent instance, configuration, and background consumers."""
@@ -231,15 +230,12 @@ class AgentManager:
         if not self.bus or not self._sio:
             return
 
-        auth_token = get_auth_token() or ""
-
         while True:
             try:
                 msg = await asyncio.wait_for(self.bus.consume_outbound(), timeout=1.0)
                 logger.debug("🚌 Consumed outbound: target={}:{}", msg.channel, msg.chat_id)
                 
                 if msg.channel == "webui" and msg.chat_id in self._sessions:
-                    # Only handle non-progress system broadcasts
                     if not msg.metadata or not msg.metadata.get("_progress"):
                         logger.info("📢 Delivering outbound message to WebUI sid: {}", msg.chat_id)
                         
@@ -249,12 +245,12 @@ class AgentManager:
                             results = mimetypes.guess_type(m_path)
                             attachments.append({
                                 "name": p.name,
-                                "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}&token={auth_token}",
+                                "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
                                 "type": results[0] or "application/octet-stream"
                             })
                         
                         agent_resp = {
-                            "id": str(uuid.uuid4())[:8],
+                            "id": msg.metadata.get("message_id", str(uuid.uuid4())[:8]),
                             "content": msg.content or "Task completed.",
                             "attachments": attachments
                         }

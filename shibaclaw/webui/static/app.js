@@ -2019,9 +2019,16 @@ function populateSettings(cfg) {
         detail.appendChild(card);
     }
 
-    const mcpServers = cfg.tools?.mcp_servers || {};
+    const mcpServers = cfg.tools?.mcpServers || {};
     const mcpList = $("mcp-servers-list");
     mcpList.innerHTML = "";
+    // Nota se c'è solo il server di esempio
+    if (Object.keys(mcpServers).length === 1 && Object.keys(mcpServers)[0] === "mcp") {
+        const note = document.createElement("div");
+        note.className = "settings-note";
+        note.innerHTML = "<b>Nota:</b> Questo è un esempio di server MCP. Modifica direttamente questo blocco per configurare il tuo server personalizzato.";
+        mcpList.appendChild(note);
+    }
     for (const [name, sc] of Object.entries(mcpServers)) {
         mcpList.appendChild(buildMcpServerCard(name, sc));
     }
@@ -2124,7 +2131,7 @@ window.saveSettings = async function() {
                 timeout: parseInt($("s-tool-execTimeout").value),
             },
             restrictToWorkspace: $("s-tool-restrict").checked,
-            mcp_servers: collectMcpServers(),
+            mcpServers: collectMcpServers(),
         },
         gateway: {
             host: $("s-gw-host").value,

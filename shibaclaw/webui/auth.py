@@ -57,15 +57,10 @@ def check_token(request: Request) -> bool:
         return True
     auth_header = request.headers.get("authorization", "")
     token_candidate = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-    if hmac.compare_digest(token_candidate, _AUTH_TOKEN) and token_candidate:
-        return True
-    token_param = request.query_params.get("token", "")
-    if hmac.compare_digest(token_param, _AUTH_TOKEN) and token_param:
-        return True
-    return False
+    return hmac.compare_digest(token_candidate, _AUTH_TOKEN) and token_candidate
 
 
-PUBLIC_PATHS = ("/static/", "/api/auth/")
+PUBLIC_PATHS = ("/static/", "/api/auth/", "/api/file-get")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
