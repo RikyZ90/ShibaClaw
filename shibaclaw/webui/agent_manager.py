@@ -75,6 +75,7 @@ class AgentManager:
 
         return {"delivered": delivered > 0, "matched_sessions": delivered}
 
+
     def load_latest_config(self):
         """Load the latest config from disk."""
         from shibaclaw.config.loader import load_config
@@ -123,6 +124,12 @@ class AgentManager:
                 )
                 if not result["delivered"]:
                     logger.info("Cron: no active WebUI client matched session {}", target.session_key)
+                # Also send a system_event toast so the user knows the cron fired
+                await self._broadcast_system_event(
+                    f"⏱️ Scheduled task '{job.name}' completed.",
+                    title="Cron",
+                    session_key=target.session_key,
+                )
             elif target.channel != "cli" and self.bus:
                 await self.bus.publish_outbound(
                     OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
@@ -210,15 +217,11 @@ class AgentManager:
                     )
                     return out.content if out else ""
 
-                async def _hb_notify(response: str) -> None:
-                    pass
-
                 self.heartbeat = HeartbeatService(
                     workspace=self.config.workspace_path,
                     provider=self.provider,
                     model=self.agent.model,
                     on_execute=_hb_execute,
-                    on_notify=_hb_notify,
                     interval_s=hb_cfg.interval_s,
                     enabled=True,
                 )

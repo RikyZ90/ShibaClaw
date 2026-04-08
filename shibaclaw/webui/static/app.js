@@ -109,9 +109,7 @@ function initSocket() {
 
     socket.on("connect", () => {
         state.socket.connected = true;
-        console.log("WebSocket connected.");
         fetchStatus();
-        hideThinking();
     });
 
     socket.on("disconnect", () => {
@@ -134,31 +132,23 @@ function initSocket() {
     });
 
     socket.on("connected", (data) => {
-        // On auto-reconnect, the server reassigns based on the original query param
-        // (set when io() was called). If the user has since switched sessions we must
-        // NOT override their current selection — just resync the server key instead.
         if (state._initialConnectDone) {
-            // Reconnect: tell the server to use whatever session the client is on now.
             if (state.sessionId && state.sessionId !== data.session_id) {
-                console.debug("[SHIBA] reconnect — resyncing server to client session:", state.sessionId);
                 socket.emit("switch_session", { session_id: state.sessionId });
             }
             return;
         }
         state._initialConnectDone = true;
-
         state.sessionId = data.session_id;
         sessionIdEl.textContent = data.session_id;
         localStorage.setItem("shiba_session_id", data.session_id);
-        
-        // If we rejoined an existing session, fetch history
         if (data.session_id) {
-            console.debug("[SHIBA] connected event → loadSession:", data.session_id);
             loadSession(data.session_id);
         }
     });
 
     socket.on("agent_thinking", (data) => {
+        if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         showThinking(data.content);
@@ -166,6 +156,7 @@ function initSocket() {
     });
 
     socket.on("agent_tool", (data) => {
+        if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         showThinking(data.content);
@@ -173,13 +164,12 @@ function initSocket() {
     });
 
     socket.on("agent_response", (data) => {
-        console.debug("[SHIBA] agent_response:", data.id, "processGroups:", Object.keys(state.processGroups));
+        if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         hideThinking();
         collapseProcessGroup(data.id);
         addAgentMessage(data.id, data.content, data.attachments || []);
-        // decrement queued counter if any
         if (state.queueCount && state.queueCount > 0) state.queueCount = Math.max(0, state.queueCount - 1);
         updateQueueIndicator();
         state.processing = false;
@@ -188,10 +178,10 @@ function initSocket() {
         autoTitleSession();
         loadHistory();
         refreshTokenBadge();
-        console.debug("[SHIBA] after agent_response, process groups in DOM:", chatHistory.querySelectorAll(".process-group").length);
     });
 
     socket.on("error", (data) => {
+        if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         hideThinking();
@@ -202,20 +192,18 @@ function initSocket() {
     });
 
     socket.on("message_queued", (data) => {
-        // Server tells us the position in queue
         state.queueCount = data.position || (state.queueCount + 1);
         updateQueueIndicator();
     });
 
     socket.on("message_ack", (data) => {
-        // Agent started processing — set working state
+        if (data.session_key && data.session_key !== state.sessionId) return;
         setWorkingState(true);
         clearTimeout(state._typingBubbleTimeout);
         state._typingBubbleTimeout = setTimeout(() => showTypingBubble(), 150);
     });
 
     socket.on("session_reset", (data) => {
-        // Clear all process group timers to prevent memory leak
         Object.values(state.processGroups).forEach(pg => {
             if (pg && pg.timer) clearInterval(pg.timer);
         });
@@ -232,7 +220,39 @@ function initSocket() {
         hideThinking();
         refreshTokenBadge();
     });
+
+
+
+    socket.on("session_status", (data) => {
+        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.processing) {
+            state.processing = true;
+            setWorkingState(true);
+            
+            if (data.msg_id && state.processGroups[data.msg_id]) {
+                const pg = state.processGroups[data.msg_id];
+                if (pg.timer) clearInterval(pg.timer);
+                if (pg.el) pg.el.remove();
+                delete state.processGroups[data.msg_id];
+            }
+            
+            const events = data.events || [];
+            for (const evt of events) {
+                if (evt.type === "agent_thinking") {
+                    showThinking(evt.content);
+                    addProcessStep(evt.id, evt.content, "GEN");
+                } else if (evt.type === "agent_tool") {
+                    showThinking(evt.content);
+                    addProcessStep(evt.id, evt.content, "EXE");
+                }
+            }
+            if (events.length > 0) {
+                showThinking(events[events.length - 1].content);
+            }
+        }
+    });
 }
+
 
 function updateQueueIndicator() {
     const existing = document.getElementById('queue-indicator');
@@ -264,7 +284,6 @@ function addUserMessage(content, attachments = []) {
         enhanceCodeBlocks(bubble);
     }
     
-    // Add attachments to UI
     attachments.forEach(file => {
         if (file.type.startsWith("image/")) {
             const img = document.createElement("img");
@@ -297,11 +316,9 @@ function addAgentMessage(id, content, attachments = []) {
     const bubble = document.createElement("div");
     bubble.className = "message-bubble";
 
-    // Render markdown
     bubble.innerHTML = renderMarkdown(content);
     enhanceCodeBlocks(bubble);
 
-    // Add attachments to UI
     attachments.forEach(file => {
         if (file.type && file.type.startsWith("image/")) {
             const img = document.createElement("img");
@@ -333,7 +350,6 @@ function addProcessStep(msgId, content, badge) {
 
     let pg = state.processGroups[msgId];
     if (!pg) {
-        // Create process group container
         const container = document.createElement("div");
         container.id = `pg-${msgId}`;
         container.className = "process-group expanded";
@@ -379,17 +395,14 @@ function addProcessStep(msgId, content, badge) {
     if (badge === "GEN") pg.genCount++;
     else if (badge === "EXE") pg.exeCount++;
 
-    // Update the main badge to the latest step type
     const badgeEl = pg.headerEl.querySelector(".step-badge");
     badgeEl.className = `step-badge ${badge}`;
     badgeEl.textContent = badge;
 
-    // Update title with latest step text
     const title = pg.headerEl.querySelector(".pg-title");
     title.textContent = truncate(content, 60);
     title.classList.add("shiny-text");
 
-    // Add the step row
     const step = document.createElement("div");
     step.className = "pg-step";
     step.innerHTML = `
@@ -416,23 +429,18 @@ function collapseProcessGroup(msgId) {
     if (!pg) return;
     clearInterval(pg.timer);
 
-    // Finalize time
     updateProcessGroupTime(msgId);
 
-    // Remove shiny animation from title
     const title = pg.headerEl.querySelector(".pg-title");
     title.classList.remove("shiny-text");
 
-    // Mark as completed — collapse
     pg.el.classList.remove("expanded");
     pg.el.classList.add("completed");
 
-    // Update badge to END
     const badgeEl = pg.headerEl.querySelector(".step-badge");
     badgeEl.className = "step-badge END";
     badgeEl.textContent = "END";
 
-    // Add summary (e.g. "1 thinking · 2 tool") to match history style
     const summaryParts = [];
     if (pg.genCount > 0) summaryParts.push(`${pg.genCount} thinking`);
     if (pg.exeCount > 0) summaryParts.push(`${pg.exeCount} tool`);
@@ -455,7 +463,6 @@ function toggleProcessGroup(msgId) {
     pg.el.classList.toggle("expanded");
 }
 
-// Render a static (already-completed) process group from session history
 function renderProcessGroupFromHistory(turnId, steps) {
     const id = `hist-${turnId}`;
     const container = document.createElement("div");
@@ -510,7 +517,6 @@ function createMessageGroup(type) {
     const avatar = document.createElement("div");
     avatar.className = "message-avatar";
     if (type === "user") {
-        // No user avatar icon, only ShibaClaw agent avatar remains.
         avatar.style.display = "none";
     } else {
         const img = document.createElement("img");
@@ -550,7 +556,6 @@ function renderMarkdown(text) {
     
     let content = text;
 
-    // If it's a string, try to see if it's actually stringified JSON (common in history persistence)
     if (typeof content === "string" && content.trim().startsWith("[") && content.trim().endsWith("]")) {
         try {
             const parsed = JSON.parse(content);
@@ -558,7 +563,6 @@ function renderMarkdown(text) {
         } catch (e) { /* not JSON, continue with original string */ }
     }
 
-    // If content is an array of blocks (either originally or after parsing), extract the text
     if (Array.isArray(content)) {
         content = content
             .filter(block => block && block.type === "text")
@@ -566,7 +570,6 @@ function renderMarkdown(text) {
             .join("\n");
     }
 
-    // Cleanup redundant internal technical tags like [image: /path/to/...]
     if (typeof content === "string") {
         content = content.replace(/\[image:\s*[^\]]+\]/gi, "").trim();
     }
@@ -586,11 +589,9 @@ function enhanceCodeBlocks(container) {
         const code = pre.querySelector("code");
         if (!code) return;
 
-        // Detect language
         const langClass = [...code.classList].find((c) => c.startsWith("language-"));
         const lang = langClass ? langClass.replace("language-", "") : "";
 
-        // Highlight if not already done
         if (typeof hljs !== "undefined" && !code.classList.contains("hljs")) {
             if (lang && hljs.getLanguage(lang)) {
                 code.innerHTML = hljs.highlight(code.textContent, { language: lang }).value;
@@ -599,7 +600,6 @@ function enhanceCodeBlocks(container) {
             }
         }
 
-        // Add header with language label and copy button
         if (!pre.querySelector(".code-block-header")) {
             const header = document.createElement("div");
             header.className = "code-block-header";
@@ -617,7 +617,6 @@ async function fetchStatus() {
     try {
         const res = await authFetch("/api/status?_t=" + Date.now());
         let oauthConfigured = false;
-        // Check OAuth providers
         try {
             const oauthRes = await authFetch("/api/oauth/providers?_t=" + Date.now());
             if (oauthRes.ok) {
@@ -629,13 +628,11 @@ async function fetchStatus() {
             const data = await res.json();
             state.agentConfigured = data.agent_configured;
 
-            // Update sidebar version display
             const versionEl = $("sidebar-version");
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;
 
             const isConfigured = data.agent_configured || oauthConfigured;
             if (isConfigured && state.socket && state.socket.connected) {
-                // Assume gateway is working if agent is configured and WebUI is connected
                 state.gatewayUp = true;
                 state.gatewayKnown = true;
                 state.gatewayUnreachableCount = 0;
@@ -657,7 +654,6 @@ async function fetchStatus() {
 
 // ── Gateway Health Polling ─────────────────────────────────────
 async function checkGatewayHealth() {
-    // If we're disconnected from WebUI server, skip health check entirely
     if (!state.socket || !state.socket.connected) {
         state.gatewayUp = false;
         state.gatewayKnown = true;
@@ -678,7 +674,6 @@ async function checkGatewayHealth() {
         providerReady = true;
     }
 
-    // Mark that we have received at least one health check response
     state.gatewayKnown = true;
     state.gatewayProviderReady = providerReady;
 
@@ -686,39 +681,29 @@ async function checkGatewayHealth() {
         state.gatewayUp = true;
         state.gatewayUnreachableCount = 0;
     } else {
-        // Increment failure counter, but with high tolerance for configured agents
         const maxFailures = state.agentConfigured ? 10 : 3;
         state.gatewayUnreachableCount = Math.min(maxFailures, state.gatewayUnreachableCount + 1);
 
-        // Only mark gateway as down after exceeding the threshold
         if (state.gatewayUnreachableCount >= maxFailures) {
             state.gatewayUp = false;
         }
     }
 
-    // Update UI based on determined state (only when not processing user requests)
     if (!state.processing) {
         updateUIFromHealthState();
     }
 }
 
-/**
- * Updates the UI status indicator based on the current health and configuration state.
- * Must be called when not processing a user request.
- */
 function updateUIFromHealthState() {
-    // WebUI server disconnected — top priority
     if (!state.socket || !state.socket.connected) {
         setStatusIndicator("disconnected");
         return;
     }
 
-    // Health not yet confirmed — wait for first health check
     if (!state.gatewayKnown) {
         return;
     }
 
-    // Gateway confirmed reachable
     if (state.gatewayUp) {
         if (!state.gatewayProviderReady) {
             setStatusIndicator("model-offline");
@@ -728,13 +713,10 @@ function updateUIFromHealthState() {
         return;
     }
 
-    // Gateway confirmed down (after threshold reached)
     if (state.gatewayUnreachableCount >= (state.agentConfigured ? 10 : 3)) {
         setStatusIndicator("gateway-down");
         return;
     }
-
-    // Transient unreachable — do nothing, keep previous state
 }
 
 function setStatusIndicator(mode) {
@@ -776,7 +758,6 @@ function setWorkingState(working) {
     if (working) {
         setStatusIndicator("working");
     } else {
-        // Restore based on actual health state
         updateUIFromHealthState();
     }
 }
@@ -795,7 +776,6 @@ window.restartGateway = async function() {
         const data = await res.json();
         if (!res.ok) throw data.error || "Restart failed";
 
-        // Poll until gateway comes back (up to 30s)
         let tries = 0;
         const poll = setInterval(async () => {
             tries++;
@@ -835,7 +815,6 @@ const CHANNEL_META = {
 };
 const RECENT_COUNT = 4;
 
-// Track collapsed state across reloads
 const _channelCollapsed = {};
 
 function _extractChannel(key) {
@@ -882,8 +861,6 @@ function _buildSessionEl(sess) {
         </div>
     `;
 
-    // Bind events programmatically to avoid JS injection via session names/keys
-    // (escapeHtml does not escape quotes, so inline onclick with string literals is unsafe)
     const infoEl = el.querySelector(".session-info");
     infoEl.addEventListener("click", () => selectSession(sess.key, infoEl));
     el.querySelector(".btn-session-menu").addEventListener("click", (e) => toggleSessionMenu(e, e.currentTarget, sess.key));
@@ -940,7 +917,6 @@ async function loadHistory() {
     }
 }
 
-/* ── Automation: Cron & Heartbeat ───────────────────────────── */
 
 const _autoCollapsed = JSON.parse(localStorage.getItem("autoCollapsed") || "{}");
 
@@ -1110,7 +1086,6 @@ window.toggleSessionMenu = function(event, btn, key) {
     const dropdown = document.querySelector(`.session-dropdown[data-session-key="${safeKey}"]`);
     const isActive = dropdown && dropdown.classList.contains("active");
     
-    // Close all other dropdowns
     document.querySelectorAll(".session-dropdown").forEach(d => d.classList.remove("active"));
     document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
     
@@ -1135,7 +1110,6 @@ async function renameSession(key, nickname) {
             body: JSON.stringify({ nickname })
         });
         if (res.ok) {
-            // Update the header immediately if we renamed the active session
             if (key === state.sessionId) {
                 sessionIdEl.textContent = nickname || key;
             }
@@ -1144,7 +1118,6 @@ async function renameSession(key, nickname) {
     } catch(e) { console.error("Rename error:", e); }
 }
 
-// ── Auto-title: generate nickname from first user message ─────
 async function autoTitleSession() {
     if (!state.sessionId) return;
     const firstUser = chatHistory.querySelector(".message-group.user .message-bubble");
@@ -1169,7 +1142,6 @@ async function autoTitleSession() {
     renameSession(state.sessionId, title);
 }
 
-// ── Custom dialog logic ──────────────────────────────────────
 async function shibaDialog(type, title, message, { confirmText = "Confirm", danger = false, defaultValue = "" } = {}) {
     return new Promise(resolve => {
         const backdrop = document.getElementById("confirm-dialog");
@@ -1231,7 +1203,6 @@ async function shibaDialog(type, title, message, { confirmText = "Confirm", dang
     });
 }
 
-// ── Instant-remove helper ─────────────────────────────────
 function removeSessionFromUI(key) {
     const safeKey = encodeURIComponent(key);
     const dropdown = document.querySelector(`.session-dropdown[data-session-key="${safeKey}"]`);
@@ -1269,7 +1240,6 @@ window.archiveSession = async function(key) {
     } catch(e) { console.error("Archive error:", e); }
 };
 
-// Close dropdowns on outside click
 document.addEventListener("click", () => {
     document.querySelectorAll(".session-dropdown").forEach(d => d.classList.remove("active"));
     document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
@@ -1277,18 +1247,16 @@ document.addEventListener("click", () => {
 
 async function loadSession(sessionId) {
     if (state.processing) {
-        console.debug("[SHIBA] loadSession skipped — processing in progress");
-        return;
+        state.processing = false;
+        setWorkingState(false);
+        updateSendButton();
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        hideThinking();
     }
     state.sessionId = sessionId;
     localStorage.setItem("shiba_session_id", sessionId);
 
-    // Notify the server so future messages are stored in the correct session.
-    if (state.socket && state.socket.connected) {
-        state.socket.emit("switch_session", { session_id: sessionId });
-    }
-    
-    // Select in sidebar (use data-session-key for reliability)
     document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
     const items = $("history-list").children;
     const encodedId = encodeURIComponent(sessionId);
@@ -1299,7 +1267,6 @@ async function loadSession(sessionId) {
                 el.classList.add('active');
             }
         } catch(e) {
-            // fallback: mark by text if data attribute missing
             if (el.textContent && el.textContent.includes(sessionId)) el.classList.add("active");
         }
     }
@@ -1309,12 +1276,10 @@ async function loadSession(sessionId) {
         const data = await res.json();
         console.debug("[SHIBA] loadSession:", sessionId, "messages:", data.messages?.length || 0);
         
-        // Show nickname in header if available
         sessionIdEl.textContent = data.nickname || sessionId;
         
         chatHistory.innerHTML = "";
         state.messageCount = 0;
-        // Clear any old process group timers before resetting
         Object.values(state.processGroups).forEach(pg => {
             if (pg && pg.timer) clearInterval(pg.timer);
         });
@@ -1324,11 +1289,8 @@ async function loadSession(sessionId) {
         if (messages.length > 0) {
             activateChat();
 
-            // Refresh context/token badge for this session
             try { refreshTokenBadge(); } catch(e) { /* ignore */ }
 
-            // Group messages into turns: each user msg starts a new turn
-            // Process groups are built from reasoning + tool_calls within a turn
             let turnSteps = [];
             let turnId = 0;
             let pgCount = 0;
@@ -1338,11 +1300,9 @@ async function loadSession(sessionId) {
             for (const msg of messages) {
                 if (!msg || !msg.role) continue;
                 if (msg.role === "user") {
-                    // Skip duplicate consecutive user messages
                     if (!msg.content || msg.content === lastUserContent) continue;
                     lastUserContent = msg.content;
 
-                    // Flush any pending process group from previous turn
                     const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
                     if (turnSteps.length > 0 && hasExeSteps) {
                         renderProcessGroupFromHistory(turnId, turnSteps);
@@ -1359,7 +1319,6 @@ async function loadSession(sessionId) {
                         enhanceCodeBlocks(bubble);
                     }
 
-                    // Render attachments in history if present
                     const attachments = msg.metadata?.attachments || [];
                     attachments.forEach(file => {
                         if (file.type && file.type.startsWith("image/")) {
@@ -1389,12 +1348,10 @@ async function loadSession(sessionId) {
                     const hasContent = !!msg.content;
                     const hasReasoning = !!msg.reasoning_content;
 
-                    // Collect reasoning as GEN step
                     if (hasReasoning) {
                         const preview = (msg.reasoning_content?.slice?.(0, 120)) || "";
                         turnSteps.push({ badge: "GEN", text: preview });
                     }
-                    // Collect tool calls as EXE steps (include args preview like live rendering)
                     if (hasTc) {
                         for (const tc of msg.tool_calls) {
                             const fn = tc.function?.name || "tool";
@@ -1403,7 +1360,6 @@ async function loadSession(sessionId) {
                                 const raw = tc.function?.arguments;
                                 if (raw) {
                                     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-                                    // Build a preview like: exec("cd /root/... && npx ...")
                                     const vals = Object.values(parsed);
                                     if (vals.length > 0) {
                                         const preview = String(vals[0]).replace(/\n/g, " ");
@@ -1415,9 +1371,7 @@ async function loadSession(sessionId) {
                         }
                     }
 
-                    // Final content with NO tool calls = final reply → flush & render
                     if (hasContent && !hasTc) {
-                        // Only render process group if it has EXE steps (actual tool use)
                         const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
                         if (turnSteps.length > 0 && hasExeSteps) {
                             renderProcessGroupFromHistory(turnId, turnSteps);
@@ -1430,7 +1384,6 @@ async function loadSession(sessionId) {
                         bubble.innerHTML = renderMarkdown(msg.content);
                         enhanceCodeBlocks(bubble);
 
-                        // Render agent attachments in history
                         const attachments = msg.metadata?.attachments || [];
                         attachments.forEach(file => {
                             if (file.type && file.type.startsWith("image/")) {
@@ -1455,13 +1408,10 @@ async function loadSession(sessionId) {
                         if (msg.timestamp) addTimestamp(group, msg.timestamp);
                         chatHistory.appendChild(group);
                     }
-                    // If has tool_calls, content is just preamble — skip rendering it as a message
 
                 } else if (msg.role === "tool") {
-                    // Tool results are already represented by their tool_call — skip adding extra steps
                 }
             }
-            // Flush remaining steps (agent still working — only if there are tool steps)
             if (turnSteps.length > 0 && turnSteps.some(s => s.badge === "EXE")) {
                 renderProcessGroupFromHistory(turnId, turnSteps);
                 pgCount++;
@@ -1476,10 +1426,13 @@ async function loadSession(sessionId) {
         }
     } catch(e) {
         console.debug("[SHIBA] Error loading session:", e);
+    } finally {
+        if (state.socket && state.socket.connected) {
+            state.socket.emit("switch_session", { session_id: sessionId });
+        }
     }
 }
 
-// Global modal triggers
 window.openModal = async function(id) {
     const modal = $(id);
     if (!modal) return;
@@ -1591,7 +1544,6 @@ async function loadOAuthPanel() {
             </div>`;
         list.appendChild(card);
 
-        // Login — triggers device flow and shows code + URL
         document.getElementById("btn-oauth-login-" + p.name).addEventListener("click", async () => {
             const btn = document.getElementById("btn-oauth-login-" + p.name);
             const badge = document.getElementById("oauth-badge-" + p.name);
@@ -1608,7 +1560,6 @@ async function loadOAuthPanel() {
                     return;
                 }
 
-                // If we got user_code + verification_uri back (GitHub Copilot), show them immediately
                 if (jd.user_code && jd.verification_uri) {
                     badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
                     btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
@@ -1650,7 +1601,6 @@ async function loadOAuthPanel() {
                                 const logs = (j.job.logs || []).join("\n");
                                 logsEl.innerHTML = `<div style="color:#f87171;padding:8px;white-space:pre-wrap">${logs}</div>`;
                             } else if (j.job.status === "awaiting_code" && j.job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
-                                // OpenAI Codex: show URL + paste input
                                 badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
                                 btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
                                 const inputId = "codex-input-" + jd.job_id;
@@ -1676,7 +1626,6 @@ async function loadOAuthPanel() {
                                       `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
                                     `</div>` +
                                     `</div>`;
-                                // Wire up submit button
                                 setTimeout(() => {
                                     const submitBtn = document.getElementById(submitId);
                                     const inputEl = document.getElementById(inputId);
@@ -1708,7 +1657,6 @@ async function loadOAuthPanel() {
         });
     }
 
-    // Auto-load status (lightweight, no login trigger)
     _refreshOAuthStatus();
 }
 
@@ -1727,8 +1675,7 @@ async function _refreshOAuthStatus() {
 }
 
 function populateSettings(cfg) {
-        // Salva una copia del config attuale per confronto dopo il salvataggio
-        lastSettingsConfig = JSON.parse(JSON.stringify(cfg));
+    lastSettingsConfig = JSON.parse(JSON.stringify(cfg));
     const d = cfg.agents?.defaults || {};
     $("s-agent-provider").value = d.provider || "";
     $("s-agent-model").value = d.model || "";
@@ -1739,7 +1686,6 @@ function populateSettings(cfg) {
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
 
-    // Providers — collapsible accordion cards
     const prov = cfg.providers || {};
     const list = $("providers-list");
     list.innerHTML = "";
@@ -1772,7 +1718,6 @@ function populateSettings(cfg) {
         list.appendChild(card);
     }
 
-    // Tools
     const tw = cfg.tools?.web || {};
     const ts = tw.search || {};
     $("s-tool-searchProvider").value = ts.provider || "brave";
@@ -1784,7 +1729,6 @@ function populateSettings(cfg) {
     $("s-tool-execTimeout").value = te.timeout ?? 60;
     $("s-tool-restrict").checked = !!cfg.tools?.restrictToWorkspace;
 
-    // Gateway
     const gw = cfg.gateway || {};
     $("s-gw-host").value = gw.host || "127.0.0.1";
     $("s-gw-port").value = gw.port ?? 19999;
@@ -1792,26 +1736,21 @@ function populateSettings(cfg) {
     $("s-gw-hbEnabled").checked = hb.enabled !== false;
     $("s-gw-hbInterval").value = hb.intervalS ?? 1800;
 
-    // Channels
     const ch = cfg.channels || {};
     $("s-ch-sendProgress").checked = ch.sendProgress !== false;
     $("s-ch-sendToolHints").checked = !!ch.sendToolHints;
 
-    // Build channel accordion cards
     const detail = $("channels-detail");
     detail.innerHTML = "";
     const skip = ["sendProgress", "sendToolHints"];
 
-    // Email field configuration with human-readable labels and sections
     const EMAIL_FIELD_CONFIG = {
-        // INBOUND (IMAP)
         imapHost:       { label: "IMAP Server",       section: "inbound",  type: "text",     placeholder: "imap.gmail.com" },
         imapPort:       { label: "IMAP Port",          section: "inbound",  type: "number",   placeholder: "993" },
         imapUsername:   { label: "IMAP Username",      section: "inbound",  type: "text",     placeholder: "email@gmail.com" },
         imapPassword:   { label: "IMAP Password",      section: "inbound",  type: "password", placeholder: "App password" },
         imapUseSsl:     { label: "IMAP SSL",           section: "inbound",  type: "boolean" },
         imapMailbox:    { label: "IMAP Mailbox",       section: "inbound",  type: "text",     placeholder: "INBOX" },
-        // OUTBOUND (SMTP)
         smtpHost:       { label: "SMTP Server",        section: "outbound", type: "text",     placeholder: "smtp.gmail.com" },
         smtpPort:       { label: "SMTP Port",          section: "outbound", type: "number",   placeholder: "587" },
         smtpUsername:   { label: "SMTP Username",      section: "outbound", type: "text",     placeholder: "email@gmail.com" },
@@ -1819,7 +1758,6 @@ function populateSettings(cfg) {
         smtpUseTls:     { label: "SMTP STARTTLS",      section: "outbound", type: "boolean" },
         smtpUseSsl:     { label: "SMTP SSL",           section: "outbound", type: "boolean" },
         fromAddress:    { label: "From Address",       section: "outbound", type: "text",     placeholder: "shibaclaw@gmail.com" },
-        // GENERAL
         autoReplyEnabled:       { label: "Auto Reply",           section: "general", type: "boolean" },
         pollIntervalSeconds:    { label: "Poll Interval (sec)",  section: "general", type: "number",  placeholder: "30" },
         markSeen:               { label: "Mark as Read",         section: "general", type: "boolean" },
@@ -1827,49 +1765,6 @@ function populateSettings(cfg) {
         subjectPrefix:          { label: "Reply Prefix",         section: "general", type: "text",    placeholder: "Re: " },
         allowFrom:              { label: "Allowed Senders",      section: "general", type: "array",   placeholder: "email1@test.com, email2@test.com" },
     };
-
-    function formatEmailFields(fieldsHtml, config, cc) {
-        const sections = { inbound: [], outbound: [], general: [] };
-        
-        for (const [key, val] of Object.entries(cc)) {
-            if (key === "enabled") continue;
-            
-            let valStr = "";
-            let originalType = typeof val;
-            if (Array.isArray(val)) {
-                originalType = "array";
-                valStr = val.join(", ");
-            } else if (val !== null && originalType === "object") {
-                originalType = "object";
-                valStr = JSON.stringify(val);
-            } else {
-                valStr = val === null ? "" : String(val);
-            }
-            
-            if (originalType === "boolean") {
-                fieldsHtml += `
-                    <div class="field-row">
-                        <label>${key}</label>
-                        <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label>
-                    </div>`;
-                continue;
-            }
-            
-            const lowerKey = key.toLowerCase();
-            if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
-                inputType = "password";
-            }
-            
-            const safeVal = String(valStr).replace(/"/g, '"');
-            fieldsHtml += `
-                <div class="field-row">
-                    <label>${key}</label>
-                    <input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}">
-                </div>
-            `;
-        }
-        return fieldsHtml;
-    }
 
     for (const [name, cc] of Object.entries(ch)) {
         if (skip.includes(name) || typeof cc !== "object") continue;
@@ -1889,9 +1784,7 @@ function populateSettings(cfg) {
             </div>
         `;
 
-        // Use custom layout for email channel
         if (name === "email" && EMAIL_FIELD_CONFIG) {
-            // Group fields by section
             const sections = { inbound: [], outbound: [], general: [] };
             
             for (const [key, val] of Object.entries(cc)) {
@@ -1937,7 +1830,6 @@ function populateSettings(cfg) {
                 sections[section].push(inputHtml);
             }
             
-            // Build sections HTML
             const sectionLabels = {
                 inbound: '📥 Email IN (IMAP)',
                 outbound: '📤 Email OUT (SMTP)',
@@ -1951,7 +1843,6 @@ function populateSettings(cfg) {
                 }
             }
         } else {
-            // Generic fallback for other channels
             for (const [key, val] of Object.entries(cc)) {
                 if (key === "enabled") continue;
                 let inputType = "text";
@@ -2022,7 +1913,6 @@ function populateSettings(cfg) {
     const mcpServers = cfg.tools?.mcpServers || {};
     const mcpList = $("mcp-servers-list");
     mcpList.innerHTML = "";
-    // Nota se c'è solo il server di esempio
     if (Object.keys(mcpServers).length === 1 && Object.keys(mcpServers)[0] === "mcp") {
         const note = document.createElement("div");
         note.className = "settings-note";
@@ -2104,7 +1994,6 @@ window.removeMcpServer = function(btn) {
 };
 
 window.saveSettings = async function() {
-    // Rebuild the config from form fields
     const patch = {
         agents: { defaults: {
             provider: $("s-agent-provider").value,
@@ -2147,7 +2036,6 @@ window.saveSettings = async function() {
         }
     };
 
-    // Collect provider fields
     document.querySelectorAll(".prov-key").forEach(el => {
         const name = el.dataset.prov;
         if (!patch.providers[name]) patch.providers[name] = {};
@@ -2159,7 +2047,6 @@ window.saveSettings = async function() {
         patch.providers[name].apiBase = el.value || null;
     });
 
-    // Collect channel enabled toggles and other dynamically generated fields
     document.querySelectorAll(".ch-enabled").forEach(el => {
         const name = el.dataset.ch;
         if (!patch.channels[name]) patch.channels[name] = {};
@@ -2197,7 +2084,6 @@ window.saveSettings = async function() {
         closeModal("settings-modal");
         fetchStatus();
 
-        // Mostra sempre il popup di restart dopo aver salvato i settings
         const ok = await shibaDialog("confirm", "Settings Saved", "Restart gateway to apply changes?", { confirmText: "Restart" });
         if (ok) {
             authFetch("/api/gateway-restart", { method: "POST" });
@@ -2226,11 +2112,11 @@ function hideThinking() {
 
 // ── Typing Bubble (shown while agent is working, before any event) ──
 function showTypingBubble() {
-    if (document.getElementById("typing-bubble")) return; // prevent duplicates
+    if (document.getElementById("typing-bubble")) return;
     activateChat();
     const group = createMessageGroup("agent");
     group.id = "typing-bubble";
-    group.innerHTML = group.innerHTML; // keep avatar
+    group.innerHTML = group.innerHTML;
     const content = group.querySelector(".message-content");
     const bubble = document.createElement("div");
     bubble.className = "message-bubble typing-bubble";
@@ -2328,7 +2214,6 @@ function updateTokenBadge(t) {
     text.textContent = `${fmtTokens(t.total ?? 0)} / ${fmtTokens(t.context_window ?? 0)} · ${pct}%`;
 }
 
-// Auto-refresh token badge on page load and after messages
 async function refreshTokenBadge() {
     if (!state.sessionId) return;
     try {
@@ -2372,7 +2257,6 @@ function sendMessage() {
             }))
         });
 
-        // Clear input and staging
         chatInput.value = "";
         state.stagedFiles = [];
         updateStagingUI();
@@ -2395,11 +2279,10 @@ function initFileHandlers() {
         btnAttach.onclick = () => fileInput.click();
         fileInput.onchange = (e) => {
             handleFileUpload(e.target.files);
-            fileInput.value = ""; // reset
+            fileInput.value = "";
         };
     }
 
-    // Drag and Drop
     window.addEventListener("dragover", (e) => {
         e.preventDefault();
         dragOverlay.classList.add("active");
@@ -2417,7 +2300,6 @@ function initFileHandlers() {
         handleFileUpload(e.dataTransfer.files);
     });
 
-    // Paste from clipboard
     window.addEventListener("paste", (e) => {
         const items = e.clipboardData.items;
         const files = [];
@@ -2512,7 +2394,6 @@ window.loadFs = async function(path = ".") {
         <span class="material-icons-round spin">progress_activity</span>
     </div>`;
 
-    // Render breadcrumb
     const parts = path.split(/[/\\]/).filter(p => p && p !== ".");
     let bcHtml = `<span class="breadcrumb-item" onclick="loadFs('.')">root</span>`;
     let currentPartPath = "";
@@ -2534,7 +2415,6 @@ window.loadFs = async function(path = ".") {
 
         list.innerHTML = "";
         
-        // Parent directory link
         if (path !== "." && path !== "/" && parts.length > 0) {
             const parentPath = parts.slice(0, -1).join("/") || ".";
             const row = document.createElement("div");
@@ -2663,7 +2543,6 @@ window.openFileEditor = async function(filePath, fileName) {
         ta.value = text;
         btnRefresh.onclick = async () => {
             btnRefresh.disabled = true;
-            // Reset to read-only view
             ta.setAttribute("readonly", "");
             btnEdit.classList.remove("active");
             btnEdit.innerHTML = `<span class="material-icons-round" style="font-size:15px">edit</span> Edit`;
@@ -2680,7 +2559,6 @@ window.openFileEditor = async function(filePath, fileName) {
         btnEdit.onclick = () => {
             const isEditing = !ta.hasAttribute("readonly");
             if (isEditing) {
-                // back to read-only
                 ta.setAttribute("readonly", "");
                 btnEdit.classList.remove("active");
                 btnEdit.innerHTML = `<span class="material-icons-round" style="font-size:15px">edit</span> Edit`;
@@ -2774,10 +2652,8 @@ window.saveFile = async function(filePath) {
 
 // ── Event Listeners ───────────────────────────────────────────
 function initListeners() {
-    // Send button
     btnSend.addEventListener("click", sendMessage);
 
-    // Input
     chatInput.addEventListener("input", () => {
         updateSendButton();
         autoResizeInput();
@@ -2790,12 +2666,10 @@ function initListeners() {
         }
     });
 
-    // New session
     $("btn-new-session").addEventListener("click", () => {
         state.socket.emit("new_session");
     });
 
-    // Quick commands
     document.querySelectorAll(".btn-command[data-command]").forEach((btn) => {
         btn.addEventListener("click", () => {
             const cmd = btn.dataset.command;
@@ -2804,7 +2678,6 @@ function initListeners() {
         });
     });
 
-    // Stop button (below input)
     $("btn-stop").addEventListener("click", () => {
         if (state.processing) {
             state.socket.emit("stop_agent");
@@ -2817,7 +2690,6 @@ function initListeners() {
         }
     });
 
-    // Welcome hint cards
     document.querySelectorAll(".hint-card").forEach((card) => {
         card.addEventListener("click", () => {
             chatInput.value = card.dataset.hint;
@@ -2825,17 +2697,14 @@ function initListeners() {
         });
     });
 
-    // Mobile sidebar toggle
     $("mobile-menu-btn").addEventListener("click", () => {
         $("sidebar").classList.toggle("open");
     });
 
-    // Sidebar toggle (inside sidebar)
     $("sidebar-toggle").addEventListener("click", () => {
         $("sidebar").classList.toggle("open");
     });
 
-    // Close modals on backdrop click
     document.querySelectorAll(".modal-backdrop").forEach(bg => {
         bg.addEventListener("click", (e) => {
             if (e.target === bg && bg.dataset.backdropClose !== "false") {
@@ -3410,11 +3279,7 @@ window.obSubmit = async function() {
         fetchStatus();
         loadHistory();
 
-        const toast = document.createElement("div");
-        toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;background:#4ade80;color:#000;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,0.3);animation:fadeIn .3s";
-        toast.textContent = "\u2713 Setup complete! Shiba is ready to hunt.";
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+        ToastManager.show("success", "Setup completato!", "✓ Shiba is ready to hunt.", 4000);
     } catch(e) {
         btn.style.width = "";
         btn.disabled = false;

@@ -8,10 +8,10 @@ import json
 import asyncio
 import mimetypes
 import urllib.parse
-import urllib.request
-from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any, Dict, List, Set, Optional
+
+from shibaclaw.brain.manager import PackManager
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, FileResponse
@@ -21,7 +21,7 @@ from .auth import get_auth_token, _auth_enabled
 from .agent_manager import agent_manager
 
 
-# ── Gateway host resolution ──────────────────────────────────
+
 _LOCAL_HOSTS = frozenset(("0.0.0.0", "::", "", "127.0.0.1", "localhost"))
 
 def _resolve_gateway_hosts() -> tuple[list[str], int]:
@@ -49,7 +49,7 @@ def _resolve_gateway_hosts() -> tuple[list[str], int]:
     return hosts, port
 
 
-# ── Helpers ──────────────────────────────────────────────────
+
 def _deep_merge(base: dict, patch: dict):
     """Deep merge a dictionary patch onto base."""
     for k, v in patch.items():
@@ -93,6 +93,19 @@ def _redact_one(val: Any) -> Any:
     if len(val) <= 4:
         return "****"
     return "*" * (len(val) - 4) + val[-4:]
+
+
+def _resolve_workspace_path(path_str: str | None) -> Path | None:
+    if not agent_manager.config:
+        return None
+    workspace = agent_manager.config.workspace_path.resolve()
+    if not path_str:
+        return workspace
+    raw = Path(path_str)
+    resolved = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
+    if not resolved.is_relative_to(workspace):
+        return None
+    return resolved
 
 
 # Global caches for context
@@ -191,7 +204,7 @@ def _compute_session_tokens(session_id: str, wp: Path, pm, estimate_message_toke
     return msg_tokens, msg_lines
 
 
-# ── Route Handlers ────────────────────────────────────────────────
+
 
 async def api_auth_verify(request: Request):
     """Verify an auth token."""
@@ -275,7 +288,6 @@ async def api_sessions_list(request: Request):
     """List all saved sessions."""
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
-    from shibaclaw.brain.manager import PackManager
     pm = PackManager(agent_manager.config.workspace_path)
     return JSONResponse({"sessions": pm.list_sessions()})
 
@@ -285,7 +297,6 @@ async def api_sessions_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
-    from shibaclaw.brain.manager import PackManager
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
     return JSONResponse({
@@ -300,7 +311,6 @@ async def api_sessions_patch(request: Request):
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
     data = await request.json()
-    from shibaclaw.brain.manager import PackManager
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
     
@@ -316,7 +326,6 @@ async def api_sessions_delete(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
-    from shibaclaw.brain.manager import PackManager
     pm = PackManager(agent_manager.config.workspace_path)
     
     path = pm._get_session_path(session_id)
@@ -334,7 +343,6 @@ async def api_sessions_archive(request: Request):
         return JSONResponse({"error": "Agent not configured"}, status_code=400)
     
     session_id = request.path_params["session_id"]
-    from shibaclaw.brain.manager import PackManager
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
     
@@ -385,7 +393,6 @@ async def api_context_get(request: Request):
     # ── Session messages ──
     msg_tokens = 0
     if session_id:
-        from shibaclaw.brain.manager import PackManager
         pm = PackManager(wp)
         msg_tokens, msg_lines = _compute_session_tokens(session_id, wp, pm, estimate_message_tokens)
         if msg_lines:
@@ -467,28 +474,9 @@ async def api_gateway_health(request: Request):
     return JSONResponse({"reachable": False, "reason": "unreachable"})
 
 
-async def api_internal_session_notify(request: Request):
-    """Receive a background notification and route it to a persisted WebUI session."""
-    data = await request.json()
-    session_key = str(data.get("session_key", "")).strip()
-    content = str(data.get("content", "")).strip()
-    source = str(data.get("source", "background")).strip() or "background"
-    raw_persist = data.get("persist", True)
-    persist = raw_persist if isinstance(raw_persist, bool) else str(raw_persist).strip().lower() not in ("0", "false", "no", "off")
-
-    if not session_key or not content:
-        return JSONResponse({"error": "Missing session_key or content"}, status_code=400)
-
-    result = await agent_manager.deliver_background_notification(
-        session_key,
-        content,
-        source=source,
-        persist=persist,
-    )
-    return JSONResponse({"status": "accepted", **result})
 
 
-# ── Cron & Heartbeat ──────────────────────────────────────────
+
 
 async def api_cron_list(request: Request):
     """List all scheduled jobs from the local CronService."""
@@ -598,7 +586,7 @@ async def api_update_manifest(request: Request):
     if not manifest_url:
         return JSONResponse({"error": "Missing url parameter"}, status_code=400)
 
-    parsed = urlparse(manifest_url)
+    parsed = urllib.parse.urlparse(manifest_url)
     allowed_hosts = {"github.com", "raw.githubusercontent.com"}
     if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
         return JSONResponse({"error": "Invalid manifest URL"}, status_code=400)
@@ -717,11 +705,8 @@ async def api_file_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
 
-    workspace = agent_manager.config.workspace_path.resolve()
-    # Resolve relative paths against workspace, not process CWD
-    raw = Path(path_str)
-    resolved = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
-    if not resolved.is_relative_to(workspace):
+    resolved = _resolve_workspace_path(path_str)
+    if not resolved:
         return JSONResponse({"error": "Forbidden"}, status_code=403)
 
     if not resolved.exists() or not resolved.is_file():
@@ -755,10 +740,8 @@ async def api_file_save(request: Request):
     if not path_str or content is None:
         return JSONResponse({"error": "path and content are required"}, status_code=400)
 
-    workspace = agent_manager.config.workspace_path.resolve()
-    raw = Path(path_str)
-    resolved = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
-    if not resolved.is_relative_to(workspace):
+    resolved = _resolve_workspace_path(path_str)
+    if not resolved:
         return JSONResponse({"error": "Forbidden"}, status_code=403)
 
     if not resolved.exists() or not resolved.is_file():
@@ -779,16 +762,11 @@ async def api_fs_explore(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
 
-    workspace = agent_manager.config.workspace_path.resolve()
     target_path_str = request.query_params.get("path")
-    if not target_path_str:
-        target_path = workspace
-    else:
-        raw = Path(target_path_str)
-        # Resolve relative paths against the workspace root, not the process cwd
-        target_path = (workspace / raw).resolve() if not raw.is_absolute() else raw.resolve()
-        if not target_path.is_relative_to(workspace):
-            return JSONResponse({"error": "Forbidden"}, status_code=403)
+    target_path = _resolve_workspace_path(target_path_str)
+    if not target_path:
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    workspace = agent_manager.config.workspace_path.resolve()
 
     if not target_path.exists() or not target_path.is_dir():
         return JSONResponse({"error": "Directory not found"}, status_code=404)
@@ -820,7 +798,7 @@ async def api_fs_explore(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# ── OAuth ─ (Keeping mostly as is but in module) ──────────────────
+
 
 async def api_oauth_providers(request: Request):
     providers = [
@@ -897,7 +875,7 @@ async def api_oauth_code(request: Request):
     return JSONResponse({"ok": True})
 
 
-# ── Onboard Wizard Endpoints ─────────────────────────────────
+
 
 async def api_onboard_providers(request: Request):
     """Return provider list with detection status for the onboard wizard."""
