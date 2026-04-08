@@ -237,11 +237,7 @@ class ShibaBrain:
         final_content = None
         tools_used: list[str] = []
 
-        # Regenerate tool-output nonce for this interaction
         self.context.regenerate_nonce()
-
-        # Build the static (non-live) portion of the system prompt once per interaction.
-        # Only the ## Live State block changes on each iteration (timestamp + counter).
         static_prompt = self.context.build_static_prompt(
             skill_names,
             memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
@@ -253,7 +249,7 @@ class ShibaBrain:
         while iteration < self.max_iterations:
             iteration += 1
 
-            # --- Refresh only the live runtime block (tiny, changes every iteration) ---
+
             live_block = self.context.build_runtime_block(
                 channel=channel,
                 chat_id=chat_id,
@@ -453,7 +449,7 @@ class ShibaBrain:
         self,
         msg: InboundMessage,
         session_key: str | None = None,
-        on_progress: Callable[[str], Awaitable[None]] | None = None,
+        on_progress: Callable[[str, bool], Awaitable[None]] | None = None,
     ) -> OutboundMessage | None:
         if self.provider is None:
             return OutboundMessage(
@@ -547,6 +543,14 @@ class ShibaBrain:
             available_channels=self._available_channels,
         )
 
+        from datetime import datetime as _dt
+        _user_entry = {"role": "user", "content": msg.content, "timestamp": _dt.now().isoformat()}
+        if msg.media:
+            _user_entry["metadata"] = {"media": msg.media}
+        session.messages.append(_user_entry)
+        self.sessions.save(session)
+        _pre_saved_count = 1
+
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:
             meta = {"_progress": True, "_tool_hint": tool_hint, **(msg.metadata or {})}
             await self.bus.publish_outbound(OutboundMessage(
@@ -564,7 +568,8 @@ class ShibaBrain:
         if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
             return None
 
-        self._save_turn(session, all_msgs, 1 + len(history))
+        # Skip the user message we already eagerly persisted before the loop
+        self._save_turn(session, all_msgs, 1 + len(history) + _pre_saved_count)
         self.sessions.save(session)
         self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
         self._schedule_background(self.memory_consolidator.maybe_proactive_learn(session))
@@ -629,6 +634,7 @@ class ShibaBrain:
         channel: str = "cli",
         chat_id: str = "direct",
         on_progress: Callable[[str], Awaitable[None]] | None = None,
+        on_notify: Callable[..., Awaitable[None]] | None = None,
         media: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> OutboundMessage | None:

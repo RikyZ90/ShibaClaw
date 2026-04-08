@@ -28,7 +28,7 @@ from .api import (
     api_auth_verify, api_auth_status, api_status,
     api_settings_get, api_settings_post,
     api_sessions_list, api_sessions_get, api_sessions_patch, api_sessions_delete, api_sessions_archive,
-    api_context_get, api_gateway_health, api_gateway_restart, api_internal_session_notify,
+    api_context_get, api_gateway_health, api_gateway_restart,
     api_cron_list, api_cron_trigger, api_heartbeat_status, api_heartbeat_trigger,
     api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code,
     api_upload, api_file_get, api_file_save, api_fs_explore,
@@ -77,7 +77,7 @@ def create_app(
         Route("/api/context", api_context_get),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
-        Route("/api/internal/session-notify", api_internal_session_notify, methods=["POST"]),
+
         Route("/api/cron/jobs", api_cron_list, methods=["GET"]),
         Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
         Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
