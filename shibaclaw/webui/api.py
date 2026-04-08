@@ -235,34 +235,39 @@ async def api_settings_get(request: Request):
     return JSONResponse(_redact_secrets(data))
 
 
+_settings_update_lock = asyncio.Lock()
+
+
 async def api_settings_post(request: Request):
     """Update configuration and reset the agent."""
-    if not agent_manager.config:
-        agent_manager.load_latest_config()
-    if not agent_manager.config:
-        return JSONResponse({"error": "No config"}, status_code=400)
-    
-    data = await request.json()
-    from shibaclaw.config.schema import Config
-    merged = agent_manager.config.model_dump(mode="json", by_alias=True)
-    _deep_merge(merged, data)
-    
-    try:
-        new_cfg = Config.model_validate(merged)
-    except Exception as e:
-        return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
+    async with _settings_update_lock:
+        if not agent_manager.config:
+            agent_manager.load_latest_config()
+        if not agent_manager.config:
+            return JSONResponse({"error": "No config"}, status_code=400)
 
-    from shibaclaw.config.loader import save_config
-    save_config(new_cfg)
-    agent_manager.config = new_cfg
-    # Rebuild provider so ensure_agent() picks up new API keys immediately
-    try:
-        from shibaclaw.cli.commands import _make_provider
-        agent_manager.provider = _make_provider(new_cfg, exit_on_error=False)
-    except Exception:
-        agent_manager.provider = None
-    agent_manager.reset_agent()
-    
+        data = await request.json()
+        from shibaclaw.config.schema import Config
+        merged = agent_manager.config.model_dump(mode="json", by_alias=True)
+        _deep_merge(merged, data)
+
+        try:
+            new_cfg = Config.model_validate(merged)
+        except Exception as e:
+            return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
+
+        from shibaclaw.config.loader import save_config
+        save_config(new_cfg)
+        agent_manager.config = new_cfg
+        # Rebuild provider so ensure_agent() picks up new API keys immediately
+        try:
+            from shibaclaw.cli.commands import _make_provider
+            agent_manager.provider = _make_provider(new_cfg, exit_on_error=False)
+        except Exception:
+            agent_manager.provider = None
+        agent_manager.reset_agent()
+        logger.info("Config updated by {}", request.client.host if request.client else "unknown")
+
     return JSONResponse({"status": "updated"})
 
 
@@ -607,13 +612,26 @@ async def api_update_manifest(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+_ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli"})
+
+
+def _safe_argv() -> list[str]:
+    """Return only trusted argv entries (flags + known subcommands)."""
+    import sys
+    safe = [sys.executable, "-m", "shibaclaw"]
+    for arg in sys.argv[1:]:
+        if arg.startswith("-") or arg in _ALLOWED_SUBCOMMANDS:
+            safe.append(arg)
+    return safe
+
+
 async def api_restart_server(request: Request):
     """Restart the ShibaClaw WebUI server process."""
-    import sys
+    safe_argv = _safe_argv()
 
     async def _do_restart():
         await asyncio.sleep(0.5)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        os.execv(sys.executable, safe_argv)
 
     asyncio.create_task(_do_restart())
     return JSONResponse({"status": "restarting"})

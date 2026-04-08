@@ -374,14 +374,27 @@ class ShibaBrain:
             channel=msg.channel, chat_id=msg.chat_id, content=content,
         ))
 
+    _ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli"})
+
+    @staticmethod
+    def _safe_argv() -> list[str]:
+        """Return only trusted argv entries (flags + known subcommands)."""
+        safe = [sys.executable, "-m", "shibaclaw"]
+        for arg in sys.argv[1:]:
+            if arg.startswith("-") or arg in ShibaBrain._ALLOWED_SUBCOMMANDS:
+                safe.append(arg)
+        return safe
+
     async def _handle_restart(self, msg: InboundMessage) -> None:
         await self.bus.publish_outbound(OutboundMessage(
             channel=msg.channel, chat_id=msg.chat_id, content="🐕 Woof! Restarting the hunt...",
         ))
 
+        safe_argv = self._safe_argv()
+
         async def _do_restart():
             await asyncio.sleep(1)
-            os.execv(sys.executable, [sys.executable, "-m", "shibaclaw"] + sys.argv[1:])
+            os.execv(sys.executable, safe_argv)
 
         self._schedule_background(_do_restart())
 
@@ -548,13 +561,16 @@ class ShibaBrain:
         if final_content is None:
             final_content = "I've completed processing but have no response to give."
 
+        if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
+            return None
+
         self._save_turn(session, all_msgs, 1 + len(history))
         self.sessions.save(session)
         self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
         self._schedule_background(self.memory_consolidator.maybe_proactive_learn(session))
 
         media_list = []
-        media_match = re.search(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content)
+        media_match = re.search(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content, re.DOTALL)
         if media_match:
             try:
                 media_json = json.loads(media_match.group(0))
@@ -562,9 +578,6 @@ class ShibaBrain:
                 final_content = final_content.replace(media_match.group(0), "").strip()
             except Exception:
                 pass
-
-        if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
-            return None
 
         preview = final_content[:120] + "..." if len(final_content) > 120 else final_content
         logger.debug("Response to {}:{}: {}", msg.channel, msg.sender_id, preview)

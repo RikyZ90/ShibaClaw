@@ -12,7 +12,7 @@ from typing import Any, Dict
 import socketio
 from loguru import logger
 
-from .auth import _auth_enabled, get_auth_token, mask_token
+from .auth import _auth_enabled, get_auth_token
 from .agent_manager import agent_manager
 
 
@@ -105,10 +105,11 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                     chat_id=sid,
                     on_progress=on_progress,
                     media=message.get("media"),
-                    metadata={"sid": sid}
+                    metadata={"sid": sid, "message_id": message["id"]}
                 )
 
-                if outbound is None: return
+                if outbound is None:
+                    return
 
                 response_content = outbound.content or "No response."
                 media_list = outbound.media or []
@@ -126,14 +127,13 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                         # Agent message attachments
                         for m_idx in range(len(sess.messages)-1, -1, -1):
                             if sess.messages[m_idx].get("role") == "assistant":
-                                auth_token = get_auth_token() or ""
                                 agent_atts = []
                                 for m_path in media_list:
                                     p = Path(m_path)
                                     res = mimetypes.guess_type(m_path)
                                     agent_atts.append({
                                         "name": p.name,
-                                        "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}&token={auth_token}",
+                                        "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
                                         "type": res[0] or "application/octet-stream"
                                     })
                                 if agent_atts:
@@ -142,14 +142,13 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                                 break
 
                 # Final response emit
-                auth_token = get_auth_token() or ""
                 final_atts = []
                 for m_path in media_list:
                     p = Path(m_path)
                     res = mimetypes.guess_type(m_path)
                     final_atts.append({
                         "name": p.name,
-                        "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}&token={auth_token}",
+                        "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
                         "type": res[0] or "application/octet-stream"
                     })
 

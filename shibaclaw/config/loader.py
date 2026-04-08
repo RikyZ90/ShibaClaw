@@ -41,12 +41,24 @@ def load_config(config_path: Path | None = None) -> Config:
         logger.info(f"Creating default configuration at {path}")
         default_cfg = Config()
         save_config(default_cfg, path)
+        # Sync plugin/channel defaults
+        try:
+            from shibaclaw.cli.onboard import _onboard_plugins
+            _onboard_plugins(path)
+        except Exception:
+            logger.debug("[config] _onboard_plugins failed on new config", exc_info=True)
         return default_cfg
 
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         data = _migrate_config(data)
+        # Sync plugin/channel defaults su config esistente
+        try:
+            from shibaclaw.cli.onboard import _onboard_plugins
+            _onboard_plugins(path)
+        except Exception:
+            logger.debug("[config] _onboard_plugins failed on existing config", exc_info=True)
         return Config.model_validate(data)
     except (json.JSONDecodeError, ValueError, pydantic.ValidationError) as e:
         logger.warning(f"Failed to load config from {path}: {e}")
@@ -110,5 +122,37 @@ def _migrate_config(data: dict) -> dict:
             email[key] = default_val
     channels["email"] = email
     data["channels"] = channels
+
+    # Ensure mcpServers have all default fields
+    mcp_servers = tools.get("mcpServers", {})
+    _MCP_DEFAULTS = {
+        "type": None,
+        "command": "",
+        "args": [],
+        "env": {},
+        "url": "",
+        "headers": {},
+        "toolTimeout": 30,
+        "enabledTools": ["*"]
+    }
+    # Se mcpServers è vuoto, aggiungi un esempio predefinito
+    if not mcp_servers:
+        mcp_servers["mcp"] = {
+            "type": None,
+            "command": "",
+            "args": [],
+            "env": {},
+            "url": "",
+            "headers": {},
+            "toolTimeout": 30,
+            "enabledTools": ["*"]
+        }
+    else:
+        for name, server in mcp_servers.items():
+            for key, default_val in _MCP_DEFAULTS.items():
+                if key not in server:
+                    server[key] = default_val
+    tools["mcpServers"] = mcp_servers
+    data["tools"] = tools
 
     return data
