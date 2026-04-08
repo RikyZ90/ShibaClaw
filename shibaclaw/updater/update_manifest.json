@@ -1,9 +1,14 @@
 {
-  "version": "0.0.16",
-  "release_notes": "Gateway health check fix for bare metal setups.\n- Fixed false 'Gateway Down' status in WebUI when running pip install setups.\n- Health check now correctly uses the configured gateway.host value instead of defaulting to the Docker-only hostname.\n-Added MCP settings in a settings tab\n-Telegram proxy saved as `{}` instead of `null`",
-  "upgrade_notes": "No configuration changes required. Restart the WebUI and gateway after upgrading.",
+  "version": "0.0.17",
+  "release_notes": "- All /api/file-get APIs are now public and no longer require the authentication token in the query string.\n- Improved message ID handling in WebUI responses.\n- Thread-safe settings synchronization in WebUI.\n- Refactored restart functions for safer process restarts.\n- Hardened authentication: token only checked in Authorization header.\n- MCP settings UI improved and always uses mcpServers (camelCase).\n- Automatic migration for MCP servers and onboarding plugins.\n- Fixed attachment handling and media parsing.\n- Shared _safe_argv for agent and WebUI restarts.",
+  "upgrade_notes": "No manual configuration changes required. Restart the WebUI and gateway after upgrading.",
   "changes": [
     "shibaclaw/webui/api.py",
-    "shibaclaw/webui/oauth_github.py"
+    "shibaclaw/webui/agent_manager.py",
+    "shibaclaw/webui/auth.py",
+    "shibaclaw/webui/socket_io.py",
+    "shibaclaw/webui/static/app.js",
+    "shibaclaw/agent/loop.py",
+    "shibaclaw/config/loader.py"
   ]
 }
