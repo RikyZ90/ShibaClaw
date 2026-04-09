@@ -117,6 +117,16 @@ class WebSearchConfig(Base):
     max_results: int = 5
 
 
+class AudioConfig(Base):
+    """Configuration for Speech capabilities (STT/TTS)."""
+
+    provider_url: str | None = None  # e.g., "https://api.groq.com/openai/v1"
+    api_key: str | None = None
+    model: str = "whisper-large-v3-turbo"  # default STT model for Groq
+    tts_enabled: bool = False
+
+
+
 class WebToolsConfig(Base):
     """Web tools configuration."""
 
@@ -167,6 +177,7 @@ class Config(BaseSettings):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
+    audio: AudioConfig = Field(default_factory=AudioConfig)
 
     @property
     def workspace_path(self) -> Path:

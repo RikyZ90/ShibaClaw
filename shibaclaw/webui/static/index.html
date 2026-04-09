@@ -214,6 +214,9 @@
                         <!-- Staged files appear here -->
                     </div>
                     <div class="input-container">
+                        <button class="btn-attach" id="btn-mic" title="Voice Message (Auto-Stop on silence)">
+                            <span class="material-icons-round">mic</span>
+                        </button>
                         <button class="btn-attach" id="btn-attach" title="Attach files or images">
                             <span class="material-icons-round">attach_file</span>
                         </button>
@@ -298,13 +301,31 @@
                 <!-- Tab: Agent -->
                 <div class="settings-panel" id="panel-agent">
                     <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
-                    <div class="field-row"><label>Model</label><input type="text" id="s-agent-model" class="form-input" placeholder="e.g. claude-3-5-sonnet"></div>
-                    <div class="field-row"><label>Provider</label><input type="text" id="s-agent-provider" class="form-input" placeholder="openrouter, anthropic, auto..."></div>
+                    <div class="field-row"><label>Model</label><input type="text" id="s-agent-model" class="form-input" placeholder="e.g. claude-3-5-sonnet" list="model-history-list" autocomplete="off"><datalist id="model-history-list"></datalist></div>
+                    <div class="field-row"><label>Provider</label><select id="s-agent-provider" class="form-input"></select></div>
                     <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens" class="form-input" value="8192"></div>
                     <div class="field-row"><label>Context Window Tokens</label><input type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
                     <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
                     <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
                     <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+
+                    <!-- Audio / Voice section -->
+                    <div class="settings-section-divider">
+                        <span class="material-icons-round">mic</span>
+                        <span>Voice &amp; Audio (STT / TTS)</span>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <label>STT Provider URL</label>
+                        <p class="settings-note">
+                            Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier, ultra-fast)
+                            use: <code>https://api.groq.com/openai/v1</code>
+                        </p>
+                        <input type="text" id="s-audio-providerUrl" class="form-input" placeholder="https://api.groq.com/openai/v1">
+                    </div>
+                    <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
+                    <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
+                    <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
+
                     <div class="field-row field-row-stack">
                         <label>Onboarding</label>
                         <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
@@ -314,6 +335,7 @@
                         </button>
                     </div>
                 </div>
+
 
                 <!-- Tab: Providers (dynamic collapsible) -->
                 <div class="settings-panel" id="panel-providers" style="display:none">
@@ -516,6 +538,7 @@
     <script src="/static/js/files.js?v=2"></script>
     <script src="/static/js/ui_panels.js?v=2"></script>
     <script src="/static/js/main.js?v=2"></script>
+    <script src="/static/js/speech.js?v=2"></script>
     <script src="/static/select_session.js?v=2"></script>
 </body>
 </html>

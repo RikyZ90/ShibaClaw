@@ -35,6 +35,7 @@ function initListeners() {
             hideTypingBubble();
             hideThinking();
             updateSendButton();
+            if (window.speechTTS) window.speechTTS.stop();
         }
     });
 

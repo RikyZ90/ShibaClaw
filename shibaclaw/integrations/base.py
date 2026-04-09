@@ -1,4 +1,4 @@
-﻿"""Base channel interface for chat platforms."""
+"""Base channel interface for chat platforms."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class BaseChannel(ABC):
 
     name: str = "base"
     display_name: str = "Base"
-    transcription_api_key: str = ""
+    audio_config: Any | None = None
 
     def __init__(self, config: Any, bus: MessageBus):
         """
@@ -37,14 +37,31 @@ class BaseChannel(ABC):
         self._running = False
 
     async def transcribe_audio(self, file_path: str | Path) -> str:
-        """Transcribe an audio file via Groq Whisper. Returns empty string on failure."""
-        if not self.transcription_api_key:
+        """Transcribe an audio file using the configured STT provider. Returns empty string on failure."""
+        if not self.audio_config:
             return ""
+            
         try:
-            from shibaclaw.thinkers.transcription import GroqTranscriptionProvider
+            from openai import AsyncOpenAI
+            
+            path = Path(file_path)
+            if not path.exists():
+                logger.error("Audio file not found: {}", file_path)
+                return ""
 
-            provider = GroqTranscriptionProvider(api_key=self.transcription_api_key)
-            return await provider.transcribe(file_path)
+            client_kwargs = {"api_key": self.audio_config.api_key or "not-set"}
+            if self.audio_config.provider_url:
+                client_kwargs["base_url"] = self.audio_config.provider_url
+
+            client = AsyncOpenAI(**client_kwargs)
+            
+            with open(path, "rb") as audio_file:
+                res = await client.audio.transcriptions.create(
+                    model=self.audio_config.model or "whisper-large-v3-turbo",
+                    file=audio_file,
+                    response_format="text"
+                )
+            return str(res).strip()
         except Exception as e:
             logger.warning("{}: audio transcription failed: {}", self.name, e)
             return ""

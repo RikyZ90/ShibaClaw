@@ -757,3 +757,21 @@ input[type="number"].form-input {
 }
 .btn-link:hover { opacity: 0.8; }
 
+/* ── Settings Section Divider (Voice & Audio) ──────────────── */
+.settings-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 1.25rem 0 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-highlight, rgba(232,163,23,0.25));
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--shiba-gold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.settings-section-divider .material-icons-round {
+    font-size: 16px;
+}

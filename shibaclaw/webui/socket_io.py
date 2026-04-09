@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 import time
 import uuid
 import urllib.parse
@@ -249,3 +251,37 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
             await sio.enter_room(sid, _room(session_id))
             logger.info("🔀 WebUI {} switched to session: {}", sid, session_id)
             await _emit_session_status(sid, session_id)
+
+    @sio.event
+    async def transcribe_audio(sid, data):
+        """Receive base64 audio and return transcribed text via OpenAI-compatible STT."""
+        from openai import AsyncOpenAI
+
+        config = agent_manager.config
+        if not config:
+            return {"error": "Agent not configured"}
+
+        raw = data.get("audio")
+        if not raw:
+            return {"error": "No audio provided"}
+
+        try:
+            audio_bytes = base64.b64decode(raw)
+            audio_file = io.BytesIO(audio_bytes)
+            audio_file.name = "audio.wav"
+
+            client_kwargs = {"api_key": config.audio.api_key or "not-set"}
+            if config.audio.provider_url:
+                client_kwargs["base_url"] = config.audio.provider_url
+
+            client = AsyncOpenAI(**client_kwargs)
+            res = await client.audio.transcriptions.create(
+                model=config.audio.model or "whisper-large-v3-turbo",
+                file=audio_file,
+                response_format="text"
+            )
+
+            return {"text": str(res).strip()}
+        except Exception as e:
+            logger.exception("Audio transcription failed")
+            return {"error": str(e)}

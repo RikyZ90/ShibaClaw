@@ -1,4 +1,4 @@
-﻿"""Channel manager for coordinating chat channels."""
+"""Channel manager for coordinating chat channels."""
 
 from __future__ import annotations
 
@@ -35,8 +35,6 @@ class ChannelManager:
         """Initialize channels discovered via pkgutil scan + entry_points plugins."""
         from shibaclaw.integrations.registry import discover_all
 
-        groq_key = self.config.providers.groq.api_key
-
         for name, cls in discover_all().items():
             section = getattr(self.config.channels, name, None)
             if section is None:
@@ -50,7 +48,7 @@ class ChannelManager:
                 continue
             try:
                 channel = cls(section, self.bus)
-                channel.transcription_api_key = groq_key
+                channel.audio_config = self.config.audio
                 self.channels[name] = channel
                 logger.debug("{} channel enabled", cls.display_name)
             except Exception as e:

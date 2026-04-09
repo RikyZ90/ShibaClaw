@@ -77,6 +77,12 @@ function initSocket() {
         hideThinking();
         collapseProcessGroup(data.id);
         addAgentMessage(data.id, data.content, data.attachments || []);
+        
+        // Play text-to-speech if enabled
+        if (window.speechTTS && window.speechTTS.enabled && data.content) {
+            window.speechTTS.play(data.content);
+        }
+
         if (state.queueCount && state.queueCount > 0) state.queueCount = Math.max(0, state.queueCount - 1);
         updateQueueIndicator();
         state.processing = false;

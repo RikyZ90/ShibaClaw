@@ -281,12 +281,29 @@ window.toggleSessionMenu = function(event, btn, key) {
     const dropdown = document.querySelector(`.session-dropdown[data-session-key="${safeKey}"]`);
     const isActive = dropdown && dropdown.classList.contains("active");
     
-    document.querySelectorAll(".session-dropdown").forEach(d => d.classList.remove("active"));
+    document.querySelectorAll(".session-dropdown").forEach(d => {
+        d.classList.remove("active");
+        d.style.top = "";
+        d.style.bottom = "";
+        d.style.marginBottom = "";
+    });
     document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
     
     if (!isActive && dropdown) {
         dropdown.classList.add("active");
         btn.classList.add("active");
+        
+        const container = dropdown.closest('.history-section');
+        if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const rect = dropdown.getBoundingClientRect();
+            
+            if (rect.bottom > containerRect.bottom) {
+                dropdown.style.top = "auto";
+                dropdown.style.bottom = "100%";
+                dropdown.style.marginBottom = "4px";
+            }
+        }
     }
 };
 
@@ -436,7 +453,12 @@ window.archiveSession = async function(key) {
 };
 
 document.addEventListener("click", () => {
-    document.querySelectorAll(".session-dropdown").forEach(d => d.classList.remove("active"));
+    document.querySelectorAll(".session-dropdown").forEach(d => {
+        d.classList.remove("active");
+        d.style.top = "";
+        d.style.bottom = "";
+        d.style.marginBottom = "";
+    });
     document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
 });
 
@@ -869,17 +891,65 @@ async function _refreshOAuthStatus() {
     } catch { /* silent */ }
 }
 
+function _addProviderOption(sel, value, label) {
+    if (sel.querySelector(`option[value="${value}"]`)) return;
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label || value.charAt(0).toUpperCase() + value.slice(1);
+    sel.appendChild(opt);
+}
+
+async function _populateOAuthProviders(sel, current) {
+    try {
+        const r = await authFetch("/api/oauth/providers");
+        const data = await r.json();
+        for (const p of (data.providers || [])) {
+            if (p.status === "configured") _addProviderOption(sel, p.name, p.label);
+        }
+        if (current) sel.value = current;
+    } catch { /* silent */ }
+}
+
 function populateSettings(cfg) {
     lastSettingsConfig = JSON.parse(JSON.stringify(cfg));
     const d = cfg.agents?.defaults || {};
-    $("s-agent-provider").value = d.provider || "";
+    const oauthNames = new Set(["github_copilot", "openai_codex"]);
+    const sel = $("s-agent-provider");
+    sel.innerHTML = "";
+    _addProviderOption(sel, "auto", "Auto");
+    for (const [name, pc] of Object.entries(cfg.providers || {})) {
+        if (oauthNames.has(name)) continue;
+        if (pc.apiKey || pc.apiBase) _addProviderOption(sel, name);
+    }
+    const current = d.provider || "auto";
+    _addProviderOption(sel, current);
+    sel.value = current;
+    _populateOAuthProviders(sel, current);
+
     $("s-agent-model").value = d.model || "";
+    const dl = $("model-history-list");
+    dl.innerHTML = "";
+    for (const m of JSON.parse(localStorage.getItem("shibaclaw_model_history") || "[]")) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        dl.appendChild(opt);
+    }
     $("s-agent-temp").value = d.temperature ?? 0.1;
     $("s-agent-maxTokens").value = d.maxTokens ?? 8192;
     $("s-agent-ctxTokens").value = d.contextWindowTokens ?? 65536;
     $("s-agent-maxIter").value = d.maxToolIterations ?? 40;
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
+
+    // Audio settings
+    const au = cfg.audio || {};
+    $("s-audio-providerUrl").value = au.providerUrl || "";
+    $("s-audio-apiKey").value = au.apiKey || "";
+    $("s-audio-model").value = au.model || "";
+    // sync TTS toggle with config value (with localStorage as fallback)
+    const ttsFromConfig = au.ttsEnabled !== undefined ? au.ttsEnabled : (localStorage.getItem("shibaclaw_tts_enabled") === "true");
+    $("tts-toggle").checked = ttsFromConfig;
+    if (window.speechTTS) window.speechTTS.enabled = ttsFromConfig;
 
     const prov = cfg.providers || {};
     const list = $("providers-list");
@@ -1189,6 +1259,12 @@ window.removeMcpServer = function(btn) {
 };
 
 window.saveSettings = async function() {
+    const modelVal = $("s-agent-model").value.trim();
+    if (modelVal) {
+        const hist = JSON.parse(localStorage.getItem("shibaclaw_model_history") || "[]");
+        const updated = [modelVal, ...hist.filter(m => m !== modelVal)].slice(0, 10);
+        localStorage.setItem("shibaclaw_model_history", JSON.stringify(updated));
+    }
     const patch = {
         agents: { defaults: {
             provider: $("s-agent-provider").value,
@@ -1228,6 +1304,12 @@ window.saveSettings = async function() {
         channels: {
             sendProgress: $("s-ch-sendProgress").checked,
             sendToolHints: $("s-ch-sendToolHints").checked,
+        },
+        audio: {
+            providerUrl: $("s-audio-providerUrl").value || null,
+            apiKey: $("s-audio-apiKey").value || null,
+            model: $("s-audio-model").value || "whisper-large-v3-turbo",
+            ttsEnabled: $("tts-toggle").checked,
         }
     };
 

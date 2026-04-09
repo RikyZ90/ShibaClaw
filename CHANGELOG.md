@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.19] - 2026-04-09
+
+### Added
+- **Agent Settings UI**
+    - Model input field now has history tracking and auto-completion from previously used models.
+    - Provider input field changed to a dropdown showing only configured providers (API key, local base URL, or OAuth), defaulting to "auto".
+- **Audio Messaging Support (STT & TTS)**
+    - Integrated multi-provider Speech-to-Text (STT) pipeline using OpenAI-compatible APIs (e.g., Groq/Whisper).
+    - Browser-native Text-to-Speech (TTS) for agent responses with automatic markdown/code cleaning.
+    - Automatic Voice Activity Detection (VAD) with silence threshold and duration settings.
+- **WebUI Enhancements**
+    - High-quality visual feedback for voice recording with pulse animation on the microphone button.
+    - Transcription feedback: "Transcribing..." placeholder with shimmer effect during audio processing.
+    - Dedicated "Voice & Audio" section in Agent Settings to configure provider URL, API key, and model.
+    - TTS user preference persistence via `localStorage`.
+- **Backend Improvements**
+    - New `AudioConfig` schema for central management of speech settings.
+    - Refactored `transcribe_audio` Socket.IO event handler for better performance and reliability.
+
+### Changed
+- **UI Refinements**
+    - Improved chat input bar aesthetics: microphone and attachment (clip) buttons are now closer and visually aligned.
+    - Text-to-Speech (Bot Voice) now defaults to "off" for a cleaner initial experience.
+
+### Fixed
+- **Code Hygiene**
+    - Removed unused properties and redundant comments in speech and socket modules.
+    - Refactored backend imports and improved error handling for transcription failures.
+
 ## [0.0.17] - 2026-04-08
 
 ### Added
@@ -9,15 +38,12 @@ All notable changes to this project are documented in this file.
     - New standalone `server.py` with `create_app()` / `run_server()` for cleaner separation of server lifecycle from API routes.
     - Automatic agent initialization, skill sync, and cron startup on server boot (background tasks).
     - Update check on startup with non-blocking notification.
-- **Agent Settings UI**
-    - Model input field now has history tracking and auto-completion from previously used models.
-    - Provider input field changed to a dropdown populated from all configured providers, defaulting to "auto".
 
 ### Changed
 - **Architecture: Frontend Modularization**
     - `app.js` (3,289 lines) split into 8 focused modules in `static/js/`: `state.js`, `auth.js`, `utils.js`, `api_socket.js`, `chat.js`, `files.js`, `ui_panels.js`, `main.js`.
     - `index.css` (3,293 lines) split into 9 thematic stylesheets in `static/css/`: `vars.css`, `sidebar.css`, `chat.css`, `responsive.css`, `panels.css`, `modals.css`, `modals_responsive.css`, `login.css`, `components.css`. Entry `index.css` now uses `@import` directives.
-    - `index.html` updated to load the new JS modules in dependency order.
+    - index.html updated to load the new JS modules in dependency order.
 - **Architecture: Backend Modularization**
     - `api.py` (1,038 lines) refactored: route handlers extracted into `shibaclaw/webui/routers/` package with 10 focused modules (`auth.py`, `sessions.py`, `settings.py`, `fs.py`, `gateway.py`, `heartbeat.py`, `oauth.py`, `cron.py`, `system.py`, `onboard.py`).
     - Shared helpers (`_gateway_request`, `_deep_merge`, `_redact_secrets`, `_resolve_workspace_path`, context caches) moved to new `shibaclaw/webui/utils.py` to prevent circular imports.
