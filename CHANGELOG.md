@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.17] - 2026-04-08
+
+### Added
+- **WebUI Server Module**
+    - New standalone `server.py` with `create_app()` / `run_server()` for cleaner separation of server lifecycle from API routes.
+    - Automatic agent initialization, skill sync, and cron startup on server boot (background tasks).
+    - Update check on startup with non-blocking notification.
+- **Agent Settings UI**
+    - Model input field now has history tracking and auto-completion from previously used models.
+    - Provider input field changed to a dropdown populated from all configured providers, defaulting to "auto".
+
+### Changed
+- **Architecture: Frontend Modularization**
+    - `app.js` (3,289 lines) split into 8 focused modules in `static/js/`: `state.js`, `auth.js`, `utils.js`, `api_socket.js`, `chat.js`, `files.js`, `ui_panels.js`, `main.js`.
+    - `index.css` (3,293 lines) split into 9 thematic stylesheets in `static/css/`: `vars.css`, `sidebar.css`, `chat.css`, `responsive.css`, `panels.css`, `modals.css`, `modals_responsive.css`, `login.css`, `components.css`. Entry `index.css` now uses `@import` directives.
+    - `index.html` updated to load the new JS modules in dependency order.
+- **Architecture: Backend Modularization**
+    - `api.py` (1,038 lines) refactored: route handlers extracted into `shibaclaw/webui/routers/` package with 10 focused modules (`auth.py`, `sessions.py`, `settings.py`, `fs.py`, `gateway.py`, `heartbeat.py`, `oauth.py`, `cron.py`, `system.py`, `onboard.py`).
+    - Shared helpers (`_gateway_request`, `_deep_merge`, `_redact_secrets`, `_resolve_workspace_path`, context caches) moved to new `shibaclaw/webui/utils.py` to prevent circular imports.
+    - `api.py` now re-exports all route handlers for backward compatibility with `server.py`.
+- **Codebase Cleanup**
+    - Removed redundant comments and consolidated duplicated logic across `api.py`, `socket_io.py`, `loop.py`, and `app.js`.
+    - Streamlined imports across backend modules.
+    - Removed stale `.bak` backup files and `__pycache__` artifacts.
+    - Replaced dangerous wildcard imports (`from utils import *`) with explicit named imports.
+
+### Fixed
+- **WebUI Visibility** — Fixed an issue where the interface would fail to render correctly or appear empty after a manual page refresh by ensuring correct script loading order and state initialization in the new modular architecture.
+- **WebUI Context Endpoint** — Fixed `NameError: '_build_real_system_prompt' is not defined` caused by wildcard import ignoring underscore-prefixed private functions after the backend modularization.
+- **Gateway Request** — Fixed truncated `_gateway_request()` function body in `utils.py` that was partially lost during extraction from `api.py`.
+- **Config & Authentication** — Enhanced config loading, authentication handling, and socket.io integration in the standalone WebUI server module.
+
 ## [0.0.16] - 2026-04-08
 
 ### Changed

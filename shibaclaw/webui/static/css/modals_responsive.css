@@ -1,0 +1,8 @@
+/* ── Responsive Settings ───────────────────────────────────── */
+@media (max-width: 600px) {
+    .modal.modal-settings { width: 98vw; height: 92vh; }
+    .field-row { grid-template-columns: 1fr; gap: 4px; }
+    .settings-tab { padding: 0.5rem 0.6rem; font-size: 0.72rem; }
+    .settings-tab .material-icons-round { font-size: 13px; }
+}
+

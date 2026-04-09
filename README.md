@@ -4,7 +4,7 @@
 
 # Smart. Loyal. Powerful. 🐕
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.17-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.18-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -21,8 +21,9 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.17** is out! Improved message ID handling in WebUI responses. Thread-safe settings synchronization in WebUI. Refactored restart functions Hardened authentication. MCP settings UI improved. Fixed attachment handling and media parsing.
+> **v0.0.18** is out! 🏗️ **Core Modularization**: Frontend split into 17+ modules (JS/CSS) and Backend refactored into a focused `routers/` package. 🚀 **Standalone Server**: New `server.py` with cleaner lifecycle separation. ⌨️ **Smart Settings**: Model history tracking and auto-completion in the UI. 🧹 **Cleanup**: Massive codebase hygiene pass and bug fixes.
 
+- **2026-04-08** 🧹 **Refactoring & Stability** — Comprehensive codebase refactoring (modularization of WebUI and API) plus a massive bug fix pass to improve overall system stability and performance.
 - **2026-04-07** 🐕 **Standalone Mode Reliability** — Fixed false "Gateway Down" in bare-metal standalone mode (`shibaclaw web`). The health check and heartbeat services now correctly fall back to the local agent instance when a separate gateway process is not present.
 - **2026-04-06** 🛡️ **Security Hardening** — Socket.IO auth bypass fixed, auth token leakage in URLs prevented, SSRF mitigation in update manifest validation, constant-time token comparison, race condition in task callback resolved, severity comparison logic corrected.
 - **2026-04-05** 🚀 **Guided Onboarding Everywhere** — `shibaclaw onboard` now drives a single guided setup flow across CLI and WebUI: provider detection, OAuth handoff, model selection, template refresh, and optional channel setup.
@@ -193,7 +194,7 @@ See the full [Easy Deploy Guide](./deploy_guide.md) for detailed instructions an
 - **🔐 Token authentication** — auto-generated access token printed at startup (disable with `SHIBACLAW_AUTH=false`)
 - **Multi-session chat** — create, rename, archive, and switch between conversations
 - **Live process groups** — watch agent reasoning and tool calls stream in with elapsed time
-- **Settings modal** — configure model, provider, API keys, tools, gateway, channels, and OAuth providers
+- **Settings modal** — configure model (with history/auto-complete), provider (dropdown), API keys, tools, gateway, and channels
 - **OAuth login from UI** — authenticate GitHub Copilot and OpenAI Codex directly from the Settings panel
 - **Context viewer** — inspect workspace context and token usage
 - **Gateway monitor** — health check and one-click restart of the core AI engine
@@ -283,8 +284,8 @@ Requirements: `pip install oauth-cli-kit` (Codex)
 </p>
 
 - `shibaclaw/` - core implementation
-  - `webui/` - web interface (server.py + static assets)
-  - `agent/` - AI agent loop and brain
+  - `webui/` - web interface (`server.py`, `routers/` package, `utils.py`, and static assets)
+  - `agent/` - AI agent loop and brain implementation
   - `thinkers/` - LLM provider registry
   - `updater/` - update checker, manifest downloader, and release watcher
   - `cli/` - CLI commands

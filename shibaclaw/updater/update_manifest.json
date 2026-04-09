@@ -1,14 +1,47 @@
 {
-  "version": "0.0.17",
-  "release_notes": "- All /api/file-get APIs are now public and no longer require the authentication token in the query string.\n- Improved message ID handling in WebUI responses.\n- Thread-safe settings synchronization in WebUI.\n- Refactored restart functions for safer process restarts.\n- Hardened authentication: token only checked in Authorization header.\n- MCP settings UI improved and always uses mcpServers (camelCase).\n- Automatic migration for MCP servers and onboarding plugins.\n- Fixed attachment handling and media parsing.\n- Shared _safe_argv for agent and WebUI restarts.",
-  "upgrade_notes": "No manual configuration changes required. Restart the WebUI and gateway after upgrading.",
+  "version": "0.0.18",
+  "release_notes": "- **WebUI Server Module**: New standalone server.py with create_app() for cleaner lifecycle separation and background tasks.\n- **Agent Settings UI**: Added history tracking and auto-completion for Model input; Provider is now a dropdown from all configured providers.\n- **Frontend Modularization**: Split app.js and index.css into multiple focused modules and thematic stylesheets for better maintainability.\n- **Backend Modularization**: Refactored api.py into a routers/ package with focused modules and shared helpers in utils.py.\n- **Codebase Cleanup**: Removed redundant comments, consolidated logic, streamlined imports, and replaced wildcard imports.\n- **Stability & Fixes**: Fixed WebUI visibility on refresh, context endpoint NameErrors, and truncated function bodies.",
+  "upgrade_notes": "Significant architectural changes: uvicorn is now mandatory for WebUI. Restart the WebUI or Docker stack after upgrading to ensure all modules are reloaded.",
   "changes": [
-    "shibaclaw/webui/api.py",
-    "shibaclaw/webui/agent_manager.py",
-    "shibaclaw/webui/auth.py",
-    "shibaclaw/webui/socket_io.py",
-    "shibaclaw/webui/static/app.js",
-    "shibaclaw/agent/loop.py",
-    "shibaclaw/config/loader.py"
+    {
+      "path": "shibaclaw/webui/server.py",
+      "overwrite": true,
+      "note": "New standalone server module"
+    },
+    {
+      "path": "shibaclaw/webui/utils.py",
+      "overwrite": true,
+      "note": "Shared helpers and context caches"
+    },
+    {
+      "path": "shibaclaw/webui/routers/",
+      "overwrite": true,
+      "note": "Refactored backend routes"
+    },
+    {
+      "path": "shibaclaw/webui/static/js/",
+      "overwrite": true,
+      "note": "Modular frontend logic"
+    },
+    {
+      "path": "shibaclaw/webui/static/css/",
+      "overwrite": true,
+      "note": "Modular thematic stylesheets"
+    },
+    {
+      "path": "USER.md",
+      "overwrite": false,
+      "note": "Preserve personal profile data"
+    },
+    {
+      "path": "SOUL.md",
+      "overwrite": false,
+      "note": "Preserve agent personality config"
+    },
+    {
+      "path": "memory/MEMORY.md",
+      "overwrite": false,
+      "note": "Preserve operational project context"
+    }
   ]
 }
