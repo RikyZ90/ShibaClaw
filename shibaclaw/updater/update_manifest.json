@@ -1,5 +1,5 @@
 {
-  "version": "0.0.19",
+  "version": "0.0.20",
   "release_notes": "- **Voice I/O (STT & TTS)**: Full Speech-to-Text pipeline via OpenAI-compatible APIs (Groq/Whisper). Browser-native TTS with markdown cleaning. Automatic Voice Activity Detection (VAD). Dedicated Voice & Audio section in Agent Settings.\n- **Smart Agent Settings**: Model input now has history tracking and autocomplete from previously used models. Provider input is now a smart dropdown showing only configured providers (API key, local base URL, or OAuth).\n- **Frontend Modularization**: Split app.js and index.css into multiple focused modules and thematic stylesheets.\n- **Backend Modularization**: Refactored api.py into a routers/ package with shared helpers in utils.py.\n- **Standalone Server**: New server.py with create_app() / run_server() for cleaner lifecycle separation.\n- **Codebase Cleanup**: Removed unused properties, redundant comments, and dead code in speech and socket modules.",
   "upgrade_notes": "Restart the WebUI or Docker stack after upgrading to ensure all modules are reloaded.",
   "changes": [
