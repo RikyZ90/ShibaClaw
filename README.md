@@ -4,7 +4,7 @@
 
 # Smart. Loyal. Powerful. 🐕
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.18-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.19-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -21,8 +21,9 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.18** is out! 🏗️ **Core Modularization**: Frontend split into 17+ modules (JS/CSS) and Backend refactored into a focused `routers/` package. 🚀 **Standalone Server**: New `server.py` with cleaner lifecycle separation. ⌨️ **Smart Settings**: Model history tracking and auto-completion in the UI. 🧹 **Cleanup**: Massive codebase hygiene pass and bug fixes.
+> **v0.0.19** is out! � **Voice I/O**: Full Speech-to-Text pipeline (OpenAI-compatible, Groq/Whisper) with browser-native TTS, VAD, and a dedicated Voice & Audio settings section. ⌨️ **Smart Settings**: Model field now has history tracking and autocomplete; Provider field is a smart dropdown showing only configured providers (API key, local, or OAuth). 🧹 **Cleanup**: Dead code and redundant comments removed from speech and socket modules.
 
+- **2026-04-09** 🎤 **Voice I/O & Smart Settings** — Full STT/TTS pipeline with VAD and pulse feedback. Provider dropdown now filters to configured providers only (API key, local base URL, or OAuth). Model input gains history and autocomplete.
 - **2026-04-08** 🧹 **Refactoring & Stability** — Comprehensive codebase refactoring (modularization of WebUI and API) plus a massive bug fix pass to improve overall system stability and performance.
 - **2026-04-07** 🐕 **Standalone Mode Reliability** — Fixed false "Gateway Down" in bare-metal standalone mode (`shibaclaw web`). The health check and heartbeat services now correctly fall back to the local agent instance when a separate gateway process is not present.
 - **2026-04-06** 🛡️ **Security Hardening** — Socket.IO auth bypass fixed, auth token leakage in URLs prevented, SSRF mitigation in update manifest validation, constant-time token comparison, race condition in task callback resolved, severity comparison logic corrected.

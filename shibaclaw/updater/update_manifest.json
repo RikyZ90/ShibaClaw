@@ -1,12 +1,47 @@
 {
-  "version": "0.0.18",
-  "release_notes": "- **WebUI Server Module**: New standalone server.py with create_app() for cleaner lifecycle separation and background tasks.\n- **Agent Settings UI**: Added history tracking and auto-completion for Model input; Provider is now a dropdown from all configured providers.\n- **Frontend Modularization**: Split app.js and index.css into multiple focused modules and thematic stylesheets for better maintainability.\n- **Backend Modularization**: Refactored api.py into a routers/ package with focused modules and shared helpers in utils.py.\n- **Codebase Cleanup**: Removed redundant comments, consolidated logic, streamlined imports, and replaced wildcard imports.\n- **Stability & Fixes**: Fixed WebUI visibility on refresh, context endpoint NameErrors, and truncated function bodies.",
-  "upgrade_notes": "Significant architectural changes: uvicorn is now mandatory for WebUI. Restart the WebUI or Docker stack after upgrading to ensure all modules are reloaded.",
+  "version": "0.0.19",
+  "release_notes": "- **Voice I/O (STT & TTS)**: Full Speech-to-Text pipeline via OpenAI-compatible APIs (Groq/Whisper). Browser-native TTS with markdown cleaning. Automatic Voice Activity Detection (VAD). Dedicated Voice & Audio section in Agent Settings.\n- **Smart Agent Settings**: Model input now has history tracking and autocomplete from previously used models. Provider input is now a smart dropdown showing only configured providers (API key, local base URL, or OAuth).\n- **Frontend Modularization**: Split app.js and index.css into multiple focused modules and thematic stylesheets.\n- **Backend Modularization**: Refactored api.py into a routers/ package with shared helpers in utils.py.\n- **Standalone Server**: New server.py with create_app() / run_server() for cleaner lifecycle separation.\n- **Codebase Cleanup**: Removed unused properties, redundant comments, and dead code in speech and socket modules.",
+  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading to ensure all modules are reloaded.",
   "changes": [
+    {
+      "path": "shibaclaw/webui/socket_io.py",
+      "overwrite": true,
+      "note": "Refactored transcribe_audio handler and imports"
+    },
+    {
+      "path": "shibaclaw/webui/static/js/speech.js",
+      "overwrite": true,
+      "note": "STT/TTS/VAD browser module"
+    },
+    {
+      "path": "shibaclaw/webui/static/js/ui_panels.js",
+      "overwrite": true,
+      "note": "Model history autocomplete and provider dropdown"
+    },
+    {
+      "path": "shibaclaw/webui/static/index.html",
+      "overwrite": true,
+      "note": "Voice & Audio settings section, model datalist, provider select"
+    },
+    {
+      "path": "shibaclaw/webui/static/css/components.css",
+      "overwrite": true,
+      "note": "Pulse animation and transcribing shimmer"
+    },
+    {
+      "path": "shibaclaw/webui/static/css/chat.css",
+      "overwrite": true,
+      "note": "Chat input bar aesthetics"
+    },
+    {
+      "path": "shibaclaw/config/schema.py",
+      "overwrite": true,
+      "note": "New AudioConfig schema"
+    },
     {
       "path": "shibaclaw/webui/server.py",
       "overwrite": true,
-      "note": "New standalone server module"
+      "note": "Standalone server module"
     },
     {
       "path": "shibaclaw/webui/utils.py",
