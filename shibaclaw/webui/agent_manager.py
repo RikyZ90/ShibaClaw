@@ -26,6 +26,7 @@ class AgentManager:
         self._sessions: Dict[str, Dict] = {}
         self._init_lock = asyncio.Lock()
         self.heartbeat: Optional[Any] = None
+        self.oauth_jobs: Dict[str, Dict] = {}
 
     def set_socket_io(self, sio: Any, sessions: Dict[str, Dict]):
         self._sio = sio
@@ -159,7 +160,9 @@ class AgentManager:
             from shibaclaw.cron.service import CronService
             from shibaclaw.integrations.manager import ChannelManager
 
-            self.bus = MessageBus()
+            self.bus = MessageBus(
+                rate_limit_per_minute=self.config.gateway.rate_limit_per_minute,
+            )
             cron_store = get_cron_dir() / "jobs.json"
             cron = CronService(cron_store)
 

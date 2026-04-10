@@ -131,5 +131,6 @@ from .routers.gateway import api_gateway_health, api_gateway_restart  # noqa: E4
 from .routers.heartbeat import api_heartbeat_status, api_heartbeat_trigger  # noqa: E402, F401
 from .routers.oauth import api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code  # noqa: E402, F401
 from .routers.cron import api_cron_list, api_cron_trigger  # noqa: E402, F401
-from .routers.system import api_update_check, api_update_manifest, api_restart_server  # noqa: E402, F401
+from .routers.system import api_update_check, api_update_manifest, api_update_apply, api_restart_server  # noqa: E402, F401
 from .routers.onboard import api_onboard_providers, api_onboard_templates, api_onboard_submit  # noqa: E402, F401
+from .routers.skills import api_skills_list, api_skills_pin, api_skills_delete, api_skills_import  # noqa: E402, F401

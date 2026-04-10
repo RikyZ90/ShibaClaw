@@ -1,8 +1,9 @@
-"""GitHub OAuth device flow helper for the WebUI."""
+"""OAuth device flow helpers for the WebUI (GitHub Copilot & OpenAI Codex)."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import httpx
 import os
 import urllib.request
@@ -118,3 +119,89 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
     jobs[job_id]["status"] = "error"
     jobs[job_id]["logs"].append("❌ Timed out waiting for authorization.")
     asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+
+
+# ---------------------------------------------------------------------------
+# OpenAI Codex OAuth — uses oauth-cli-kit's device flow via WebUI code input
+# ---------------------------------------------------------------------------
+
+async def start_codex_oauth(job_id: str, jobs: dict):
+    """Trigger OpenAI Codex device flow via oauth-cli-kit.
+
+    The library exposes ``login_oauth_interactive(print_fn, prompt_fn)``
+    which drives a device-code flow.  We bridge its interactive callbacks
+    to the WebUI by:
+      • capturing printed URLs/codes via ``print_fn``  → pushed into job logs
+      • blocking on ``prompt_fn`` via an asyncio.Event → the WebUI calls
+        ``POST /api/oauth/code`` to deliver the user's input
+    """
+    try:
+        from oauth_cli_kit import login_oauth_interactive  # noqa: F811
+    except ImportError:
+        jobs[job_id]["status"] = "error"
+        jobs[job_id]["logs"].append("❌ oauth-cli-kit not installed (pip install oauth-cli-kit)")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return JSONResponse({"error": "oauth-cli-kit not installed"}, status_code=501)
+
+    code_event = asyncio.Event()
+    code_holder: dict[str, str] = {"value": ""}
+
+    # Store the event/holder so api_oauth_code can unblock the prompt
+    jobs[job_id]["_code_event"] = code_event
+    jobs[job_id]["_code_holder"] = code_holder
+    jobs[job_id]["status"] = "awaiting_code"
+
+    # Collect printed output (verification URL, user code, etc.)
+    captured_lines: list[str] = []
+
+    def _print(msg: str) -> None:
+        captured_lines.append(msg)
+        jobs[job_id]["logs"].append(msg)
+
+    def _prompt_sync(msg: str) -> str:
+        """Blocking prompt — will be called inside run_in_executor."""
+        jobs[job_id]["logs"].append(f"⏳ {msg}")
+        # Wait for the WebUI to deliver the code via api_oauth_code
+        loop = asyncio.get_event_loop()
+        future = asyncio.run_coroutine_threadsafe(code_event.wait(), loop)
+        future.result(timeout=900)  # 15 min max
+        return code_holder["value"]
+
+    async def _run_flow():
+        try:
+            loop = asyncio.get_event_loop()
+            token = await loop.run_in_executor(
+                None,
+                lambda: login_oauth_interactive(print_fn=_print, prompt_fn=_prompt_sync),
+            )
+            if token and getattr(token, "access", None):
+                # Persist credentials to the same path the CLI uses
+                home = os.path.expanduser("~")
+                cred_dir = os.path.join(home, ".config", "shibaclaw", "openai_codex")
+                os.makedirs(cred_dir, exist_ok=True)
+                cred_path = os.path.join(cred_dir, "credentials.json")
+                with open(cred_path, "w") as f:
+                    json.dump({
+                        "access": token.access,
+                        "account_id": getattr(token, "account_id", "unknown"),
+                    }, f)
+
+                jobs[job_id]["status"] = "done"
+                account = getattr(token, "account_id", "unknown")
+                jobs[job_id]["logs"].append(f"✅ Authenticated with OpenAI Codex ({account})")
+            else:
+                jobs[job_id]["status"] = "error"
+                jobs[job_id]["logs"].append("❌ Authentication failed — no token received")
+        except Exception as e:
+            jobs[job_id]["status"] = "error"
+            jobs[job_id]["logs"].append(f"❌ Codex login error: {e}")
+        finally:
+            asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+
+    asyncio.create_task(_run_flow())
+
+    return JSONResponse({
+        "job_id": job_id,
+        "provider": "openai_codex",
+        "status": "awaiting_code",
+    })

@@ -4,7 +4,7 @@
 
 # Smart. Loyal. Powerful. 🐕
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.20-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.22-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -21,7 +21,9 @@ The **only** AI agent framework combining **extreme multi-layer security** (Stru
 
 ## 📢 News
 
-> **v0.0.20** is out! � **Voice I/O**: Full Speech-to-Text pipeline (OpenAI-compatible, Groq/Whisper) with browser-native TTS, VAD, and a dedicated Voice & Audio settings section. ⌨️ **Smart Settings**: Model field now has history tracking and autocomplete; Provider field is a smart dropdown showing only configured providers (API key, local, or OAuth). 🧹 **Cleanup**: Dead code and redundant comments removed from speech and socket modules.
+> **v0.0.22** is out! 🧩 **Skills WebUI**: installed skills browser, always-active management, import/delete actions, and ClawHub shortcut. 🧭 **Settings Redesign**: new vertical sidebar layout for faster navigation. ⚙️ **Config Upgrade**: persistent `pinned_skills` and `max_pinned_skills`.
+
+- **2026-04-10** 🧩 **Skills Management Release (0.0.22)** — Added `/api/skills` endpoints (list, pin, import, delete), improved SKILL.md zip import compatibility, and streamlined Skills settings UX.
 
 - **2026-04-09** 🎤 **Voice I/O & Smart Settings** — Full STT/TTS pipeline with VAD and pulse feedback. Provider dropdown now filters to configured providers only (API key, local base URL, or OAuth). Model input gains history and autocomplete.
 - **2026-04-08** 🧹 **Refactoring & Stability** — Comprehensive codebase refactoring (modularization of WebUI and API) plus a massive bug fix pass to improve overall system stability and performance.

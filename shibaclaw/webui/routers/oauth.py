@@ -53,22 +53,20 @@ async def api_oauth_login(request: Request):
         return JSONResponse({"error": "Unknown provider"}, status_code=404)
 
     job_id = str(uuid.uuid4())[:8]
-    if "_oauth_jobs" not in globals():
-        globals()["_oauth_jobs"] = {}
-    jobs = globals()["_oauth_jobs"]
+    jobs = agent_manager.oauth_jobs
     jobs[job_id] = {"provider": provider, "status": "running", "logs": []}
 
     if provider == "github_copilot":
         from .oauth_github import start_github_oauth
         return await start_github_oauth(job_id, jobs)
     elif provider == "openai_codex":
-        # Codex logic is complex, for now keep it simple here or move to helper
-        return JSONResponse({"error": "Codex login not yet modularized"}, status_code=501)
+        from .oauth_github import start_codex_oauth
+        return await start_codex_oauth(job_id, jobs)
 
 
 async def api_oauth_job(request: Request):
     job_id = request.path_params.get("job_id")
-    jobs = globals().get('_oauth_jobs', {})
+    jobs = agent_manager.oauth_jobs
     j = jobs.get(job_id)
     if not j: return JSONResponse({"error": "Job not found"}, status_code=404)
     return JSONResponse({"job": {k: v for k, v in j.items() if not k.startswith("_")}})
@@ -77,7 +75,7 @@ async def api_oauth_job(request: Request):
 async def api_oauth_code(request: Request):
     data = await request.json()
     job_id, code = data.get("job_id"), data.get("code", "").strip()
-    jobs = globals().get('_oauth_jobs', {})
+    jobs = agent_manager.oauth_jobs
     j = jobs.get(job_id)
     if not j: return JSONResponse({"error": "Job not found"}, status_code=404)
     event, holder = j.get("_code_event"), j.get("_code_holder")
