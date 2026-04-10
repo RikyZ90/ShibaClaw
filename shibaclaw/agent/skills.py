@@ -1,9 +1,11 @@
 ﻿"""Skills loader for agent capabilities."""
 
+import io
 import json
 import os
 import re
 import shutil
+import zipfile
 from pathlib import Path
 
 # Default builtin skills directory (relative to this file)
@@ -190,15 +192,142 @@ class SkillsLoader:
         meta = self.get_skill_metadata(name) or {}
         return self._parse_shibaclaw_metadata(meta.get("metadata", ""))
 
-    def get_always_skills(self) -> list[str]:
-        """Get skills marked as always=true that meet requirements."""
+    @staticmethod
+    def _extract_name_from_frontmatter(content: str) -> str | None:
+        """Extract the 'name' field from YAML frontmatter."""
+        if not content.startswith("---"):
+            return None
+        m = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
+        if not m:
+            return None
+        for line in m.group(1).split("\n"):
+            if line.startswith("name:"):
+                val = line.split(":", 1)[1].strip().strip("\"'")
+                if val:
+                    return val
+        return None
+
+    def get_always_skills(self, pinned: list[str] | None = None) -> list[str]:
+        """Get skills marked as always=true OR present in pinned list, that meet requirements."""
         result = []
+        seen: set[str] = set()
+        available = {s["name"] for s in self.list_skills(filter_unavailable=True)}
+
+        # YAML always: true
         for s in self.list_skills(filter_unavailable=True):
             meta = self.get_skill_metadata(s["name"]) or {}
             skill_meta = self._parse_shibaclaw_metadata(meta.get("metadata", ""))
             if skill_meta.get("always") or meta.get("always"):
-                result.append(s["name"])
+                if s["name"] not in seen:
+                    result.append(s["name"])
+                    seen.add(s["name"])
+
+        # Config pinned skills
+        for name in pinned or []:
+            if name not in seen and name in available:
+                result.append(name)
+                seen.add(name)
+
         return result
+
+    def delete_skill(self, name: str) -> bool:
+        """Delete a workspace skill. Returns True on success. Refuses to delete built-in skills."""
+        target = self.workspace_skills / name
+        if not target.exists() or not target.is_dir():
+            return False
+        # Safety: must be inside workspace_skills
+        try:
+            target.resolve().relative_to(self.workspace_skills.resolve())
+        except ValueError:
+            return False
+        shutil.rmtree(target)
+        return True
+
+    def import_skills_zip(
+        self, zip_bytes: bytes, conflict: str = "skip", dry_run: bool = False
+    ) -> dict:
+        """Import SKILL.md folders from a zip archive into workspace/skills/.
+
+        Args:
+            zip_bytes: Raw zip file content.
+            conflict: 'skip', 'overwrite', or 'rename'.
+            dry_run: If True, only preview — don't write anything.
+
+        Returns:
+            Dict with imported/skipped counts and lists.
+        """
+        imported: list[str] = []
+        skipped: list[str] = []
+
+        with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
+            skill_dirs: dict[str, str] = {}  # skill_name -> zip_prefix
+            for info in zf.infolist():
+                norm = info.filename.replace("\\", "/")
+                basename = norm.rstrip("/").split("/")[-1]
+                if basename.upper() != "SKILL.MD":
+                    continue
+                parts = norm.split("/")
+                if len(parts) == 1:
+                    # SKILL.md at root — derive name from frontmatter
+                    raw = zf.read(info.filename).decode("utf-8", errors="replace")
+                    sname = self._extract_name_from_frontmatter(raw) or "imported_skill"
+                    skill_dirs.setdefault(sname, "")
+                elif len(parts) >= 2:
+                    skill_name = parts[-2]
+                    prefix = "/".join(parts[:-1])
+                    if skill_name:
+                        skill_dirs.setdefault(skill_name, prefix)
+
+            if not skill_dirs:
+                return {"imported": [], "skipped": [], "imported_count": 0, "skipped_count": 0, "error": "No SKILL.md folders found in archive"}
+
+            self.workspace_skills.mkdir(parents=True, exist_ok=True)
+
+            for skill_name, prefix in skill_dirs.items():
+                dest = self.workspace_skills / skill_name
+                if dest.exists():
+                    if conflict == "skip":
+                        skipped.append(skill_name)
+                        continue
+                    elif conflict == "rename":
+                        n = 2
+                        while (self.workspace_skills / f"{skill_name}_{n}").exists():
+                            n += 1
+                        skill_name_final = f"{skill_name}_{n}"
+                        dest = self.workspace_skills / skill_name_final
+                    elif conflict == "overwrite":
+                        if not dry_run:
+                            shutil.rmtree(dest)
+                    else:
+                        skipped.append(skill_name)
+                        continue
+                else:
+                    skill_name_final = skill_name  # noqa: F841
+
+                if not dry_run:
+                    dest.mkdir(parents=True, exist_ok=True)
+                    for info in zf.infolist():
+                        zpath = info.filename.replace("\\", "/")
+                        if info.is_dir():
+                            continue
+                        if prefix == "":
+                            rel = zpath
+                        elif zpath.startswith(prefix + "/"):
+                            rel = zpath[len(prefix) + 1:]
+                        else:
+                            continue
+                        target_file = dest / rel
+                        target_file.parent.mkdir(parents=True, exist_ok=True)
+                        target_file.write_bytes(zf.read(info.filename))
+
+                imported.append(skill_name)
+
+        return {
+            "imported": imported,
+            "skipped": skipped,
+            "imported_count": len(imported),
+            "skipped_count": len(skipped),
+        }
 
     def get_skill_metadata(self, name: str) -> dict | None:
         """
@@ -217,9 +346,19 @@ class SkillsLoader:
         if content.startswith("---"):
             match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
             if match:
-                # Simple YAML parsing
+                raw_yaml = match.group(1)
+                # Try proper YAML parsing first, fall back to simple split
+                try:
+                    import yaml
+                    parsed = yaml.safe_load(raw_yaml)
+                    if isinstance(parsed, dict):
+                        # Stringify values for backward compatibility
+                        return {k: str(v) if v is not None else "" for k, v in parsed.items()}
+                except Exception:
+                    pass
+                # Fallback: simple line-by-line parsing
                 metadata = {}
-                for line in match.group(1).split("\n"):
+                for line in raw_yaml.split("\n"):
                     if ":" in line:
                         key, value = line.split(":", 1)
                         metadata[key.strip()] = value.strip().strip('"\'')

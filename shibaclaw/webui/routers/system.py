@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import sys
 import uuid
 import json
 import asyncio
@@ -56,6 +57,46 @@ def _safe_argv() -> list[str]:
         if arg.startswith("-") or arg in _ALLOWED_SUBCOMMANDS:
             safe.append(arg)
     return safe
+
+
+async def api_update_apply(request: Request):
+    """Apply a ShibaClaw update: backup personal files + pip upgrade."""
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    manifest = data.get("manifest")
+    if not manifest or not isinstance(manifest, dict):
+        return JSONResponse({"error": "Missing or invalid 'manifest' in request body"}, status_code=400)
+
+    if not agent_manager.config:
+        return JSONResponse({"error": "Agent not configured"}, status_code=400)
+
+    workspace_root = agent_manager.config.workspace_path
+
+    try:
+        from shibaclaw.updater.apply import apply_update
+        loop = asyncio.get_event_loop()
+        report = await loop.run_in_executor(None, lambda: apply_update(manifest, workspace_root))
+    except Exception as e:
+        logger.error("Update apply failed: {}", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    # If pip succeeded, schedule a restart so the new version takes effect
+    if report.get("pip", {}).get("ok"):
+        safe_argv = _safe_argv()
+
+        async def _do_restart():
+            await asyncio.sleep(1.0)
+            os.execv(sys.executable, safe_argv)
+
+        asyncio.create_task(_do_restart())
+        report["restarting"] = True
+    else:
+        report["restarting"] = False
+
+    return JSONResponse(report)
 
 
 async def api_restart_server(request: Request):

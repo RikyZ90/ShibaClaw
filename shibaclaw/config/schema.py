@@ -45,6 +45,8 @@ class AgentDefaults(Base):
     memory_max_prompt_tokens: int = 2000  # Max tokens from MEMORY.md injected into the system prompt
     memory_compact_threshold_tokens: int = 1600  # Token threshold that triggers automatic memory compaction (should be < memory_max_prompt_tokens)
     consolidation_model: str | None = None  # Cheaper model for memory consolidation/compaction (None = use main model)
+    pinned_skills: list[str] = Field(default_factory=list)  # Skills always injected into prompt extras
+    max_pinned_skills: int = 5  # Max number of pinned skills
 
 
 class AgentsConfig(Base):
@@ -106,6 +108,7 @@ class GatewayConfig(Base):
     host: str = "127.0.0.1"
     port: int = 19999
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
+    rate_limit_per_minute: int = 0  # 0 = disabled; per-sender inbound message rate limit
 
 
 class WebSearchConfig(Base):

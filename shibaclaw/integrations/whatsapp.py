@@ -54,6 +54,22 @@ class WhatsAppChannel(BaseChannel):
 
         bridge_url = self.config.bridge_url
 
+        # Security: warn if the bridge is reachable over a non-loopback address
+        # because the bridge_token is sent in cleartext over the WebSocket.
+        try:
+            from urllib.parse import urlparse as _urlparse
+            _parsed = _urlparse(bridge_url)
+            _host = (_parsed.hostname or "").lower()
+            if _host not in ("localhost", "127.0.0.1", "::1", ""):
+                logger.warning(
+                    "⚠️  WhatsApp bridge_url ({}) is not on localhost. "
+                    "The bridge_token is sent in cleartext — ensure the link is "
+                    "encrypted or on a trusted private network.",
+                    bridge_url,
+                )
+        except Exception:
+            pass
+
         logger.info("Connecting to WhatsApp bridge at {}...", bridge_url)
 
         self._running = True

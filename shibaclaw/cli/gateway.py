@@ -174,7 +174,7 @@ async def gateway_command(
     sync_skills(config.workspace_path)
 
     auth_token = get_auth_token()
-    bus = MessageBus()
+    bus = MessageBus(rate_limit_per_minute=config.gateway.rate_limit_per_minute)
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
         console.print("[yellow]🐾 Entering idle mode...[/yellow]")

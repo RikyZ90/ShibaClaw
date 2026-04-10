@@ -682,7 +682,9 @@ window.openModal = async function(id) {
             window._shibaConfig = cfg;
             populateSettings(cfg);
             $("settings-loading").style.display = "none";
-            switchSettingsTab("agent");
+            let startTab = "agent";
+            try { startTab = localStorage.getItem("shibaclaw_settings_tab") || "agent"; } catch(e) {}
+            switchSettingsTab(startTab);
         } catch(e) {
             $("settings-loading").innerHTML = `<span class="material-icons-round" style="color:var(--accent-red)">error</span> Failed to load settings`;
         }
@@ -716,6 +718,9 @@ window.openOnboardFromSettings = function() {
 };
 
 window.switchSettingsTab = function(tab) {
+    document.querySelectorAll(".settings-sidebar-item").forEach(t => t.classList.remove("active"));
+    const sidebarEl = document.querySelector(`.settings-sidebar-item[data-tab="${tab}"]`);
+    if (sidebarEl) sidebarEl.classList.add("active");
     document.querySelectorAll(".settings-tab").forEach(t => t.classList.remove("active"));
     const tabEl = document.querySelector(`.settings-tab[data-tab="${tab}"]`);
     if (tabEl) tabEl.classList.add("active");
@@ -724,7 +729,162 @@ window.switchSettingsTab = function(tab) {
     if (panel) panel.style.display = "block";
     if (tab === "oauth") loadOAuthPanel();
     if (tab === "update") loadUpdatePanel();
+    if (tab === "skills") loadSkillsPanel();
+    try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch(e) {}
 };
+
+/* ── Skills panel ── */
+window._skillsData = [];
+window._skillsPinnedList = [];
+window._skillsMaxPinned = 5;
+
+async function loadSkillsPanel() {
+    const listEl = document.getElementById("skills-list");
+    try {
+        const res = await authFetch("/api/skills");
+        if (!res.ok) {
+            if (listEl) listEl.innerHTML = '<div style="color:#e57373;font-size:13px;padding:12px">Failed to load skills (HTTP ' + res.status + ')</div>';
+            return;
+        }
+        const data = await res.json();
+        window._skillsData = data.skills || [];
+        window._skillsPinnedList = data.pinned_skills || [];
+        window._skillsMaxPinned = data.max_pinned_skills || 5;
+        renderSkillsPanel();
+    } catch(e) {
+        console.error("loadSkillsPanel", e);
+        if (listEl) listEl.innerHTML = '<div style="color:#e57373;font-size:13px;padding:12px">Error loading skills</div>';
+    }
+}
+
+function renderSkillsPanel() {
+    const skills = window._skillsData;
+    const pinned = window._skillsPinnedList;
+    var alwaysActive = skills.filter(function(s) { return s.always || pinned.includes(s.name); });
+    var alwaysNames = alwaysActive.map(function(s) { return s.name; });
+
+    var counter = document.getElementById("skills-pin-counter");
+    if (counter) counter.textContent = alwaysActive.length + " / " + window._skillsMaxPinned;
+
+    var pinnedList = document.getElementById("skills-pinned-list");
+    if (pinnedList) {
+        if (alwaysActive.length === 0) {
+            pinnedList.innerHTML = '<span style="color:var(--text-secondary);font-size:12px">No always-active skills</span>';
+        } else {
+            pinnedList.innerHTML = alwaysActive.map(function(s) {
+                var canUnpin = !s.always;
+                var closeBtn = canUnpin
+                    ? ' <span class="material-icons-round" style="font-size:14px;cursor:pointer;vertical-align:middle" onclick="toggleSkillPin(\'' + escHtml(s.name) + '\', false)">close</span>'
+                    : ' <span class="material-icons-round" style="font-size:14px;vertical-align:middle;opacity:0.4" title="Set in SKILL.md">lock</span>';
+                return '<span class="skills-pinned-chip">' + escHtml(s.name) + closeBtn + '</span>';
+            }).join("");
+        }
+    }
+
+    var listEl = document.getElementById("skills-list");
+    if (!listEl) return;
+    var q = ((document.getElementById("skills-search") || {}).value || "").toLowerCase();
+    var filtered = q ? skills.filter(function(s) { return s.name.toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q); }) : skills;
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:12px">No skills found.</div>';
+        return;
+    }
+    listEl.innerHTML = filtered.map(function(s) { return renderSkillCard(s, alwaysNames); }).join("");
+}
+
+function escHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function renderSkillCard(skill, activeNames) {
+    var isActive = activeNames.includes(skill.name);
+    var isYamlAlways = skill.always;
+    var badgeClass = skill.source === "builtin" ? "builtin" : "workspace";
+    var availClass = skill.available ? "" : " unavailable";
+    var pinBtn = isYamlAlways
+        ? '<span class="material-icons-round" style="font-size:16px;color:var(--shiba-gold);opacity:0.6" title="Always active (SKILL.md)">lock</span>'
+        : '<span class="material-icons-round" style="font-size:16px;cursor:pointer;color:' + (isActive ? 'var(--shiba-gold)' : 'var(--text-secondary)') + '" title="' + (isActive ? 'Unpin' : 'Pin as always active') + '" onclick="toggleSkillPin(\'' + escHtml(skill.name) + '\', ' + !isActive + ')">' + (isActive ? 'push_pin' : 'add_circle_outline') + '</span>';
+    var deleteBtn = skill.source === "workspace"
+        ? '<span class="material-icons-round" style="font-size:16px;cursor:pointer;color:var(--text-secondary)" title="Delete" onclick="deleteSkill(\'' + escHtml(skill.name) + '\')">delete</span>'
+        : '';
+    return '<div class="skill-card' + availClass + '">' +
+        '<div class="skill-card-body">' +
+            '<div class="skill-card-name">' + escHtml(skill.name) + ' <span class="skill-badge ' + badgeClass + '">' + escHtml(skill.source) + '</span></div>' +
+            '<div class="skill-card-desc">' + escHtml(skill.description || 'No description') + '</div>' +
+            (skill.missing_requirements ? '<div style="font-size:11px;color:#e57373;margin-top:2px">Missing: ' + escHtml(skill.missing_requirements) + '</div>' : '') +
+        '</div>' +
+        '<div class="skill-card-actions">' + pinBtn + deleteBtn + '</div>' +
+    '</div>';
+}
+
+window.toggleSkillPin = async function(name, pin) {
+    let list = [...window._skillsPinnedList];
+    if (pin) {
+        if (list.length >= window._skillsMaxPinned) { alert("Max pinned skills reached (" + window._skillsMaxPinned + ")"); return; }
+        if (!list.includes(name)) list.push(name);
+    } else {
+        list = list.filter(n => n !== name);
+    }
+    try {
+        const res = await authFetch("/api/skills/pin", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ pinned_skills: list }) });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Pin failed"); return; }
+        window._skillsPinnedList = list;
+        renderSkillsPanel();
+    } catch(e) { console.error("toggleSkillPin", e); }
+};
+
+window.deleteSkill = async function(name) {
+    if (!confirm("Delete skill '" + name + "'? This cannot be undone.")) return;
+    try {
+        const res = await authFetch("/api/skills/" + encodeURIComponent(name), { method: "DELETE" });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { alert(d.error || "Delete failed"); return; }
+        loadSkillsPanel();
+    } catch(e) { console.error("deleteSkill", e); }
+};
+
+window.handleSkillsFileSelect = function(event) {
+    const fileInput = event.target;
+    const nameEl = document.getElementById("skills-import-filename");
+    const importBtn = document.getElementById("skills-import-btn");
+    if (fileInput.files.length) {
+        if (nameEl) nameEl.textContent = fileInput.files[0].name;
+        if (importBtn) importBtn.disabled = false;
+    } else {
+        if (nameEl) nameEl.textContent = "No file selected";
+        if (importBtn) importBtn.disabled = true;
+    }
+};
+
+window.importSkills = async function() {
+    const fileInput = document.getElementById("skills-import-file");
+    if (!fileInput || !fileInput.files.length) return;
+    const el = document.getElementById("skills-import-result");
+    const form = new FormData();
+    form.append("file", fileInput.files[0]);
+    form.append("conflict", "overwrite");
+    if (el) { el.style.display = "block"; el.innerHTML = '<span style="color:var(--text-secondary)">Importing...</span>'; }
+    try {
+        const res = await authFetch("/api/skills/import", { method: "POST", body: form });
+        const d = await res.json();
+        if (!res.ok) { if (el) el.innerHTML = '<span style="color:#e57373">' + escHtml(d.error || "Error") + '</span>'; return; }
+        if (el) el.innerHTML = '<span style="color:#4ade80">Imported ' + (d.imported_count || 0) + ' skill(s)</span>';
+        fileInput.value = "";
+        var nameEl = document.getElementById("skills-import-filename");
+        if (nameEl) nameEl.textContent = "No file selected";
+        document.getElementById("skills-import-btn").disabled = true;
+        loadSkillsPanel();
+    } catch(e) {
+        console.error("importSkills", e);
+        if (el) { el.style.display = "block"; el.innerHTML = '<span style="color:#e57373">Network error</span>'; }
+    }
+};
+
+document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("input", function(e) {
+        if (e.target && e.target.id === "skills-search") renderSkillsPanel();
+    });
+});
+
+/* ── end Skills panel ── */
 
 async function loadOAuthPanel() {
     const list = document.getElementById("oauth-list");
@@ -1275,6 +1435,8 @@ window.saveSettings = async function() {
             maxToolIterations: parseInt($("s-agent-maxIter").value),
             workspace: $("s-agent-workspace").value,
             reasoningEffort: $("s-agent-reasoning").value || null,
+            pinnedSkills: window._skillsPinnedList || [],
+            maxPinnedSkills: window._skillsMaxPinned || 5,
         }},
         providers: {},
         tools: {

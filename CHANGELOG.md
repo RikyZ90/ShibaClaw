@@ -2,6 +2,69 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.22] - 2026-04-10
+
+### Added
+- **Skills Management WebUI**
+    - New Settings → Skills panel: browse all installed skills (builtin + workspace), view descriptions, source badges, and missing requirements.
+    - **Always Active Pinning** — pin skills to be loaded on every conversation. Configurable limit via `max_pinned_skills` (default 5).
+    - **Skill Import** — upload `.zip` archives containing SKILL.md skill folders (UI uses automatic overwrite for a simpler flow).
+    - **Skill Deletion** — delete workspace-scoped skills from the UI (builtin skills are protected).
+    - **ClaWHub Link** — quick-access button to open https://clawhub.ai/ for community skill discovery.
+- **Skills REST API** (`/api/skills`)
+    - `GET /api/skills` — list all skills with metadata, availability, and pinned status.
+    - `POST /api/skills/pin` — update the always-active pinned skills list.
+    - `DELETE /api/skills/{name}` — remove a workspace skill.
+    - `POST /api/skills/import` — multipart zip upload with conflict policy and dry-run mode.
+- **Config: `pinned_skills` & `max_pinned_skills`**
+    - New fields in `agents.defaults` for persistent always-active skill configuration.
+    - Improved import compatibility for common zip layouts, including `SKILL.md` at archive root.
+
+### Changed
+- **Settings Redesign — Vertical Sidebar**
+    - Settings modal redesigned from horizontal tabs to a vertical sidebar layout (9 sections: Agent, Provider, Tools, MCP, Gateway, Channels, Skills, OAuth, Update).
+    - Last active tab is persisted in localStorage.
+    - Responsive: sidebar collapses to horizontal icon strip at ≤700px viewport.
+    - Modal enlarged to 880×700px to accommodate the new layout.
+
+## [0.0.21] - 2026-04-10
+
+### Added
+- **DNS Rebinding Protection**
+    - New `resolve_and_pin()` function in `security/network.py` that resolves a URL, validates all IPs, and returns pinned addresses to prevent DNS rebinding attacks (TOCTOU between validation and fetch).
+    - Refactored internal helpers (`_resolve_all_ips`, `_check_ips`) shared by all validation entry points.
+    - `validate_resolved_url()` now fully re-resolves hostnames on redirect instead of only checking IP literals.
+- **Opt-In Per-Sender Rate Limiting**
+    - `MessageBus` now supports `rate_limit_per_minute` (default `0` = disabled) using a sliding-window counter per sender.
+    - New `gateway.rate_limit_per_minute` config field — set to e.g. `60` to cap inbound messages per sender. Disabled by default to preserve user freedom.
+    - Exceeding the limit silently drops the message with a warning log.
+- **WhatsApp Bridge Security Warning**
+    - Logs a warning at startup if the WhatsApp bridge URL is not on localhost, since `bridge_token` is transmitted in cleartext over the WebSocket.
+- **SECURITY.md**
+    - Complete security policy: supported versions, responsible disclosure process (email + GitHub Security Advisories), response timeline, security architecture overview.
+
+### Changed
+- **npm Audit Already Implemented** — Confirmed and documented that `_audit_npm` was already wired in `install_audit.py` for npm/yarn/pnpm commands, parsing the npm audit v2+ JSON format. No code change needed — this was a documentation gap.
+
+## [0.0.20] - 2026-04-10
+
+### Added
+- **Update Apply Endpoint**
+    - New `POST /api/update/apply` endpoint to apply updates directly from the WebUI (backup personal files + pip upgrade + automatic restart).
+- **OpenAI Codex OAuth in WebUI**
+    - Codex login now works from the WebUI Settings → OAuth panel via `oauth-cli-kit` device flow, replacing the previous `501 Not Implemented` stub.
+- **Documentation**
+    - Added `shibaclaw web` mode to the deploy guide and useful commands table.
+    - Added `memory` and `cron` skills to the skills README.
+
+### Fixed
+- **Runtime crash on server restart** — Added missing `import sys` in `system.py` that caused `NameError` when calling `/api/restart` or applying updates.
+- **OAuth job state lost on restart** — Moved OAuth job tracking from fragile `globals()` dict to `AgentManager.oauth_jobs` instance attribute, preventing state loss during process lifecycle.
+- **Fragile YAML frontmatter parsing in skills** — `get_skill_metadata()` now uses `yaml.safe_load` (PyYAML) for robust parsing of skill frontmatter, with automatic fallback to the previous line-by-line parser if PyYAML is unavailable.
+
+### Changed
+- **Dependencies** — Added `pyyaml>=6.0` as an explicit dependency for reliable skill metadata parsing.
+
 ## [0.0.19] - 2026-04-09
 
 ### Added

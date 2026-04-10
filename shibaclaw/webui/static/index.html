@@ -264,130 +264,193 @@
                     <span class="material-icons-round">close</span>
                 </button>
             </div>
-            <!-- Tabs -->
-            <div class="settings-tabs">
-                <button class="settings-tab active" data-tab="agent" onclick="switchSettingsTab('agent')">
-                    <span class="material-icons-round">smart_toy</span> Agent
-                </button>
-                <button class="settings-tab" data-tab="providers" onclick="switchSettingsTab('providers')">
-                    <span class="material-icons-round">key</span> Provider
-                </button>
-                <button class="settings-tab" data-tab="tools" onclick="switchSettingsTab('tools')">
-                    <span class="material-icons-round">build</span> Tools
-                </button>
-                <button class="settings-tab" data-tab="mcp" onclick="switchSettingsTab('mcp')">
-                    <span class="material-icons-round">hub</span> MCP
-                </button>
-                <button class="settings-tab" data-tab="gateway" onclick="switchSettingsTab('gateway')">
-                    <span class="material-icons-round">dns</span> Gateway
-                </button>
-                <button class="settings-tab" data-tab="channels" onclick="switchSettingsTab('channels')">
-                    <span class="material-icons-round">forum</span> Channels
-                </button>
-                <button class="settings-tab" data-tab="oauth" onclick="switchSettingsTab('oauth')">
-                    <span class="material-icons-round">lock_open</span> OAuth Provider
-                </button>
-                <button class="settings-tab" data-tab="update" onclick="switchSettingsTab('update')">
-                    <span class="material-icons-round">system_update</span> Update
-                </button>
-            </div>
-            <div class="modal-body settings-scroll" id="settings-body">
-                <!-- Loading spinner -->
-                <div id="settings-loading" class="settings-loader">
-                    <span class="material-icons-round spin">progress_activity</span>
-                    Loading settings...
-                </div>
-
-                <!-- Tab: Agent -->
-                <div class="settings-panel" id="panel-agent">
-                    <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
-                    <div class="field-row"><label>Model</label><input type="text" id="s-agent-model" class="form-input" placeholder="e.g. claude-3-5-sonnet" list="model-history-list" autocomplete="off"><datalist id="model-history-list"></datalist></div>
-                    <div class="field-row"><label>Provider</label><select id="s-agent-provider" class="form-input"></select></div>
-                    <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens" class="form-input" value="8192"></div>
-                    <div class="field-row"><label>Context Window Tokens</label><input type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
-                    <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
-                    <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
-                    <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
-
-                    <!-- Audio / Voice section -->
-                    <div class="settings-section-divider">
-                        <span class="material-icons-round">mic</span>
-                        <span>Voice &amp; Audio (STT / TTS)</span>
+            <div class="settings-layout">
+                <!-- Vertical sidebar nav -->
+                <nav class="settings-sidebar" id="settings-sidebar">
+                    <button class="settings-sidebar-item active" data-tab="agent" onclick="switchSettingsTab('agent')">
+                        <span class="material-icons-round">smart_toy</span><span>Agent</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
+                        <span class="material-icons-round">key</span><span>Provider</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
+                        <span class="material-icons-round">build</span><span>Tools</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="mcp" onclick="switchSettingsTab('mcp')">
+                        <span class="material-icons-round">hub</span><span>MCP</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
+                        <span class="material-icons-round">dns</span><span>Gateway</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
+                        <span class="material-icons-round">forum</span><span>Channels</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
+                        <span class="material-icons-round">menu_book</span><span>Skills</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
+                        <span class="material-icons-round">lock_open</span><span>OAuth</span>
+                    </button>
+                    <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
+                        <span class="material-icons-round">system_update</span><span>Update</span>
+                    </button>
+                </nav>
+                <!-- Content pane -->
+                <div class="settings-content" id="settings-body">
+                    <!-- Loading spinner -->
+                    <div id="settings-loading" class="settings-loader">
+                        <span class="material-icons-round spin">progress_activity</span>
+                        Loading settings...
                     </div>
-                    <div class="field-row field-row-stack">
-                        <label>STT Provider URL</label>
-                        <p class="settings-note">
-                            Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier, ultra-fast)
-                            use: <code>https://api.groq.com/openai/v1</code>
-                        </p>
-                        <input type="text" id="s-audio-providerUrl" class="form-input" placeholder="https://api.groq.com/openai/v1">
+
+                    <!-- Tab: Agent -->
+                    <div class="settings-panel" id="panel-agent">
+                        <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
+                        <div class="field-row"><label>Model</label><input type="text" id="s-agent-model" class="form-input" placeholder="e.g. claude-3-5-sonnet" list="model-history-list" autocomplete="off"><datalist id="model-history-list"></datalist></div>
+                        <div class="field-row"><label>Provider</label><select id="s-agent-provider" class="form-input"></select></div>
+                        <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens" class="form-input" value="8192"></div>
+                        <div class="field-row"><label>Context Window Tokens</label><input type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
+                        <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
+                        <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
+                        <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+
+                        <!-- Audio / Voice section -->
+                        <div class="settings-section-divider">
+                            <span class="material-icons-round">mic</span>
+                            <span>Voice &amp; Audio (STT / TTS)</span>
+                        </div>
+                        <div class="field-row field-row-stack">
+                            <label>STT Provider URL</label>
+                            <p class="settings-note">
+                                Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier, ultra-fast)
+                                use: <code>https://api.groq.com/openai/v1</code>
+                            </p>
+                            <input type="text" id="s-audio-providerUrl" class="form-input" placeholder="https://api.groq.com/openai/v1">
+                        </div>
+                        <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
+                        <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
+                        <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
+
+                        <div class="field-row field-row-stack">
+                            <label>Onboarding</label>
+                            <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
+                            <button type="button" class="btn-secondary settings-onboard-btn" onclick="openOnboardFromSettings()">
+                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">rocket_launch</span>
+                                Open onboarding wizard
+                            </button>
+                        </div>
                     </div>
-                    <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
-                    <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
-                    <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
 
-                    <div class="field-row field-row-stack">
-                        <label>Onboarding</label>
-                        <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
-                        <button type="button" class="btn-secondary settings-onboard-btn" onclick="openOnboardFromSettings()">
-                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle">rocket_launch</span>
-                            Open onboarding wizard
-                        </button>
+
+                    <!-- Tab: Providers (dynamic collapsible) -->
+                    <div class="settings-panel" id="panel-providers" style="display:none">
+                        <div id="providers-list"></div>
                     </div>
-                </div>
 
-
-                <!-- Tab: Providers (dynamic collapsible) -->
-                <div class="settings-panel" id="panel-providers" style="display:none">
-                    <div id="providers-list"></div>
-                </div>
-
-                <!-- Tab: Tools -->
-                <div class="settings-panel" id="panel-tools" style="display:none">
-                    <div class="field-row"><label>Search Provider</label><input type="text" id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
-                    <div class="field-row"><label>Search API Key</label><input type="password" id="s-tool-searchKey" class="form-input" placeholder="API key"></div>
-                    <div class="field-row"><label>Max Search Results</label><input type="number" id="s-tool-searchMax" class="form-input" value="5"></div>
-                    <div class="field-row"><label>Proxy URL</label><input type="text" id="s-tool-proxy" class="form-input" placeholder="(optional)"></div>
-                    <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label></div>
-                    <div class="field-row"><label>Exec Timeout (s)</label><input type="number" id="s-tool-execTimeout" class="form-input" value="60"></div>
-                    <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label></div>
-                </div>
-
-                <!-- Tab: MCP Servers -->
-                <div class="settings-panel" id="panel-mcp" style="display:none">
-                    <div id="mcp-servers-list"></div>
-                    <div style="padding:0.5rem 0">
-                        <button type="button" class="btn-secondary" onclick="addMcpServer()">
-                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle">add</span> Add MCP Server
-                        </button>
+                    <!-- Tab: Tools -->
+                    <div class="settings-panel" id="panel-tools" style="display:none">
+                        <div class="field-row"><label>Search Provider</label><input type="text" id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
+                        <div class="field-row"><label>Search API Key</label><input type="password" id="s-tool-searchKey" class="form-input" placeholder="API key"></div>
+                        <div class="field-row"><label>Max Search Results</label><input type="number" id="s-tool-searchMax" class="form-input" value="5"></div>
+                        <div class="field-row"><label>Proxy URL</label><input type="text" id="s-tool-proxy" class="form-input" placeholder="(optional)"></div>
+                        <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Exec Timeout (s)</label><input type="number" id="s-tool-execTimeout" class="form-input" value="60"></div>
+                        <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label></div>
                     </div>
-                </div>
 
-                <!-- Tab: Gateway -->
-                <div class="settings-panel" id="panel-gateway" style="display:none">
-                    <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="127.0.0.1"></div>
-                    <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input" value="19999"></div>
-                    <div class="field-row"><label>Heartbeat Enabled</label><label class="toggle"><input type="checkbox" id="s-gw-hbEnabled"><span class="toggle-slider"></span></label></div>
-                    <div class="field-row"><label>Heartbeat Interval (s)</label><input type="number" id="s-gw-hbInterval" class="form-input" value="1800"></div>
-                </div>
-
-                <!-- Tab: Channels -->
-                <div class="settings-panel" id="panel-channels" style="display:none">
-                    <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
-                    <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label></div>
-                    <div id="channels-detail"></div>
-                </div>
-
-                <!-- Tab: OAuth Providers -->
-                <div class="settings-panel" id="panel-oauth" style="display:none">
-                    <div class="oauth-list" id="oauth-list">
-                        <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
+                    <!-- Tab: MCP Servers -->
+                    <div class="settings-panel" id="panel-mcp" style="display:none">
+                        <div id="mcp-servers-list"></div>
+                        <div style="padding:0.5rem 0">
+                            <button type="button" class="btn-secondary" onclick="addMcpServer()">
+                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">add</span> Add MCP Server
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Tab: Update -->
-                <div class="settings-panel" id="panel-update" style="display:none">
-                    <div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Loading...</div>
+                    <!-- Tab: Gateway -->
+                    <div class="settings-panel" id="panel-gateway" style="display:none">
+                        <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="127.0.0.1"></div>
+                        <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input" value="19999"></div>
+                        <div class="field-row"><label>Heartbeat Enabled</label><label class="toggle"><input type="checkbox" id="s-gw-hbEnabled"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Heartbeat Interval (s)</label><input type="number" id="s-gw-hbInterval" class="form-input" value="1800"></div>
+                    </div>
+
+                    <!-- Tab: Channels -->
+                    <div class="settings-panel" id="panel-channels" style="display:none">
+                        <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label></div>
+                        <div id="channels-detail"></div>
+                    </div>
+
+                    <!-- Tab: Skills -->
+                    <div class="settings-panel" id="panel-skills" style="display:none">
+                        <!-- Skills toolbar -->
+                        <div class="skills-toolbar">
+                            <input type="text" id="skills-search" class="form-input" placeholder="Filter skills by name or description...">
+                            <div class="skills-toolbar-actions">
+                                <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
+                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">refresh</span> Refresh
+                                </button>
+                                <button type="button" class="btn-secondary" onclick="window.open('https://clawhub.ai/','_blank')">
+                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">store</span> ClawHub
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Always Active pinning section -->
+                        <div class="skills-pinned-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">push_pin</span>
+                                <span>Always Active</span>
+                                <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
+                            </div>
+                            <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills. Injected every turn.</p>
+                            <div id="skills-pinned-list" class="skills-pinned-list"></div>
+                        </div>
+
+                        <!-- All skills browse -->
+                        <div class="skills-browse-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">menu_book</span>
+                                <span>Installed Skills</span>
+                            </div>
+                            <div id="skills-list" class="skills-list">
+                                <div class="settings-loader"><span class="material-icons-round spin">progress_activity</span> Loading skills...</div>
+                            </div>
+                        </div>
+
+                        <!-- Import section -->
+                        <div class="skills-import-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">upload_file</span>
+                                <span>Import Skills (.zip)</span>
+                            </div>
+                            <div class="skills-import-form">
+                                <input type="file" id="skills-import-file" accept=".zip" style="display:none" onchange="handleSkillsFileSelect(event)">
+                                <button type="button" class="btn-secondary" onclick="document.getElementById('skills-import-file').click()">
+                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
+                                </button>
+                                <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
+                                <button type="button" class="btn-primary" id="skills-import-btn" onclick="importSkills()" disabled>
+                                    Import
+                                </button>
+                            </div>
+                            <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: OAuth Providers -->
+                    <div class="settings-panel" id="panel-oauth" style="display:none">
+                        <div class="oauth-list" id="oauth-list">
+                            <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Update -->
+                    <div class="settings-panel" id="panel-update" style="display:none">
+                        <div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Loading...</div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

@@ -104,6 +104,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 1;
+    padding-top: 0;
     padding-bottom: 8px;
 }
 

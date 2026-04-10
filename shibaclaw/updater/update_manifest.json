@@ -1,67 +1,52 @@
 {
-  "version": "0.0.20",
-  "release_notes": "- **Voice I/O (STT & TTS)**: Full Speech-to-Text pipeline via OpenAI-compatible APIs (Groq/Whisper). Browser-native TTS with markdown cleaning. Automatic Voice Activity Detection (VAD). Dedicated Voice & Audio section in Agent Settings.\n- **Smart Agent Settings**: Model input now has history tracking and autocomplete from previously used models. Provider input is now a smart dropdown showing only configured providers (API key, local base URL, or OAuth).\n- **Frontend Modularization**: Split app.js and index.css into multiple focused modules and thematic stylesheets.\n- **Backend Modularization**: Refactored api.py into a routers/ package with shared helpers in utils.py.\n- **Standalone Server**: New server.py with create_app() / run_server() for cleaner lifecycle separation.\n- **Codebase Cleanup**: Removed unused properties, redundant comments, and dead code in speech and socket modules.",
-  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading to ensure all modules are reloaded.",
+  "version": "0.0.22",
+  "release_notes": "- **Skills Management WebUI**: New Settings -> Skills panel with installed skills browser, always-active section, import/delete actions, and ClawHub shortcut.\n- **Settings Redesign**: Vertical sidebar navigation inside Settings modal for faster access to Agent/Provider/Tools/MCP/Gateway/Channels/Skills/OAuth/Update.\n- **Skills API**: Added `/api/skills` endpoints for list, pin, import, and delete operations.\n- **Always Active Config**: Added persistent `pinned_skills` and `max_pinned_skills` in agent defaults.\n- **Import Compatibility**: ZIP import now supports common layouts including `SKILL.md` at archive root and nested folders.",
+  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading. Imported skills are stored under workspace `skills/`.",
   "changes": [
     {
-      "path": "shibaclaw/webui/socket_io.py",
+      "path": "shibaclaw/agent/skills.py",
       "overwrite": true,
-      "note": "Refactored transcribe_audio handler and imports"
-    },
-    {
-      "path": "shibaclaw/webui/static/js/speech.js",
-      "overwrite": true,
-      "note": "STT/TTS/VAD browser module"
-    },
-    {
-      "path": "shibaclaw/webui/static/js/ui_panels.js",
-      "overwrite": true,
-      "note": "Model history autocomplete and provider dropdown"
-    },
-    {
-      "path": "shibaclaw/webui/static/index.html",
-      "overwrite": true,
-      "note": "Voice & Audio settings section, model datalist, provider select"
-    },
-    {
-      "path": "shibaclaw/webui/static/css/components.css",
-      "overwrite": true,
-      "note": "Pulse animation and transcribing shimmer"
-    },
-    {
-      "path": "shibaclaw/webui/static/css/chat.css",
-      "overwrite": true,
-      "note": "Chat input bar aesthetics"
+      "note": "Always-active merge logic, workspace delete, and improved zip import handling"
     },
     {
       "path": "shibaclaw/config/schema.py",
       "overwrite": true,
-      "note": "New AudioConfig schema"
+      "note": "Added pinned_skills and max_pinned_skills in agents.defaults"
+    },
+    {
+      "path": "shibaclaw/webui/routers/skills.py",
+      "overwrite": true,
+      "note": "New skills management API routes"
     },
     {
       "path": "shibaclaw/webui/server.py",
       "overwrite": true,
-      "note": "Standalone server module"
+      "note": "Registered /api/skills routes"
     },
     {
-      "path": "shibaclaw/webui/utils.py",
+      "path": "shibaclaw/webui/api.py",
       "overwrite": true,
-      "note": "Shared helpers and context caches"
+      "note": "Re-exported skills route handlers"
     },
     {
-      "path": "shibaclaw/webui/routers/",
+      "path": "shibaclaw/webui/static/index.html",
       "overwrite": true,
-      "note": "Refactored backend routes"
+      "note": "Settings sidebar layout and Skills panel UI"
     },
     {
-      "path": "shibaclaw/webui/static/js/",
+      "path": "shibaclaw/webui/static/js/ui_panels.js",
       "overwrite": true,
-      "note": "Modular frontend logic"
+      "note": "Skills tab logic, import/pin/delete actions, settings tab persistence"
     },
     {
-      "path": "shibaclaw/webui/static/css/",
+      "path": "shibaclaw/webui/static/css/modals.css",
       "overwrite": true,
-      "note": "Modular thematic stylesheets"
+      "note": "Settings sidebar + Skills panel styling"
+    },
+    {
+      "path": "shibaclaw/webui/static/css/modals_responsive.css",
+      "overwrite": true,
+      "note": "Responsive behavior for sidebar settings layout"
     },
     {
       "path": "USER.md",

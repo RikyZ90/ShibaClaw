@@ -32,8 +32,9 @@ from .api import (
     api_cron_list, api_cron_trigger, api_heartbeat_status, api_heartbeat_trigger,
     api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code,
     api_upload, api_file_get, api_file_save, api_fs_explore,
-    api_update_check, api_update_manifest, api_restart_server,
+    api_update_check, api_update_manifest, api_update_apply, api_restart_server,
     api_onboard_providers, api_onboard_templates, api_onboard_submit,
+    api_skills_list, api_skills_pin, api_skills_delete, api_skills_import,
 )
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -92,10 +93,15 @@ def create_app(
         Route("/api/fs/explore", api_fs_explore, methods=["GET"]),
         Route("/api/update/check", api_update_check, methods=["GET"]),
         Route("/api/update/manifest", api_update_manifest, methods=["GET"]),
+        Route("/api/update/apply", api_update_apply, methods=["POST"]),
         Route("/api/restart", api_restart_server, methods=["POST"]),
         Route("/api/onboard/providers", api_onboard_providers, methods=["GET"]),
         Route("/api/onboard/templates", api_onboard_templates, methods=["GET"]),
         Route("/api/onboard/submit", api_onboard_submit, methods=["POST"]),
+        Route("/api/skills", api_skills_list, methods=["GET"]),
+        Route("/api/skills/pin", api_skills_pin, methods=["POST"]),
+        Route("/api/skills/import", api_skills_import, methods=["POST"]),
+        Route("/api/skills/{name}", api_skills_delete, methods=["DELETE"]),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 

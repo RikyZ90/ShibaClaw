@@ -57,6 +57,10 @@ Ideal for local development or lightweight environments.
      ```bash
      shibaclaw gateway
      ```
+   - **Web Mode**: Launch the full WebUI interface.
+     ```bash
+     shibaclaw web
+     ```
 
 ---
 
@@ -66,5 +70,6 @@ Ideal for local development or lightweight environments.
 | :--- | :--- |
 | `shibaclaw --version` | Check the installed ShibaClaw version. |
 | `shibaclaw onboard` | Reconfigure provider, model, and channels. |
+| `shibaclaw web` | Launch the WebUI server on `http://127.0.0.1:3000`. |
 
 **Happy hunting!** 🐕‍🦺🔥
