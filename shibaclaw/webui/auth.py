@@ -46,6 +46,13 @@ def get_auth_token() -> str | None:
     return None
 
 
+def verify_token_value(token_candidate: str | None) -> bool:
+    if not _auth_enabled() or not _AUTH_TOKEN:
+        return True
+    candidate = (token_candidate or "").strip()
+    return bool(candidate) and hmac.compare_digest(candidate, _AUTH_TOKEN)
+
+
 def mask_token(token: str) -> str:
     if len(token) <= 4:
         return "****"
@@ -53,11 +60,9 @@ def mask_token(token: str) -> str:
 
 
 def check_token(request: Request) -> bool:
-    if not _auth_enabled() or not _AUTH_TOKEN:
-        return True
     auth_header = request.headers.get("authorization", "")
     token_candidate = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-    return hmac.compare_digest(token_candidate, _AUTH_TOKEN) and token_candidate
+    return verify_token_value(token_candidate)
 
 
 PUBLIC_PATHS = ("/static/", "/api/auth/", "/api/file-get")

@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse, FileResponse
 from loguru import logger
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
+from shibaclaw.webui.auth import _auth_enabled, verify_token_value
 from shibaclaw.brain.manager import PackManager
 
 
@@ -24,7 +24,7 @@ async def api_auth_verify(request: Request):
     auth_req = _auth_enabled()
     if not auth_req:
         return JSONResponse({"valid": True, "auth_required": False})
-    if token == get_auth_token():
+    if verify_token_value(token):
         return JSONResponse({"valid": True, "auth_required": True})
     return JSONResponse({"valid": False, "auth_required": True})
 

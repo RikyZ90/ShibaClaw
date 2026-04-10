@@ -15,7 +15,7 @@ from typing import Any, Dict
 import socketio
 from loguru import logger
 
-from .auth import _auth_enabled, get_auth_token
+from .auth import _auth_enabled, verify_token_value
 from .agent_manager import agent_manager
 
 processing_state: Dict[str, Dict[str, Any]] = {}
@@ -59,10 +59,9 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
 
     @sio.event
     async def connect(sid, environ, auth=None):
-        auth_token = get_auth_token()
-        if _auth_enabled() and auth_token:
+        if _auth_enabled():
             token = auth.get("token") if isinstance(auth, dict) else None
-            if token != auth_token:
+            if not verify_token_value(token):
                 logger.warning("🔒 Socket.IO connection rejected (invalid token) from {}", sid)
                 raise socketio.exceptions.ConnectionRefusedError("Unauthorized")
 

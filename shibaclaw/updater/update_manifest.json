@@ -1,32 +1,12 @@
 {
-  "version": "0.0.22",
-  "release_notes": "- **Skills Management WebUI**: New Settings -> Skills panel with installed skills browser, always-active section, import/delete actions, and ClawHub shortcut.\n- **Settings Redesign**: Vertical sidebar navigation inside Settings modal for faster access to Agent/Provider/Tools/MCP/Gateway/Channels/Skills/OAuth/Update.\n- **Skills API**: Added `/api/skills` endpoints for list, pin, import, and delete operations.\n- **Always Active Config**: Added persistent `pinned_skills` and `max_pinned_skills` in agent defaults.\n- **Import Compatibility**: ZIP import now supports common layouts including `SKILL.md` at archive root and nested folders.",
-  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading. Imported skills are stored under workspace `skills/`.",
+  "version": "0.0.23",
+  "release_notes": "- **Bug fix**: WebUI agent message/attachment delivery now works correctly — messages sent via the `message()` tool are properly routed to the active session room instead of being silently dropped.",
+  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading.",
   "changes": [
     {
-      "path": "shibaclaw/agent/skills.py",
+      "path": "shibaclaw/webui/agent_manager.py",
       "overwrite": true,
-      "note": "Always-active merge logic, workspace delete, and improved zip import handling"
-    },
-    {
-      "path": "shibaclaw/config/schema.py",
-      "overwrite": true,
-      "note": "Added pinned_skills and max_pinned_skills in agents.defaults"
-    },
-    {
-      "path": "shibaclaw/webui/routers/skills.py",
-      "overwrite": true,
-      "note": "New skills management API routes"
-    },
-    {
-      "path": "shibaclaw/webui/server.py",
-      "overwrite": true,
-      "note": "Registered /api/skills routes"
-    },
-    {
-      "path": "shibaclaw/webui/api.py",
-      "overwrite": true,
-      "note": "Re-exported skills route handlers"
+      "note": "Fix _consume_outbound: session lookup by session_key, emit to correct room, correct persist logic"
     },
     {
       "path": "shibaclaw/webui/static/index.html",

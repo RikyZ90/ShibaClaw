@@ -5,7 +5,7 @@
 | Version  | Supported          |
 | -------- | ------------------ |
 | 0.0.20+  | :white_check_mark: |
-| < 0.0.13 | :x:                |
+| < 0.0.20 | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -37,11 +37,12 @@ ShibaClaw implements defense-in-depth across multiple layers:
 
 ### Agent Execution
 
-- **Shell deny-list**: The `exec` tool blocks dangerous patterns (fork bombs, `rm -rf /`, `sudo`, hex/unicode-encoded obfuscation) before execution.
+- **Shell deny-list**: The `exec` tool blocks 20+ dangerous patterns (fork bombs, `rm -rf /`, `sudo`, hex/unicode-encoded obfuscation, command substitution, `curl|bash`) before execution.
 - **Install audit**: `pip install` commands are scanned for known CVEs via `pip-audit`. `npm install` commands are scanned via `npm audit`. Severity threshold is configurable (`installAuditBlockSeverity`).
 - **Tool output truncation**: LLM context is protected from overflow via configurable character caps on tool results.
 - **Structural randomized wrapping**: A random nonce is regenerated each turn and used to fence tool outputs, mitigating prompt injection from untrusted content.
 - **Untrusted content banner**: Web-fetched content is explicitly marked with `[UNTRUSTED EXTERNAL CONTENT]` delimiters.
+- **Workspace sandboxing**: File tools and the WebUI file browser are constrained to the configured workspace root.
 
 ### Network Security (SSRF Protection)
 
@@ -51,14 +52,14 @@ ShibaClaw implements defense-in-depth across multiple layers:
 
 ### Authentication
 
-- WebUI auth uses a randomly generated token compared with `hmac.compare_digest()` (constant-time) to prevent timing attacks.
+- WebUI auth uses a randomly generated bearer token validated with `hmac.compare_digest()` (constant-time) for both HTTP and Socket.IO authentication.
 - The auth token is never included in file-serving URLs to prevent leakage via server logs or browser history.
 - Socket.IO connections require authentication (not in the public path list).
 
 ### Channel Access Control
 
 - Every channel enforces an `allow_from` whitelist. An empty list denies all access.
-- The `ChannelManager` validates `allow_from` at startup and terminates if the list would expose the agent to unauthorized users.
+- The `ChannelManager` validates `allow_from` at startup and terminates if a configured channel still has an empty `allow_from`, forcing explicit access configuration.
 
 ### Rate Limiting
 

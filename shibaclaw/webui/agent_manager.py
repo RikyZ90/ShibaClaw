@@ -240,10 +240,18 @@ class AgentManager:
             try:
                 msg = await asyncio.wait_for(self.bus.consume_outbound(), timeout=1.0)
                 logger.debug("🚌 Consumed outbound: target={}:{}", msg.channel, msg.chat_id)
-                
-                if msg.channel == "webui" and msg.chat_id in self._sessions:
+
+                # Resolve matching WebUI client by session_key (chat_id carries the session key)
+                matched_sid = None
+                if msg.channel == "webui":
+                    for _sid, _state in self._sessions.items():
+                        if _state.get("session_key") == msg.chat_id:
+                            matched_sid = _sid
+                            break
+
+                if msg.channel == "webui" and matched_sid:
                     if not msg.metadata or not msg.metadata.get("_progress"):
-                        logger.info("📢 Delivering outbound message to WebUI sid: {}", msg.chat_id)
+                        logger.info("📢 Delivering outbound message to WebUI session: {}", msg.chat_id)
                         
                         attachments = []
                         for m_path in (msg.media or []):
@@ -260,13 +268,13 @@ class AgentManager:
                             "content": msg.content or "Task completed.",
                             "attachments": attachments
                         }
-                        await self._sio.emit("agent_response", agent_resp, room=msg.chat_id)
+                        sk_room = f"session:{msg.chat_id}"
+                        await self._sio.emit("agent_response", agent_resp, room=sk_room)
 
                         # Persist to history
-                        session_state = self._sessions[msg.chat_id]
-                        session_key = session_state.get("session_key")
+                        session_key = msg.chat_id
                         pm = getattr(self.agent, "sessions", None)
-                        if session_key and pm:
+                        if pm:
                             logger.debug("💾 Persisting agent response to history for key: {}", session_key)
                             sess = pm.get_or_create(session_key)
                             sess.messages.append({
