@@ -7,41 +7,6 @@
       "path": "shibaclaw/webui/agent_manager.py",
       "overwrite": true,
       "note": "Fix _consume_outbound: session lookup by session_key, emit to correct room, correct persist logic"
-    },
-    {
-      "path": "shibaclaw/webui/static/index.html",
-      "overwrite": true,
-      "note": "Settings sidebar layout and Skills panel UI"
-    },
-    {
-      "path": "shibaclaw/webui/static/js/ui_panels.js",
-      "overwrite": true,
-      "note": "Skills tab logic, import/pin/delete actions, settings tab persistence"
-    },
-    {
-      "path": "shibaclaw/webui/static/css/modals.css",
-      "overwrite": true,
-      "note": "Settings sidebar + Skills panel styling"
-    },
-    {
-      "path": "shibaclaw/webui/static/css/modals_responsive.css",
-      "overwrite": true,
-      "note": "Responsive behavior for sidebar settings layout"
-    },
-    {
-      "path": "USER.md",
-      "overwrite": false,
-      "note": "Preserve personal profile data"
-    },
-    {
-      "path": "SOUL.md",
-      "overwrite": false,
-      "note": "Preserve agent personality config"
-    },
-    {
-      "path": "memory/MEMORY.md",
-      "overwrite": false,
-      "note": "Preserve operational project context"
     }
   ]
 }

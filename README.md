@@ -258,7 +258,7 @@ Inspired by [NanoBot](https://github.com/HKUDS/nanobot) by HKUDS — MIT License
 
 <p align="center">
   <b>If you like ShibaClaw and want to help it grow:</b><br>
-  ⭐ <a href="https://github.com/RikyZ90/ShibaClaw">Drop a star</a> — it boosts visibility more than you think<br>
-  🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> — bugs, ideas, questions, anything<br>
-  🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> — contributions of any size are welcome
+  ⭐ <a href="https://github.com/RikyZ90/ShibaClaw">Drop a star</a> — 
+  🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> — 
+  🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> <br> contributions of any size are welcome
 </p>
