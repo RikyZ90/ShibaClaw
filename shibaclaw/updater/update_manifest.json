@@ -1,7 +1,7 @@
 {
   "version": "0.0.25",
   "release_notes": "- **Agent Profiles** — per-session agent personas (Hacker, Builder, Planner, Reviewer, Default) with dynamic avatar switching. Create custom profiles via interactive agent session. Built-in Hacker profile with full offensive/defensive security toolkit.",
-  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading. Profile templates are auto-synced on startup.",
+  "upgrade_notes": "RUN ONBOARD AFTER THE UPDATE /n Restart the WebUI or Docker stack after upgrading. Profile templates are auto-synced on startup.",
   "changes": [
     {
       "path": "shibaclaw/agent/profiles.py",
