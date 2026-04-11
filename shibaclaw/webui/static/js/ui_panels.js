@@ -323,7 +323,7 @@ async function renameSession(key, nickname) {
         });
         if (res.ok) {
             if (key === state.sessionId) {
-                sessionIdEl.textContent = nickname || key;
+                setSessionLabel(nickname || key);
             }
             await loadHistory();
         }
@@ -493,7 +493,11 @@ async function loadSession(sessionId) {
         const data = await res.json();
         console.debug("[SHIBA] loadSession:", sessionId, "messages:", data.messages?.length || 0);
         
-        sessionIdEl.textContent = data.nickname || sessionId;
+        setSessionLabel(data.nickname || sessionId);
+        state.profileId = data.profile_id || "default";
+        if (typeof window.syncProfileSelection === "function") {
+            await window.syncProfileSelection(state.profileId);
+        }
         
         chatHistory.innerHTML = "";
         state.messageCount = 0;

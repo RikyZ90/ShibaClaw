@@ -20,6 +20,13 @@
     position: relative;
 }
 
+.chat-header-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
 .mobile-menu-btn {
     display: none;
     background: none;
@@ -27,28 +34,6 @@
     color: var(--text-secondary);
     cursor: pointer;
     padding: 4px;
-}
-
-.chat-header-info h2 {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    letter-spacing: 0.02em;
-}
-
-.chat-header-subtitle {
-    font-size: 10px;
-    color: transparent;
-    font-family: var(--font-mono);
-    transition: color 0.2s;
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.chat-header:hover .chat-header-subtitle {
-    color: var(--text-muted);
 }
 
 /* ── Welcome Screen ────────────────────────────────────────── */
@@ -243,8 +228,8 @@
 .message-group.agent .message-avatar {
     background: transparent;
     border: none;
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     min-width: 28px;
 }
 

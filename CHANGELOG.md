@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.26] - 2026-04-11
+
+### Fixed
+- **Profile hover highlight** — dropdown items had no visible hover state because `--bg-hover` CSS variable was undefined; replaced with the correct `--bg-surface-hover`.
+- **Welcome screen logo** now updates when switching profiles, matching the sidebar logo and chat avatars.
+
+### Changed
+- Removed dead CSS rules (`.chat-header-info h2`, `.chat-header-subtitle`) targeting elements no longer in the HTML.
+- Cleaned up leftover Italian comments and trivial in-line comments from JS files.
+- Fixed `upgrade_notes` escape sequence typo (`/n` → `\n`) in `update_manifest.json`.
+
 ## [0.0.25] - 2026-04-11
 
 ### Added
