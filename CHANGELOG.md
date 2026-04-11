@@ -10,8 +10,6 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - Removed dead CSS rules (`.chat-header-info h2`, `.chat-header-subtitle`) targeting elements no longer in the HTML.
-- Cleaned up leftover Italian comments and trivial in-line comments from JS files.
-- Fixed `upgrade_notes` escape sequence typo (`/n` → `\n`) in `update_manifest.json`.
 
 ## [0.0.25] - 2026-04-11
 

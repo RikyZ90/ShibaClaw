@@ -23,6 +23,7 @@ class BaseChannel(ABC):
     name: str = "base"
     display_name: str = "Base"
     audio_config: Any | None = None
+    _providers_config: Any | None = None
 
     def __init__(self, config: Any, bus: MessageBus):
         """
@@ -49,9 +50,18 @@ class BaseChannel(ABC):
                 logger.error("Audio file not found: {}", file_path)
                 return ""
 
-            client_kwargs = {"api_key": self.audio_config.api_key or "not-set"}
-            if self.audio_config.provider_url:
-                client_kwargs["base_url"] = self.audio_config.provider_url
+            api_key = self.audio_config.api_key
+            base_url = self.audio_config.provider_url
+
+            if not api_key and not base_url and self._providers_config:
+                groq = getattr(self._providers_config, "groq", None)
+                if groq and groq.api_key:
+                    api_key = groq.api_key
+                    base_url = groq.api_base or "https://api.groq.com/openai/v1"
+
+            client_kwargs = {"api_key": api_key or "not-set"}
+            if base_url:
+                client_kwargs["base_url"] = base_url
 
             client = AsyncOpenAI(**client_kwargs)
             

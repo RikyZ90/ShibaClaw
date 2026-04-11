@@ -49,6 +49,7 @@ class ChannelManager:
             try:
                 channel = cls(section, self.bus)
                 channel.audio_config = self.config.audio
+                channel._providers_config = self.config.providers
                 self.channels[name] = channel
                 logger.debug("{} channel enabled", cls.display_name)
             except Exception as e:

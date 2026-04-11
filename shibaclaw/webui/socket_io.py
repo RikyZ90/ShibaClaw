@@ -298,9 +298,18 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
             audio_file = io.BytesIO(audio_bytes)
             audio_file.name = "audio.wav"
 
-            client_kwargs = {"api_key": config.audio.api_key or "not-set"}
-            if config.audio.provider_url:
-                client_kwargs["base_url"] = config.audio.provider_url
+            api_key = config.audio.api_key
+            base_url = config.audio.provider_url
+
+            if not api_key and not base_url:
+                groq = config.providers.groq
+                if groq and groq.api_key:
+                    api_key = groq.api_key
+                    base_url = groq.api_base or "https://api.groq.com/openai/v1"
+
+            client_kwargs = {"api_key": api_key or "not-set"}
+            if base_url:
+                client_kwargs["base_url"] = base_url
 
             client = AsyncOpenAI(**client_kwargs)
             res = await client.audio.transcriptions.create(
