@@ -31,28 +31,25 @@ async function switchProfile(profileId) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ profile_id: profileId }),
         });
-        state.profileId = profileId;
-        _applyProfileAvatar(profileId);
-        updateProfileLabel();
+        await syncProfileSelection(profileId);
         closeProfileDropdown();
     } catch (e) {
         console.error("Failed to switch profile:", e);
     }
 }
 
-/** Update the avatar in state and refresh all visible agent avatars. */
 function _applyProfileAvatar(profileId) {
     const profiles = _profilesCache || [];
     const current = profiles.find(p => p.id === profileId);
     const avatarUrl = (current && current.avatar) ? current.avatar : DEFAULT_AVATAR;
     state.profileAvatar = avatarUrl;
-    // Update all existing agent avatars in the chat
     document.querySelectorAll(".agent-avatar-img").forEach(img => {
         img.src = avatarUrl;
     });
-    // Update sidebar logo too
     const sidebarLogo = document.querySelector(".logo img");
     if (sidebarLogo) sidebarLogo.src = avatarUrl;
+    const welcomeLogo = document.querySelector(".welcome-logo");
+    if (welcomeLogo) welcomeLogo.src = avatarUrl;
 }
 
 // ── UI helpers ───────────────────────────────────────────────
@@ -62,6 +59,17 @@ function updateProfileLabel() {
     const current = profiles.find(p => p.id === state.profileId);
     profileLabel.textContent = current ? current.label : (state.profileId || "Default");
 }
+
+async function syncProfileSelection(profileId) {
+    if (!_profilesCache) {
+        await fetchProfiles();
+    }
+    state.profileId = profileId || "default";
+    _applyProfileAvatar(state.profileId);
+    updateProfileLabel();
+}
+
+window.syncProfileSelection = syncProfileSelection;
 
 function closeProfileDropdown() {
     if (profileDropdown) profileDropdown.classList.remove("active");
@@ -96,7 +104,6 @@ async function renderProfileDropdown() {
 
     profileDropdown.innerHTML = html;
 
-    // Bind click handlers
     profileDropdown.querySelectorAll(".profile-option").forEach(el => {
         el.addEventListener("click", () => switchProfile(el.dataset.profileId));
     });
@@ -125,19 +132,14 @@ if (profileBtn) {
     });
 }
 
-// Close dropdown on outside click
 document.addEventListener("click", (e) => {
     if (profileDropdown && !profileDropdown.contains(e.target) && e.target !== profileBtn) {
         closeProfileDropdown();
     }
 });
 
-// ── Create Profile via Agent Session ─────────────────────────
 function startProfileCreationSession() {
     closeProfileDropdown();
-
-    // Create a new session and send a preset prompt asking the agent
-    // to build a custom profile SOUL.md interactively.
     if (!state.socket) return;
 
     const prompt = [
@@ -151,12 +153,9 @@ function startProfileCreationSession() {
         "Start by asking me what kind of agent I'd like to create."
     ].join("\n");
 
-    // Emit a new session event, then once reset, send the prompt
     const onReset = (data) => {
         state.socket.off("session_reset", onReset);
-        // Small delay to let the UI settle
         setTimeout(() => {
-            // Set the prompt in the input and send it
             const chatInput = document.getElementById("chat-input");
             if (chatInput) {
                 chatInput.value = prompt;
@@ -171,34 +170,25 @@ function startProfileCreationSession() {
     state.socket.emit("new_session");
 }
 
-// ── Socket.IO integration ────────────────────────────────────
-// Listen for profile_id in socket events to keep state in sync.
 function initProfileSocket() {
     if (!state.socket) return;
 
-    const origConnected = state.socket._callbacks && state.socket._callbacks["$connected"];
     state.socket.on("connected", (data) => {
         if (data.profile_id) {
-            state.profileId = data.profile_id;
-            _applyProfileAvatar(data.profile_id);
-            updateProfileLabel();
+            syncProfileSelection(data.profile_id);
         }
     });
 
     state.socket.on("session_reset", (data) => {
         if (data.profile_id) {
-            state.profileId = data.profile_id;
-            _applyProfileAvatar(data.profile_id);
-            updateProfileLabel();
+            syncProfileSelection(data.profile_id);
         }
     });
 }
 
-// Initialize after socket is ready
 if (state.socket) {
     initProfileSocket();
 } else {
-    // Wait for socket to be set up by api_socket.js
     const _checkSocket = setInterval(() => {
         if (state.socket) {
             clearInterval(_checkSocket);
@@ -207,32 +197,6 @@ if (state.socket) {
     }, 200);
 }
 
-// Update label on session switch — hook into loadSession
-const _origLoadSession = window.loadSession || (typeof loadSession !== "undefined" ? loadSession : null);
-
-function _hookLoadSession() {
-    // loadSession is a global from ui_panels.js;
-    // we wrap it so profile state stays in sync after switching sessions.
-    if (typeof loadSession !== "function") return;
-
-    const orig = loadSession;
-    window.loadSession = async function(sessionId, ...rest) {
-        const result = await orig.call(this, sessionId, ...rest);
-        // After session is loaded, fetch its profile_id
-        try {
-            const res = await authFetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
-            if (res.ok) {
-                const data = await res.json();
-                state.profileId = data.profile_id || "default";
-                _applyProfileAvatar(state.profileId);
-                updateProfileLabel();
-            }
-        } catch {}
-        return result;
-    };
+if (state.profileId) {
+    syncProfileSelection(state.profileId);
 }
-
-_hookLoadSession();
-
-// ── Auth header helper — delegate to auth.js ─────────────────
-// authHeaders() is already defined in auth.js which loads before us.

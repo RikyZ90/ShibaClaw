@@ -6,7 +6,7 @@
 <h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.25-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.26-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -233,12 +233,13 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.0.25
+## Latest — v0.0.26
 
-- **Agent Profiles** — per-session personas with dynamic avatars (Default, Builder, Planner, Reviewer, Hacker)
-- **Hacker profile** — elite security expert with 50+ tools, OWASP/MITRE methodologies, CVSS scoring
-- **Custom profile creation** — agent-guided interactive persona builder
-- **Profile startup sync** — templates auto-synced, corrupted manifests auto-repaired
+- **Profile hover highlight** — dropdown items now show visible hover state
+- **Welcome screen logo** updates when switching profiles (matches sidebar and chat avatars)
+- CSS cleanup: removed dead rules, fixed CSS variable reference
+
+→ [v0.0.25](./CHANGELOG.md): Agent Profiles, dynamic avatars, Hacker persona, custom profile builder
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 

@@ -47,7 +47,7 @@ function initSocket() {
         }
         state._initialConnectDone = true;
         state.sessionId = data.session_id;
-        sessionIdEl.textContent = data.session_id;
+        setSessionLabel(data.session_id);
         localStorage.setItem("shiba_session_id", data.session_id);
         if (data.session_id) {
             loadSession(data.session_id);
@@ -122,7 +122,7 @@ function initSocket() {
         });
         state.processGroups = {};
         state.sessionId = data.session_id;
-        sessionIdEl.textContent = data.session_id;
+        setSessionLabel(data.session_id);
         localStorage.setItem("shiba_session_id", data.session_id);
         chatHistory.innerHTML = "";
         chatHistory.classList.remove("active");

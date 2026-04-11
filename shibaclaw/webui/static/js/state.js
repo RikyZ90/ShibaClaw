@@ -1,4 +1,3 @@
-// Salva l'ultimo config caricato per confronto
 let lastSettingsConfig = null;
 /**
  * ShibaClaw WebUI — Client Application
@@ -45,5 +44,9 @@ const thinkingText = $("thinking-text");
 const statusDot = $("status-dot");
 const statusText = $("status-text");
 const sessionIdEl = $("session-id");
+
+function setSessionLabel(value) {
+    if (sessionIdEl) sessionIdEl.textContent = value || "";
+}
 
 
