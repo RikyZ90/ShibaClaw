@@ -7,9 +7,13 @@ let lastSettingsConfig = null;
 
 
 // ── State ────────────────────────────────────────────────────
+const DEFAULT_AVATAR = "/static/shibaclaw_logo.png";
+
 const state = {
     socket: null,
     sessionId: null,
+    profileId: "default",
+    profileAvatar: DEFAULT_AVATAR,
     _initialConnectDone: false,
     processing: false,
     messageCount: 0,

@@ -44,7 +44,7 @@ def _restore_ptb_shutdown_logs() -> None:
     _PREVIOUS_LEVELS.clear()
 
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from telegram import BotCommand, ReplyParameters, Update
 from telegram.error import TimedOut
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
@@ -202,6 +202,13 @@ class TelegramConfig(Base):
     group_policy: Literal["open", "mention"] = "mention"
     connection_pool_size: int = 32
     pool_timeout: float = 5.0
+
+    @field_validator("proxy", mode="before")
+    @classmethod
+    def _coerce_proxy(cls, v: Any) -> str | None:
+        if isinstance(v, dict) or v == "":
+            return None
+        return v
 
 
 class TelegramChannel(BaseChannel):

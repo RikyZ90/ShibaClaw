@@ -160,13 +160,14 @@ async def api_onboard_submit(request: Request):
         if not hist_dest.exists():
             hist_dest.write_text("", encoding="utf-8")
 
-    from shibaclaw.helpers.helpers import sync_skills
+    from shibaclaw.helpers.helpers import sync_skills, sync_profiles
     sync_skills(wp)
+    sync_profiles(wp)
 
     # Reset agent and reload from freshly saved config on disk.
     # This ensures the provider is correctly initialised from the new config
     # without depending on the in-memory object, which may be stale.
-    agent_manager.reset_agent()
+    await agent_manager.reset_agent()
     agent_manager.load_latest_config()
     await agent_manager.ensure_agent()
 

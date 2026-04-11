@@ -121,6 +121,12 @@ def _migrate_config(data: dict) -> dict:
         if key not in email:
             email[key] = default_val
     channels["email"] = email
+
+    # Fix proxy saved as {} instead of null (caused by typeof null === "object" in JS)
+    for _ch_name, _ch_cfg in channels.items():
+        if isinstance(_ch_cfg, dict) and isinstance(_ch_cfg.get("proxy"), dict):
+            _ch_cfg["proxy"] = None
+
     data["channels"] = channels
 
     # Ensure mcpServers have all default fields

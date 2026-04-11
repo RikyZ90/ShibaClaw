@@ -59,7 +59,7 @@ async def api_settings_post(request: Request):
             agent_manager.provider = _make_provider(new_cfg, exit_on_error=False)
         except Exception:
             agent_manager.provider = None
-        agent_manager.reset_agent()
+        await agent_manager.reset_agent()
         logger.info("Config updated by {}", request.client.host if request.client else "unknown")
 
     return JSONResponse({"status": "updated"})

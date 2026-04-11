@@ -83,7 +83,7 @@ async def api_gateway_restart(request: Request):
                 writer.close()
                 await writer.wait_closed()
             if b"200" in data:
-                agent_manager.reset_agent()
+                await agent_manager.reset_agent()
                 return JSONResponse({"status": "restarting"})
         except Exception:
             continue

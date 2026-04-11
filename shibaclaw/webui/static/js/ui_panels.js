@@ -1230,6 +1230,7 @@ function populateSettings(cfg) {
                     originalType = "object";
                     valStr = JSON.stringify(val);
                 } else {
+                    if (val === null) originalType = "string";
                     valStr = val === null ? "" : String(val);
                 }
                 
@@ -1280,6 +1281,7 @@ function populateSettings(cfg) {
                     originalType = "object";
                     valStr = JSON.stringify(val);
                 } else {
+                    if (val === null) originalType = "string";
                     valStr = val === null ? "" : String(val);
                 }
                 

@@ -74,8 +74,20 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
 
         await sio.enter_room(sid, _room(session_id))
 
+        # Load profile_id from existing session metadata
+        profile_id = "default"
+        try:
+            from shibaclaw.brain.manager import PackManager
+            if agent_manager.config:
+                pm = PackManager(agent_manager.config.workspace_path)
+                sess = pm.get_or_create(session_id)
+                profile_id = sess.metadata.get("profile_id", "default")
+        except Exception:
+            pass
+
         await sio.emit("connected", {
             "session_id": session_id,
+            "profile_id": profile_id,
             "message": "🐕 ShibaClaw WebUI connected!",
         }, room=sid)
 
@@ -236,7 +248,24 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         if sid in sessions:
             sessions[sid]["session_key"] = new_key
         await sio.enter_room(sid, _room(new_key))
-        await sio.emit("session_reset", {"session_id": new_key, "message": "New session started."}, room=sid)
+
+        # Optionally set profile_id on new session
+        profile_id = (data or {}).get("profile_id", "default")
+        try:
+            from shibaclaw.brain.manager import PackManager
+            if agent_manager.config:
+                pm = PackManager(agent_manager.config.workspace_path)
+                sess = pm.get_or_create(new_key)
+                sess.metadata["profile_id"] = profile_id
+                pm.save(sess)
+        except Exception:
+            pass
+
+        await sio.emit("session_reset", {
+            "session_id": new_key,
+            "profile_id": profile_id,
+            "message": "New session started.",
+        }, room=sid)
 
     @sio.event
     async def switch_session(sid, data=None):

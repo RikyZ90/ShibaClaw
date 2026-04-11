@@ -68,8 +68,15 @@ async def api_context_get(request: Request):
 
     from shibaclaw.helpers.helpers import estimate_message_tokens, estimate_prompt_tokens
 
+    # Resolve profile_id from session metadata
+    profile_id = None
+    if session_id:
+        pm_ctx = PackManager(wp)
+        sess_ctx = pm_ctx.get_or_create(session_id)
+        profile_id = sess_ctx.metadata.get("profile_id") or None
+
     # ── Real system prompt (identity + bootstrap + memory + skills) ──
-    system_prompt, prompt_tokens = _build_real_system_prompt(wp, defaults)
+    system_prompt, prompt_tokens = _build_real_system_prompt(wp, defaults, profile_id=profile_id)
     total_tokens = prompt_tokens
     sections.append(f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```")
 
@@ -134,3 +141,4 @@ from .routers.cron import api_cron_list, api_cron_trigger  # noqa: E402, F401
 from .routers.system import api_update_check, api_update_manifest, api_update_apply, api_restart_server  # noqa: E402, F401
 from .routers.onboard import api_onboard_providers, api_onboard_templates, api_onboard_submit  # noqa: E402, F401
 from .routers.skills import api_skills_list, api_skills_pin, api_skills_delete, api_skills_import  # noqa: E402, F401
+from .routers.profiles import api_profiles_list, api_profiles_get, api_profiles_create, api_profiles_update, api_profiles_delete  # noqa: E402, F401

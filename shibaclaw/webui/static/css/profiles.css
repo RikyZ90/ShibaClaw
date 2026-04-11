@@ -1,0 +1,183 @@
+/* ── Profile Selector ───────────────────────────────────────── */
+.profile-selector {
+    position: relative;
+    margin-right: auto;
+}
+
+.btn-profile {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 4px 10px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    transition: border-color 0.2s, background 0.2s;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.btn-profile:hover {
+    border-color: var(--shiba-gold);
+    background: var(--bg-hover);
+}
+
+.btn-profile .material-icons-round:first-child {
+    font-size: 16px;
+    color: var(--shiba-gold);
+}
+
+.profile-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.profile-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 260px;
+    max-width: 320px;
+    max-height: 360px;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    padding: 6px;
+}
+
+.profile-dropdown.active {
+    display: block;
+}
+
+.profile-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.profile-option:hover {
+    background: var(--bg-hover);
+}
+
+.profile-option.active {
+    background: rgba(255, 165, 0, 0.1);
+    border: 1px solid rgba(255, 165, 0, 0.3);
+}
+
+.profile-option-icon {
+    font-size: 20px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.profile-option.active .profile-option-icon {
+    color: var(--shiba-gold);
+}
+
+.profile-option-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-option-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-option-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-option-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.profile-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 8px;
+}
+
+.profile-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: background 0.15s;
+}
+
+.profile-action:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.profile-action .material-icons-round {
+    font-size: 16px;
+}
+
+/* ── Profile Editor Modal ──────────────────────────────────── */
+.profile-editor-textarea {
+    width: 100%;
+    min-height: 200px;
+    max-height: 400px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.profile-editor-textarea:focus {
+    outline: none;
+    border-color: var(--shiba-gold);
+}
+
+@media (max-width: 768px) {
+    .profile-selector {
+        margin-left: 4px;
+        margin-right: 4px;
+    }
+    .btn-profile {
+        padding: 4px 6px;
+    }
+    .profile-label {
+        display: none;
+    }
+    .btn-profile .expand_more {
+        display: none;
+    }
+}

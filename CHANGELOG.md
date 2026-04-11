@@ -2,6 +2,45 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.25] - 2026-04-11
+
+### Added
+- **Agent Profiles — Per-Session Personas**
+    - Switch the agent's personality on-the-fly via a dropdown in the chat header.
+    - 5 built-in profiles: **Default** (original ShibaClaw), **Builder** (code-first, minimal chatter), **Planner** (strategic thinking, breaks down problems), **Reviewer** (critical eye, finds issues), **Hacker** (elite security expert).
+    - Each profile overrides the agent's SOUL.md prompt — model, provider, and memory stay shared.
+    - Profile selection is **per-session**: different sessions can use different personas simultaneously.
+    - Profiles are stored as simple `profiles/<id>/SOUL.md` folders in the workspace — easy to read, edit, and version.
+- **Custom Profile Creation via Agent**
+    - "Create custom profile" button opens a new session with a structured prompt that walks you through defining a new persona interactively.
+    - The agent generates the SOUL.md, saves it, and registers it in the manifest — no manual file editing needed.
+- **Dynamic Profile Avatars**
+    - Profiles can have a custom avatar image (configured via `avatar` field in `manifest.json`).
+    - Switching profiles updates **all visible agent avatars** in the chat and sidebar in real-time.
+    - Switching back to Default restores the original ShibaClaw logo.
+- **Hacker Profile — Full Security Toolkit**
+    - Elite security persona with deep expertise in 7 domains: web app security, network/AD attacks, code auditing, container/cloud, cryptography, reverse engineering, and forensics.
+    - Includes a curated **toolkit of 50+ security tools and packages** (Python, Node.js, CLI) with quick-install commands.
+    - Follows OWASP WSTG, PTES, MITRE ATT&CK, NIST, CIS Benchmarks, and Kill Chain methodologies.
+    - Structured vulnerability reporting with CVSS v3.1/v4.0 scores, CWE, and MITRE ATT&CK mapping.
+    - 10-step code audit checklist from attack surface mapping to full report.
+    - Custom hacker avatar (red cyber-shiba with sunglasses).
+- **Profile Startup Sync**
+    - Built-in profile templates are auto-synced to the workspace on startup (like skills).
+    - Corrupted or missing manifests are automatically repaired.
+    - New fields (e.g. `avatar`) are merged into existing profiles without overwriting user customizations.
+- **Profile API** (`/api/profiles`)
+    - `GET /api/profiles` — list all profiles with metadata and avatar URLs.
+    - `GET /api/profiles/{id}` — get profile details including SOUL.md content.
+    - `POST /api/profiles` — create a new custom profile (with optional avatar).
+    - `PUT /api/profiles/{id}` — update profile metadata, soul, or avatar.
+    - `DELETE /api/profiles/{id}` — delete custom profiles (built-in profiles are protected).
+
+### Changed
+- **Context system prompt** is now profile-aware: cache keys and mtime tracking are per-profile.
+- **Session metadata** stores `profile_id` — survives session switches and reconnections.
+- **Socket.IO events** (`connected`, `session_reset`) emit `profile_id` for frontend sync.
+
 ## [0.0.23] - 2026-04-10
 
 ### Fixed

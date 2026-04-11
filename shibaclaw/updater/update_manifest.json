@@ -1,12 +1,32 @@
 {
-  "version": "0.0.23",
-  "release_notes": "- **Bug fix**: WebUI agent message/attachment delivery now works correctly — messages sent via the `message()` tool are properly routed to the active session room instead of being silently dropped.",
-  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading.",
+  "version": "0.0.25",
+  "release_notes": "- **Agent Profiles** — per-session agent personas (Hacker, Builder, Planner, Reviewer, Default) with dynamic avatar switching. Create custom profiles via interactive agent session. Built-in Hacker profile with full offensive/defensive security toolkit.",
+  "upgrade_notes": "Restart the WebUI or Docker stack after upgrading. Profile templates are auto-synced on startup.",
   "changes": [
     {
-      "path": "shibaclaw/webui/agent_manager.py",
+      "path": "shibaclaw/agent/profiles.py",
       "overwrite": true,
-      "note": "Fix _consume_outbound: session lookup by session_key, emit to correct room, correct persist logic"
+      "note": "New: ProfileManager for profile CRUD with avatar support"
+    },
+    {
+      "path": "shibaclaw/agent/context.py",
+      "overwrite": true,
+      "note": "Profile-aware SOUL.md loading and cache keying"
+    },
+    {
+      "path": "shibaclaw/agent/loop.py",
+      "overwrite": true,
+      "note": "Profile-id propagation through agent loop"
+    },
+    {
+      "path": "shibaclaw/webui/server.py",
+      "overwrite": true,
+      "note": "Profile API routes and startup sync"
+    },
+    {
+      "path": "shibaclaw/helpers/helpers.py",
+      "overwrite": true,
+      "note": "sync_profiles() for startup template sync with manifest merge"
     }
   ]
 }

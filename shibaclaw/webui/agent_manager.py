@@ -194,13 +194,22 @@ class AgentManager:
                 t.cancel()
             self._bg_tasks.clear()
 
-            # Initialize channels for OUTBOUND sending only — no inbound polling.
-            # Polling is the gateway's responsibility; starting it here too would
-            # cause a Telegram/Discord conflict when both containers run together.
             self._channel_manager = ChannelManager(self.config, self.bus)
-            for name, channel in self._channel_manager.channels.items():
-                await self._channel_manager._init_channel_for_sending(name, channel)
-                logger.info("🔌 Channel {} ready for outbound sending", name)
+
+            # Detect whether a separate gateway process is handling inbound polling.
+            # If reachable → outbound-only (avoid duplicate polling conflicts).
+            # If not → standalone / bare-metal → start full bidirectional polling.
+            gateway_running = await self._is_gateway_reachable()
+            if gateway_running:
+                for name, channel in self._channel_manager.channels.items():
+                    await self._channel_manager._init_channel_for_sending(name, channel)
+                    logger.info("🔌 Channel {} ready for outbound sending (gateway detected)", name)
+            else:
+                if self._channel_manager.channels:
+                    logger.info("No gateway detected — starting channels with full polling (standalone mode)")
+                    self._bg_tasks.append(
+                        asyncio.create_task(self._channel_manager.start_all())
+                    )
 
             # Start core background tasks
             task1 = asyncio.create_task(self.agent.run())
@@ -230,6 +239,25 @@ class AgentManager:
                 )
                 await self.heartbeat.start()
                 self._bg_tasks.append(asyncio.create_task(asyncio.sleep(0)))
+
+    async def _is_gateway_reachable(self) -> bool:
+        """Check whether a separate gateway process is listening."""
+        from shibaclaw.webui.utils import _resolve_gateway_hosts
+
+        hosts, port = _resolve_gateway_hosts()
+        if not hosts or not port:
+            return False
+        for host in hosts:
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port), timeout=2.0
+                )
+                writer.close()
+                await writer.wait_closed()
+                return True
+            except Exception:
+                continue
+        return False
 
     async def _consume_outbound(self):
         """Consume messages from the bus and deliver to the WebUI clients."""
@@ -306,7 +334,7 @@ class AgentManager:
             except Exception as e:
                 logger.error("Outbound consumer error: {}", str(e))
 
-    def reset_agent(self):
+    async def reset_agent(self):
         """Stop tasks and clear agent instance so it recreates on next access."""
         if self.heartbeat:
             self.heartbeat.stop()
@@ -314,6 +342,12 @@ class AgentManager:
         if self.agent:
             try:
                 self.agent.stop()
+            except Exception:
+                pass
+        # Gracefully stop channels before cancelling background tasks
+        if self._channel_manager:
+            try:
+                await self._channel_manager.stop_all()
             except Exception:
                 pass
         for t in self._bg_tasks:
