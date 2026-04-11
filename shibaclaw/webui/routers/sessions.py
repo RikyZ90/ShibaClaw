@@ -34,7 +34,8 @@ async def api_sessions_get(request: Request):
     session = pm.get_or_create(session_id)
     return JSONResponse({
         "messages": session.messages,
-        "nickname": session.metadata.get("nickname")
+        "nickname": session.metadata.get("nickname"),
+        "profile_id": session.metadata.get("profile_id", "default"),
     })
 
 
@@ -49,8 +50,11 @@ async def api_sessions_patch(request: Request):
     
     if "nickname" in data:
         session.metadata["nickname"] = data["nickname"]
+    if "profile_id" in data:
+        session.metadata["profile_id"] = data["profile_id"]
+    if "nickname" in data or "profile_id" in data:
         pm.save(session)
-        return JSONResponse({"status": "updated"})
+        return JSONResponse({"status": "updated", "profile_id": session.metadata.get("profile_id", "default")})
     return JSONResponse({"error": "Nothing to update"}, status_code=400)
 
 

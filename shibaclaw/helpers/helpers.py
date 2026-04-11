@@ -252,6 +252,79 @@ def sync_skills(workspace: Path) -> list[str]:
     return _sync_builtin_skills_to_workspace(workspace, silent=True)
 
 
+def sync_profiles(workspace: Path) -> list[str]:
+    """Sync built-in profile templates to workspace/profiles on startup.
+
+    - Creates profiles/ directory if missing.
+    - Writes manifest.json with built-in entries; merges with existing
+      user entries without overwriting them. Repairs corrupted manifests.
+    - Copies each built-in profile's SOUL.md only if it doesn't already
+      exist (user customizations are preserved).
+    """
+    from importlib.resources import files as pkg_files
+    import json as _json
+
+    try:
+        tpl = pkg_files("shibaclaw") / "templates" / "profiles"
+    except Exception:
+        return []
+    if not tpl.is_dir():
+        return []
+
+    added: list[str] = []
+    profiles_dest = workspace / "profiles"
+    profiles_dest.mkdir(parents=True, exist_ok=True)
+
+    # ── Manifest: merge built-in entries ────────────────────────────
+    manifest_src = tpl / "manifest.json"
+    manifest_dest = profiles_dest / "manifest.json"
+    if manifest_src.is_file():
+        builtin_manifest = _json.loads(manifest_src.read_text(encoding="utf-8"))
+
+        existing: dict = {}
+        if manifest_dest.exists():
+            try:
+                raw = _json.loads(manifest_dest.read_text(encoding="utf-8"))
+                existing = raw if isinstance(raw, dict) else {}
+            except Exception:
+                existing = {}
+
+        # Ensure every built-in entry exists; update new fields on existing entries
+        changed = False
+        for pid, meta in builtin_manifest.items():
+            if pid not in existing:
+                existing[pid] = meta
+                changed = True
+            else:
+                # Merge new fields from template without overwriting user edits
+                for key, val in meta.items():
+                    if key not in existing[pid]:
+                        existing[pid][key] = val
+                        changed = True
+
+        if changed or not manifest_dest.exists():
+            manifest_dest.write_text(
+                _json.dumps(existing, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            added.append("profiles/manifest.json")
+
+    # ── Profile SOUL.md files ───────────────────────────────────────
+    for profile_dir in tpl.iterdir():
+        if profile_dir.is_dir():
+            soul_src = profile_dir / "SOUL.md"
+            dest_dir = profiles_dest / profile_dir.name
+            soul_dest = dest_dir / "SOUL.md"
+            if soul_src.is_file() and not soul_dest.exists():
+                dest_dir.mkdir(exist_ok=True)
+                soul_dest.write_text(
+                    soul_src.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+                added.append(f"profiles/{profile_dir.name}/SOUL.md")
+
+    return added
+
+
 def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]:
     """Sync bundled templates to workspace.
 
@@ -309,6 +382,48 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
             con.print("  [dim]Skipped — your templates unchanged.[/dim]")
 
     (workspace / "skills").mkdir(exist_ok=True)
+
+    # ── Sync built-in profiles ──────────────────────────────────────
+    profiles_tpl = tpl / "profiles"
+    if profiles_tpl.is_dir():
+        profiles_dest = workspace / "profiles"
+        profiles_dest.mkdir(exist_ok=True)
+
+        # Copy manifest (merge built-in entries, don't overwrite user edits)
+        manifest_src = profiles_tpl / "manifest.json"
+        manifest_dest = profiles_dest / "manifest.json"
+        if manifest_src.is_file():
+            import json as _json
+            builtin_manifest = _json.loads(manifest_src.read_text(encoding="utf-8"))
+            if manifest_dest.exists():
+                try:
+                    raw = _json.loads(manifest_dest.read_text(encoding="utf-8"))
+                    existing = raw if isinstance(raw, dict) else {}
+                except Exception:
+                    existing = {}
+                for pid, meta in builtin_manifest.items():
+                    if pid not in existing:
+                        existing[pid] = meta
+                    else:
+                        for key, val in meta.items():
+                            if key not in existing[pid]:
+                                existing[pid][key] = val
+                manifest_dest.write_text(
+                    _json.dumps(existing, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+            else:
+                _write(manifest_src, manifest_dest)
+
+        # Copy profile directories (only if they don't exist yet)
+        for profile_dir in profiles_tpl.iterdir():
+            if profile_dir.is_dir():
+                dest_dir = profiles_dest / profile_dir.name
+                soul_src = profile_dir / "SOUL.md"
+                soul_dest = dest_dir / "SOUL.md"
+                if soul_src.is_file() and not soul_dest.exists():
+                    dest_dir.mkdir(exist_ok=True)
+                    _write(soul_src, soul_dest)
 
     if added and not silent:
         from rich.console import Console

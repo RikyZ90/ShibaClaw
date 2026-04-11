@@ -1,0 +1,28 @@
+{
+  "default": {
+    "label": "ShibaClaw",
+    "description": "The original joyful Shiba assistant",
+    "builtin": true
+  },
+  "builder": {
+    "label": "Builder",
+    "description": "Focused coder — action-oriented, minimal chatter",
+    "builtin": true
+  },
+  "planner": {
+    "label": "Planner",
+    "description": "Strategic thinker — breaks down problems, creates plans",
+    "builtin": true
+  },
+  "reviewer": {
+    "label": "Reviewer",
+    "description": "Critical eye — finds issues, suggests improvements",
+    "builtin": true
+  },
+  "hacker": {
+    "label": "Hacker",
+    "description": "Security expert — finds vulnerabilities, hardens systems",
+    "builtin": true,
+    "avatar": "/static/img/profiles/hacker.png"
+  }
+}

@@ -247,8 +247,9 @@ function createMessageGroup(type) {
         avatar.style.display = "none";
     } else {
         const img = document.createElement("img");
-        img.src = "/static/shibaclaw_logo.png";
+        img.src = state.profileAvatar || DEFAULT_AVATAR;
         img.alt = "ShibaClaw";
+        img.className = "agent-avatar-img";
         avatar.appendChild(img);
     }
     group.appendChild(avatar);

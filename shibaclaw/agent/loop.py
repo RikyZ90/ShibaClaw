@@ -225,6 +225,7 @@ class ShibaBrain:
         channel: str | None = None,
         chat_id: str | None = None,
         skill_names: list[str] | None = None,
+        profile_id: str | None = None,
     ) -> tuple[str | None, list[str], list[dict]]:
         """Run the agent iteration loop.
 
@@ -241,6 +242,7 @@ class ShibaBrain:
         static_prompt = self.context.build_static_prompt(
             skill_names,
             memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
+            profile_id=profile_id,
         )
 
         # Tool definitions don't change mid-loop; compute once.
@@ -462,6 +464,7 @@ class ShibaBrain:
             logger.debug("Processing system message from {}", msg.sender_id)
             key = f"{channel}:{chat_id}"
             session = self.sessions.get_or_create(key)
+            profile_id = session.metadata.get("profile_id") or None
             await self.memory_consolidator.maybe_consolidate_by_tokens(session)
             self._set_tool_context(
                 channel,
@@ -477,9 +480,11 @@ class ShibaBrain:
                 current_role=current_role,
                 memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
                 available_channels=self._available_channels,
+                profile_id=profile_id,
             )
             final_content, _, all_msgs = await self._run_agent_loop(
                 messages, channel=channel, chat_id=chat_id,
+                profile_id=profile_id,
             )
             self._save_turn(session, all_msgs, 1 + len(history))
             self.sessions.save(session)
@@ -497,6 +502,7 @@ class ShibaBrain:
             preview,
         )
         session = self.sessions.get_or_create(key)
+        profile_id = session.metadata.get("profile_id") or None
 
         cmd = msg.content.strip().lower()
         if cmd == "/new":
@@ -541,6 +547,7 @@ class ShibaBrain:
             channel=msg.channel, chat_id=msg.chat_id,
             memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
             available_channels=self._available_channels,
+            profile_id=profile_id,
         )
 
         from datetime import datetime as _dt
@@ -560,6 +567,7 @@ class ShibaBrain:
         final_content, _, all_msgs = await self._run_agent_loop(
             initial_messages, on_progress=on_progress or _bus_progress,
             channel=msg.channel, chat_id=msg.chat_id,
+            profile_id=profile_id,
         )
 
         if final_content is None:

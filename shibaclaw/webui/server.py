@@ -35,6 +35,7 @@ from .api import (
     api_update_check, api_update_manifest, api_update_apply, api_restart_server,
     api_onboard_providers, api_onboard_templates, api_onboard_submit,
     api_skills_list, api_skills_pin, api_skills_delete, api_skills_import,
+    api_profiles_list, api_profiles_get, api_profiles_create, api_profiles_update, api_profiles_delete,
 )
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -102,6 +103,11 @@ def create_app(
         Route("/api/skills/pin", api_skills_pin, methods=["POST"]),
         Route("/api/skills/import", api_skills_import, methods=["POST"]),
         Route("/api/skills/{name}", api_skills_delete, methods=["DELETE"]),
+        Route("/api/profiles", api_profiles_list, methods=["GET"]),
+        Route("/api/profiles", api_profiles_create, methods=["POST"]),
+        Route("/api/profiles/{profile_id}", api_profiles_get, methods=["GET"]),
+        Route("/api/profiles/{profile_id}", api_profiles_update, methods=["PUT"]),
+        Route("/api/profiles/{profile_id}", api_profiles_delete, methods=["DELETE"]),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 
@@ -129,16 +135,17 @@ async def _check_update_on_startup() -> None:
 
 
 async def _sync_skills_on_startup() -> None:
-    """Sync built-in skills to workspace on startup."""
+    """Sync built-in skills and profiles to workspace on startup."""
     try:
         await asyncio.sleep(1)
-        from shibaclaw.helpers.helpers import sync_skills
+        from shibaclaw.helpers.helpers import sync_skills, sync_profiles
         cfg = agent_manager.config
         if cfg:
             sync_skills(cfg.workspace_path)
-            logger.info("Skills synced on startup")
+            sync_profiles(cfg.workspace_path)
+            logger.info("Skills and profiles synced on startup")
     except Exception:
-        logger.exception("Failed to sync skills on startup")
+        logger.exception("Failed to sync skills/profiles on startup")
 
 
 async def _ensure_agent_on_startup() -> None:

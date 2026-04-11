@@ -112,7 +112,7 @@ _system_prompt_cache: Dict[str, Any] = {
 }
 
 
-def _build_real_system_prompt(wp: Path, defaults) -> tuple[str, int]:
+def _build_real_system_prompt(wp: Path, defaults, profile_id: str | None = None) -> tuple[str, int]:
     """Build the real system prompt via ScentBuilder and return (prompt, tokens).
 
     Uses a mtime-based cache to avoid re-reading disk on every poll.
@@ -125,6 +125,10 @@ def _build_real_system_prompt(wp: Path, defaults) -> tuple[str, int]:
     check_files = [wp / f for f in ScentBuilder.BOOTSTRAP_FILES] + [
         wp / "memory" / "MEMORY.md",
     ]
+    # Include the profile-specific SOUL.md in the mtime check
+    if profile_id and profile_id != "default":
+        check_files.append(wp / "profiles" / profile_id / "SOUL.md")
+
     current_state = {}
     for p in check_files:
         if p.exists():
@@ -132,6 +136,7 @@ def _build_real_system_prompt(wp: Path, defaults) -> tuple[str, int]:
 
     current_settings = {
         "memory_max_prompt_tokens": defaults.memory_max_prompt_tokens,
+        "profile_id": profile_id or "default",
     }
 
     if (
@@ -143,6 +148,7 @@ def _build_real_system_prompt(wp: Path, defaults) -> tuple[str, int]:
 
     prompt = builder.build_system_prompt(
         memory_max_prompt_tokens=defaults.memory_max_prompt_tokens,
+        profile_id=profile_id,
     )
     tokens = estimate_prompt_tokens([{"role": "system", "content": prompt}])
 

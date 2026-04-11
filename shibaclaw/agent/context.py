@@ -35,14 +35,16 @@ class ScentBuilder:
         self.skills = SkillsLoader(workspace)
         # Cache for bootstrap files (SOUL.md, AGENTS.md, USER.md, TOOLS.md).
         # These files rarely change at runtime; read once and reuse.
-        self._bootstrap_cache: str | None = None
-        self._bootstrap_mtimes: dict[str, float] = {}
+        # Keyed by profile_id so different profiles don't thrash the cache.
+        self._bootstrap_cache: dict[str, str] = {}
+        self._bootstrap_mtimes: dict[str, dict[str, float]] = {}
 
     def build_static_prompt(
         self,
         skill_names: list[str] | None = None,
         *,
         memory_max_prompt_tokens: int = 0,
+        profile_id: str | None = None,
     ) -> str:
         """Build the static (non-live) portion of the system prompt.
 
@@ -54,7 +56,7 @@ class ScentBuilder:
         """
         parts = [self._get_identity()]
 
-        bootstrap = self._load_bootstrap_files()
+        bootstrap = self._load_bootstrap_files(profile_id=profile_id)
         if bootstrap:
             parts.append(bootstrap)
 
@@ -89,6 +91,7 @@ Skills with available="false" need dependencies installed first - you can try in
         max_iterations: int | None = None,
         memory_max_prompt_tokens: int = 0,
         available_channels: list[str] | None = None,
+        profile_id: str | None = None,
     ) -> str:
         """Build the full system prompt (static parts + live state).
 
@@ -98,6 +101,7 @@ Skills with available="false" need dependencies installed first - you can try in
         static = self.build_static_prompt(
             skill_names,
             memory_max_prompt_tokens=memory_max_prompt_tokens,
+            profile_id=profile_id,
         )
 
         live = self.build_runtime_block(
@@ -214,32 +218,45 @@ Root: {workspace_path}
             lines += [f"Channel: {channel}", f"Chat ID: {chat_id}"]
         return ScentBuilder._RUNTIME_CONTEXT_TAG + "\n" + "\n".join(lines)
 
-    def _load_bootstrap_files(self) -> str:
+    def _load_bootstrap_files(self, *, profile_id: str | None = None) -> str:
         """Load all bootstrap files from workspace, using a cache.
 
         The cache is invalidated when any file's mtime changes so that
         edits to SOUL.md / USER.md etc. are picked up without restarting.
+
+        When *profile_id* is provided (and not "default"), the SOUL.md
+        is resolved from ``workspace/profiles/{profile_id}/SOUL.md``
+        instead of the workspace root.
         """
+        cache_key = profile_id or "default"
+
         # Check whether any file has changed since we last cached.
         current_mtimes: dict[str, float] = {}
         for filename in self.BOOTSTRAP_FILES:
-            file_path = self.workspace / filename
+            if filename == "SOUL.md" and profile_id and profile_id != "default":
+                file_path = self.workspace / "profiles" / profile_id / "SOUL.md"
+            else:
+                file_path = self.workspace / filename
             if file_path.exists():
-                current_mtimes[filename] = file_path.stat().st_mtime
+                current_mtimes[str(file_path)] = file_path.stat().st_mtime
 
-        if self._bootstrap_cache is not None and current_mtimes == self._bootstrap_mtimes:
-            return self._bootstrap_cache
+        if cache_key in self._bootstrap_cache and current_mtimes == self._bootstrap_mtimes.get(cache_key):
+            return self._bootstrap_cache[cache_key]
 
         parts = []
         for filename in self.BOOTSTRAP_FILES:
-            file_path = self.workspace / filename
+            if filename == "SOUL.md" and profile_id and profile_id != "default":
+                file_path = self.workspace / "profiles" / profile_id / "SOUL.md"
+            else:
+                file_path = self.workspace / filename
             if file_path.exists():
                 content = file_path.read_text(encoding="utf-8")
                 parts.append(f"## {filename}\n\n{content}")
 
-        self._bootstrap_cache = "\n\n".join(parts) if parts else ""
-        self._bootstrap_mtimes = current_mtimes
-        return self._bootstrap_cache
+        result = "\n\n".join(parts) if parts else ""
+        self._bootstrap_cache[cache_key] = result
+        self._bootstrap_mtimes[cache_key] = current_mtimes
+        return result
 
     def build_messages(
         self,
@@ -252,6 +269,7 @@ Root: {workspace_path}
         current_role: str = "user",
         memory_max_prompt_tokens: int = 0,
         available_channels: list[str] | None = None,
+        profile_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Build the complete message list for an LLM call.
 
@@ -269,6 +287,7 @@ Root: {workspace_path}
                 chat_id=chat_id,
                 memory_max_prompt_tokens=memory_max_prompt_tokens,
                 available_channels=available_channels,
+                profile_id=profile_id,
             )},
             *history,
             {"role": current_role, "content": user_content},

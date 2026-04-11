@@ -220,6 +220,7 @@ class PackManager:
                             sessions.append({
                                 "key": key,
                                 "nickname": meta.get("nickname"),
+                                "profile_id": meta.get("profile_id", "default"),
                                 "created_at": data.get("created_at"),
                                 "updated_at": data.get("updated_at"),
                                 "path": str(path)

@@ -6,7 +6,7 @@
 <h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.23-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.25-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -74,6 +74,7 @@ Prefer the terminal? `shibaclaw onboard` runs the same guided setup from the CLI
 The WebUI is built-in — no separate frontend or Node.js required.
 
 - **Chat** — multi-session conversations with live streaming of tool calls, thinking blocks, and elapsed time
+- **Agent Profiles** — switch personas per session (Hacker, Builder, Planner, Reviewer) with dynamic avatars
 - **File browser** — browse, view, and edit workspace files in-browser (sandboxed to workspace)
 - **Voice** — speech-to-text via OpenAI-compatible audio APIs and browser-native TTS
 - **Settings** — configure agent, provider, tools, MCP servers, channels, skills, and OAuth from a single panel
@@ -82,6 +83,18 @@ The WebUI is built-in — no separate frontend or Node.js required.
 - **Gateway monitor** — health check and one-click restart
 - **Auto-update** — checks GitHub releases every 12h, notifies in the UI and on all active channels
 - **Responsive** — works on desktop and mobile
+
+### Agent Profiles
+
+<p align="center">
+  <img src="assets/profile_selector.png" width="600" alt="Agent Profile Selector">
+</p>
+
+Switch the agent's personality on-the-fly without losing context. Each profile overrides the system prompt (SOUL.md) while keeping model, memory, and tools shared. Profiles are per-session — run a security audit in one tab and plan architecture in another.
+
+**Built-in profiles:** Default · Builder · Planner · Reviewer · **Hacker** (elite security expert with 50+ tool recommendations, OWASP/MITRE/NIST methodologies, CVSS scoring, and a custom cyber-shiba avatar).
+
+Create your own profiles interactively — the agent walks you through defining the persona and saves everything automatically.
 
 ---
 
@@ -220,11 +233,12 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.0.22
+## Latest — v0.0.25
 
-- **Skills WebUI** — browse installed skills, pin/import/delete, ClawHub shortcut
-- **Settings redesign** — vertical sidebar layout (9 sections), responsive, persisted last tab
-- **Persistent config** — `pinned_skills` and `max_pinned_skills` survive restarts
+- **Agent Profiles** — per-session personas with dynamic avatars (Default, Builder, Planner, Reviewer, Hacker)
+- **Hacker profile** — elite security expert with 50+ tools, OWASP/MITRE methodologies, CVSS scoring
+- **Custom profile creation** — agent-guided interactive persona builder
+- **Profile startup sync** — templates auto-synced, corrupted manifests auto-repaired
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 
