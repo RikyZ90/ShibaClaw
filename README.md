@@ -59,9 +59,9 @@ Prefer the terminal? `shibaclaw onboard` runs the same guided setup from the CLI
 ## WebUI
 
 <p align="center">
+  <img src="assets/settings.gif" width="420" alt="Settings">
   <img src="assets/webui_welcome.png" width="380" alt="WebUI Welcome Screen">&nbsp;&nbsp;
   <img src="assets/webui_chat.png" width="380" alt="WebUI Chat with Agent">
-  <img src="assets/webui_settings_oauth.png" width="380" alt="Settings — OAuth Providers">
 </p>
 
 The WebUI is built-in — no separate frontend or Node.js required.
@@ -80,7 +80,7 @@ The WebUI is built-in — no separate frontend or Node.js required.
 ### Agent Profiles
 
 <p align="center">
-  <img src="assets/profile_selector.png" width="600" alt="Agent Profile Selector">
+  <img src="assets/hacker-mode.gif" width="600" alt="Agent Profile Selector">
 </p>
 
 Switch the agent's personality on-the-fly without losing context. Each profile overrides the system prompt (SOUL.md) while keeping model, memory, and tools shared. Profiles are per-session — run a security audit in one tab and plan architecture in another.
