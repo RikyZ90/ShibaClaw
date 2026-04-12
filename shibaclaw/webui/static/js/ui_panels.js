@@ -1207,11 +1207,16 @@ function populateSettings(cfg) {
                 <label>Enabled</label>
                 <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
             </div>
-            <div class="field-row">
-                <label>Consent Granted</label>
-                <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="consentGranted" data-type="boolean" ${(cc.consentGranted || cc.consent_granted) ? "checked" : ""}><span class="toggle-slider"></span></label>
-            </div>
         `;
+        if (name === "email") {
+            fieldsHtml += `
+            <div class="field-row">
+                <label>Authorize IMAP/SMTP access</label>
+                <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="consentGranted" data-type="boolean" ${(cc.consentGranted || cc.consent_granted) ? "checked" : ""}><span class="toggle-slider"></span></label>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:4px">Required to allow ShibaClaw to read and send emails on your behalf</span>
+            </div>
+            `;
+        }
 
         if (name === "email" && EMAIL_FIELD_CONFIG) {
             const sections = { inbound: [], outbound: [], general: [] };
@@ -1274,7 +1279,7 @@ function populateSettings(cfg) {
             }
         } else {
             for (const [key, val] of Object.entries(cc)) {
-                if (key === "enabled") continue;
+                if (key === "enabled" || key === "consentGranted" || key === "consent_granted") continue;
                 let inputType = "text";
                 let valStr = "";
                 let originalType = typeof val;

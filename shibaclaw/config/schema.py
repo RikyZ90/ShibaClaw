@@ -143,7 +143,7 @@ class ExecToolConfig(Base):
     """Shell exec tool configuration."""
 
     enable: bool = True
-    timeout: int = 60
+    timeout: int = 120
     path_append: str = ""
     install_audit: bool = True  # Enable vulnerability scanning for install commands
     install_audit_timeout: int = 120  # Timeout in seconds for audit checks
