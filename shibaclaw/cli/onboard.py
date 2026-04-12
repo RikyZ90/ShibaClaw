@@ -31,7 +31,7 @@ _ONBOARD_PROVIDERS = [
     ("deepseek",   "DeepSeek",       "DEEPSEEK_API_KEY",    "deepseek/deepseek-chat",                False, False),
     ("groq",       "Groq",           "GROQ_API_KEY",        "groq/llama-3.3-70b-versatile",         False, False),
     ("ollama",     "Ollama (local)", "",                    "ollama/llama3.2",                       True,  False),
-    ("github_copilot", "GitHub Copilot (OAuth)", "",        "github_copilot/gpt-4o",                 False, True),
+    ("github_copilot", "GitHub Copilot (OAuth)", "",        "oswe-vscode-prime",                 False, True),
 ]
 
 
