@@ -57,10 +57,10 @@ async def api_oauth_login(request: Request):
     jobs[job_id] = {"provider": provider, "status": "running", "logs": []}
 
     if provider == "github_copilot":
-        from .oauth_github import start_github_oauth
+        from ..oauth_github import start_github_oauth
         return await start_github_oauth(job_id, jobs)
     elif provider == "openai_codex":
-        from .oauth_github import start_codex_oauth
+        from ..oauth_github import start_codex_oauth
         return await start_codex_oauth(job_id, jobs)
 
 

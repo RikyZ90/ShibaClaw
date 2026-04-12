@@ -2038,8 +2038,6 @@ window.obSubmit = async function() {
         state.onboardModalShown = false;
         fetchStatus();
         loadHistory();
-
-        ToastManager.show("success", "Setup completato!", "✓ Shiba is ready to hunt.", 4000);
     } catch(e) {
         btn.style.width = "";
         btn.disabled = false;
