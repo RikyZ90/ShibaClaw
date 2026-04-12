@@ -32,13 +32,6 @@ These are the defenses that are often left to app glue code or external proxies.
 | Workspace sandbox | File tools and the WebUI file browser stay inside the configured workspace | Reduces traversal and accidental host-wide access |
 | Access control | Bearer token auth, constant-time token checks, channel allowlists, optional sender rate limiting | Safer when the agent is exposed beyond a local shell |
 
-```bash
-pip install shibaclaw
-shibaclaw web               # open http://localhost:3000 → onboard wizard starts
-```
-
----
-
 ## Quick Start
 
 ### Docker
