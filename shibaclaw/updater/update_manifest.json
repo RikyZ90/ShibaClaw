@@ -1,5 +1,5 @@
 {
-  "version": "0.0.26",
+  "version": "0.0.27",
   "release_notes": "- **Profile UI polish** — hover highlight fix in profile dropdown, welcome screen logo updates on profile switch. CSS cleanup and comment hygiene.",
   "upgrade_notes": "Restart the WebUI after upgrading. No data migration needed.",
   "changes": [
