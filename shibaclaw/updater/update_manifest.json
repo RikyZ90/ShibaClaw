@@ -1,22 +1,17 @@
 {
-  "version": "0.0.28",
-  "release_notes": "- **Heartbeat frontmatter config** — `HEARTBEAT.md` now carries real heartbeat settings for session, profile, and targets.\n- **Token savings** — heartbeat no longer calls the LLM when `Active Tasks` is empty, and blank cron agent jobs are skipped.",
-  "upgrade_notes": "Restart the WebUI after upgrading. Recommended: reset your workspace `HEARTBEAT.md` once to pick up the new frontmatter-based base template. Existing files still work, but they do not gain the new editable settings block automatically.",
+  "version": "0.0.30",
+  "release_notes": "- **Bugfixes** — Fixed a bug where WebUI in standalone mode lost messages, missing feedback on long execution, subagent context explosion, hanging agent loop, and Telegram Conflict error loop.",
+  "upgrade_notes": "Restart the WebUI after upgrading.",
   "changes": [
-    {
-      "path": "HEARTBEAT.md",
-      "overwrite": false,
-      "note": "Recommended reset: the template now includes real YAML frontmatter settings for session_key, profile_id, and targets. Global enable/interval still live in settings."
-    },
     {
       "path": "README.md",
       "overwrite": true,
-      "note": "Documentation updated for frontmatter-driven heartbeat configuration and no-op token saving."
+      "note": "Documentation updated for memory usage stats."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Release notes for v0.0.28."
+      "note": "Release notes for v0.0.30."
     }
   ]
 }
