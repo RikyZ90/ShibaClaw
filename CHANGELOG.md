@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.30] - 2026-04-14
+
+### Fixed
+- **Race condition dual consumer** — Fixed a bug where WebUI in standalone mode started both inbound polling and outbound dispatcher, causing lost messages because it competed with its own outbound consumer.
+- **Missing feedback on long execution** — `ExecTool` now sends a progress heartbeat every 15s to the UI during long-running commands, so it doesn't look stuck.
+- **Subagent context explosion** — Subagent tool results are now properly truncated at 8,000 chars to avoid exploding the context window.
+- **Hanging agent loop** — Added 120s timeout to LLM provider calls, 660s timeout to tool execution, and 600s overall wall-clock loop cap to prevent infinite hangs.
+- **Telegram Conflict error loop** — Replaced silent retry loop with graceful fallback to outbound-only mode if another bot instance is polling.
+- **Gateway connection check** — Added retry backoff when checking if gateway is reachable to give Docker container startup time to bind ports, preventing false negative conflicts.
+
 ## [0.0.28] - 2026-04-14
 
 ### Added
