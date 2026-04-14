@@ -60,6 +60,12 @@ def _validate_schedule_for_add(schedule: CronSchedule) -> None:
             raise ValueError(f"unknown timezone '{schedule.tz}'") from None
 
 
+def _has_active_job_payload(job: CronJob) -> bool:
+    if job.payload.kind != "agent_turn":
+        return True
+    return bool((job.payload.message or "").strip())
+
+
 class CronService:
     """Service for managing and executing scheduled jobs."""
 
@@ -287,18 +293,23 @@ class CronService:
         start_ms = _now_ms()
         logger.info("Cron: executing job '{}' ({})", job.name, job.id)
 
-        try:
-            if self.on_job:
-                await self.on_job(job)
-
-            job.state.last_status = "ok"
+        if not _has_active_job_payload(job):
+            job.state.last_status = "skipped"
             job.state.last_error = None
-            logger.info("Cron: job '{}' completed", job.name)
+            logger.info("Cron: job '{}' skipped because it has no active task payload", job.name)
+        else:
+            try:
+                if self.on_job:
+                    await self.on_job(job)
 
-        except Exception as e:
-            job.state.last_status = "error"
-            job.state.last_error = str(e)
-            logger.error("Cron: job '{}' failed: {}", job.name, e)
+                job.state.last_status = "ok"
+                job.state.last_error = None
+                logger.info("Cron: job '{}' completed", job.name)
+
+            except Exception as e:
+                job.state.last_status = "error"
+                job.state.last_error = str(e)
+                logger.error("Cron: job '{}' failed: {}", job.name, e)
 
         end_ms = _now_ms()
         job.state.last_run_at_ms = start_ms

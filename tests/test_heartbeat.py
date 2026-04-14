@@ -4,7 +4,12 @@ from types import SimpleNamespace
 import pytest
 
 from shibaclaw.brain.manager import PackManager
-from shibaclaw.cli.gateway import resolve_cron_target, resolve_webui_session_key, select_heartbeat_target
+from shibaclaw.cli.gateway import (
+    resolve_cron_target,
+    resolve_heartbeat_targets,
+    resolve_webui_session_key,
+    select_heartbeat_target,
+)
 from shibaclaw.cron.service import CronService
 from shibaclaw.cron.types import CronJob, CronJobState, CronPayload, CronSchedule
 from shibaclaw.helpers.evaluator import evaluate_response
@@ -60,6 +65,20 @@ class TestHeartbeatTargetSelection:
         assert target.channel == "webui"
         assert target.chat_id == "recent"
         assert target.session_key == "webui:recent"
+
+    def test_resolves_recent_alias_for_explicit_targets(self):
+        sessions = [
+            {"key": "webui:abcd1234", "updated_at": "2026-04-05T12:00:00"},
+            {"key": "telegram:12345", "updated_at": "2026-04-05T11:59:00"},
+        ]
+
+        targets = resolve_heartbeat_targets(
+            {"webui": "recent", "telegram": "recent"},
+            sessions,
+            {"telegram"},
+        )
+
+        assert [target.session_key for target in targets] == ["webui:abcd1234", "telegram:12345"]
 
 
 class TestCronTargetResolution:
@@ -212,6 +231,31 @@ class TestCronOverdueJobFiring:
         svc.stop()
         assert len(fired) == 0
 
+    @pytest.mark.asyncio
+    async def test_blank_agent_job_does_not_call_runner(self, tmp_path):
+        fired = []
+
+        async def on_job(job):
+            fired.append(job.id)
+            return "done"
+
+        svc = CronService(tmp_path / "jobs.json", on_job=on_job)
+        import time
+        past_ms = int(time.time() * 1000) - 60_000
+        job = svc.add_job(
+            name="blank-message",
+            schedule=CronSchedule(kind="at", at_ms=past_ms),
+            message="   ",
+        )
+
+        await svc.start()
+        svc.stop()
+
+        assert fired == []
+        stored = svc.get_job(job.id)
+        assert stored is not None
+        assert stored.state.last_status == "skipped"
+
 
 class TestHeartbeatService:
     @pytest.mark.asyncio
@@ -303,6 +347,35 @@ class TestHeartbeatService:
         assert s["targets"] == {"telegram": "999"}
         assert s["profile_id"] == "hacker"
 
+    def test_frontmatter_overrides_runtime_defaults(self, tmp_path):
+        (tmp_path / "HEARTBEAT.md").write_text(
+            "---\n"
+            "interval_s: 60\n"
+            "session_key: heartbeat:file\n"
+            "profile_id: reviewer\n"
+            "targets:\n"
+            "  webui: recent\n"
+            "---\n\n"
+            "## Active Tasks\n- report\n",
+            encoding="utf-8",
+        )
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=object(),
+            model="test-model",
+            interval_s=1800,
+            session_key="heartbeat:runtime",
+            targets={"telegram": "999"},
+            profile_id="builder",
+        )
+
+        status = service.status()
+
+        assert status["interval_s"] == 60
+        assert status["session_key"] == "heartbeat:file"
+        assert status["profile_id"] == "reviewer"
+        assert status["targets"] == {"webui": "recent"}
+
     def test_defaults_for_new_fields(self, tmp_path):
         service = HeartbeatService(
             workspace=tmp_path,
@@ -312,6 +385,65 @@ class TestHeartbeatService:
         assert service.session_key == "heartbeat:default"
         assert service.targets == {}
         assert service.profile_id is None
+
+    @pytest.mark.asyncio
+    async def test_tick_skips_llm_when_no_active_tasks(self, tmp_path):
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})],
+            )
+        )
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+        )
+
+        (tmp_path / "HEARTBEAT.md").write_text(
+            "---\n"
+            "enabled: true\n"
+            "interval_s: 1800\n"
+            "---\n\n"
+            "# Heartbeat Tasks\n\n"
+            "## Active Tasks\n\n"
+            "<!-- nothing configured -->\n\n"
+            "## Completed\n\n"
+            "- old task\n",
+            encoding="utf-8",
+        )
+
+        await service._tick()
+
+        assert provider.calls == []
+        assert service._last_check_ms is None
+
+    @pytest.mark.asyncio
+    async def test_trigger_now_skips_llm_when_no_active_tasks(self, tmp_path):
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})],
+            )
+        )
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+        )
+
+        (tmp_path / "HEARTBEAT.md").write_text(
+            "# Heartbeat Tasks\n\n"
+            "## Active Tasks\n\n"
+            "<!-- Add your periodic tasks below this line -->\n\n"
+            "## Completed\n",
+            encoding="utf-8",
+        )
+
+        result = await service.trigger_now()
+
+        assert result is None
+        assert provider.calls == []
 
 
 class TestHeartbeatSessionStability:
@@ -376,6 +508,56 @@ class TestHeartbeatSessionStability:
         await service._tick()
 
         assert received_profiles == ["builder"]
+
+    @pytest.mark.asyncio
+    async def test_tick_uses_frontmatter_overrides(self, tmp_path):
+        received = []
+
+        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+            received.append({
+                "session_key": session_key,
+                "profile_id": profile_id,
+                "targets": targets,
+                "tasks": tasks,
+            })
+            return "done"
+
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "run file task"})],
+            )
+        )
+
+        (tmp_path / "HEARTBEAT.md").write_text(
+            "---\n"
+            "session_key: heartbeat:file\n"
+            "profile_id: planner\n"
+            "targets:\n"
+            "  webui: recent\n"
+            "---\n\n"
+            "## Active Tasks\n- file-driven task\n",
+            encoding="utf-8",
+        )
+
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+            on_execute=fake_execute,
+            session_key="heartbeat:runtime",
+            profile_id="builder",
+            targets={"telegram": "123"},
+        )
+
+        await service._tick()
+
+        assert received == [{
+            "session_key": "heartbeat:file",
+            "profile_id": "planner",
+            "targets": {"webui": "recent"},
+            "tasks": "run file task",
+        }]
 
 
 class TestHeartbeatMultiChannel:

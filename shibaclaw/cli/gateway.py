@@ -73,6 +73,66 @@ def select_heartbeat_target(
     return HeartbeatTarget(channel="cli", chat_id="direct", session_key="cli:direct")
 
 
+def _pick_recent_session_target(
+    sessions: list[dict[str, Any]],
+    channel: str,
+) -> HeartbeatTarget | None:
+    for item in sessions:
+        key = item.get("key", "")
+        if ":" not in key:
+            continue
+        key_channel, chat_id = key.split(":", 1)
+        if key_channel != channel:
+            continue
+        return HeartbeatTarget(channel=key_channel, chat_id=chat_id, session_key=key)
+    return None
+
+
+def resolve_heartbeat_targets(
+    configured_targets: dict[str, str] | None,
+    sessions: list[dict[str, Any]],
+    enabled_channels: set[str],
+) -> list[HeartbeatTarget]:
+    if not configured_targets:
+        return [select_heartbeat_target(sessions, enabled_channels)]
+
+    resolved: list[HeartbeatTarget] = []
+    for channel, raw_target in configured_targets.items():
+        target_value = (raw_target or "").strip()
+        normalized = target_value.lower()
+
+        if normalized in {"", "recent", "latest", "auto"}:
+            recent = _pick_recent_session_target(sessions, channel)
+            if recent is not None:
+                resolved.append(recent)
+                continue
+            if channel in {"cli", "system"}:
+                target_value = "direct"
+            else:
+                logger.warning(
+                    "Heartbeat: target {}:{} has no matching recent session; skipping",
+                    channel,
+                    raw_target,
+                )
+                continue
+
+        if channel == "webui":
+            session_key = resolve_webui_session_key(
+                target_value if target_value.startswith("webui:") else None,
+                target_value,
+            )
+            if not session_key:
+                continue
+            chat_id = session_key.split(":", 1)[1] if ":" in session_key else session_key
+            resolved.append(HeartbeatTarget(channel="webui", chat_id=chat_id, session_key=session_key))
+            continue
+
+        chat_id = target_value or "direct"
+        resolved.append(HeartbeatTarget(channel=channel, chat_id=chat_id, session_key=f"{channel}:{chat_id}"))
+
+    return resolved
+
+
 def _iter_webui_notify_urls() -> list[str]:
     raw_urls = [
         os.environ.get("SHIBACLAW_WEBUI_NOTIFY_URL", "").strip(),
@@ -221,18 +281,18 @@ async def gateway_command(
         async def _noop_progress(*_args, **_kwargs) -> None:
             return None
 
-        # Determine channel/chat_id for execution context from first target or fallback
-        if targets:
-            exec_channel, exec_chat_id = next(iter(targets.items()))
-        else:
-            fallback = _pick_heartbeat_target()
-            exec_channel, exec_chat_id = fallback.channel, fallback.chat_id
+        resolved_targets = resolve_heartbeat_targets(
+            targets,
+            session_manager.list_sessions(),
+            set(channels.enabled_channels),
+        )
+        exec_target = resolved_targets[0] if resolved_targets else _pick_heartbeat_target()
 
         outbound = await agent.process_direct(
             tasks,
             session_key,
-            exec_channel,
-            exec_chat_id,
+            exec_target.channel,
+            exec_target.chat_id,
             on_progress=_noop_progress,
             profile_id=profile_id,
         )
@@ -246,29 +306,24 @@ async def gateway_command(
         if not response:
             return
 
-        # If explicit targets are configured, deliver to each
-        if targets:
-            for channel, chat_id in targets.items():
-                if channel == "webui":
-                    sk = f"webui:{chat_id}" if not chat_id.startswith("webui:") else chat_id
-                    await notify_webui_session(sk, response, auth_token, source="heartbeat")
-                else:
-                    await bus.publish_outbound(
-                        OutboundMessage(channel=channel, chat_id=chat_id, content=response)
-                    )
-            return
+        resolved_targets = resolve_heartbeat_targets(
+            targets,
+            session_manager.list_sessions(),
+            set(channels.enabled_channels),
+        )
 
-        # Fallback to heuristic target selection (backward compatibility)
-        target = _pick_heartbeat_target()
-        if target.channel == "webui":
-            await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
-            return
-        if target.channel != "cli":
+        for target in resolved_targets:
+            if target.channel == "webui":
+                await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
+                continue
+            if target.channel == "cli":
+                continue
             await bus.publish_outbound(
                 OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
             )
-            return
-        logger.info("Heartbeat: generated a response but found no deliverable session")
+
+        if not any(target.channel != "cli" for target in resolved_targets):
+            logger.info("Heartbeat: generated a response but found no deliverable session")
 
     hb_cfg = config.gateway.heartbeat
     heartbeat = HeartbeatService(

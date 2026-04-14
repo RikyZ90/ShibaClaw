@@ -230,13 +230,21 @@ class AgentManager:
                     profile_id: str | None = None,
                     targets: dict[str, str] | None = None,
                 ) -> str:
-                    # Use first target or fallback to webui
-                    if targets:
-                        exec_channel, exec_chat_id = next(iter(targets.items()))
-                    else:
-                        exec_channel, exec_chat_id = "webui", "direct"
+                    from shibaclaw.brain.manager import PackManager
+                    from shibaclaw.cli.gateway import resolve_heartbeat_targets
+
+                    pm = PackManager(self.config.workspace_path)
+                    resolved_targets = resolve_heartbeat_targets(
+                        targets,
+                        pm.list_sessions(),
+                        set(self._channel_manager.enabled_channels),
+                    )
+                    exec_target = resolved_targets[0] if resolved_targets else None
                     out = await self.agent.process_direct(
-                        tasks, session_key, exec_channel, exec_chat_id,
+                        tasks,
+                        session_key,
+                        exec_target.channel if exec_target else "webui",
+                        exec_target.chat_id if exec_target else "direct",
                         on_progress=_noop_progress,
                         profile_id=profile_id,
                     )
@@ -245,21 +253,33 @@ class AgentManager:
                 async def _hb_notify(
                     response: str, *, targets: dict[str, str] | None = None,
                 ) -> None:
+                    from shibaclaw.brain.manager import PackManager
+                    from shibaclaw.bus.events import OutboundMessage
+                    from shibaclaw.cli.gateway import resolve_heartbeat_targets
+
                     if not response:
                         return
-                    # Deliver to explicit targets or fallback to WebUI
-                    deliver_targets = targets if targets else {"webui": hb_cfg.session_key.split(":", 1)[-1] if ":" in hb_cfg.session_key else "direct"}
-                    for channel, chat_id in deliver_targets.items():
-                        if channel == "webui":
-                            sk = f"webui:{chat_id}" if not chat_id.startswith("webui:") else chat_id
+
+                    pm = PackManager(self.config.workspace_path)
+                    resolved_targets = resolve_heartbeat_targets(
+                        targets,
+                        pm.list_sessions(),
+                        set(self._channel_manager.enabled_channels),
+                    )
+
+                    for target in resolved_targets:
+                        if target.channel == "webui":
                             await self.deliver_background_notification(
-                                sk, response, source="heartbeat",
+                                target.session_key,
+                                response,
+                                source="heartbeat",
                             )
-                        else:
-                            from shibaclaw.bus.events import OutboundMessage
-                            await self.bus.publish_outbound(
-                                OutboundMessage(channel=channel, chat_id=chat_id, content=response)
-                            )
+                            continue
+                        if target.channel == "cli":
+                            continue
+                        await self.bus.publish_outbound(
+                            OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
+                        )
 
                 self.heartbeat = HeartbeatService(
                     workspace=self.config.workspace_path,

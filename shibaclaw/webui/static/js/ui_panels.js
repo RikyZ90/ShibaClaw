@@ -236,6 +236,9 @@ async function loadHeartbeatSection() {
 
         let info = `<div class="auto-hb-info">`;
         info += `<span class="hb-label">Interval:</span> ${data.interval_s}s<br>`;
+        if (data.session_key) info += `<span class="hb-label">Session:</span> ${escapeHtml(data.session_key)}<br>`;
+        if (data.profile_id) info += `<span class="hb-label">Profile:</span> ${escapeHtml(data.profile_id)}<br>`;
+        if (data.targets && Object.keys(data.targets).length) info += `<span class="hb-label">Targets:</span> ${escapeHtml(Object.entries(data.targets).map(([channel, target]) => `${channel}:${target}`).join(", "))}<br>`;
         if (data.last_check_ms) info += `<span class="hb-label">Last check:</span> ${_timeAgo(data.last_check_ms)} — ${data.last_action || "?"}<br>`;
         if (data.last_run_ms) info += `<span class="hb-label">Last run:</span> ${_timeAgo(data.last_run_ms)}<br>`;
         if (data.last_error) info += `<span class="hb-label">Error:</span> ${escapeHtml(data.last_error)}<br>`;
