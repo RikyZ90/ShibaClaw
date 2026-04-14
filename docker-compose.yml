@@ -11,10 +11,10 @@ x-common-config: &common-config
       resources:
         limits:
           cpus: "0.5"
-          memory: 512M
+          memory: 1G
         reservations:
           cpus: "0.25"
-          memory: 256M  
+          memory: 512M  
   environment:
     <<: *common-env
   volumes:

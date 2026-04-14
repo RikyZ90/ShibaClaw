@@ -104,7 +104,7 @@ class ExecTool(Tool):
     _MAX_OUTPUT = 10_000
     # Maximum bytes to keep in memory per stream (stdout / stderr).
     # Anything beyond this is discarded in the middle (head + tail kept).
-    _MAX_STREAM_BUFFER = 64 * 1024  # 64 KB
+    _MAX_STREAM_BUFFER = 32 * 1024  # 32 KB
 
     @property
     def description(self) -> str:

@@ -1,6 +1,6 @@
 {
   "version": "0.0.31",
-  "release_notes": "- **Hotfix** — Fixed missing `_BoundedBuffer` class definition in `shell.py` that caused every `exec` tool call to fail with a NameError.",
+  "release_notes": "- **Hotfix** — Fixed missing `_BoundedBuffer` class that broke all `exec` tool calls. Raised Docker memory limits from 512 MB to 1 GB to prevent OOM kills during heavy installs (e.g. ffmpeg).",
   "upgrade_notes": "Restart the WebUI after upgrading.",
   "changes": [
     {
