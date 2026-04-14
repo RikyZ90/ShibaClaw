@@ -452,6 +452,7 @@ class ShibaBrain:
         msg: InboundMessage,
         session_key: str | None = None,
         on_progress: Callable[[str, bool], Awaitable[None]] | None = None,
+        profile_id_override: str | None = None,
     ) -> OutboundMessage | None:
         if self.provider is None:
             return OutboundMessage(
@@ -502,7 +503,10 @@ class ShibaBrain:
             preview,
         )
         session = self.sessions.get_or_create(key)
-        profile_id = session.metadata.get("profile_id") or None
+        profile_id = profile_id_override or session.metadata.get("profile_id") or None
+        if profile_id_override and session.metadata.get("profile_id") != profile_id_override:
+            session.metadata["profile_id"] = profile_id_override
+            self.sessions.save(session)
 
         cmd = msg.content.strip().lower()
         if cmd == "/new":
@@ -645,7 +649,8 @@ class ShibaBrain:
         on_notify: Callable[..., Awaitable[None]] | None = None,
         media: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
+        profile_id: str | None = None,
     ) -> OutboundMessage | None:
         await self._connect_mcp()
         msg = InboundMessage(channel=channel, sender_id="user", chat_id=chat_id, content=content, media=media, metadata=metadata or {})
-        return await self._process_message(msg, session_key=session_key, on_progress=on_progress)
+        return await self._process_message(msg, session_key=session_key, on_progress=on_progress, profile_id_override=profile_id)

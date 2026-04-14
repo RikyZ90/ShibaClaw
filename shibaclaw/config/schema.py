@@ -100,6 +100,9 @@ class HeartbeatConfig(Base):
 
     enabled: bool = True
     interval_s: int = 30 * 60  # 30 minutes
+    session_key: str = "heartbeat:default"  # Stable session key for heartbeat conversations
+    targets: dict[str, str] = Field(default_factory=dict)  # Channel → chat_id map (e.g. {"telegram": "12345", "webui": "recent"})
+    profile_id: str | None = None  # Profile to use for heartbeat agent (e.g. "builder", "hacker")
 
 
 class GatewayConfig(Base):

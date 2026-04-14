@@ -211,26 +211,55 @@ async def gateway_command(
             set(channels.enabled_channels),
         )
 
-    async def on_heartbeat_execute(tasks: str) -> str:
+    async def on_heartbeat_execute(
+        tasks: str,
+        *,
+        session_key: str = "heartbeat:default",
+        profile_id: str | None = None,
+        targets: dict[str, str] | None = None,
+    ) -> str:
         async def _noop_progress(*_args, **_kwargs) -> None:
             return None
 
-        target = _pick_heartbeat_target()
+        # Determine channel/chat_id for execution context from first target or fallback
+        if targets:
+            exec_channel, exec_chat_id = next(iter(targets.items()))
+        else:
+            fallback = _pick_heartbeat_target()
+            exec_channel, exec_chat_id = fallback.channel, fallback.chat_id
+
         outbound = await agent.process_direct(
             tasks,
-            "heartbeat",
-            target.channel,
-            target.chat_id,
+            session_key,
+            exec_channel,
+            exec_chat_id,
             on_progress=_noop_progress,
+            profile_id=profile_id,
         )
         return outbound.content if outbound else ""
 
-    async def on_heartbeat_notify(response: str) -> None:
+    async def on_heartbeat_notify(
+        response: str, *, targets: dict[str, str] | None = None,
+    ) -> None:
         from shibaclaw.bus.events import OutboundMessage
 
-        target = _pick_heartbeat_target()
         if not response:
             return
+
+        # If explicit targets are configured, deliver to each
+        if targets:
+            for channel, chat_id in targets.items():
+                if channel == "webui":
+                    sk = f"webui:{chat_id}" if not chat_id.startswith("webui:") else chat_id
+                    await notify_webui_session(sk, response, auth_token, source="heartbeat")
+                else:
+                    await bus.publish_outbound(
+                        OutboundMessage(channel=channel, chat_id=chat_id, content=response)
+                    )
+            return
+
+        # Fallback to heuristic target selection (backward compatibility)
+        target = _pick_heartbeat_target()
         if target.channel == "webui":
             await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
             return
@@ -245,7 +274,10 @@ async def gateway_command(
     heartbeat = HeartbeatService(
         workspace=config.workspace_path, provider=provider, model=agent.model,
         on_execute=on_heartbeat_execute, on_notify=on_heartbeat_notify,
-        interval_s=hb_cfg.interval_s, enabled=hb_cfg.enabled
+        interval_s=hb_cfg.interval_s, enabled=hb_cfg.enabled,
+        session_key=hb_cfg.session_key,
+        targets=hb_cfg.targets,
+        profile_id=hb_cfg.profile_id,
     )
 
     status_parts = [

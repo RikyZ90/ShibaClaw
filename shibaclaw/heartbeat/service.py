@@ -56,10 +56,13 @@ class HeartbeatService:
         workspace: Path,
         provider: Thinker,
         model: str,
-        on_execute: Callable[[str], Coroutine[Any, Any, str]] | None = None,
-        on_notify: Callable[[str], Coroutine[Any, Any, None]] | None = None,
+        on_execute: Callable[..., Coroutine[Any, Any, str]] | None = None,
+        on_notify: Callable[..., Coroutine[Any, Any, None]] | None = None,
         interval_s: int = 30 * 60,
         enabled: bool = True,
+        session_key: str = "heartbeat:default",
+        targets: dict[str, str] | None = None,
+        profile_id: str | None = None,
     ):
         self.workspace = workspace
         self.provider = provider
@@ -68,6 +71,9 @@ class HeartbeatService:
         self.on_notify = on_notify
         self.interval_s = interval_s
         self.enabled = enabled
+        self.session_key = session_key
+        self.targets = targets or {}
+        self.profile_id = profile_id
         self._running = False
         self._task: asyncio.Task | None = None
         self._provider_warning_logged = False
@@ -193,7 +199,12 @@ class HeartbeatService:
             logger.info("Heartbeat: tasks found, executing...")
             if self.on_execute:
                 self._last_run_ms = int(time.time() * 1000)
-                response = await self.on_execute(tasks)
+                response = await self.on_execute(
+                    tasks,
+                    session_key=self.session_key,
+                    profile_id=self.profile_id,
+                    targets=self.targets,
+                )
 
                 if response:
                     should_notify = await evaluate_response(
@@ -201,7 +212,7 @@ class HeartbeatService:
                     )
                     if should_notify and self.on_notify:
                         logger.info("Heartbeat: completed, delivering response")
-                        await self.on_notify(response)
+                        await self.on_notify(response, targets=self.targets)
                     else:
                         logger.info("Heartbeat: silenced by post-run evaluation")
             self._last_error = None
@@ -221,6 +232,9 @@ class HeartbeatService:
             "last_action": self._last_action,
             "last_run_ms": self._last_run_ms,
             "last_error": self._last_error,
+            "session_key": self.session_key,
+            "targets": self.targets,
+            "profile_id": self.profile_id,
         }
 
     async def trigger_now(self) -> str | None:
@@ -235,7 +249,12 @@ class HeartbeatService:
             return None
         self._last_run_ms = int(time.time() * 1000)
         try:
-            result = await self.on_execute(tasks)
+            result = await self.on_execute(
+                tasks,
+                session_key=self.session_key,
+                profile_id=self.profile_id,
+                targets=self.targets,
+            )
             self._last_error = None
             return result
         except Exception as e:

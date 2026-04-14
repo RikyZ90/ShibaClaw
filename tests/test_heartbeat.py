@@ -289,6 +289,137 @@ class TestHeartbeatService:
         assert s["last_run_ms"] == now_ms - 5000
         assert s["last_error"] == "boom"
 
+    def test_status_includes_session_targets_profile(self, tmp_path):
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=object(),
+            model="test-model",
+            session_key="heartbeat:custom",
+            targets={"telegram": "999"},
+            profile_id="hacker",
+        )
+        s = service.status()
+        assert s["session_key"] == "heartbeat:custom"
+        assert s["targets"] == {"telegram": "999"}
+        assert s["profile_id"] == "hacker"
+
+    def test_defaults_for_new_fields(self, tmp_path):
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=object(),
+            model="test-model",
+        )
+        assert service.session_key == "heartbeat:default"
+        assert service.targets == {}
+        assert service.profile_id is None
+
+
+class TestHeartbeatSessionStability:
+    @pytest.mark.asyncio
+    async def test_execute_uses_stable_session_key(self, tmp_path):
+        """on_execute receives the same session_key across multiple ticks."""
+        received_keys = []
+
+        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+            received_keys.append(session_key)
+            return "done"
+
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"})],
+            )
+        )
+
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+            on_execute=fake_execute,
+            session_key="heartbeat:my-session",
+        )
+
+        (tmp_path / "HEARTBEAT.md").write_text("## Active Tasks\n- check stuff")
+
+        await service._tick()
+        await service._tick()
+
+        assert len(received_keys) == 2
+        assert received_keys[0] == "heartbeat:my-session"
+        assert received_keys[1] == "heartbeat:my-session"
+
+    @pytest.mark.asyncio
+    async def test_execute_passes_profile_id(self, tmp_path):
+        """on_execute receives the configured profile_id."""
+        received_profiles = []
+
+        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+            received_profiles.append(profile_id)
+            return "done"
+
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"})],
+            )
+        )
+
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+            on_execute=fake_execute,
+            profile_id="builder",
+        )
+
+        (tmp_path / "HEARTBEAT.md").write_text("## Active Tasks\n- build stuff")
+        await service._tick()
+
+        assert received_profiles == ["builder"]
+
+
+class TestHeartbeatMultiChannel:
+    @pytest.mark.asyncio
+    async def test_notify_delivers_to_all_targets(self, tmp_path):
+        """on_notify receives the configured targets dict."""
+        received_targets = []
+
+        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+            return "result"
+
+        async def fake_notify(response, *, targets=None):
+            received_targets.append(targets)
+
+        provider = RecordingProvider(
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"})],
+            )
+        )
+
+        # Mock evaluate_response to always return True
+        import shibaclaw.heartbeat.service as hb_module
+        original_eval = None
+
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=provider,
+            model="test-model",
+            on_execute=fake_execute,
+            on_notify=fake_notify,
+            targets={"telegram": "123", "webui": "recent"},
+        )
+
+        (tmp_path / "HEARTBEAT.md").write_text("## Active Tasks\n- report")
+
+        # Patch evaluate_response where it's imported from
+        from unittest.mock import AsyncMock, patch
+        with patch("shibaclaw.helpers.evaluator.evaluate_response", new_callable=AsyncMock, return_value=True):
+            await service._tick()
+
+        assert len(received_targets) == 1
+        assert received_targets[0] == {"telegram": "123", "webui": "recent"}
+
 
 class TestBackgroundEvaluation:
     @pytest.mark.asyncio

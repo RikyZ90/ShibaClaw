@@ -223,19 +223,55 @@ class AgentManager:
                 async def _noop_progress(*_a, **_kw):
                     return None
 
-                async def _hb_execute(tasks: str) -> str:
+                async def _hb_execute(
+                    tasks: str,
+                    *,
+                    session_key: str = "heartbeat:default",
+                    profile_id: str | None = None,
+                    targets: dict[str, str] | None = None,
+                ) -> str:
+                    # Use first target or fallback to webui
+                    if targets:
+                        exec_channel, exec_chat_id = next(iter(targets.items()))
+                    else:
+                        exec_channel, exec_chat_id = "webui", "direct"
                     out = await self.agent.process_direct(
-                        tasks, "heartbeat", "webui", "direct", on_progress=_noop_progress,
+                        tasks, session_key, exec_channel, exec_chat_id,
+                        on_progress=_noop_progress,
+                        profile_id=profile_id,
                     )
                     return out.content if out else ""
+
+                async def _hb_notify(
+                    response: str, *, targets: dict[str, str] | None = None,
+                ) -> None:
+                    if not response:
+                        return
+                    # Deliver to explicit targets or fallback to WebUI
+                    deliver_targets = targets if targets else {"webui": hb_cfg.session_key.split(":", 1)[-1] if ":" in hb_cfg.session_key else "direct"}
+                    for channel, chat_id in deliver_targets.items():
+                        if channel == "webui":
+                            sk = f"webui:{chat_id}" if not chat_id.startswith("webui:") else chat_id
+                            await self.deliver_background_notification(
+                                sk, response, source="heartbeat",
+                            )
+                        else:
+                            from shibaclaw.bus.events import OutboundMessage
+                            await self.bus.publish_outbound(
+                                OutboundMessage(channel=channel, chat_id=chat_id, content=response)
+                            )
 
                 self.heartbeat = HeartbeatService(
                     workspace=self.config.workspace_path,
                     provider=self.provider,
                     model=self.agent.model,
                     on_execute=_hb_execute,
+                    on_notify=_hb_notify,
                     interval_s=hb_cfg.interval_s,
                     enabled=True,
+                    session_key=hb_cfg.session_key,
+                    targets=hb_cfg.targets,
+                    profile_id=hb_cfg.profile_id,
                 )
                 await self.heartbeat.start()
                 self._bg_tasks.append(asyncio.create_task(asyncio.sleep(0)))
