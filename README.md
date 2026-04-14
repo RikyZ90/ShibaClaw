@@ -206,10 +206,10 @@ Both share the `~/.shibaclaw/` volume (config, workspace, memory, cron jobs, med
 
 | Component | Idle | Peak (install/compile) |
 |-----------|------|------------------------|
-| Gateway | ~120 MB | ~500 MB |
-| WebUI | ~120 MB | ~500 MB |
+| Gateway | ~120 MB | ~350 MB |
+| WebUI | ~120 MB | ~350 MB |
 
-Docker Compose sets a **1 GB** limit / **512 MB** reservation per container. Tool output is streamed with bounded buffers, so long-running commands (`apt`, `npm install`) can't blow up memory.
+Docker Compose sets a **512 MB** limit / **256 MB** reservation per container. Tool output is streamed with bounded buffers, so long-running commands (`apt`, `npm install`) can't blow up memory.
 
 ## CLI Reference
 

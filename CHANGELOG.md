@@ -6,7 +6,6 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 - **`exec` tool broken (NameError)** — Added the missing `_BoundedBuffer` class definition in `shell.py`. In v0.0.30 the class was referenced but never defined, causing every shell command to fail with `NameError: name '_BoundedBuffer' is not defined`.
-- **Docker OOM on heavy installs (exit 137)** — Raised container memory limits from 512 MB → 1 GB (reservation 256 MB → 512 MB) to prevent the kernel from killing the container during `apt-get install` of large packages like `ffmpeg`. Reduced per-stream buffer from 64 KB to 32 KB to further lower memory pressure.
 
 ## [0.0.30] - 2026-04-14
 
