@@ -297,22 +297,37 @@ class AgentManager:
                 self._bg_tasks.append(asyncio.create_task(asyncio.sleep(0)))
 
     async def _is_gateway_reachable(self) -> bool:
-        """Check whether a separate gateway process is listening."""
+        """Check whether a separate gateway process is listening.
+
+        Retries a few times with backoff so that when both containers
+        start simultaneously (e.g. docker-compose up) the WebUI gives
+        the gateway time to bind its health port before falling back
+        to standalone polling—which would cause Telegram Conflict errors.
+        """
         from shibaclaw.webui.utils import _resolve_gateway_hosts
 
         hosts, port = _resolve_gateway_hosts()
         if not hosts or not port:
             return False
-        for host in hosts:
-            try:
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port), timeout=2.0
+
+        delays = (2, 3, 5)  # retry schedule in seconds
+        for attempt, delay in enumerate(delays, 1):
+            for host in hosts:
+                try:
+                    reader, writer = await asyncio.wait_for(
+                        asyncio.open_connection(host, port), timeout=2.0
+                    )
+                    writer.close()
+                    await writer.wait_closed()
+                    return True
+                except Exception:
+                    continue
+            if attempt < len(delays):
+                logger.debug(
+                    "Gateway not reachable yet (attempt {}/{}), retrying in {}s",
+                    attempt, len(delays), delay,
                 )
-                writer.close()
-                await writer.wait_closed()
-                return True
-            except Exception:
-                continue
+                await asyncio.sleep(delay)
         return False
 
     async def _consume_outbound(self):

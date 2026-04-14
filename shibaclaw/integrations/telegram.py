@@ -1023,7 +1023,27 @@ class TelegramChannel(BaseChannel):
             logger.debug("Typing indicator stopped for {}: {}", chat_id, e)
 
     async def _on_error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Log polling / handler errors instead of silently swallowing them."""
+        """Log polling / handler errors; auto-stop on Conflict.
+
+        A Conflict error means another bot instance is already polling,
+        so continuing would just produce an infinite error loop.
+        Stop polling and keep the bot available for outbound sending only.
+        """
+        from telegram.error import Conflict
+
+        if isinstance(context.error, Conflict):
+            logger.warning(
+                "Telegram Conflict detected (another instance is polling). "
+                "Stopping inbound polling — this instance will remain available for sending only."
+            )
+            self._running = False
+            if self._app and self._app.updater and self._app.updater.running:
+                try:
+                    await self._app.updater.stop()
+                except Exception as e:
+                    logger.debug("Error stopping updater after Conflict: {}", e)
+            return
+
         logger.error("Telegram error: {}", context.error)
 
     def _get_extension(
