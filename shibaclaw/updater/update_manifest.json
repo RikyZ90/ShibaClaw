@@ -1,17 +1,17 @@
 {
-  "version": "0.0.30",
-  "release_notes": "- **Bugfixes** — Fixed a bug where WebUI in standalone mode lost messages, missing feedback on long execution, subagent context explosion, hanging agent loop, and Telegram Conflict error loop.",
+  "version": "0.0.31",
+  "release_notes": "- **Hotfix** — Fixed missing `_BoundedBuffer` class definition in `shell.py` that caused every `exec` tool call to fail with a NameError.",
   "upgrade_notes": "Restart the WebUI after upgrading.",
   "changes": [
     {
-      "path": "README.md",
+      "path": "shibaclaw/agent/tools/shell.py",
       "overwrite": true,
-      "note": "Documentation updated for memory usage stats."
+      "note": "Added _BoundedBuffer class that was missing from v0.0.30."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Release notes for v0.0.30."
+      "note": "Release notes for v0.0.31."
     }
   ]
 }

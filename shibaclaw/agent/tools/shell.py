@@ -12,6 +12,41 @@ from shibaclaw.agent.tools.base import Tool
 from shibaclaw.security.install_audit import AuditResult, audit_install, detect_install_command
 
 
+class _BoundedBuffer:
+    """A streaming buffer that bounds memory usage by keeping only the head and tail."""
+
+    def __init__(self, max_size: int) -> None:
+        self.max_size = max_size
+        self.head = bytearray()
+        self.tail = bytearray()
+        self.total_written = 0
+
+    def write(self, data: bytes) -> None:
+        self.total_written += len(data)
+        half = self.max_size // 2
+
+        if len(self.head) < half:
+            take = half - len(self.head)
+            self.head.extend(data[:take])
+            data = data[take:]
+        
+        if data:
+            self.tail.extend(data)
+            if len(self.tail) > half:
+                self.tail = self.tail[-half:]
+
+    def decode(self) -> str:
+        if self.total_written <= self.max_size:
+            return (self.head + self.tail).decode("utf-8", errors="replace")
+        
+        omitted = self.total_written - self.max_size
+        return (
+            self.head.decode("utf-8", errors="replace")
+            + f"\n\n... ({omitted:,} bytes omitted to save memory) ...\n\n"
+            + self.tail.decode("utf-8", errors="replace")
+        )
+
+
 class ExecTool(Tool):
     """Tool to execute shell commands."""
 
