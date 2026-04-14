@@ -97,6 +97,23 @@ class ChannelManager:
         # Wait for all to complete (they should run forever)
         await asyncio.gather(*tasks, return_exceptions=True)
 
+    async def start_channels_only(self) -> None:
+        """Start inbound channel polling WITHOUT the outbound dispatcher.
+
+        Use this when another consumer (e.g. the WebUI) already handles
+        outbound routing, to avoid two consumers racing on the same queue.
+        """
+        if not self.channels:
+            logger.debug("No channels enabled")
+            return
+
+        tasks = []
+        for name, channel in self.channels.items():
+            logger.debug("Starting {} channel (inbound only)...", name)
+            tasks.append(asyncio.create_task(self._start_channel(name, channel)))
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
     async def stop_all(self) -> None:
         """Stop all channels and the dispatcher."""
         logger.debug("Stopping all channels...")

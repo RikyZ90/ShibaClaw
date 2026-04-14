@@ -208,7 +208,7 @@ class AgentManager:
                 if self._channel_manager.channels:
                     logger.info("No gateway detected — starting channels with full polling (standalone mode)")
                     self._bg_tasks.append(
-                        asyncio.create_task(self._channel_manager.start_all())
+                        asyncio.create_task(self._channel_manager.start_channels_only())
                     )
 
             # Start core background tasks

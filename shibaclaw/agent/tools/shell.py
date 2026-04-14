@@ -15,6 +15,8 @@ from shibaclaw.security.install_audit import AuditResult, audit_install, detect_
 class ExecTool(Tool):
     """Tool to execute shell commands."""
 
+    _PROGRESS_INTERVAL = 10  # seconds between "still running" heartbeats
+
     def __init__(
         self,
         timeout: int = 60,
@@ -131,17 +133,41 @@ class ExecTool(Tool):
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=effective_timeout,
-                )
-            except asyncio.TimeoutError:
+                # Use a progress heartbeat so callers know the command is
+                # still running during long installs / compilations.
+                communicate = asyncio.ensure_future(process.communicate())
+                elapsed = 0
+                while not communicate.done():
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.shield(communicate),
+                            timeout=min(self._PROGRESS_INTERVAL,
+                                        effective_timeout - elapsed),
+                        )
+                    except asyncio.TimeoutError:
+                        elapsed += self._PROGRESS_INTERVAL
+                        if elapsed >= effective_timeout:
+                            break
+                        logger.debug(
+                            "exec still running ({}/{}s): {}",
+                            elapsed, effective_timeout, command[:80],
+                        )
+                        continue
+
+                if not communicate.done():
+                    # Overall timeout reached
+                    process.kill()
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=5.0)
+                    except asyncio.TimeoutError:
+                        pass
+                    communicate.cancel()
+                    return f"Error: Command timed out after {effective_timeout} seconds"
+
+                stdout, stderr = communicate.result()
+            except asyncio.CancelledError:
                 process.kill()
-                try:
-                    await asyncio.wait_for(process.wait(), timeout=5.0)
-                except asyncio.TimeoutError:
-                    pass
-                return f"Error: Command timed out after {effective_timeout} seconds"
+                raise
 
             output_parts = []
 
