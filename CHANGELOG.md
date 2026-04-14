@@ -5,11 +5,11 @@ All notable changes to this project are documented in this file.
 ## [0.0.28] - 2026-04-14
 
 ### Added
-- **Heartbeat frontmatter config** — `HEARTBEAT.md` now supports a real YAML config block at the top for `enabled`, `interval_s`, `session_key`, `profile_id`, and explicit `targets`.
+- **Heartbeat frontmatter config** — `HEARTBEAT.md` now supports a real YAML config block at the top for `session_key`, `profile_id`, and explicit `targets`.
 - **Heartbeat target aliases** — output targets like `webui: recent` or `telegram: recent` now resolve to the most recent session for that channel.
 
 ### Changed
-- **Heartbeat template semantics** — the bundled `HEARTBEAT.md` template is now the actual source of heartbeat settings, not just documentation. Upgrading users are recommended to reset their workspace `HEARTBEAT.md` once to pick up the new base frontmatter block.
+- **Heartbeat template semantics** — the bundled `HEARTBEAT.md` template is now the actual source of heartbeat session/profile/target settings, while `enabled` and `interval_s` remain in global settings. Upgrading users are recommended to reset their workspace `HEARTBEAT.md` once to pick up the new base frontmatter block.
 - **Heartbeat status UI** now shows the effective session key, profile, and targets.
 
 ### Fixed

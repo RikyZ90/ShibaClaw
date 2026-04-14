@@ -127,7 +127,7 @@ All channels route through the same message bus. WhatsApp uses a Node.js bridge 
 ### Automation
 
 - **Cron service** — persistent, timezone-aware scheduled jobs stored in `jobs.json`. Supports `every`, `cron`, and `at` schedules. Overdue jobs fire on startup.
-- **Heartbeat** — periodic wake-up reads `HEARTBEAT.md`, uses its frontmatter for interval/session/profile/targets, skips the LLM entirely when `Active Tasks` is empty, and only asks the model to decide when real active work exists.
+- **Heartbeat** — periodic wake-up reads `HEARTBEAT.md`, uses its frontmatter for session/profile/targets, keeps enable/interval in global settings, skips the LLM entirely when `Active Tasks` is empty, and only asks the model to decide when real active work exists.
 
 If you are upgrading from an older release, it is recommended to reset your workspace `HEARTBEAT.md` once so you get the new frontmatter-based base template. Existing files still work, but they will not gain the new editable settings block automatically.
 
