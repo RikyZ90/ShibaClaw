@@ -549,13 +549,16 @@ async function loadSession(sessionId) {
                             bubble.appendChild(img);
                         } else {
                             const link = document.createElement("a");
-                            link.href = file.url;
-                            link.target = "_blank";
+                            link.href = "#";
                             link.className = "file-attachment-link";
                             link.innerHTML = `
                                 <span class="material-icons-round">insert_drive_file</span>
                                 <span>${file.name || "attachment"}</span>
                             `;
+                            link.addEventListener("click", (e) => {
+                                e.preventDefault();
+                                downloadAttachment(file.url, file.name);
+                            });
                             bubble.appendChild(link);
                         }
                     });
@@ -614,13 +617,16 @@ async function loadSession(sessionId) {
                                 bubble.appendChild(img);
                             } else {
                                 const link = document.createElement("a");
-                                link.href = file.url;
-                                link.target = "_blank";
+                                link.href = "#";
                                 link.className = "file-attachment-link";
                                 link.innerHTML = `
                                     <span class="material-icons-round">insert_drive_file</span>
                                     <span>${file.name || "attachment"}</span>
                                 `;
+                                link.addEventListener("click", (e) => {
+                                    e.preventDefault();
+                                    downloadAttachment(file.url, file.name);
+                                });
                                 bubble.appendChild(link);
                             }
                         });

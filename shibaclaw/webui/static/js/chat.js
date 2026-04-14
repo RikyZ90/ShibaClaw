@@ -1,4 +1,22 @@
 // ── Message Rendering ─────────────────────────────────────────
+
+async function downloadAttachment(url, fileName) {
+    try {
+        const res = await authFetch(url);
+        if (!res.ok) throw new Error("Network response was not ok");
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName || "download";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    } catch (e) {
+        console.error("Download failed:", e);
+    }
+}
+
 function addUserMessage(content, attachments = []) {
     activateChat();
     const group = createMessageGroup("user");
@@ -18,13 +36,16 @@ function addUserMessage(content, attachments = []) {
             bubble.appendChild(img);
         } else {
             const link = document.createElement("a");
-            link.href = file.url;
-            link.target = "_blank";
+            link.href = "#";
             link.className = "file-attachment-link";
             link.innerHTML = `
                 <span class="material-icons-round">insert_drive_file</span>
                 <span>${file.name}</span>
             `;
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                downloadAttachment(file.url, file.name);
+            });
             bubble.appendChild(link);
         }
     });
@@ -53,13 +74,16 @@ function addAgentMessage(id, content, attachments = []) {
             bubble.appendChild(img);
         } else {
             const link = document.createElement("a");
-            link.href = file.url;
-            link.target = "_blank";
+            link.href = "#";
             link.className = "file-attachment-link";
             link.innerHTML = `
                 <span class="material-icons-round">insert_drive_file</span>
                 <span>${file.name || "attachment"}</span>
             `;
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                downloadAttachment(file.url, file.name || "file");
+            });
             bubble.appendChild(link);
         }
     });
