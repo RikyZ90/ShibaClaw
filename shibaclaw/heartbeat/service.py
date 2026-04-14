@@ -83,7 +83,6 @@ class HeartbeatService:
         self._provider_warning_logged = False
         self._content_notice_logged = False
         self._config_warning_logged = False
-        self._disabled_notice_logged = False
         self._last_check_ms: int | None = None
         self._last_action: str | None = None
         self._last_run_ms: int | None = None
@@ -148,6 +147,10 @@ class HeartbeatService:
                 parsed = parsed["heartbeat"]
             if not isinstance(parsed, dict):
                 raise ValueError("heartbeat config must be a mapping")
+            parsed = {
+                key: value for key, value in parsed.items()
+                if key in {"session_key", "targets", "profile_id"}
+            }
             settings = HeartbeatConfig.model_validate({
                 **settings.model_dump(),
                 **parsed,
@@ -254,8 +257,7 @@ class HeartbeatService:
                 if first_tick:
                     first_tick = False
                 else:
-                    settings, _ = self._load_runtime_state()
-                    await asyncio.sleep(settings.interval_s)
+                    await asyncio.sleep(self.interval_s)
                 if self._running:
                     await self._tick()
             except asyncio.CancelledError:
@@ -274,13 +276,6 @@ class HeartbeatService:
         from shibaclaw.helpers.evaluator import evaluate_response
 
         settings, active_tasks = self._load_runtime_state()
-        if not settings.enabled:
-            if not self._disabled_notice_logged:
-                logger.info("Heartbeat: disabled by HEARTBEAT.md frontmatter")
-                self._disabled_notice_logged = True
-            return
-        self._disabled_notice_logged = False
-
         if not active_tasks:
             if not self._content_notice_logged:
                 logger.info("Heartbeat: HEARTBEAT.md has no active tasks, skipping")
@@ -328,9 +323,9 @@ class HeartbeatService:
         hb_file = self.heartbeat_file
         settings, _ = self._load_runtime_state()
         return {
-            "enabled": settings.enabled,
+            "enabled": self.enabled,
             "running": self._running,
-            "interval_s": settings.interval_s,
+            "interval_s": self.interval_s,
             "heartbeat_file_exists": hb_file.exists(),
             "last_check_ms": self._last_check_ms,
             "last_action": self._last_action,
@@ -344,7 +339,7 @@ class HeartbeatService:
     async def trigger_now(self) -> str | None:
         """Manually trigger a heartbeat."""
         settings, active_tasks = self._load_runtime_state()
-        if not settings.enabled:
+        if not self.enabled:
             return None
         if not active_tasks:
             return None

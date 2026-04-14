@@ -350,7 +350,6 @@ class TestHeartbeatService:
     def test_frontmatter_overrides_runtime_defaults(self, tmp_path):
         (tmp_path / "HEARTBEAT.md").write_text(
             "---\n"
-            "interval_s: 60\n"
             "session_key: heartbeat:file\n"
             "profile_id: reviewer\n"
             "targets:\n"
@@ -371,10 +370,34 @@ class TestHeartbeatService:
 
         status = service.status()
 
-        assert status["interval_s"] == 60
+        assert status["interval_s"] == 1800
         assert status["session_key"] == "heartbeat:file"
         assert status["profile_id"] == "reviewer"
         assert status["targets"] == {"webui": "recent"}
+
+    def test_frontmatter_does_not_override_enabled_or_interval(self, tmp_path):
+        (tmp_path / "HEARTBEAT.md").write_text(
+            "---\n"
+            "enabled: false\n"
+            "interval_s: 60\n"
+            "session_key: heartbeat:file\n"
+            "---\n\n"
+            "## Active Tasks\n- report\n",
+            encoding="utf-8",
+        )
+        service = HeartbeatService(
+            workspace=tmp_path,
+            provider=object(),
+            model="test-model",
+            enabled=True,
+            interval_s=1800,
+        )
+
+        status = service.status()
+
+        assert status["enabled"] is True
+        assert status["interval_s"] == 1800
+        assert status["session_key"] == "heartbeat:file"
 
     def test_defaults_for_new_fields(self, tmp_path):
         service = HeartbeatService(
@@ -402,8 +425,6 @@ class TestHeartbeatService:
 
         (tmp_path / "HEARTBEAT.md").write_text(
             "---\n"
-            "enabled: true\n"
-            "interval_s: 1800\n"
             "---\n\n"
             "# Heartbeat Tasks\n\n"
             "## Active Tasks\n\n"
