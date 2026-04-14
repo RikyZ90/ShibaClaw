@@ -6,7 +6,7 @@
 <h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.27-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.28-orange?style=flat-square" alt="version"></a>
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -127,7 +127,9 @@ All channels route through the same message bus. WhatsApp uses a Node.js bridge 
 ### Automation
 
 - **Cron service** — persistent, timezone-aware scheduled jobs stored in `jobs.json`. Supports `every`, `cron`, and `at` schedules. Overdue jobs fire on startup.
-- **Heartbeat** — periodic wake-up reads `HEARTBEAT.md`, asks the LLM if there's work to do (via structured tool call, not free-text parsing), and executes if needed.
+- **Heartbeat** — periodic wake-up reads `HEARTBEAT.md`, uses its frontmatter for interval/session/profile/targets, skips the LLM entirely when `Active Tasks` is empty, and only asks the model to decide when real active work exists.
+
+If you are upgrading from an older release, it is recommended to reset your workspace `HEARTBEAT.md` once so you get the new frontmatter-based base template. Existing files still work, but they will not gain the new editable settings block automatically.
 
 ---
 
@@ -226,13 +228,13 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.0.26
+## Latest — v0.0.28
 
-- **Profile hover highlight** — dropdown items now show visible hover state
-- **Welcome screen logo** updates when switching profiles (matches sidebar and chat avatars)
-- CSS cleanup: removed dead rules, fixed CSS variable reference
+- **Heartbeat frontmatter config** — configure session, profile, interval, and output targets directly in `HEARTBEAT.md`
+- **No-op heartbeat optimization** — no LLM call when `Active Tasks` is empty
+- **Cron blank-job guard** — empty scheduled agent jobs are skipped instead of waking the model
 
-→ [v0.0.25](./CHANGELOG.md): Agent Profiles, dynamic avatars, Hacker persona, custom profile builder
+→ [v0.0.28](./CHANGELOG.md): full details and upgrade notes, including the recommended `HEARTBEAT.md` reset
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 

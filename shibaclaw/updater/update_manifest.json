@@ -1,32 +1,22 @@
 {
-  "version": "0.0.27",
-  "release_notes": "- **Profile UI polish** — hover highlight fix in profile dropdown, welcome screen logo updates on profile switch. CSS cleanup and comment hygiene.",
-  "upgrade_notes": "Restart the WebUI after upgrading. No data migration needed.",
+  "version": "0.0.28",
+  "release_notes": "- **Heartbeat frontmatter config** — `HEARTBEAT.md` now carries real heartbeat settings (interval, session, profile, targets).\n- **Token savings** — heartbeat no longer calls the LLM when `Active Tasks` is empty, and blank cron agent jobs are skipped.",
+  "upgrade_notes": "Restart the WebUI after upgrading. Recommended: reset your workspace `HEARTBEAT.md` once to pick up the new frontmatter-based base template. Existing files still work, but they do not gain the new editable settings block automatically.",
   "changes": [
     {
-      "path": "shibaclaw/agent/profiles.py",
-      "overwrite": true,
-      "note": "New: ProfileManager for profile CRUD with avatar support"
+      "path": "HEARTBEAT.md",
+      "overwrite": false,
+      "note": "Recommended reset: the template now includes real YAML frontmatter settings for enabled, interval_s, session_key, profile_id, and targets."
     },
     {
-      "path": "shibaclaw/agent/context.py",
+      "path": "README.md",
       "overwrite": true,
-      "note": "Profile-aware SOUL.md loading and cache keying"
+      "note": "Documentation updated for frontmatter-driven heartbeat configuration and no-op token saving."
     },
     {
-      "path": "shibaclaw/agent/loop.py",
+      "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Profile-id propagation through agent loop"
-    },
-    {
-      "path": "shibaclaw/webui/server.py",
-      "overwrite": true,
-      "note": "Profile API routes and startup sync"
-    },
-    {
-      "path": "shibaclaw/helpers/helpers.py",
-      "overwrite": true,
-      "note": "sync_profiles() for startup template sync with manifest merge"
+      "note": "Release notes for v0.0.28."
     }
   ]
 }

@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.28] - 2026-04-14
+
+### Added
+- **Heartbeat frontmatter config** — `HEARTBEAT.md` now supports a real YAML config block at the top for `enabled`, `interval_s`, `session_key`, `profile_id`, and explicit `targets`.
+- **Heartbeat target aliases** — output targets like `webui: recent` or `telegram: recent` now resolve to the most recent session for that channel.
+
+### Changed
+- **Heartbeat template semantics** — the bundled `HEARTBEAT.md` template is now the actual source of heartbeat settings, not just documentation. Upgrading users are recommended to reset their workspace `HEARTBEAT.md` once to pick up the new base frontmatter block.
+- **Heartbeat status UI** now shows the effective session key, profile, and targets.
+
+### Fixed
+- **Heartbeat token waste** — the heartbeat service no longer calls the LLM when `HEARTBEAT.md` has no real active tasks in the `Active Tasks` section.
+- **Cron blank jobs** — agent-turn cron jobs with an empty message are now skipped instead of invoking the agent unnecessarily.
+
 ## [0.0.26] - 2026-04-11
 
 ### Fixed
