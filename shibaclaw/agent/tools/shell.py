@@ -67,6 +67,9 @@ class ExecTool(Tool):
 
     _MAX_TIMEOUT = 600
     _MAX_OUTPUT = 10_000
+    # Maximum bytes to keep in memory per stream (stdout / stderr).
+    # Anything beyond this is discarded in the middle (head + tail kept).
+    _MAX_STREAM_BUFFER = 64 * 1024  # 64 KB
 
     @property
     def description(self) -> str:
@@ -132,15 +135,29 @@ class ExecTool(Tool):
                 env=env,
             )
 
+            # ── Bounded streaming read ──────────────────────────────
+            # Read stdout/stderr incrementally instead of communicate()
+            # which buffers the entire output in memory (OOM risk in
+            # memory-constrained containers like Docker 256 MB).
+            stdout_buf = _BoundedBuffer(self._MAX_STREAM_BUFFER)
+            stderr_buf = _BoundedBuffer(self._MAX_STREAM_BUFFER)
+
+            async def _drain(stream: asyncio.StreamReader, buf: "_BoundedBuffer") -> None:
+                while True:
+                    chunk = await stream.read(4096)
+                    if not chunk:
+                        break
+                    buf.write(chunk)
+
+            drain_out = asyncio.ensure_future(_drain(process.stdout, stdout_buf))
+            drain_err = asyncio.ensure_future(_drain(process.stderr, stderr_buf))
+
             try:
-                # Use a progress heartbeat so callers know the command is
-                # still running during long installs / compilations.
-                communicate = asyncio.ensure_future(process.communicate())
                 elapsed = 0
-                while not communicate.done():
+                while process.returncode is None:
                     try:
                         await asyncio.wait_for(
-                            asyncio.shield(communicate),
+                            asyncio.shield(process.wait()),
                             timeout=min(self._PROGRESS_INTERVAL,
                                         effective_timeout - elapsed),
                         )
@@ -154,30 +171,38 @@ class ExecTool(Tool):
                         )
                         continue
 
-                if not communicate.done():
+                if process.returncode is None:
                     # Overall timeout reached
                     process.kill()
                     try:
                         await asyncio.wait_for(process.wait(), timeout=5.0)
                     except asyncio.TimeoutError:
                         pass
-                    communicate.cancel()
+                    drain_out.cancel()
+                    drain_err.cancel()
                     return f"Error: Command timed out after {effective_timeout} seconds"
 
-                stdout, stderr = communicate.result()
+                # Process finished — drain remaining output
+                await asyncio.wait_for(
+                    asyncio.gather(drain_out, drain_err, return_exceptions=True),
+                    timeout=5.0,
+                )
             except asyncio.CancelledError:
                 process.kill()
+                drain_out.cancel()
+                drain_err.cancel()
                 raise
+
+            stdout_text = stdout_buf.decode()
+            stderr_text = stderr_buf.decode()
 
             output_parts = []
 
-            if stdout:
-                output_parts.append(stdout.decode("utf-8", errors="replace"))
+            if stdout_text:
+                output_parts.append(stdout_text)
 
-            if stderr:
-                stderr_text = stderr.decode("utf-8", errors="replace")
-                if stderr_text.strip():
-                    output_parts.append(f"STDERR:\n{stderr_text}")
+            if stderr_text.strip():
+                output_parts.append(f"STDERR:\n{stderr_text}")
 
             output_parts.append(f"\nExit code: {process.returncode}")
 
