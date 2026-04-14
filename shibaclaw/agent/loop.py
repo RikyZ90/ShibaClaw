@@ -307,15 +307,43 @@ class ShibaBrain:
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                     logger.debug("Tool call: {}({})", tool_call.name, args_str[:200])
                     try:
-                        result = await asyncio.wait_for(
-                            self.tools.execute(tool_call.name, tool_call.arguments),
-                            timeout=self._TOOL_EXECUTION_TIMEOUT,
+                        tool_future = asyncio.ensure_future(
+                            self.tools.execute(tool_call.name, tool_call.arguments)
                         )
-                    except asyncio.TimeoutError:
-                        result = (
-                            f"Error: Tool '{tool_call.name}' timed out after "
-                            f"{self._TOOL_EXECUTION_TIMEOUT}s"
-                        )
+                        # Emit periodic "still working" progress while the
+                        # tool runs, so the UI doesn't look stuck.
+                        _heartbeat = 15  # seconds
+                        _waited = 0
+                        while not tool_future.done():
+                            try:
+                                await asyncio.wait_for(
+                                    asyncio.shield(tool_future),
+                                    timeout=min(_heartbeat,
+                                                self._TOOL_EXECUTION_TIMEOUT - _waited),
+                                )
+                            except asyncio.TimeoutError:
+                                _waited += _heartbeat
+                                if _waited >= self._TOOL_EXECUTION_TIMEOUT:
+                                    break
+                                if on_progress:
+                                    await on_progress(
+                                        f"⏳ {tool_call.name} still running ({_waited}s)…",
+                                        tool_hint=True,
+                                    )
+                                continue
+
+                        if not tool_future.done():
+                            tool_future.cancel()
+                            result = (
+                                f"Error: Tool '{tool_call.name}' timed out after "
+                                f"{self._TOOL_EXECUTION_TIMEOUT}s"
+                            )
+                        else:
+                            result = tool_future.result()
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as exc:
+                        result = f"Error: Tool '{tool_call.name}' failed: {exc}"
                     if len(result) > self._TOOL_RESULT_LOOP_MAX_CHARS:
                         half = self._TOOL_RESULT_LOOP_MAX_CHARS // 2
                         result = result[:half] + f"\n...[TRUNCATED — {len(result)} chars total]...\n" + result[-half:]
