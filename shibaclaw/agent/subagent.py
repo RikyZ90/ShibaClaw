@@ -79,6 +79,9 @@ class SubagentManager:
         logger.info("Spawned subagent [{}]: {}", task_id, display_label)
         return f"Subagent [{display_label}] started (id: {task_id}). I'll notify you when it completes."
 
+    _TOOL_RESULT_MAX_CHARS = 8_000
+    _SUBAGENT_TIMEOUT = 600  # seconds – wall-clock cap for a single subagent
+
     async def _run_subagent(
         self,
         task_id: str,
@@ -89,6 +92,27 @@ class SubagentManager:
         """Execute the subagent task and announce the result."""
         logger.info("Subagent [{}] starting task: {}", task_id, label)
 
+        try:
+            return await asyncio.wait_for(
+                self._run_subagent_inner(task_id, task, label, origin),
+                timeout=self._SUBAGENT_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Subagent [{}] timed out after {}s", task_id, self._SUBAGENT_TIMEOUT)
+            await self._announce_result(
+                task_id, label, task,
+                f"Subagent timed out after {self._SUBAGENT_TIMEOUT}s",
+                origin, "error",
+            )
+
+    async def _run_subagent_inner(
+        self,
+        task_id: str,
+        task: str,
+        label: str,
+        origin: dict[str, str],
+    ) -> None:
+        """Inner implementation of subagent execution."""
         try:
             # Build subagent tools (no message tool, no spawn tool)
             tools = SkillVault()
@@ -147,6 +171,13 @@ class SubagentManager:
                         args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                         logger.debug("Subagent [{}] executing: {} with arguments: {}", task_id, tool_call.name, args_str)
                         result = await tools.execute(tool_call.name, tool_call.arguments)
+                        if len(result) > self._TOOL_RESULT_MAX_CHARS:
+                            half = self._TOOL_RESULT_MAX_CHARS // 2
+                            result = (
+                                result[:half]
+                                + f"\n...[TRUNCATED — {len(result)} chars total]...\n"
+                                + result[-half:]
+                            )
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,

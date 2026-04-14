@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sys
+import time
 import weakref
 from contextlib import AsyncExitStack
 from pathlib import Path
@@ -41,6 +42,8 @@ class ShibaBrain:
 
     _TOOL_RESULT_MAX_CHARS = 16_000
     _TOOL_RESULT_LOOP_MAX_CHARS = 8_000
+    _TOOL_EXECUTION_TIMEOUT = 660  # seconds – safety net (ExecTool max is 600)
+    _LOOP_WALL_TIMEOUT = 600       # seconds – hard wall-clock cap on entire loop
 
     def __init__(
         self,
@@ -237,6 +240,7 @@ class ShibaBrain:
         iteration = 0
         final_content = None
         tools_used: list[str] = []
+        loop_start = time.monotonic()
 
         self.context.regenerate_nonce()
         static_prompt = self.context.build_static_prompt(
@@ -249,6 +253,15 @@ class ShibaBrain:
         tool_defs = self.tools.get_definitions()
 
         while iteration < self.max_iterations:
+            # Wall-clock safety: abort if the loop has been running too long
+            elapsed = time.monotonic() - loop_start
+            if elapsed > self._LOOP_WALL_TIMEOUT:
+                logger.warning("Agent loop wall-clock timeout after {:.0f}s", elapsed)
+                final_content = (
+                    "I reached the maximum time limit for processing. "
+                    "Try breaking the task into smaller steps."
+                )
+                break
             iteration += 1
 
 
@@ -293,7 +306,16 @@ class ShibaBrain:
                     tools_used.append(tool_call.name)
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                     logger.debug("Tool call: {}({})", tool_call.name, args_str[:200])
-                    result = await self.tools.execute(tool_call.name, tool_call.arguments)
+                    try:
+                        result = await asyncio.wait_for(
+                            self.tools.execute(tool_call.name, tool_call.arguments),
+                            timeout=self._TOOL_EXECUTION_TIMEOUT,
+                        )
+                    except asyncio.TimeoutError:
+                        result = (
+                            f"Error: Tool '{tool_call.name}' timed out after "
+                            f"{self._TOOL_EXECUTION_TIMEOUT}s"
+                        )
                     if len(result) > self._TOOL_RESULT_LOOP_MAX_CHARS:
                         half = self._TOOL_RESULT_LOOP_MAX_CHARS // 2
                         result = result[:half] + f"\n...[TRUNCATED — {len(result)} chars total]...\n" + result[-half:]

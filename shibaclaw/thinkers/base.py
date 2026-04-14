@@ -214,10 +214,19 @@ class Thinker(ABC):
                 result.append(msg)
         return result if found else None
 
+    _CHAT_TIMEOUT = 120  # seconds – safety net for hung LLM API calls
+
     async def _safe_chat(self, **kwargs: Any) -> LLMResponse:
         """Call chat() and convert unexpected exceptions to error responses."""
         try:
-            return await self.chat(**kwargs)
+            return await asyncio.wait_for(
+                self.chat(**kwargs), timeout=self._CHAT_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            return LLMResponse(
+                content="Error calling LLM: request timed out",
+                finish_reason="error",
+            )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
