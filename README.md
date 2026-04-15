@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
   <a href="https://deepwiki.com/RikyZ90/ShibaClaw"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  <a href="https://discord.gg/kys6UYHmEb"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 ---
@@ -269,5 +270,13 @@ Inspired by [NanoBot](https://github.com/HKUDS/nanobot) by HKUDS — MIT License
   <b>If you like ShibaClaw and want to help it grow:</b><br>
   ⭐ <a href="https://github.com/RikyZ90/ShibaClaw">Drop a star</a> — 
   🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> — 
-  🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> <br> contributions of any size are welcome
+  🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> <br> contributions of any size are welcome<br><br>
+  💬 <a href="https://discord.gg/kys6UYHmEb">Join the Discord</a> — questions, feedback, and show & tell
+</p>
+
+---
+
+<p align="center">
+  <b>We're new — come help shape what ShibaClaw becomes.</b><br>
+  Join us on <a href="https://discord.gg/kys6UYHmEb">Discord</a> and let's build something together.
 </p>
