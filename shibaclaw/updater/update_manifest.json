@@ -1,32 +1,32 @@
 {
-  "version": "0.0.35",
-  "release_notes": "### Architecture Overhaul: Distributed WebUI\n\n- **Massive RAM reduction** — `shibaclaw-web` no longer runs its own `ShibaBrain` or background consumers. It now acts as a thin proxy delegating all LLM logic to the `shibaclaw-gateway` service.\n- **Unified Agent Core** — One brain, one bus, one memory state. No more duplicate LLM provider instances or memory conflicts between web and gateway containers.\n- **Gateway Chat API** — The gateway now exposes a streaming NDJSON endpoint for real-time agent responses over the network.\n- **Optimized Networking** — WebUI communicates with the gateway via internal Docker networking, significantly lowering the host footprint.", 
-  "upgrade_notes": "Both shibaclaw-web and shibaclaw-gateway must be updated to v0.0.35. If using Docker, run `docker compose pull && docker compose up -d`.",
+  "version": "0.0.36",
+  "release_notes": "### Stability Update: Bare-Metal Gateway + UI Fixes\n\n- **Local gateway routing fixed** — `shibaclaw web --with-gateway` now forces the spawned gateway onto loopback and exports the effective WebUI URL, avoiding hostname resolution failures when the saved config still targets the Docker hostname.\n- **File browser UX improved** — The Files modal now keeps the dialog open on backdrop clicks and scrolls correctly for large directories.\n- **Cron reload logging cleaned up** — Repeated `jobs.json modified externally` logs are gone thanks to corrected mtime bookkeeping after reload.\n- **Release metadata refreshed** — Documentation and update metadata now point to v0.0.36 and the thin-WebUI runtime guidance.",
+  "upgrade_notes": "Update both shibaclaw-web and shibaclaw-gateway to v0.0.36. If using Docker, rebuild and restart with `docker compose up -d --build`.",
   "changes": [
     {
-      "path": "shibaclaw/webui/agent_manager.py",
+      "path": "shibaclaw/cli/commands.py",
       "overwrite": true,
-      "note": "Stripped ShibaBrain/Cron/Heartbeat. Converted to thin gateway proxy."
-    },
-    {
-      "path": "shibaclaw/cli/gateway.py",
-      "overwrite": true,
-      "note": "Added /api/chat streaming endpoint and internal management routes."
-    },
-    {
-      "path": "shibaclaw/webui/socket_io.py",
-      "overwrite": true,
-      "note": "Switched to gateway relay for chat processing."
+      "note": "Forced local gateway host wiring for `web --with-gateway` and exported the effective internal WebUI URL."
     },
     {
       "path": "shibaclaw/webui/utils.py",
       "overwrite": true,
-      "note": "Added gateway stream and post helper functions."
+      "note": "Gateway host resolution now gives precedence to explicit runtime overrides for bare-metal launches."
     },
     {
-      "path": "docker-compose.yml",
+      "path": "shibaclaw/webui/static/index.html",
       "overwrite": true,
-      "note": "Added depends_on to ensure correct startup order."
+      "note": "Disabled backdrop-click close for the File Explorer modal."
+    },
+    {
+      "path": "shibaclaw/webui/static/css/modals.css",
+      "overwrite": true,
+      "note": "Fixed modal body scrolling in large dialogs such as the File Explorer."
+    },
+    {
+      "path": "shibaclaw/cron/service.py",
+      "overwrite": true,
+      "note": "Refreshed mtime tracking after reload to suppress repeated external modification logs."
     }
   ]
 }
