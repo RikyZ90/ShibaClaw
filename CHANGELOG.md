@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.35] - 2026-04-16
+
+### Added
+- **Distributed Architecture (WebUI Proxying)** — Integrated a thin-client architecture for the WebUI. The `shibaclaw-web` process no longer instantiates the LLM, memory, or background consumers. It delegates all processing via a new internal streaming API on the `shibaclaw-gateway`.
+- **NDJSON Streaming API** — The gateway now supports streaming agent progress and tool execution status via HTTP, allowing remote UI clients to maintain real-time interactivity.
+- **Heartbeat & Cron Delegation** — Automated tasks are now unified and run strictly in the gateway process, even when triggered from the WebUI.
+
+### Fixed
+- **Massive RAM usage reduction** — Eliminated duplication of the entire agent core between processes. `shibaclaw-web` memory footprint dropped by nearly 90% (no longer loads heavy ML models or provider libraries internally).
+- **Service dependencies** — Added `depends_on` in `docker-compose` to ensure the gateway is available before the UI attempts to proxy requests.
+
 ## [0.0.31] - 2026-04-14
 
 ### Fixed

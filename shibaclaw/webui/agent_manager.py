@@ -1,31 +1,21 @@
-"""Agent lifecycle and background task management for the WebUI."""
+"""Lightweight agent proxy for the WebUI - delegates processing to the gateway."""
 
 from __future__ import annotations
 
-import asyncio
 import uuid
-import mimetypes
-import urllib.parse
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict
 
 from loguru import logger
 
+
 class AgentManager:
-    """Manages the ShibaBrain agent instance, configuration, and background consumers."""
+    """Thin config holder and Socket.IO bridge.  All LLM work runs in the gateway."""
 
     def __init__(self):
-        self.agent: Optional[Any] = None
-        self.bus: Optional[Any] = None
         self.config: Optional[Any] = None
         self.provider: Optional[Any] = None
-        self._channel_manager: Optional[Any] = None
-        self._bg_tasks: List[asyncio.Task] = []
         self._sio: Optional[Any] = None
         self._sessions: Dict[str, Dict] = {}
-        self._init_lock = asyncio.Lock()
-        self.heartbeat: Optional[Any] = None
         self.oauth_jobs: Dict[str, Dict] = {}
 
     def set_socket_io(self, sio: Any, sessions: Dict[str, Dict]):
@@ -76,7 +66,6 @@ class AgentManager:
 
         return {"delivered": delivered > 0, "matched_sessions": delivered}
 
-
     def load_latest_config(self):
         """Load the latest config from disk."""
         from shibaclaw.config.loader import load_config
@@ -88,354 +77,16 @@ class AgentManager:
         except Exception:
             self.provider = None
 
-    async def _run_local_cron_job(self, job: Any) -> str | None:
-        """Execute and deliver a scheduled job inside the WebUI process."""
-        if not self.agent:
-            logger.warning("Cron: WebUI runner triggered before agent initialization")
-            return None
-
-        from shibaclaw.bus.events import OutboundMessage
-        from shibaclaw.cli.gateway import resolve_cron_target
-
-        async def _noop_progress(*_args, **_kwargs) -> None:
-            return None
-
-        target = resolve_cron_target(job)
-        reminder_note = (
-            f"[Scheduled Task] Timer finished.\n\n"
-            f"Task '{job.name}' triggered.\n"
-            f"Message: {job.payload.message}"
-        )
-        outbound = await self.agent.process_direct(
-            reminder_note,
-            target.session_key,
-            target.channel,
-            target.chat_id,
-            on_progress=_noop_progress,
-        )
-        response = outbound.content if outbound else ""
-
-        if response and job.payload.deliver:
-            if target.channel == "webui":
-                result = await self.deliver_background_notification(
-                    target.session_key,
-                    response,
-                    source="cron",
-                    persist=False,
-                )
-                if not result["delivered"]:
-                    logger.info("Cron: no active WebUI client matched session {}", target.session_key)
-                # Also send a system_event toast so the user knows the cron fired
-                await self._broadcast_system_event(
-                    f"⏱️ Scheduled task '{job.name}' completed.",
-                    title="Cron",
-                    session_key=target.session_key,
-                )
-            elif target.channel != "cli" and self.bus:
-                await self.bus.publish_outbound(
-                    OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
-                )
-            else:
-                logger.info("Cron: completed but found no deliverable session for job {}", job.id)
-
-        return response
-
-    async def ensure_agent(self):
-        """Ensure the agent and its background consumers are running."""
-        if self.agent is not None:
-            return
-        async with self._init_lock:
-            if self.agent is not None:  # double-checked under lock
-                return
-
-            if self.config is None:
-                self.load_latest_config()
-
-            if self.config is None or self.provider is None:
-                return
-
-            from shibaclaw.agent.loop import ShibaBrain
-            from shibaclaw.bus.queue import MessageBus
-            from shibaclaw.config.paths import get_cron_dir
-            from shibaclaw.cron.service import CronService
-            from shibaclaw.integrations.manager import ChannelManager
-
-            self.bus = MessageBus(
-                rate_limit_per_minute=self.config.gateway.rate_limit_per_minute,
-            )
-            cron_store = get_cron_dir() / "jobs.json"
-            cron = CronService(cron_store)
-
-            self.agent = ShibaBrain(
-                bus=self.bus,
-                provider=self.provider,
-                workspace=self.config.workspace_path,
-                model=self.config.agents.defaults.model,
-                max_iterations=self.config.agents.defaults.max_tool_iterations,
-                context_window_tokens=self.config.agents.defaults.context_window_tokens,
-                web_search_config=self.config.tools.web.search,
-                web_proxy=self.config.tools.web.proxy or None,
-                exec_config=self.config.tools.exec,
-                cron_service=cron,
-                mcp_servers=self.config.tools.mcp_servers,
-                channels_config=self.config.channels,
-                restrict_to_workspace=self.config.tools.restrict_to_workspace,
-                learning_enabled=self.config.agents.defaults.learning_enabled,
-                learning_interval=self.config.agents.defaults.learning_interval,
-                memory_max_prompt_tokens=self.config.agents.defaults.memory_max_prompt_tokens,
-                memory_compact_threshold_tokens=self.config.agents.defaults.memory_compact_threshold_tokens,
-                consolidation_model=self.config.agents.defaults.consolidation_model,
-            )
-            cron.on_job = self._run_local_cron_job
-            await cron.start()
-
-            # Shutdown old tasks if any
-            for t in self._bg_tasks:
-                t.cancel()
-            self._bg_tasks.clear()
-
-            self._channel_manager = ChannelManager(self.config, self.bus)
-
-            # Detect whether a separate gateway process is handling inbound polling.
-            # If reachable → outbound-only (avoid duplicate polling conflicts).
-            # If not → standalone / bare-metal → start full bidirectional polling.
-            gateway_running = await self._is_gateway_reachable()
-            if gateway_running:
-                for name, channel in self._channel_manager.channels.items():
-                    await self._channel_manager._init_channel_for_sending(name, channel)
-                    logger.info("🔌 Channel {} ready for outbound sending (gateway detected)", name)
-            else:
-                if self._channel_manager.channels:
-                    logger.info("No gateway detected — starting channels with full polling (standalone mode)")
-                    self._bg_tasks.append(
-                        asyncio.create_task(self._channel_manager.start_channels_only())
-                    )
-
-            # Start core background tasks
-            task1 = asyncio.create_task(self.agent.run())
-            task2 = asyncio.create_task(self._consume_outbound())
-            self._bg_tasks.extend([task1, task2])
-
-            hb_cfg = self.config.gateway.heartbeat
-            if hb_cfg.enabled:
-                from shibaclaw.heartbeat.service import HeartbeatService
-
-                async def _noop_progress(*_a, **_kw):
-                    return None
-
-                async def _hb_execute(
-                    tasks: str,
-                    *,
-                    session_key: str = "heartbeat:default",
-                    profile_id: str | None = None,
-                    targets: dict[str, str] | None = None,
-                ) -> str:
-                    from shibaclaw.brain.manager import PackManager
-                    from shibaclaw.cli.gateway import resolve_heartbeat_targets
-
-                    pm = PackManager(self.config.workspace_path)
-                    resolved_targets = resolve_heartbeat_targets(
-                        targets,
-                        pm.list_sessions(),
-                        set(self._channel_manager.enabled_channels),
-                    )
-                    exec_target = resolved_targets[0] if resolved_targets else None
-                    out = await self.agent.process_direct(
-                        tasks,
-                        session_key,
-                        exec_target.channel if exec_target else "webui",
-                        exec_target.chat_id if exec_target else "direct",
-                        on_progress=_noop_progress,
-                        profile_id=profile_id,
-                    )
-                    return out.content if out else ""
-
-                async def _hb_notify(
-                    response: str, *, targets: dict[str, str] | None = None,
-                ) -> None:
-                    from shibaclaw.brain.manager import PackManager
-                    from shibaclaw.bus.events import OutboundMessage
-                    from shibaclaw.cli.gateway import resolve_heartbeat_targets
-
-                    if not response:
-                        return
-
-                    pm = PackManager(self.config.workspace_path)
-                    resolved_targets = resolve_heartbeat_targets(
-                        targets,
-                        pm.list_sessions(),
-                        set(self._channel_manager.enabled_channels),
-                    )
-
-                    for target in resolved_targets:
-                        if target.channel == "webui":
-                            await self.deliver_background_notification(
-                                target.session_key,
-                                response,
-                                source="heartbeat",
-                            )
-                            continue
-                        if target.channel == "cli":
-                            continue
-                        await self.bus.publish_outbound(
-                            OutboundMessage(channel=target.channel, chat_id=target.chat_id, content=response)
-                        )
-
-                self.heartbeat = HeartbeatService(
-                    workspace=self.config.workspace_path,
-                    provider=self.provider,
-                    model=self.agent.model,
-                    on_execute=_hb_execute,
-                    on_notify=_hb_notify,
-                    interval_s=hb_cfg.interval_s,
-                    enabled=True,
-                    session_key=hb_cfg.session_key,
-                    targets=hb_cfg.targets,
-                    profile_id=hb_cfg.profile_id,
-                )
-                await self.heartbeat.start()
-                self._bg_tasks.append(asyncio.create_task(asyncio.sleep(0)))
-
-    async def _is_gateway_reachable(self) -> bool:
-        """Check whether a separate gateway process is listening.
-
-        Retries a few times with backoff so that when both containers
-        start simultaneously (e.g. docker-compose up) the WebUI gives
-        the gateway time to bind its health port before falling back
-        to standalone polling—which would cause Telegram Conflict errors.
-        """
-        from shibaclaw.webui.utils import _resolve_gateway_hosts
-
-        hosts, port = _resolve_gateway_hosts()
-        if not hosts or not port:
-            return False
-
-        delays = (2, 3, 5)  # retry schedule in seconds
-        for attempt, delay in enumerate(delays, 1):
-            for host in hosts:
-                try:
-                    reader, writer = await asyncio.wait_for(
-                        asyncio.open_connection(host, port), timeout=2.0
-                    )
-                    writer.close()
-                    await writer.wait_closed()
-                    return True
-                except Exception:
-                    continue
-            if attempt < len(delays):
-                logger.debug(
-                    "Gateway not reachable yet (attempt {}/{}), retrying in {}s",
-                    attempt, len(delays), delay,
-                )
-                await asyncio.sleep(delay)
-        return False
-
-    async def _consume_outbound(self):
-        """Consume messages from the bus and deliver to the WebUI clients."""
-        if not self.bus or not self._sio:
-            return
-
-        while True:
-            try:
-                msg = await asyncio.wait_for(self.bus.consume_outbound(), timeout=1.0)
-                logger.debug("🚌 Consumed outbound: target={}:{}", msg.channel, msg.chat_id)
-
-                # Resolve matching WebUI client by session_key (chat_id carries the session key)
-                matched_sid = None
-                if msg.channel == "webui":
-                    for _sid, _state in self._sessions.items():
-                        if _state.get("session_key") == msg.chat_id:
-                            matched_sid = _sid
-                            break
-
-                if msg.channel == "webui" and matched_sid:
-                    if not msg.metadata or not msg.metadata.get("_progress"):
-                        logger.info("📢 Delivering outbound message to WebUI session: {}", msg.chat_id)
-                        
-                        attachments = []
-                        for m_path in (msg.media or []):
-                            p = Path(m_path)
-                            results = mimetypes.guess_type(m_path)
-                            attachments.append({
-                                "name": p.name,
-                                "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
-                                "type": results[0] or "application/octet-stream"
-                            })
-                        
-                        agent_resp = {
-                            "id": msg.metadata.get("message_id", str(uuid.uuid4())[:8]),
-                            "content": msg.content or "Task completed.",
-                            "attachments": attachments
-                        }
-                        sk_room = f"session:{msg.chat_id}"
-                        await self._sio.emit("agent_response", agent_resp, room=sk_room)
-
-                        # Persist to history
-                        session_key = msg.chat_id
-                        pm = getattr(self.agent, "sessions", None)
-                        if pm:
-                            logger.debug("💾 Persisting agent response to history for key: {}", session_key)
-                            sess = pm.get_or_create(session_key)
-                            sess.messages.append({
-                                "role": "assistant",
-                                "content": agent_resp["content"],
-                                "timestamp": datetime.now().isoformat(),
-                                "metadata": {"attachments": attachments}
-                            })
-                            pm.save(sess)
-                    else:
-                        logger.debug("⏭️ Skipping progress message in _consume_outbound")
-                else:
-                    logger.debug("⏩ Outbound message not for webui: {}:{}", msg.channel, msg.chat_id)
-                    # Route cross-channel messages (Telegram, Discord, etc.) via ChannelManager
-                    if self._channel_manager:
-                        ch = self._channel_manager.channels.get(msg.channel)
-                        if ch:
-                            try:
-                                await ch.send(msg)
-                                logger.debug("📨 Delivered to {} channel", msg.channel)
-                            except Exception as e:
-                                logger.error("Error delivering to {}: {}", msg.channel, e)
-                        else:
-                            logger.warning("No channel handler for: {}", msg.channel)
-            except asyncio.TimeoutError:
-                pass
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error("Outbound consumer error: {}", str(e))
-
     async def reset_agent(self):
-        """Stop tasks and clear agent instance so it recreates on next access."""
-        if self.heartbeat:
-            self.heartbeat.stop()
-            self.heartbeat = None
-        if self.agent:
-            try:
-                self.agent.stop()
-            except Exception:
-                pass
-        # Gracefully stop channels before cancelling background tasks
-        if self._channel_manager:
-            try:
-                await self._channel_manager.stop_all()
-            except Exception:
-                pass
-        for t in self._bg_tasks:
-            t.cancel()
-        self._bg_tasks.clear()
-        self.agent = None
-        self._channel_manager = None
+        """Reload local config and signal gateway to pick up changes."""
+        self.load_latest_config()
+        from shibaclaw.webui.utils import _gateway_request
+        await _gateway_request("POST", "/restart")
 
-    async def archive_in_background(self, snapshot):
-        """Fire-and-forget LLM archive to memory."""
-        if not self.agent or not hasattr(self.agent, "memory_consolidator"):
-            return
-        
-        try:
-            await self.agent.memory_consolidator.archive_snapshot(snapshot)
-        except Exception:
-            logger.exception("Background archive failed (messages already deleted from session)")
+    async def archive_via_gateway(self, snapshot: list[dict]):
+        """Send session snapshot to the gateway for memory archival."""
+        from shibaclaw.webui.utils import _gateway_post
+        await _gateway_post("/api/archive", {"snapshot": snapshot})
 
 
 # Singleton instance

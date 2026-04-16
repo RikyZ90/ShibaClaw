@@ -392,7 +392,7 @@ async def gateway_command(
         async def _health_handler(reader, writer):
             nonlocal _state
             try:
-                data = await asyncio.wait_for(reader.read(4096), timeout=2)
+                data = await asyncio.wait_for(reader.read(65536), timeout=5)
                 request_line = data.split(b"\r\n", 1)[0].decode(errors="ignore")
 
                 def _check_auth() -> bool:
@@ -409,6 +409,30 @@ async def gateway_command(
                         f"Content-Length: {len(payload)}\r\n"
                         f"\r\n"
                     ).encode() + payload
+
+                def _parse_body() -> dict:
+                    idx = data.find(b"\r\n\r\n")
+                    if idx < 0:
+                        return {}
+                    try:
+                        return json.loads(data[idx + 4:])
+                    except (json.JSONDecodeError, ValueError):
+                        return {}
+
+                def _serialize_cron_job(j) -> dict:
+                    return {
+                        "id": j.id, "name": j.name, "enabled": j.enabled,
+                        "schedule": {"kind": j.schedule.kind, "atMs": j.schedule.at_ms,
+                                     "everyMs": j.schedule.every_ms, "expr": j.schedule.expr,
+                                     "tz": j.schedule.tz},
+                        "payload": {"message": j.payload.message, "deliver": j.payload.deliver,
+                                    "channel": j.payload.channel, "to": j.payload.to},
+                        "state": {"nextRunAtMs": j.state.next_run_at_ms,
+                                  "lastRunAtMs": j.state.last_run_at_ms,
+                                  "lastStatus": j.state.last_status,
+                                  "lastError": j.state.last_error},
+                        "deleteAfterRun": j.delete_after_run,
+                    }
 
                 if "POST" in request_line and "/restart" in request_line:
                     if not _check_auth():
@@ -431,6 +455,59 @@ async def gateway_command(
                             writer.write(_json_response({"triggered": True, "response": result}))
                         except Exception as e:
                             writer.write(_json_response({"triggered": False, "error": str(e)}))
+                elif "POST" in request_line and "/api/chat" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    elif not provider:
+                        writer.write(_json_response({"error": "no_provider"}, 503))
+                    else:
+                        body = _parse_body()
+                        writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-ndjson\r\nConnection: close\r\n\r\n")
+                        await writer.drain()
+                        async def _on_progress(text, *, tool_hint=False):
+                            writer.write((json.dumps({"t": "p", "c": text, "h": tool_hint}, ensure_ascii=False) + "\n").encode())
+                            await writer.drain()
+                        try:
+                            out = await agent.process_direct(
+                                content=body.get("content", ""),
+                                session_key=body.get("session_key", "webui:direct"),
+                                channel=body.get("channel", "webui"),
+                                chat_id=body.get("chat_id", "direct"),
+                                on_progress=_on_progress,
+                                media=body.get("media"),
+                                metadata=body.get("metadata"),
+                                profile_id=body.get("profile_id"),
+                            )
+                            writer.write((json.dumps({
+                                "t": "r",
+                                "content": out.content if out else "",
+                                "media": out.media if out else [],
+                            }, ensure_ascii=False) + "\n").encode())
+                        except Exception as e:
+                            writer.write((json.dumps({"t": "e", "error": str(e)}, ensure_ascii=False) + "\n").encode())
+                elif "GET" in request_line and "/api/cron/list" in request_line:
+                    writer.write(_json_response({"jobs": [_serialize_cron_job(j) for j in cron.list_jobs(include_disabled=True)]}))
+                elif "POST" in request_line and "/api/cron/trigger/" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        job_id = request_line.split("/api/cron/trigger/")[1].split(" ")[0].split("?")[0]
+                        ran = await cron.run_job(job_id, force=True)
+                        writer.write(_json_response({"triggered": ran}))
+                elif "POST" in request_line and "/api/archive" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        body = _parse_body()
+                        snapshot = body.get("snapshot", [])
+                        archived = False
+                        if snapshot and hasattr(agent, "memory_consolidator"):
+                            try:
+                                await agent.memory_consolidator.archive_snapshot(snapshot)
+                                archived = True
+                            except Exception:
+                                pass
+                        writer.write(_json_response({"archived": archived}))
                 elif "GET" in request_line:
                     writer.write(_json_response({
                         "status": "ok" if provider else "idle",

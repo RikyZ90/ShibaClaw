@@ -36,6 +36,7 @@ from .api import (
     api_onboard_providers, api_onboard_templates, api_onboard_submit,
     api_skills_list, api_skills_pin, api_skills_delete, api_skills_import,
     api_profiles_list, api_profiles_get, api_profiles_create, api_profiles_update, api_profiles_delete,
+    api_internal_session_notify,
 )
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -108,6 +109,7 @@ def create_app(
         Route("/api/profiles/{profile_id}", api_profiles_get, methods=["GET"]),
         Route("/api/profiles/{profile_id}", api_profiles_update, methods=["PUT"]),
         Route("/api/profiles/{profile_id}", api_profiles_delete, methods=["DELETE"]),
+        Route("/api/internal/session-notify", api_internal_session_notify, methods=["POST"]),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 
@@ -148,14 +150,15 @@ async def _sync_skills_on_startup() -> None:
         logger.exception("Failed to sync skills/profiles on startup")
 
 
-async def _ensure_agent_on_startup() -> None:
-    """Initialize the agent and cron service eagerly so scheduled jobs fire even without user interaction."""
+async def _ensure_config_on_startup() -> None:
+    """Load config eagerly so routes have workspace info."""
     try:
-        await asyncio.sleep(2)
-        await agent_manager.ensure_agent()
-        logger.info("Agent and cron service initialized on startup")
+        await asyncio.sleep(1)
+        if not agent_manager.config:
+            agent_manager.load_latest_config()
+            logger.info("Config loaded on startup")
     except Exception:
-        logger.exception("Failed to initialize agent on startup")
+        logger.exception("Failed to load config on startup")
 
 
 async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
@@ -171,7 +174,7 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
 
     asyncio.create_task(_check_update_on_startup())
     asyncio.create_task(_sync_skills_on_startup())
-    asyncio.create_task(_ensure_agent_on_startup())
+    asyncio.create_task(_ensure_config_on_startup())
 
     server_config = uvicorn.Config(
         app=app,

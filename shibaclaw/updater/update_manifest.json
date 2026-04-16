@@ -1,17 +1,32 @@
 {
-  "version": "0.0.31",
-  "release_notes": "- **Hotfix** — Fixed missing `_BoundedBuffer` class definition in `shell.py` that caused every `exec` tool call to fail with a NameError.",
-  "upgrade_notes": "Restart the WebUI after upgrading.",
+  "version": "0.0.35",
+  "release_notes": "### Architecture Overhaul: Distributed WebUI\n\n- **Massive RAM reduction** — `shibaclaw-web` no longer runs its own `ShibaBrain` or background consumers. It now acts as a thin proxy delegating all LLM logic to the `shibaclaw-gateway` service.\n- **Unified Agent Core** — One brain, one bus, one memory state. No more duplicate LLM provider instances or memory conflicts between web and gateway containers.\n- **Gateway Chat API** — The gateway now exposes a streaming NDJSON endpoint for real-time agent responses over the network.\n- **Optimized Networking** — WebUI communicates with the gateway via internal Docker networking, significantly lowering the host footprint.", 
+  "upgrade_notes": "Both shibaclaw-web and shibaclaw-gateway must be updated to v0.0.35. If using Docker, run `docker compose pull && docker compose up -d`.",
   "changes": [
     {
-      "path": "shibaclaw/agent/tools/shell.py",
+      "path": "shibaclaw/webui/agent_manager.py",
       "overwrite": true,
-      "note": "Added _BoundedBuffer class that was missing from v0.0.30."
+      "note": "Stripped ShibaBrain/Cron/Heartbeat. Converted to thin gateway proxy."
     },
     {
-      "path": "CHANGELOG.md",
+      "path": "shibaclaw/cli/gateway.py",
       "overwrite": true,
-      "note": "Release notes for v0.0.31."
+      "note": "Added /api/chat streaming endpoint and internal management routes."
+    },
+    {
+      "path": "shibaclaw/webui/socket_io.py",
+      "overwrite": true,
+      "note": "Switched to gateway relay for chat processing."
+    },
+    {
+      "path": "shibaclaw/webui/utils.py",
+      "overwrite": true,
+      "note": "Added gateway stream and post helper functions."
+    },
+    {
+      "path": "docker-compose.yml",
+      "overwrite": true,
+      "note": "Added depends_on to ensure correct startup order."
     }
   ]
 }

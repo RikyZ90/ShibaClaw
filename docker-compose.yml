@@ -11,10 +11,10 @@ x-common-config: &common-config
       resources:
         limits:
           cpus: "0.5"
-          memory: 512M
+          memory: 256M
         reservations:
-          cpus: "0.25"
-          memory: 256M  
+          cpus: "0.2"
+          memory: 128M  
   environment:
     <<: *common-env
   volumes:
@@ -27,6 +27,14 @@ services:
   shibaclaw-gateway:
     container_name: shibaclaw-gateway
     <<: *common-config
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
     command: [ "shibaclaw", "gateway", "--host", "0.0.0.0" ]
     restart: unless-stopped
     ports:
@@ -46,6 +54,8 @@ services:
     <<: *common-config
     command: [ "shibaclaw", "web", "--host", "0.0.0.0", "--port", "3000" ]
     restart: unless-stopped
+    depends_on:
+      - shibaclaw-gateway
     environment:
       <<: *common-env
       SHIBACLAW_CORS_ORIGINS: "*"

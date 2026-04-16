@@ -57,9 +57,11 @@ Ideal for local development or lightweight environments.
      ```bash
      shibaclaw gateway
      ```
-   - **Web Mode**: Launch the full WebUI interface.
+   - **Web Mode**: Launch the full WebUI interface with the background agent engine.
      ```bash
-     shibaclaw web
+     shibaclaw web --with-gateway
+     # Or explicit localhost/port:
+     shibaclaw web --host 127.0.0.1 --port 3000 --with-gateway
      ```
 
 ---
@@ -70,6 +72,6 @@ Ideal for local development or lightweight environments.
 | :--- | :--- |
 | `shibaclaw --version` | Check the installed ShibaClaw version. |
 | `shibaclaw onboard` | Reconfigure provider, model, and channels. |
-| `shibaclaw web` | Launch the WebUI server on `http://127.0.0.1:3000`. |
+| `shibaclaw web -g` | Launch WebUI + Gateway (background) on `http://127.0.0.1:3000`. |
 
 **Happy hunting!** 🐕‍🦺🔥

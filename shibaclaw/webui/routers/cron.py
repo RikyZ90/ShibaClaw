@@ -11,42 +11,21 @@ from loguru import logger
 
 from shibaclaw.webui.agent_manager import agent_manager
 from shibaclaw.webui.auth import get_auth_token, _auth_enabled
+from shibaclaw.webui.utils import _gateway_request, _gateway_post
 
 
 async def api_cron_list(request: Request):
-    """List all scheduled jobs from the local CronService."""
-    await agent_manager.ensure_agent()
-    cron = getattr(agent_manager.agent, "cron_service", None) if agent_manager.agent else None
-    if not cron:
-        return JSONResponse({"jobs": []})
-
-    jobs = cron.list_jobs(include_disabled=True)
-    return JSONResponse({"jobs": [
-        {
-            "id": j.id,
-            "name": j.name,
-            "enabled": j.enabled,
-            "schedule": {"kind": j.schedule.kind, "atMs": j.schedule.at_ms, "everyMs": j.schedule.every_ms, "expr": j.schedule.expr, "tz": j.schedule.tz},
-            "payload": {"message": j.payload.message, "deliver": j.payload.deliver, "channel": j.payload.channel, "to": j.payload.to},
-            "state": {
-                "nextRunAtMs": j.state.next_run_at_ms,
-                "lastRunAtMs": j.state.last_run_at_ms,
-                "lastStatus": j.state.last_status,
-                "lastError": j.state.last_error,
-            },
-            "deleteAfterRun": j.delete_after_run,
-        }
-        for j in jobs
-    ]})
+    """List all scheduled jobs via the gateway."""
+    result = await _gateway_request("GET", "/api/cron/list")
+    if result is not None:
+        return JSONResponse(result)
+    return JSONResponse({"jobs": [], "error": "gateway_unreachable"}, status_code=503)
 
 
 async def api_cron_trigger(request: Request):
-    """Manually trigger a cron job by ID."""
-    await agent_manager.ensure_agent()
-    cron = getattr(agent_manager.agent, "cron_service", None) if agent_manager.agent else None
-    if not cron:
-        return JSONResponse({"error": "Cron not available"}, status_code=400)
-
+    """Trigger a cron job via the gateway."""
     job_id = request.path_params["job_id"]
-    ran = await cron.run_job(job_id, force=True)
-    return JSONResponse({"triggered": ran})
+    result = await _gateway_post(f"/api/cron/trigger/{job_id}", {})
+    if result is not None:
+        return JSONResponse(result)
+    return JSONResponse({"error": "Gateway unreachable"}, status_code=503)

@@ -28,6 +28,7 @@ from .utils import (
     _resolve_gateway_hosts,
     _resolve_workspace_path,
     _gateway_request,
+    _gateway_post,
     _LOCAL_HOSTS,
     _workspace_context_cache,
     _session_context_cache,
@@ -37,16 +38,21 @@ from .utils import (
 
 async def api_status(request: Request):
     """Get general server and agent status."""
-    await agent_manager.ensure_agent()
     cfg = agent_manager.config
+    if not cfg:
+        agent_manager.load_latest_config()
+        cfg = agent_manager.config
     from shibaclaw import __version__
+    gw = await _gateway_request("GET", "/")
+    gw_ready = gw is not None and gw.get("status") == "ok"
     return JSONResponse({
-        "status": "ok",
+        "status": "ok" if gw_ready else "gateway_offline",
         "version": __version__,
-        "agent_configured": agent_manager.agent is not None,
+        "agent_configured": gw_ready and gw.get("provider_ready", False),
         "provider": cfg.agents.defaults.provider if cfg else None,
         "model": cfg.agents.defaults.model if cfg else None,
         "workspace": str(cfg.workspace_path) if cfg else None,
+        "gateway": gw_ready,
     })
 
 
@@ -80,13 +86,9 @@ async def api_context_get(request: Request):
     total_tokens = prompt_tokens
     sections.append(f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```")
 
-    # ── Tool definitions (sent alongside messages on every LLM call) ──
+    # -- Tool definitions token count (gateway-only, estimate 0 locally) --
     tools_tokens = 0
-    if agent_manager.agent and hasattr(agent_manager.agent, "tools"):
-        tool_defs = agent_manager.agent.tools.get_definitions()
-        if tool_defs:
-            tools_tokens = estimate_prompt_tokens([], tool_defs)
-            total_tokens += tools_tokens
+    total_tokens = prompt_tokens
 
     # ── Session messages ──
     msg_tokens = 0
@@ -142,3 +144,17 @@ from .routers.system import api_update_check, api_update_manifest, api_update_ap
 from .routers.onboard import api_onboard_providers, api_onboard_templates, api_onboard_submit  # noqa: E402, F401
 from .routers.skills import api_skills_list, api_skills_pin, api_skills_delete, api_skills_import  # noqa: E402, F401
 from .routers.profiles import api_profiles_list, api_profiles_get, api_profiles_create, api_profiles_update, api_profiles_delete  # noqa: E402, F401
+
+
+async def api_internal_session_notify(request: Request):
+    """Receive background notifications from the gateway and emit to WebUI clients."""
+    data = await request.json()
+    session_key = data.get("session_key", "")
+    content = data.get("content", "")
+    source = data.get("source", "background")
+    persist = data.get("persist", True)
+
+    result = await agent_manager.deliver_background_notification(
+        session_key, content, source=source, persist=persist,
+    )
+    return JSONResponse(result)

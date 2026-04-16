@@ -17,6 +17,7 @@ from loguru import logger
 
 from .auth import _auth_enabled, verify_token_value
 from .agent_manager import agent_manager
+from .utils import _gateway_chat_stream
 
 processing_state: Dict[str, Dict[str, Any]] = {}
 
@@ -102,9 +103,10 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
 
     @sio.event
     async def user_message(sid, data):
-        await agent_manager.ensure_agent()
-        if agent_manager.agent is None:
-            await sio.emit("error", {"message": "Agent not configured."}, room=sid)
+        if not agent_manager.config:
+            agent_manager.load_latest_config()
+        if not agent_manager.config:
+            await sio.emit("error", {"message": "No configuration found."}, room=sid)
             return
 
         content = data.get("content", "").strip()
@@ -154,38 +156,52 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                 "started_at": time.time(),
             }
 
-            async def on_progress(text: str, *, tool_hint: bool = False):
-                event_type = "agent_tool" if tool_hint else "agent_thinking"
-                evt = {"type": event_type, "id": message["id"], "content": text, "tool_hint": tool_hint}
-                ps = processing_state.get(session_key)
-                if ps:
-                    ps["events"].append(evt)
-                await sio.emit(event_type, {
-                    "id": message["id"], "content": text,
-                    "tool_hint": tool_hint, "session_key": session_key
-                }, room=sk_room)
-
             try:
-                outbound = await agent_manager.agent.process_direct(
-                    content=message["content"],
-                    session_key=session_key,
-                    channel="webui",
-                    chat_id=session_key,
-                    on_progress=on_progress,
-                    media=message.get("media"),
-                    metadata={"session_key": session_key, "message_id": message["id"]}
-                )
+                payload = {
+                    "content": message["content"],
+                    "session_key": session_key,
+                    "channel": "webui",
+                    "chat_id": session_key,
+                    "media": message.get("media"),
+                    "metadata": {"session_key": session_key, "message_id": message["id"]},
+                }
+                # Resolve profile_id from session metadata
+                try:
+                    from shibaclaw.brain.manager import PackManager
+                    pm = PackManager(agent_manager.config.workspace_path)
+                    sess = pm.get_or_create(session_key)
+                    pid = sess.metadata.get("profile_id")
+                    if pid:
+                        payload["profile_id"] = pid
+                except Exception:
+                    pass
 
-                if outbound is None:
-                    return
+                response_content = ""
+                response_media: list[str] = []
 
-                response_content = outbound.content or "No response."
-                media_list = outbound.media or []
+                async for event in _gateway_chat_stream(payload):
+                    if event.get("t") == "p":
+                        event_type = "agent_tool" if event.get("h") else "agent_thinking"
+                        evt = {"type": event_type, "id": message["id"], "content": event.get("c", ""), "tool_hint": event.get("h", False)}
+                        ps = processing_state.get(session_key)
+                        if ps:
+                            ps["events"].append(evt)
+                        await sio.emit(event_type, {
+                            "id": message["id"], "content": event.get("c", ""),
+                            "tool_hint": event.get("h", False), "session_key": session_key
+                        }, room=sk_room)
+                    elif event.get("t") == "r":
+                        response_content = event.get("content", "")
+                        response_media = event.get("media", [])
+                    elif event.get("t") == "e":
+                        raise RuntimeError(event.get("error", "Gateway error"))
 
-                pm = getattr(agent_manager.agent, "sessions", None)
-                final_atts = _build_attachments(media_list)
-                
-                if pm:
+                final_atts = _build_attachments(response_media)
+
+                # Update attachment metadata on persisted session
+                try:
+                    from shibaclaw.brain.manager import PackManager
+                    pm = PackManager(agent_manager.config.workspace_path)
                     sess = pm.get_or_create(session_key)
                     if sess and sess.messages:
                         for m_idx in range(len(sess.messages)-1, -1, -1):
@@ -198,14 +214,15 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                                     sess.messages[m_idx].setdefault("metadata", {})["attachments"] = final_atts
                                 pm.save(sess)
                                 break
+                except Exception:
+                    pass
 
-                content_to_send = response_content if response_content != "No response." else ""
-                if not content_to_send and not final_atts:
+                if not response_content and not final_atts:
                     return
 
                 await sio.emit("agent_response", {
                     "id": message["id"],
-                    "content": content_to_send,
+                    "content": response_content,
                     "attachments": final_atts,
                     "session_key": session_key
                 }, room=sk_room)

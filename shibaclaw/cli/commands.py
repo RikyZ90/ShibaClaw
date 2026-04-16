@@ -74,8 +74,12 @@ def web(
     port: int = typer.Option(3000, "--port", "-p", help="WebUI port"),
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
+    with_gateway: bool = typer.Option(False, "--with-gateway", "-g", help="Start the gateway in the background automatically"),
 ):
     """Start the ShibaClaw WebUI in the browser."""
+    import sys
+    import subprocess
+    import time
     from .base import _load_runtime_config, _make_provider
     from shibaclaw.webui.server import run_server, get_auth_token
 
@@ -83,6 +87,19 @@ def web(
     cfg = _load_runtime_config(config, workspace)
     provider = _make_provider(cfg, exit_on_error=False)
 
+    gateway_proc = None
+    if with_gateway:
+        console.print("[cyan]➜ Starting Gateway process background...[/cyan]")
+        gw_cmd = [sys.executable, "-m", "shibaclaw", "gateway"]
+        if host: gw_cmd.extend(["--host", host])
+        if workspace: gw_cmd.extend(["--workspace", workspace])
+        if config: gw_cmd.extend(["--config", config])
+        
+        # Use subprocess.Popen for a background process that stays alive
+        # On Windows, we need some extra flags to handle process groups if possible
+        gateway_proc = subprocess.Popen(gw_cmd)
+        time.sleep(1) # Give it a second to bind
+    
     token = get_auth_token()
     console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     console.print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
@@ -92,9 +109,16 @@ def web(
         console.print("")
         console.print("  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
 
-    asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
-
-
+    try:
+        asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
+    finally:
+        if gateway_proc:
+            console.print("[yellow]➜ Terminating Gateway process...[/yellow]")
+            gateway_proc.terminate()
+            try:
+                gateway_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                gateway_proc.kill()
 @app.command()
 def agent(
     message: Optional[str] = typer.Argument(None, help="Message to send to the agent"),

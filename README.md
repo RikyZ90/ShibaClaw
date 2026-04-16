@@ -6,7 +6,7 @@
 <h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.31-orange?style=flat-square" alt="version"></a>
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.35-orange?style=flat-square" alt="version"></a>   
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -49,10 +49,15 @@ Open **http://localhost:3000** — paste the token if auth is enabled, then comp
 
 ```bash
 pip install shibaclaw
-shibaclaw web --port 3000
+# Simple start (default localhost:3000)
+shibaclaw web --with-gateway
+
+# Custom local port
+shibaclaw web --host 127.0.0.1 --port 3000 --with-gateway
 ```
 
 Open **http://localhost:3000** and complete the onboard wizard.
+The `--with-gateway` flag automatically starts the agent engine in the background for you.
 Prefer the terminal? `shibaclaw onboard` runs the same guided setup from the CLI.
 
 ---

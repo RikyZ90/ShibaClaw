@@ -49,16 +49,7 @@ async def api_gateway_health(request: Request):
         except Exception:
             continue
 
-    # Standalone mode fallback: if we are running as 'shibaclaw web' and have an agent,
-    # the system is "reachable" even if there's no separate gateway process.
-    if agent_manager.agent:
-        return JSONResponse({
-            "reachable": True,
-            "status": "ok" if agent_manager.provider else "idle",
-            "standalone": True,
-            "provider_ready": agent_manager.provider is not None
-        })
-
+    # No gateway found and no local agent — system is offline
     return JSONResponse({"reachable": False, "reason": "unreachable"})
 
 

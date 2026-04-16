@@ -74,23 +74,22 @@ async def api_sessions_delete(request: Request):
 
 
 async def api_sessions_archive(request: Request):
-    """Archive session messages to HISTORY.md."""
-    await agent_manager.ensure_agent()
-    if not agent_manager.agent or not agent_manager.config:
-        return JSONResponse({"error": "Agent not configured"}, status_code=400)
-    
+    """Archive session messages via gateway memory consolidation."""
+    if not agent_manager.config:
+        return JSONResponse({"error": "No config"}, status_code=400)
+
     session_id = request.path_params["session_id"]
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
-    
+
     snapshot = list(session.messages[session.last_consolidated:])
-    
+
     path = pm._get_session_path(session_id)
     if path.exists():
         os.remove(path)
     pm.invalidate(session_id)
-    
+
     if snapshot:
-        asyncio.create_task(agent_manager.archive_in_background(snapshot))
-    
+        asyncio.create_task(agent_manager.archive_via_gateway(snapshot))
+
     return JSONResponse({"status": "archived"})

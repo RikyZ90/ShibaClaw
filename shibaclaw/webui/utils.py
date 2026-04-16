@@ -227,3 +227,109 @@ async def _gateway_request(method: str, path: str) -> dict | None:
         except Exception:
             continue
     return None
+
+
+async def _gateway_post(path: str, body: dict) -> dict | None:
+    """Send a POST with a JSON body to the gateway and return parsed JSON."""
+    hosts, port = _resolve_gateway_hosts()
+    if not hosts:
+        return None
+
+    auth_token = get_auth_token()
+    payload = json.dumps(body, ensure_ascii=False).encode()
+    auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
+
+    for host in hosts:
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port), timeout=5.0,
+            )
+            try:
+                writer.write(
+                    (
+                        f"POST {path} HTTP/1.0\r\n"
+                        f"Host: gw\r\n"
+                        f"Content-Type: application/json\r\n"
+                        f"Content-Length: {len(payload)}\r\n"
+                        f"{auth_hdr}"
+                        f"\r\n"
+                    ).encode() + payload
+                )
+                await writer.drain()
+                data = await asyncio.wait_for(reader.read(65536), timeout=30.0)
+            finally:
+                writer.close()
+                await writer.wait_closed()
+            if b"200" in data:
+                body_start = data.find(b"\r\n\r\n")
+                if body_start > 0:
+                    return json.loads(data[body_start + 4:])
+        except Exception:
+            continue
+    return None
+
+
+async def _gateway_chat_stream(payload: dict):
+    """Stream chat response from the gateway as NDJSON events.
+
+    Yields dicts: {"t":"p","c":text,"h":bool} for progress,
+                  {"t":"r","content":str,"media":list} for final result,
+                  {"t":"e","error":str} on error.
+    """
+    hosts, port = _resolve_gateway_hosts()
+    if not hosts:
+        raise ConnectionError("Gateway not configured")
+
+    auth_token = get_auth_token()
+    body = json.dumps(payload, ensure_ascii=False).encode()
+    last_exc: Exception | None = None
+
+    for host in hosts:
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port), timeout=10.0,
+            )
+        except Exception as exc:
+            last_exc = exc
+            continue
+
+        try:
+            auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
+            writer.write(
+                (
+                    f"POST /api/chat HTTP/1.1\r\n"
+                    f"Host: gw\r\n"
+                    f"Content-Type: application/json\r\n"
+                    f"Content-Length: {len(body)}\r\n"
+                    f"{auth_hdr}"
+                    f"\r\n"
+                ).encode() + body
+            )
+            await writer.drain()
+
+            # Skip HTTP response headers
+            while True:
+                line = await asyncio.wait_for(reader.readline(), timeout=30.0)
+                if line in (b"\r\n", b"\n", b""):
+                    break
+
+            # Yield NDJSON events
+            while True:
+                line = await asyncio.wait_for(reader.readline(), timeout=600.0)
+                if not line:
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                yield json.loads(line)
+            return
+        except GeneratorExit:
+            return
+        finally:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+    raise ConnectionError(f"Gateway unreachable: {last_exc}")
