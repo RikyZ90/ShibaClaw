@@ -90,6 +90,7 @@ def web(
     gateway_proc = None
     if with_gateway:
         console.print("[cyan]➜ Starting Gateway process background...[/cyan]")
+        console.print("[dim]  (Optimized memory: ~128MB UI + ~256MB Gateway)[/dim]")
         gw_cmd = [sys.executable, "-m", "shibaclaw", "gateway"]
         if host: gw_cmd.extend(["--host", host])
         if workspace: gw_cmd.extend(["--workspace", workspace])

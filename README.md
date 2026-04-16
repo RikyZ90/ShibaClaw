@@ -26,6 +26,7 @@ These are the defenses that are often left to app glue code or external proxies.
 
 | Layer | Built in by default | Why it matters |
 |---|---|---|
+| Distributed Engine | Decoupled UI (128MB RAM) from Brain (256MB+ RAM) | High performance even on low-spec hardware or VPS |
 | Install-time audit | Audits `pip` and `npm` installs before execution; blocks critical/high CVEs | Catches risky dependencies before they land in the environment |
 | Prompt-injection wrapping | Wraps every tool result in a randomized `<tool_output_...>` boundary and sanitizes closing tags | Untrusted pages and files stay data, not instructions |
 | Shell hardening | 20+ deny patterns, escape normalization (`\x..`, `\u....`), internal URL detection | Blocks common destructive or obfuscated commands |

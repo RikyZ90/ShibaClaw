@@ -6,7 +6,9 @@ Setting up ShibaClaw is as easy as fetching a ball! Choose your preferred method
 
 ## 🐋 Option 1: Docker (The Easiest Way)
 
-This method ensures you have all dependencies ready to go in a contained environment.
+This method ensures you have all dependencies ready to go in a contained environment. ShibaClaw uses a **distributed architecture** to keep memory usage low:
+- **Gateway (Brain)**: ~256MB RAM minimum.
+- **WebUI (Proxy)**: ~128MB RAM minimum.
 
 1. **Launch**: Run the following command in the project root:
    ```bash
