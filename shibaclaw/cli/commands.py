@@ -77,6 +77,8 @@ def web(
     with_gateway: bool = typer.Option(False, "--with-gateway", "-g", help="Start the gateway in the background automatically"),
 ):
     """Start the ShibaClaw WebUI in the browser."""
+    import os
+    import socket
     import sys
     import subprocess
     import time
@@ -88,18 +90,38 @@ def web(
     provider = _make_provider(cfg, exit_on_error=False)
 
     gateway_proc = None
+    gateway_host = "127.0.0.1"
+    gateway_port = cfg.gateway.port
     if with_gateway:
+        os.environ["SHIBACLAW_GATEWAY_HOST"] = gateway_host
+        os.environ["SHIBACLAW_WEBUI_URL"] = f"http://127.0.0.1:{port}"
+        cfg.gateway.host = gateway_host
+
         console.print("[cyan]➜ Starting Gateway process background...[/cyan]")
         console.print("[dim]  (Optimized memory: ~128MB UI + ~256MB Gateway)[/dim]")
-        gw_cmd = [sys.executable, "-m", "shibaclaw", "gateway"]
-        if host: gw_cmd.extend(["--host", host])
+        gw_cmd = [
+            sys.executable,
+            "-m",
+            "shibaclaw",
+            "gateway",
+            "--host",
+            gateway_host,
+            "--port",
+            str(gateway_port),
+        ]
         if workspace: gw_cmd.extend(["--workspace", workspace])
         if config: gw_cmd.extend(["--config", config])
-        
-        # Use subprocess.Popen for a background process that stays alive
-        # On Windows, we need some extra flags to handle process groups if possible
-        gateway_proc = subprocess.Popen(gw_cmd)
-        time.sleep(1) # Give it a second to bind
+
+        gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy())
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            if gateway_proc.poll() is not None:
+                raise typer.Exit(code=1)
+            try:
+                with socket.create_connection((gateway_host, gateway_port), timeout=0.5):
+                    break
+            except OSError:
+                time.sleep(0.1)
     
     token = get_auth_token()
     console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
@@ -120,6 +142,7 @@ def web(
                 gateway_proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 gateway_proc.kill()
+
 @app.command()
 def agent(
     message: Optional[str] = typer.Argument(None, help="Message to send to the agent"),

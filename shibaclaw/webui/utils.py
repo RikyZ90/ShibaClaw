@@ -13,6 +13,14 @@ from shibaclaw.webui.auth import get_auth_token
 
 _LOCAL_HOSTS = frozenset(("0.0.0.0", "::", "", "127.0.0.1", "localhost"))
 
+
+def _unique_hosts(*candidates: str) -> list[str]:
+    hosts: list[str] = []
+    for host in candidates:
+        if host and host not in hosts:
+            hosts.append(host)
+    return hosts
+
 def _resolve_gateway_hosts() -> tuple[list[str], int]:
     """Return (hosts, port) for reaching the gateway health server.
 
@@ -24,17 +32,17 @@ def _resolve_gateway_hosts() -> tuple[list[str], int]:
     gw = agent_manager.config.gateway
     port = gw.port
     env_host = os.environ.get("SHIBACLAW_GATEWAY_HOST", "").strip()
-    docker_host = env_host or "shibaclaw-gateway"
+    docker_host = "shibaclaw-gateway"
+
+    if env_host:
+        if env_host in _LOCAL_HOSTS:
+            return _unique_hosts("127.0.0.1", gw.host, docker_host), port
+        return _unique_hosts(env_host, gw.host), port
 
     if gw.host in _LOCAL_HOSTS:
-        hosts = ["127.0.0.1"]
-        if docker_host != "127.0.0.1":
-            hosts.append(docker_host)
+        hosts = _unique_hosts("127.0.0.1", docker_host)
     else:
         hosts = [gw.host]
-        # If the user also set an explicit env override, try it as fallback
-        if env_host and env_host != gw.host:
-            hosts.append(env_host)
     return hosts, port
 
 
