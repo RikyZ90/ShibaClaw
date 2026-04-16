@@ -207,7 +207,9 @@
 .fs-body {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* ── Drag & Drop Overlay ────────────────────────────────────── */
