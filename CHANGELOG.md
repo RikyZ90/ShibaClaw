@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.37] - 2026-04-17
+
+### Fixed
+- **Dependency Vulnerabilities (CVE)** — Critical security update resolving RCE in `protobufjs` via `overrides` in the WhatsApp bridge and updating `cryptography`, `pytest`, and `python-multipart` to safe versions.
+
 ## [0.0.36] - 2026-04-16
 
 ### Fixed

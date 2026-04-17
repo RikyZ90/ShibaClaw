@@ -1,32 +1,22 @@
 {
-  "version": "0.0.36",
-  "release_notes": "### Stability Update: Bare-Metal Gateway + UI Fixes\n\n- **Local gateway routing fixed** — `shibaclaw web --with-gateway` now forces the spawned gateway onto loopback and exports the effective WebUI URL, avoiding hostname resolution failures when the saved config still targets the Docker hostname.\n- **File browser UX improved** — The Files modal now keeps the dialog open on backdrop clicks and scrolls correctly for large directories.\n- **Cron reload logging cleaned up** — Repeated `jobs.json modified externally` logs are gone thanks to corrected mtime bookkeeping after reload.\n- **Release metadata refreshed** — Documentation and update metadata now point to v0.0.36 and the thin-WebUI runtime guidance.",
-  "upgrade_notes": "Update both shibaclaw-web and shibaclaw-gateway to v0.0.36. If using Docker, rebuild and restart with `docker compose up -d --build`.",
+  "version": "0.0.37",
+  "release_notes": "### Security Update: Dependency Hardening (CVE Fixes)\n\n- **Critical: Protobufjs RCE Fixed** — Forced `protobufjs>=7.5.5` in the WhatsApp bridge via package overrides to block the Remote Code Execution vulnerability (GHSA-xq3m-2v4x-88gg).\n- **Python Security Patches** — Updated `cryptography` (v46.0.7), `pytest` (v9.0.3), and `python-multipart` (v0.0.26) to resolve recently reported CVEs.\n- **Dependency Audit** — Full security audit completed for both Python and Node.js environments.",
+  "upgrade_notes": "Update to v0.0.37. Run `pip install --upgrade shibaclaw`. If using the WhatsApp bridge, run `npm install` inside the `bridge/` folder or rebuild your Docker containers.",
   "changes": [
     {
-      "path": "shibaclaw/cli/commands.py",
+      "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Forced local gateway host wiring for `web --with-gateway` and exported the effective internal WebUI URL."
+      "note": "Updated version and patched Python dependencies versions."
     },
     {
-      "path": "shibaclaw/webui/utils.py",
+      "path": "bridge/package.json",
       "overwrite": true,
-      "note": "Gateway host resolution now gives precedence to explicit runtime overrides for bare-metal launches."
+      "note": "Added protobufjs 7.5.5+ override to fix RCE vulnerability."
     },
     {
-      "path": "shibaclaw/webui/static/index.html",
+      "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Disabled backdrop-click close for the File Explorer modal."
-    },
-    {
-      "path": "shibaclaw/webui/static/css/modals.css",
-      "overwrite": true,
-      "note": "Fixed modal body scrolling in large dialogs such as the File Explorer."
-    },
-    {
-      "path": "shibaclaw/cron/service.py",
-      "overwrite": true,
-      "note": "Refreshed mtime tracking after reload to suppress repeated external modification logs."
+      "note": "Documented security fixes for v0.0.37."
     }
   ]
 }
