@@ -20,6 +20,10 @@ ShibaClaw is a security-first AI agent that runs in your terminal or in a browse
 Instead of assuming the surrounding app will handle safety, it builds it into the core: install-time CVE auditing, randomized tool-output wrapping against prompt injection, SSRF and DNS rebinding protection, shell hardening, workspace sandboxing, and token auth.
 You still get the practical pieces you need for daily use: WebUI & onboarding, 22 LLM providers, built-in file tools, long-term memory, 11 chat channels, cron, heartbeat, skills, and MCP support.
 
+<b>[0.0.37] - 2026-04-17</b>
+Fixed
+Dependency Vulnerabilities (CVE) — Critical security update resolving RCE in protobufjs via overrides in the WhatsApp bridge and updating cryptography, pytest, and python-multipart to safe versions.
+
 ## Security, Built In
 
 These are the defenses that are often left to app glue code or external proxies. In ShibaClaw they are part of the framework itself.
