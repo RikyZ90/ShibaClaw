@@ -20,6 +20,39 @@ def _short_tool_id() -> str:
     return "".join(secrets.choice(_ALNUM) for _ in range(9))
 
 
+def _extract_extra_fields(obj: Any, known_keys: set[str]) -> dict[str, Any]:
+    """Preserve provider-specific fields carried on SDK response objects.
+
+    Some OpenAI-compatible providers, including Gemini, attach required metadata
+    like `thought_signature` as extra fields on tool-call objects. The OpenAI SDK
+    keeps those extras, but they need to be copied back into conversation history
+    verbatim on the next turn.
+    """
+    extras: dict[str, Any] = {}
+
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key not in known_keys and value is not None:
+                extras[key] = value
+        return extras
+
+    for attr_name in ("model_extra", "__pydantic_extra__"):
+        attr = getattr(obj, attr_name, None)
+        if isinstance(attr, dict):
+            for key, value in attr.items():
+                if key not in known_keys and value is not None:
+                    extras[key] = value
+
+    # Be explicit about known Gemini/OpenAI compatibility fields in case the SDK
+    # exposes them as plain attributes instead of model extras.
+    for key in ("thought_signature", "thoughtSignature"):
+        value = getattr(obj, key, None)
+        if value is not None and key not in known_keys:
+            extras[key] = value
+
+    return extras
+
+
 class OpenAIThinker(Thinker):
     """
     Thinker using the native openai SDK for multi-provider support.
@@ -165,6 +198,12 @@ class OpenAIThinker(Thinker):
                     id=tc.id or _short_tool_id(),
                     name=tc.function.name,
                     arguments=args,
+                    provider_specific_fields=_extract_extra_fields(
+                        tc, {"id", "type", "function", "index"},
+                    ) or None,
+                    function_provider_specific_fields=_extract_extra_fields(
+                        tc.function, {"name", "arguments"},
+                    ) or None,
                 ))
                 
         u = getattr(response, "usage", None)
