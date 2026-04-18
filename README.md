@@ -6,7 +6,7 @@
 <h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.37-orange?style=flat-square" alt="version"></a>   
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.38-orange?style=flat-square" alt="version"></a>   
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -19,9 +19,13 @@ ShibaClaw is a security-first AI agent that runs in your terminal or in a browse
 Instead of assuming the surrounding app will handle safety, it builds it into the core: install-time CVE auditing, randomized tool-output wrapping against prompt injection, SSRF and DNS rebinding protection, shell hardening, workspace sandboxing, and token auth.
 You still get the practical pieces you need for daily use: WebUI & onboarding, 22 LLM providers, built-in file tools, long-term memory, 11 chat channels, cron, heartbeat, skills, and MCP support.
 
-<b>[0.0.37] - 2026-04-17</b>
-Fixed
-Dependency Vulnerabilities (CVE) — Critical security update resolving RCE in protobufjs via overrides in the WhatsApp bridge and updating cryptography, pytest, and python-multipart to safe versions.
+<b>[0.0.38] - 2026-04-18</b>
+Added
+Native WebSocket transport — Socket.IO replaced with native WebSocket (port 19998 on the gateway, new realtime.js adapter in the browser). python-socketio removed from core dependencies.
+Gemini env-var support — GEMINI_API_KEY set in the environment is now accepted directly; no stored key needed. Google OpenAI-compat base URL pre-configured.
+Changed
+WebUI provider API-key placeholders — provider-specific hints (AIza…, sk-ant-…, gsk_…, etc.) in Settings and Onboard wizard.
+message tool workspace context — relative media paths are now resolved against the agent workspace for reliable file attachments.
 
 ## Security, Built In
 
@@ -160,12 +164,14 @@ ShibaClaw uses native SDKs (no LiteLLM proxy) and auto-detects the right provide
 | OpenAI | `OPENAI_API_KEY` |
 | Anthropic | `ANTHROPIC_API_KEY` |
 | DeepSeek | `DEEPSEEK_API_KEY` |
-| Google Gemini | `GEMINI_API_KEY` |
+| Google Gemini | `GEMINI_API_KEY` ¹ |
 | Groq | `GROQ_API_KEY` |
 | Moonshot | `MOONSHOT_API_KEY` |
 | MiniMax | `MINIMAX_API_KEY` |
 | Zhipu AI | `ZAI_API_KEY` |
 | DashScope | `DASHSCOPE_API_KEY` |
+
+¹ Setting `GEMINI_API_KEY` in the environment is sufficient — no stored key required. The Google OpenAI-compatible endpoint is pre-configured.
 
 ### Gateway / Proxy
 
@@ -194,8 +200,8 @@ Ollama (`http://localhost:11434`) · vLLM · any OpenAI-compatible endpoint.
 
 | Service | Role | Default Port |
 |---------|------|-------------|
-| `shibaclaw-gateway` | Core agent loop, message bus, channel integrations | 19999 |
-| `shibaclaw-web` | WebUI (Starlette + Socket.IO), cron service | 3000 |
+| `shibaclaw-gateway` | Core agent loop, message bus, channel integrations | 19999 (HTTP) · 19998 (WS) |
+| `shibaclaw-web` | WebUI (Starlette + native WebSocket), cron service | 3000 |
 
 Both share the `~/.shibaclaw/` volume (config, workspace, memory, cron jobs, media cache).
 
@@ -208,7 +214,7 @@ Both share the `~/.shibaclaw/` volume (config, workspace, memory, cron jobs, med
 | Layer | Technology |
 |-------|-----------|
 | Server | Uvicorn → Starlette (ASGI) + python-socketio |
-| Real-time | Socket.IO (WebSocket primary, polling fallback) |
+| Real-time | Native WebSocket (`/ws` on WebUI, port `19998` on gateway) |
 | Frontend | Vanilla JS · Marked.js · Highlight.js |
 | Sessions | JSONL append-only per session (cache-friendly for LLM prompt prefixes) |
 
@@ -237,13 +243,14 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.0.28
+## Latest — v0.0.38
 
-- **Heartbeat frontmatter config** — configure session, profile, interval, and output targets directly in `HEARTBEAT.md`
-- **No-op heartbeat optimization** — no LLM call when `Active Tasks` is empty
-- **Cron blank-job guard** — empty scheduled agent jobs are skipped instead of waking the model
+- **Native WebSocket transport** — Socket.IO replaced with a native WebSocket layer (gateway port `19998`, browser `realtime.js` adapter). `python-socketio` removed from core deps.
+- **Gemini env-var support** — `GEMINI_API_KEY` in the environment is picked up automatically; Google OpenAI-compat endpoint pre-configured.
+- **WebUI provider placeholders** — API-key inputs now show provider-specific hints (`AIza…`, `sk-ant-…`, `gsk_…`, …).
+- **`message` tool workspace context** — relative media paths resolved against the agent workspace for reliable file attachments.
 
-→ [v0.0.28](./CHANGELOG.md): full details and upgrade notes, including the recommended `HEARTBEAT.md` reset
+→ [v0.0.38 full changelog](./CHANGELOG.md)
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 

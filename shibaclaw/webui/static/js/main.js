@@ -15,7 +15,7 @@ function initListeners() {
     });
 
     $("btn-new-session").addEventListener("click", () => {
-        state.socket.emit("new_session");
+        realtime.emit("new_session");
     });
 
     document.querySelectorAll(".btn-command[data-command]").forEach((btn) => {
@@ -28,7 +28,7 @@ function initListeners() {
 
     $("btn-stop").addEventListener("click", () => {
         if (state.processing) {
-            state.socket.emit("stop_agent");
+            realtime.emit("stop");
             state.processing = false;
             setWorkingState(false);
             clearTimeout(state._typingBubbleTimeout);

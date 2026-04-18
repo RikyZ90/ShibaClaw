@@ -2,25 +2,18 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import Any, Optional, Dict
 
 from loguru import logger
 
 
 class AgentManager:
-    """Thin config holder and Socket.IO bridge.  All LLM work runs in the gateway."""
+    """Thin config holder and WebSocket bridge.  All LLM work runs in the gateway."""
 
     def __init__(self):
         self.config: Optional[Any] = None
         self.provider: Optional[Any] = None
-        self._sio: Optional[Any] = None
-        self._sessions: Dict[str, Dict] = {}
         self.oauth_jobs: Dict[str, Dict] = {}
-
-    def set_socket_io(self, sio: Any, sessions: Dict[str, Dict]):
-        self._sio = sio
-        self._sessions = sessions
 
     async def deliver_background_notification(
         self,
@@ -30,7 +23,7 @@ class AgentManager:
         source: str = "background",
         persist: bool = True,
     ) -> dict[str, Any]:
-        """Persist and emit a background notification to matching WebUI sessions."""
+        """Persist and deliver a background notification to matching browser sessions."""
         if not session_key or not content:
             return {"delivered": False, "matched_sessions": 0}
 
@@ -51,18 +44,9 @@ class AgentManager:
             )
             pm.save(session)
 
-        delivered = 0
-        payload = {
-            "id": str(uuid.uuid4())[:8],
-            "content": content,
-            "attachments": [],
-        }
-        if self._sio:
-            for sid, state in list(self._sessions.items()):
-                if state.get("session_key") != session_key:
-                    continue
-                await self._sio.emit("agent_response", payload, room=sid)
-                delivered += 1
+        # Deliver via native WebSocket handler
+        from shibaclaw.webui.ws_handler import deliver_to_browsers
+        delivered = await deliver_to_browsers(session_key, content, source=source)
 
         return {"delivered": delivered > 0, "matched_sessions": delivered}
 
@@ -89,5 +73,4 @@ class AgentManager:
         await _gateway_post("/api/archive", {"snapshot": snapshot})
 
 
-# Singleton instance
 agent_manager = AgentManager()

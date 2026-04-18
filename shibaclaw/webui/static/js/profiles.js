@@ -154,7 +154,7 @@ function startProfileCreationSession() {
     ].join("\n");
 
     const onReset = (data) => {
-        state.socket.off("session_reset", onReset);
+        realtime.off("session_reset", onReset);
         setTimeout(() => {
             const chatInput = document.getElementById("chat-input");
             if (chatInput) {
@@ -166,31 +166,29 @@ function startProfileCreationSession() {
         }, 300);
     };
 
-    state.socket.on("session_reset", onReset);
-    state.socket.emit("new_session");
+    realtime.on("session_reset", onReset);
+    realtime.emit("new_session");
 }
 
 function initProfileSocket() {
-    if (!state.socket) return;
-
-    state.socket.on("connected", (data) => {
+    realtime.on("connected", (data) => {
         if (data.profile_id) {
             syncProfileSelection(data.profile_id);
         }
     });
 
-    state.socket.on("session_reset", (data) => {
+    realtime.on("session_reset", (data) => {
         if (data.profile_id) {
             syncProfileSelection(data.profile_id);
         }
     });
 }
 
-if (state.socket) {
+if (typeof realtime !== "undefined") {
     initProfileSocket();
 } else {
     const _checkSocket = setInterval(() => {
-        if (state.socket) {
+        if (typeof realtime !== "undefined") {
             clearInterval(_checkSocket);
             initProfileSocket();
         }

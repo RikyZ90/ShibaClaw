@@ -1,22 +1,37 @@
 {
-  "version": "0.0.37",
-  "release_notes": "### Security Update: Dependency Hardening (CVE Fixes)\n\n- **Critical: Protobufjs RCE Fixed** — Forced `protobufjs>=7.5.5` in the WhatsApp bridge via package overrides to block the Remote Code Execution vulnerability (GHSA-xq3m-2v4x-88gg).\n- **Python Security Patches** — Updated `cryptography` (v46.0.7), `pytest` (v9.0.3), and `python-multipart` (v0.0.26) to resolve recently reported CVEs.\n- **Dependency Audit** — Full security audit completed for both Python and Node.js environments.",
-  "upgrade_notes": "Update to v0.0.37. Run `pip install --upgrade shibaclaw`. If using the WhatsApp bridge, run `npm install` inside the `bridge/` folder or rebuild your Docker containers.",
+  "version": "0.0.38",
+  "release_notes": "### Native WebSocket · Gemini env-var support · WebUI polish\n\n- **Native WebSocket transport** — Socket.IO replaced with a native WebSocket layer. Gateway runs a dedicated WS server on port `19998`; browser uses new `realtime.js` adapter. `python-socketio` moved to optional `[mochat]` extra.\n- **Gemini raw env-var** — `GEMINI_API_KEY` in the environment is now accepted directly by provider matching, no stored key needed. Google OpenAI-compat endpoint (`generativelanguage.googleapis.com/v1beta/openai/`) pre-configured.\n- **WebUI provider placeholders** — API-key fields in Settings and Onboard wizard show provider-specific hints (`AIza…`, `sk-ant-…`, `gsk_…`, etc.).\n- **`message` tool workspace context** — Relative media paths resolved against the configured workspace, fixing file-attachment issues across channels.",
+  "upgrade_notes": "Update to v0.0.38. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers to pick up the new WebSocket port 19998 (`docker compose up -d --build`).",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Updated version and patched Python dependencies versions."
-    },
-    {
-      "path": "bridge/package.json",
-      "overwrite": true,
-      "note": "Added protobufjs 7.5.5+ override to fix RCE vulnerability."
+      "note": "Version bumped to 0.0.38; python-socketio moved to optional extra."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Documented security fixes for v0.0.37."
+      "note": "Added v0.0.38 entry."
+    },
+    {
+      "path": "shibaclaw/config/schema.py",
+      "overwrite": true,
+      "note": "Added ws_port to GatewayConfig; added _provider_has_credentials helper and updated provider matching for env-var support."
+    },
+    {
+      "path": "shibaclaw/thinkers/registry.py",
+      "overwrite": true,
+      "note": "Gemini default_api_base set to Google OpenAI-compat endpoint."
+    },
+    {
+      "path": "shibaclaw/webui/static/js/ui_panels.js",
+      "overwrite": true,
+      "note": "Added providerKeyPlaceholder(); switched to realtime WebSocket adapter."
+    },
+    {
+      "path": "docker-compose.yml",
+      "overwrite": true,
+      "note": "Expose gateway WebSocket port 19998."
     }
   ]
 }

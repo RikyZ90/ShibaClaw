@@ -6,12 +6,11 @@ import asyncio
 import argparse
 import os
 import uvicorn
-import socketio
 from pathlib import Path
 from typing import Any
 from starlette.applications import Starlette
 from starlette.responses import FileResponse
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from loguru import logger
 
@@ -23,7 +22,8 @@ from .auth import (
     get_cors_origins
 )
 from .agent_manager import agent_manager
-from .socket_io import register_socket_handlers
+from .ws_handler import ws_endpoint
+from .gateway_client import gateway_client
 from .api import (
     api_auth_verify, api_auth_status, api_status,
     api_settings_get, api_settings_post,
@@ -47,20 +47,11 @@ def create_app(
     provider: Any | None = None,
     port: int = 3000,
     host: str = "127.0.0.1",
-) -> tuple[socketio.ASGIApp, socketio.AsyncServer]:
+) -> Starlette:
     if config:
         agent_manager.config = config
     if provider:
         agent_manager.provider = provider
-    sio = socketio.AsyncServer(
-        async_mode="asgi",
-        cors_allowed_origins=get_cors_origins(port, host),
-        logger=False,
-        engineio_logger=False,
-    )
-    sessions: dict[str, dict] = {}
-    agent_manager.set_socket_io(sio, sessions)
-    register_socket_handlers(sio, sessions)
 
     async def index(request):
         return FileResponse(STATIC_DIR / "index.html")
@@ -110,6 +101,7 @@ def create_app(
         Route("/api/profiles/{profile_id}", api_profiles_update, methods=["PUT"]),
         Route("/api/profiles/{profile_id}", api_profiles_delete, methods=["DELETE"]),
         Route("/api/internal/session-notify", api_internal_session_notify, methods=["POST"]),
+        WebSocketRoute("/ws", ws_endpoint),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 
@@ -117,8 +109,7 @@ def create_app(
 
     if _auth_enabled():
         app.add_middleware(AuthMiddleware)
-    combined = socketio.ASGIApp(sio, app)
-    return combined, sio
+    return app
 
 
 async def _check_update_on_startup() -> None:
@@ -161,8 +152,35 @@ async def _ensure_config_on_startup() -> None:
         logger.exception("Failed to load config on startup")
 
 
+async def _start_gateway_client() -> None:
+    """Connect the WebSocket client to the gateway."""
+    try:
+        await asyncio.sleep(2)
+        cfg = agent_manager.config
+        if not cfg:
+            agent_manager.load_latest_config()
+            cfg = agent_manager.config
+        if cfg:
+            token = get_auth_token() or ""
+            gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, token)
+
+            # Register handler for gateway push notifications
+            async def _on_session_notify(msg):
+                payload = msg.get("payload", {})
+                sk = msg.get("session_key", "")
+                content = payload.get("content", "")
+                if sk and content:
+                    await agent_manager.deliver_background_notification(sk, content)
+            gateway_client.on_event("session.notify", _on_session_notify)
+
+            await gateway_client.start()
+            logger.info("Gateway WS client started")
+    except Exception:
+        logger.debug("Gateway WS client start deferred")
+
+
 async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
-    app, _ = create_app(config=config, provider=provider, port=port, host=host)
+    app = create_app(config=config, provider=provider, port=port, host=host)
     if host in ("0.0.0.0", "::") and not os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip():
         logger.warning("Binding to {} — set SHIBACLAW_CORS_ORIGINS for non-loopback clients", host)
 
@@ -175,6 +193,7 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
     asyncio.create_task(_check_update_on_startup())
     asyncio.create_task(_sync_skills_on_startup())
     asyncio.create_task(_ensure_config_on_startup())
+    asyncio.create_task(_start_gateway_client())
 
     server_config = uvicorn.Config(
         app=app,

@@ -436,7 +436,7 @@ window.deleteSession = async function(key) {
     if (!ok) return;
 
     removeSessionFromUI(key);
-    if (state.sessionId === key) state.socket.emit("new_session");
+    if (state.sessionId === key) realtime.emit("new_session");
 
     try {
         await authFetch(`/api/sessions/${encodeURIComponent(key)}`, { method: "DELETE" });
@@ -448,7 +448,7 @@ window.archiveSession = async function(key) {
     if (!ok) return;
 
     removeSessionFromUI(key);
-    if (state.sessionId === key) state.socket.emit("new_session");
+    if (state.sessionId === key) realtime.emit("new_session");
 
     try {
         await authFetch(`/api/sessions/${encodeURIComponent(key)}/archive`, { method: "POST" });
@@ -657,8 +657,8 @@ async function loadSession(sessionId) {
     } catch(e) {
         console.debug("[SHIBA] Error loading session:", e);
     } finally {
-        if (state.socket && state.socket.connected) {
-            state.socket.emit("switch_session", { session_id: sessionId });
+        if (realtime.connected) {
+            realtime.emit("switch_session", { session_id: sessionId });
         }
     }
 }

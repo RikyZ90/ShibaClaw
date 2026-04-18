@@ -224,6 +224,7 @@ class ShibaBrain:
         self,
         initial_messages: list[dict],
         on_progress: Callable[..., Awaitable[None]] | None = None,
+        on_response_token: Callable[[str], Awaitable[None]] | None = None,
         *,
         channel: str | None = None,
         chat_id: str | None = None,
@@ -277,8 +278,9 @@ class ShibaBrain:
                 "content": static_prompt + "\n\n---\n\n" + live_block,
             }
 
-            response = await self.provider.chat_with_retry(
+            response = await self.provider.chat_with_retry_streaming(
                 messages=messages,
+                on_token=on_response_token,
                 tools=tool_defs,
                 model=self.model,
             )
@@ -502,6 +504,7 @@ class ShibaBrain:
         msg: InboundMessage,
         session_key: str | None = None,
         on_progress: Callable[[str, bool], Awaitable[None]] | None = None,
+        on_response_token: Callable[[str], Awaitable[None]] | None = None,
         profile_id_override: str | None = None,
     ) -> OutboundMessage | None:
         if self.provider is None:
@@ -620,6 +623,7 @@ class ShibaBrain:
 
         final_content, _, all_msgs = await self._run_agent_loop(
             initial_messages, on_progress=on_progress or _bus_progress,
+            on_response_token=on_response_token,
             channel=msg.channel, chat_id=msg.chat_id,
             profile_id=profile_id,
         )
@@ -696,6 +700,7 @@ class ShibaBrain:
         channel: str = "cli",
         chat_id: str = "direct",
         on_progress: Callable[[str], Awaitable[None]] | None = None,
+        on_response_token: Callable[[str], Awaitable[None]] | None = None,
         on_notify: Callable[..., Awaitable[None]] | None = None,
         media: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
@@ -703,4 +708,4 @@ class ShibaBrain:
     ) -> OutboundMessage | None:
         await self._connect_mcp()
         msg = InboundMessage(channel=channel, sender_id="user", chat_id=chat_id, content=content, media=media, metadata=metadata or {})
-        return await self._process_message(msg, session_key=session_key, on_progress=on_progress, profile_id_override=profile_id)
+        return await self._process_message(msg, session_key=session_key, on_progress=on_progress, on_response_token=on_response_token, profile_id_override=profile_id)
