@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.0.39] - 2026-04-18
+## [0.0.38] - 2026-04-18
 
 ### Added
 - **Token-by-token response streaming** — The LLM response is now streamed to the browser in real time, character by character. Supported natively for all OpenAI-compatible providers (OpenRouter, GitHub Copilot, Groq, DeepSeek, etc.) and Anthropic via their respective streaming APIs. Providers without native streaming support (Azure, Custom, Codex) automatically fall back to delivering the full response in one shot without errors.
