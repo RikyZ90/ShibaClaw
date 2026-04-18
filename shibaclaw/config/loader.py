@@ -135,7 +135,7 @@ def _migrate_config(data: dict) -> dict:
 
     data["channels"] = channels
 
-    # Ensure mcpServers have all default fields
+    # Ensure mcpServers have all default fields without re-adding deleted servers
     mcp_servers = tools.get("mcpServers", {})
     _MCP_DEFAULTS = {
         "type": None,
@@ -147,19 +147,7 @@ def _migrate_config(data: dict) -> dict:
         "toolTimeout": 30,
         "enabledTools": ["*"]
     }
-    # Se mcpServers è vuoto, aggiungi un esempio predefinito
-    if not mcp_servers:
-        mcp_servers["mcp"] = {
-            "type": None,
-            "command": "",
-            "args": [],
-            "env": {},
-            "url": "",
-            "headers": {},
-            "toolTimeout": 30,
-            "enabledTools": ["*"]
-        }
-    else:
+    if mcp_servers:
         for name, server in mcp_servers.items():
             for key, default_val in _MCP_DEFAULTS.items():
                 if key not in server:
