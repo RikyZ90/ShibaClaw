@@ -1,5 +1,6 @@
 """Message tool for sending messages to users."""
 
+from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from shibaclaw.agent.tools.base import Tool
@@ -15,11 +16,13 @@ class MessageTool(Tool):
         default_channel: str = "",
         default_chat_id: str = "",
         default_message_id: str | None = None,
+        workspace: Path | None = None,
     ):
         self._send_callback = send_callback
         self._default_channel = default_channel
         self._default_chat_id = default_chat_id
         self._default_message_id = default_message_id
+        self._workspace = workspace
         self._sent_in_turn: bool = False
 
     def set_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
@@ -101,11 +104,13 @@ class MessageTool(Tool):
             metadata["origin_channel"] = self._default_channel
             metadata["origin_chat_id"] = self._default_chat_id
 
+        resolved_media = [self._resolve_media_path(p) for p in (media or [])]
+
         msg = OutboundMessage(
             channel=target_channel,
             chat_id=target_chat_id,
             content=content,
-            media=media or [],
+            media=resolved_media,
             metadata=metadata,
         )
 
@@ -113,7 +118,15 @@ class MessageTool(Tool):
             await self._send_callback(msg)
             if target_channel == self._default_channel and target_chat_id == self._default_chat_id:
                 self._sent_in_turn = True
-            media_info = f" with {len(media)} attachments" if media else ""
+            media_info = f" with {len(resolved_media)} attachments" if resolved_media else ""
             return f"Message dispatched to {target_channel} (chat_id: {target_chat_id}){media_info}"
         except Exception as e:
             return f"Error sending message: {str(e)}"
+
+    def _resolve_media_path(self, path: str) -> str:
+        if path.startswith(("http://", "https://")):
+            return path
+        p = Path(path).expanduser()
+        if not p.is_absolute() and self._workspace:
+            p = self._workspace / p
+        return str(p.resolve())

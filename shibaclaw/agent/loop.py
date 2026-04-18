@@ -157,7 +157,7 @@ class ShibaBrain:
         self.tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
         self.tools.register(MemorySearchTool(workspace=self.workspace))
-        self.tools.register(MessageTool(send_callback=self.bus.publish_outbound))
+        self.tools.register(MessageTool(send_callback=self.bus.publish_outbound, workspace=self.workspace))
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
