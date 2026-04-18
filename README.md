@@ -15,31 +15,12 @@
 
 ---
 
-ShibaClaw is a security-first AI agent that runs in your terminal or in a browser-based WebUI.
-Instead of assuming the surrounding app will handle safety, it builds it into the core: install-time CVE auditing, randomized tool-output wrapping against prompt injection, SSRF and DNS rebinding protection, shell hardening, workspace sandboxing, and token auth.
-You still get the practical pieces you need for daily use: WebUI & onboarding, 22 LLM providers, built-in file tools, long-term memory, 11 chat channels, cron, heartbeat, skills, and MCP support.
+ShibaClaw is a **security-first AI agent** for your terminal and browser.
+Security isn't glue code — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
 
-<b>[0.0.38] - 2026-04-18</b>
-Added
-Native WebSocket transport — Socket.IO replaced with native WebSocket (port 19998 on the gateway, new realtime.js adapter in the browser). python-socketio removed from core dependencies.
-Gemini env-var support — GEMINI_API_KEY set in the environment is now accepted directly; no stored key needed. Google OpenAI-compat base URL pre-configured.
-Changed
-WebUI provider API-key placeholders — provider-specific hints (AIza…, sk-ant-…, gsk_…, etc.) in Settings and Onboard wizard.
-message tool workspace context — relative media paths are now resolved against the agent workspace for reliable file attachments.
+**22 providers · 11 chat channels · built-in WebUI · long-term memory · cron · heartbeat · skills · MCP**
 
-## Security, Built In
-
-These are the defenses that are often left to app glue code or external proxies. In ShibaClaw they are part of the framework itself.
-
-| Layer | Built in by default | Why it matters |
-|---|---|---|
-| Distributed Engine | Decoupled UI (128MB RAM) from Brain (256MB+ RAM) | High performance even on low-spec hardware or VPS |
-| Install-time audit | Audits `pip` and `npm` installs before execution; blocks critical/high CVEs | Catches risky dependencies before they land in the environment |
-| Prompt-injection wrapping | Wraps every tool result in a randomized `<tool_output_...>` boundary and sanitizes closing tags | Untrusted pages and files stay data, not instructions |
-| Shell hardening | 20+ deny patterns, escape normalization (`\x..`, `\u....`), internal URL detection | Blocks common destructive or obfuscated commands |
-| Network guard | SSRF filtering, redirect revalidation, DNS-rebinding-safe resolution | Prevents web tools from pivoting into localhost or private networks |
-| Workspace sandbox | File tools and the WebUI file browser stay inside the configured workspace | Reduces traversal and accidental host-wide access |
-| Access control | Bearer token auth, constant-time token checks, channel allowlists, optional sender rate limiting | Safer when the agent is exposed beyond a local shell |
+---
 
 ## Quick Start
 
@@ -51,22 +32,35 @@ docker compose up -d --build
 docker exec -it shibaclaw-gateway shibaclaw print-token
 ```
 
-Open **http://localhost:3000** — paste the token if auth is enabled, then complete the onboard wizard in the browser.
+Open **http://localhost:3000**, paste the token, and follow the onboard wizard.
 
 ### pip
 
 ```bash
 pip install shibaclaw
-# Simple start (default localhost:3000)
-shibaclaw web --with-gateway
-
-# Custom local port
-shibaclaw web --host 127.0.0.1 --port 3000 --with-gateway
+shibaclaw web --with-gateway   # starts WebUI + agent engine on :3000
 ```
 
-Open **http://localhost:3000** and complete the onboard wizard.
-The `--with-gateway` flag automatically starts the agent engine in the background for you.
-Prefer the terminal? `shibaclaw onboard` runs the same guided setup from the CLI.
+Open **http://localhost:3000** and follow the onboard wizard.
+Prefer the CLI? `shibaclaw onboard` runs the same guided setup from the terminal.
+
+---
+
+## Security, Built In
+
+Defenses that are normally scattered across app glue or external proxies — in ShibaClaw they ship in the core, on by default.
+
+| Layer | What it does |
+|---|---|
+| 🔍 Install-time audit | Audits `pip` and `npm` before execution — blocks critical/high CVEs before they land |
+| 🛡️ Prompt-injection wrapping | Wraps every tool result in a randomized `<tool_output_...>` boundary and sanitizes closing tags |
+| 🔒 Shell hardening | 20+ deny patterns, escape normalization (`\x..`, `\u....`), internal URL detection |
+| 🌐 Network guard | SSRF filtering, redirect revalidation, DNS-rebinding-safe resolution |
+| 📁 Workspace sandbox | File tools and file browser locked to the configured workspace |
+| 🔑 Access control | Bearer token auth, constant-time checks, channel allowlists, optional rate limiting |
+| ⚡ Distributed engine | UI (≈128 MB) decoupled from agent brain (≈256 MB+) — minimal footprint per process |
+
+Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
 
 ---
 
@@ -147,12 +141,6 @@ If you are upgrading from an older release, it is recommended to reset your work
 
 ---
 
-## Security Policy
-
-The table above is the operational summary. The full disclosure process, supported versions, and defense-in-depth notes live in [SECURITY.md](./SECURITY.md).
-
----
-
 ## Supported Providers
 
 ShibaClaw uses native SDKs (no LiteLLM proxy) and auto-detects the right provider from the model name.
@@ -213,7 +201,7 @@ Both share the `~/.shibaclaw/` volume (config, workspace, memory, cron jobs, med
 
 | Layer | Technology |
 |-------|-----------|
-| Server | Uvicorn → Starlette (ASGI) + python-socketio |
+| Server | Uvicorn → Starlette (ASGI) |
 | Real-time | Native WebSocket (`/ws` on WebUI, port `19998` on gateway) |
 | Frontend | Vanilla JS · Marked.js · Highlight.js |
 | Sessions | JSONL append-only per session (cache-friendly for LLM prompt prefixes) |
@@ -283,16 +271,8 @@ Inspired by [NanoBot](https://github.com/HKUDS/nanobot) by HKUDS — MIT License
 ---
 
 <p align="center">
-  <b>If you like ShibaClaw and want to help it grow:</b><br>
-  ⭐ <a href="https://github.com/RikyZ90/ShibaClaw">Drop a star</a> — 
-  🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> — 
-  🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> <br> contributions of any size are welcome<br><br>
-  💬 <a href="https://discord.gg/kys6UYHmEb">Join the Discord</a> — questions, feedback, and show & tell
-</p>
-
----
-
-<p align="center">
-  <b>We're new — come help shape what ShibaClaw becomes.</b><br>
-  Join us on <a href="https://discord.gg/kys6UYHmEb">Discord</a> and let's build something together.
+  ⭐ <a href="https://github.com/RikyZ90/ShibaClaw">Star the repo</a> &nbsp;·&nbsp;
+  🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> &nbsp;·&nbsp;
+  🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> &nbsp;·&nbsp;
+  💬 <a href="https://discord.gg/kys6UYHmEb">Join the Discord</a>
 </p>
