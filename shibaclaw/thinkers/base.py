@@ -19,7 +19,13 @@ class ToolCallRequest:
     function_provider_specific_fields: dict[str, Any] | None = None
 
     def to_openai_tool_call(self) -> dict[str, Any]:
-        """Serialize to an OpenAI-style tool_call payload."""
+        """Serialize to an OpenAI-style tool_call payload.
+
+        Provider-specific fields are merged back into the original OpenAI-compatible
+        shape instead of being nested under an internal wrapper key. This lets
+        transports like Gemini's OpenAI compatibility layer receive required fields
+        such as `thought_signature` exactly where they were originally emitted.
+        """
         tool_call = {
             "id": self.id,
             "type": "function",
@@ -29,9 +35,9 @@ class ToolCallRequest:
             },
         }
         if self.provider_specific_fields:
-            tool_call["provider_specific_fields"] = self.provider_specific_fields
+            tool_call.update(self.provider_specific_fields)
         if self.function_provider_specific_fields:
-            tool_call["function"]["provider_specific_fields"] = self.function_provider_specific_fields
+            tool_call["function"].update(self.function_provider_specific_fields)
         return tool_call
 
 
