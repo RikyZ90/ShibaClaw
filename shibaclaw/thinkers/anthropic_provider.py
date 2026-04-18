@@ -192,3 +192,82 @@ class AnthropicThinker(Thinker):
 
     def get_default_model(self) -> str:
         return self.default_model
+
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        """Stream Anthropic response, calling on_token for each text delta."""
+        model = model or self.default_model
+        system_prompt, anthropic_messages = self._convert_messages(messages)
+
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "max_tokens": max(1, max_tokens),
+            "messages": anthropic_messages,
+            "temperature": temperature,
+        }
+
+        if system_prompt:
+            kwargs["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+
+        if tools:
+            kwargs["tools"] = self._convert_tools(tools)
+
+        try:
+            content_text = ""
+            tool_calls = []
+            thinking_blocks = []
+            usage_data = {}
+
+            async with self._client.messages.stream(**kwargs) as stream:
+                async for event in stream:
+                    if event.type == "content_block_delta":
+                        delta = event.delta
+                        if hasattr(delta, "text") and delta.text:
+                            content_text += delta.text
+                            if on_token:
+                                await on_token(delta.text)
+                        elif hasattr(delta, "thinking") and delta.thinking:
+                            pass  # thinking deltas handled by on_progress in agent loop
+
+                # Collect final message
+                final = await stream.get_final_message()
+                # Re-parse to get tool calls and structured data
+                content_text = ""
+                tool_calls = []
+                thinking_blocks = []
+                for blk in final.content:
+                    if blk.type == "text":
+                        content_text += blk.text
+                    elif blk.type == "tool_use":
+                        tool_calls.append(ToolCallRequest(
+                            id=blk.id, name=blk.name, arguments=blk.input,
+                        ))
+                    elif blk.type == "thinking":
+                        thinking_blocks.append({"type": "thinking", "text": blk.thinking})
+
+                u = getattr(final, "usage", None)
+                if u:
+                    usage_data = {
+                        "prompt_tokens": getattr(u, "input_tokens", 0),
+                        "completion_tokens": getattr(u, "output_tokens", 0),
+                        "total_tokens": getattr(u, "input_tokens", 0) + getattr(u, "output_tokens", 0),
+                    }
+
+            return LLMResponse(
+                content=content_text or None,
+                tool_calls=tool_calls,
+                usage=usage_data,
+                thinking_blocks=thinking_blocks if thinking_blocks else None,
+                finish_reason=final.stop_reason or "stop",
+            )
+        except Exception as e:
+            return LLMResponse(content=f"Error calling Anthropic: {e}", finish_reason="error")

@@ -184,3 +184,121 @@ class OpenAIThinker(Thinker):
 
     def get_default_model(self) -> str:
         return self.default_model
+
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        """Stream OpenAI response, calling on_token for each text delta."""
+        original_model = model or self.default_model
+        resolved_model = self._resolve_model(original_model)
+
+        sanitized_messages = self._sanitize_empty_content(messages)
+
+        kwargs: dict[str, Any] = {
+            "model": resolved_model,
+            "messages": sanitized_messages,
+            "max_tokens": max(1, max_tokens),
+            "temperature": temperature,
+            "stream": True,
+        }
+
+        self._apply_model_overrides(original_model, kwargs)
+
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
+
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = tool_choice or "auto"
+
+        try:
+            content_text = ""
+            tool_call_chunks: dict[int, dict] = {}
+            finish_reason = "stop"
+            usage_data = {}
+            reasoning_content = ""
+
+            stream = await self._client.chat.completions.create(**kwargs)
+
+            async for chunk in stream:
+                if not chunk.choices:
+                    # Usage chunk at the end
+                    u = getattr(chunk, "usage", None)
+                    if u:
+                        usage_data = {
+                            "prompt_tokens": getattr(u, "prompt_tokens", 0),
+                            "completion_tokens": getattr(u, "completion_tokens", 0),
+                            "total_tokens": getattr(u, "total_tokens", 0),
+                        }
+                    continue
+
+                choice = chunk.choices[0]
+                delta = choice.delta
+
+                if choice.finish_reason:
+                    finish_reason = choice.finish_reason
+
+                # Content tokens
+                if delta and delta.content:
+                    content_text += delta.content
+                    if on_token:
+                        await on_token(delta.content)
+
+                # Reasoning content (DeepSeek-R1 etc.)
+                if delta and getattr(delta, "reasoning_content", None):
+                    reasoning_content += delta.reasoning_content
+
+                # Tool call deltas
+                if delta and getattr(delta, "tool_calls", None):
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in tool_call_chunks:
+                            tool_call_chunks[idx] = {
+                                "id": tc_delta.id or "",
+                                "name": "",
+                                "arguments": "",
+                            }
+                        tc = tool_call_chunks[idx]
+                        if tc_delta.id:
+                            tc["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                tc["name"] += tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                tc["arguments"] += tc_delta.function.arguments
+
+            # Build tool calls from accumulated chunks
+            tool_calls = []
+            for idx in sorted(tool_call_chunks.keys()):
+                tc = tool_call_chunks[idx]
+                args = tc["arguments"]
+                try:
+                    args = json_repair.loads(args) if args else {}
+                except Exception:
+                    args = {"raw": args}
+                tool_calls.append(ToolCallRequest(
+                    id=tc["id"] or _short_tool_id(),
+                    name=tc["name"],
+                    arguments=args,
+                ))
+
+            return LLMResponse(
+                content=content_text or None,
+                tool_calls=tool_calls,
+                finish_reason=finish_reason,
+                usage=usage_data,
+                reasoning_content=reasoning_content or None,
+            )
+        except Exception as e:
+            body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
+            if body and body.strip():
+                return LLMResponse(content=f"Error calling LLM: {body.strip()[:500]}", finish_reason="error")
+            return LLMResponse(content=f"Error calling LLM: {e}", finish_reason="error")

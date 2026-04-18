@@ -17,10 +17,18 @@ from shibaclaw.webui.auth import get_auth_token, _auth_enabled
 from shibaclaw.brain.manager import PackManager
 
 from shibaclaw.webui.utils import _resolve_gateway_hosts, _gateway_request
+from shibaclaw.webui.gateway_client import gateway_client
 
 
 async def api_gateway_health(request: Request):
-    """Proxy health check to the gateway, fall back to 'ready' if in standalone mode."""
+    """Proxy health check to the gateway, preferring WebSocket when available."""
+    # Try WebSocket first
+    if gateway_client.connected:
+        result = await gateway_client.request("status")
+        if result is not None:
+            return JSONResponse({"reachable": True, **result})
+
+    # Fallback: raw HTTP
     hosts, port = _resolve_gateway_hosts()
     if not hosts:
         return JSONResponse({"reachable": False, "reason": "no_config"})
@@ -55,6 +63,14 @@ async def api_gateway_health(request: Request):
 
 async def api_gateway_restart(request: Request):
     """Proxy restart command to the gateway."""
+    # Try WebSocket first
+    if gateway_client.connected:
+        result = await gateway_client.request("restart")
+        if result is not None:
+            await agent_manager.reset_agent()
+            return JSONResponse({"status": "restarting"})
+
+    # Fallback: raw HTTP
     hosts, port = _resolve_gateway_hosts()
     if not hosts:
         return JSONResponse({"error": "No config"}, status_code=400)
