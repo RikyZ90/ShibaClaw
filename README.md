@@ -181,7 +181,7 @@ Ollama (`http://localhost:11434`) · vLLM · any OpenAI-compatible endpoint.
 ## Architecture
 
 <p align="center">
-  <img src="assets/arch.png" width="800" alt="ShibaClaw Architecture">
+  <img src="assets/arch.pg" width="800" alt="ShibaClaw Architecture">
 </p>
 
 ### Docker Compose
