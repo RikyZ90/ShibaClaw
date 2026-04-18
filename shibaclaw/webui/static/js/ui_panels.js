@@ -1083,6 +1083,18 @@ async function _populateOAuthProviders(sel, current) {
     } catch { /* silent */ }
 }
 
+function providerKeyPlaceholder(name) {
+    const placeholders = {
+        anthropic: "sk-ant-...",
+        deepseek: "sk-...",
+        gemini: "AIza...",
+        groq: "gsk_...",
+        openai: "sk-...",
+        openrouter: "sk-or-...",
+    };
+    return placeholders[name] || "Enter API key";
+}
+
 function populateSettings(cfg) {
     lastSettingsConfig = JSON.parse(JSON.stringify(cfg));
     const d = cfg.agents?.defaults || {};
@@ -1146,7 +1158,7 @@ function populateSettings(cfg) {
             <div class="accordion-body">
                 <div class="field-row">
                     <label>API Key</label>
-                    <input type="password" class="form-input prov-key" data-prov="${name}" value="${pc.apiKey || ""}" placeholder="sk-...">
+                    <input type="password" class="form-input prov-key" data-prov="${name}" value="${pc.apiKey || ""}" placeholder="${providerKeyPlaceholder(name)}">
                 </div>
                 <div class="field-row">
                     <label>API Base URL</label>
@@ -1961,7 +1973,7 @@ function _obSetupStep2() {
             document.getElementById("ob-api-key").placeholder = "Leave blank to keep current key";
         } else {
             document.getElementById("ob-api-key").value = "";
-            document.getElementById("ob-api-key").placeholder = "sk-...";
+            document.getElementById("ob-api-key").placeholder = providerKeyPlaceholder(p.name);
         }
     }
 }

@@ -1,11 +1,15 @@
 """Configuration schema using Pydantic."""
 
+import os
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic_settings import BaseSettings
+
+if TYPE_CHECKING:
+    from shibaclaw.thinkers.registry import ProviderSpec
 
 
 class Base(BaseModel):
@@ -190,6 +194,17 @@ class Config(BaseSettings):
         """Get expanded workspace path."""
         return Path(self.agents.defaults.workspace).expanduser()
 
+    @staticmethod
+    def _provider_has_credentials(
+        provider: ProviderConfig | None, spec: "ProviderSpec | None"
+    ) -> bool:
+        """Return True when a provider has a stored key or a raw provider env var."""
+        if not provider:
+            return False
+        if provider.api_key:
+            return True
+        return bool(spec and spec.env_key and os.environ.get(spec.env_key))
+
     def _match_provider(
         self, model: str | None = None
     ) -> tuple["ProviderConfig | None", str | None]:
@@ -214,14 +229,14 @@ class Config(BaseSettings):
         for spec in PROVIDERS:
             p = getattr(self.providers, spec.name, None)
             if p and model_prefix and normalized_prefix == spec.name:
-                if spec.is_oauth or spec.is_local or p.api_key:
+                if spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec):
                     return p, spec.name
 
         # Match by keyword (order follows PROVIDERS registry)
         for spec in PROVIDERS:
             p = getattr(self.providers, spec.name, None)
             if p and any(_kw_matches(kw) for kw in spec.keywords):
-                if spec.is_oauth or spec.is_local or p.api_key:
+                if spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec):
                     return p, spec.name
 
         # Fallback: configured local providers can route models without
@@ -248,7 +263,7 @@ class Config(BaseSettings):
             if spec.is_oauth:
                 continue
             p = getattr(self.providers, spec.name, None)
-            if p and p.api_key:
+            if self._provider_has_credentials(p, spec):
                 return p, spec.name
         return None, None
 
@@ -276,7 +291,9 @@ class Config(BaseSettings):
             return p.api_base
         if name:
             spec = find_by_name(name)
-            if spec and (spec.is_gateway or spec.is_local) and spec.default_api_base:
+            if spec and spec.default_api_base and (
+                spec.is_gateway or spec.is_local or spec.name == "gemini"
+            ):
                 return spec.default_api_base
         return None
 
