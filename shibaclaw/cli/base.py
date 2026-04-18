@@ -60,7 +60,13 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         provider = GithubCopilotThinker(default_model=model)
     else:
         spec = find_by_name(provider_name) if provider_name else None
-        current_ready = model.startswith("bedrock/") or (p and p.api_key) or (spec and (spec.is_oauth or spec.is_local))
+        has_env_key = bool(spec and spec.env_key and os.environ.get(spec.env_key))
+        current_ready = (
+            model.startswith("bedrock/")
+            or (p and p.api_key)
+            or has_env_key
+            or (spec and (spec.is_oauth or spec.is_local))
+        )
         if current_ready and spec and spec.is_oauth:
             current_ready = _is_oauth_authenticated(spec)
 
@@ -74,7 +80,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
                     if lp and lp.api_base: any_ready = True; break
                 else:
                     lp = getattr(config.providers, s.name, None)
-                    if lp and lp.api_key: any_ready = True; break
+                    if (lp and lp.api_key) or (s.env_key and os.environ.get(s.env_key)): any_ready = True; break
 
             if not any_ready:
                 if exit_on_error:
