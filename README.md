@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.2 Beta!** This patch resolves CI/CD pipeline failures, eliminates WebSocket disconnection (`connection_lost`) during long agent tasks, fixes the thinking panel flash bug, and unblocks the file browser/settings while the agent is running. See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.3 Beta!** This patch resolves CI/CD pipeline failures, eliminates WebSocket disconnection (`connection_lost`) during long agent tasks, fixes the thinking panel flash bug, and unblocks the file browser/settings while the agent is running. See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
