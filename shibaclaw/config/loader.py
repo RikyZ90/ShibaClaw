@@ -147,13 +147,10 @@ def _migrate_config(data: dict) -> dict:
         "toolTimeout": 30,
         "enabledTools": ["*"],
     }
-    if not mcp_servers:
-        mcp_servers["mcp"] = dict(mcp_defaults)
-    else:
-        for name, server in mcp_servers.items():
-            for key, default_val in mcp_defaults.items():
-                if key not in server:
-                    server[key] = default_val
+    for name, server in mcp_servers.items():
+        for key, default_val in mcp_defaults.items():
+            if key not in server:
+                server[key] = default_val
     tools["mcpServers"] = mcp_servers
     data["tools"] = tools
 
