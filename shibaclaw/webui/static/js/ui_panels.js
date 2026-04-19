@@ -908,7 +908,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 loadSession(state.sessionId);
             }
         });
-    });
+    }
 });
 
 /* ── end Skills panel ── */
