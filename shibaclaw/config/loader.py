@@ -135,7 +135,7 @@ def _migrate_config(data: dict) -> dict:
 
     data["channels"] = channels
 
-    # Ensure mcpServers have all default fields
+    # Ensure mcpServers have all default fields without re-adding deleted servers
     mcp_servers = tools.get("mcpServers", {})
     mcp_defaults = {
         "type": None,

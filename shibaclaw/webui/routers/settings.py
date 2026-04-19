@@ -35,6 +35,8 @@ async def api_settings_post(request: Request):
         from shibaclaw.config.schema import Config
 
         merged = agent_manager.config.model_dump(mode="json", by_alias=True)
+        if isinstance(data.get("tools"), dict) and "mcpServers" in data["tools"]:
+            merged.setdefault("tools", {})["mcpServers"] = data["tools"]["mcpServers"]
         _deep_merge(merged, data)
 
         try:
