@@ -11,7 +11,8 @@ from rich.table import Table
 from shibaclaw import __logo__, __version__
 
 from .base import _load_runtime_config, _make_provider
-from .utils import console, setup_shiba_logging
+from .utils import console
+from shibaclaw.helpers.logging import setup_shiba_logging
 
 app = typer.Typer(
     name="shibaclaw",
