@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.0 Beta!** This release brings a fully documented **[REST API Reference](./docs/API_REFERENCE.md)**, automated CI pipelines, and a leaner foundational structure. Ready for testing! See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.1 Beta!** This release brings a fully documented **[REST API Reference](./docs/API_REFERENCE.md)**, automated CI pipelines, and a leaner foundational structure. Ready for testing! See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -235,14 +235,14 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.1.0 (Beta)
+## Latest — v0.1.1 (Beta)
 
 - **Official API Documentation**: Full REST API reference is now available in `docs/API_REFERENCE.md`.
 - **CI Pipeline**: Automated testing and linting (pytest + ruff) via GitHub Actions.
 - **API Test Suite**: Proper integration tests for WebUI routers.
 - **Refined Footprint**: Channel-specific SDKs (Telegram, Discord, Slack, etc.) moved to optional extras for a leaner default install.
 
-→ [v0.1.0 full changelog](./CHANGELOG.md)
+→ [v0.1.1 full changelog](./CHANGELOG.md)
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 

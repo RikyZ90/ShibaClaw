@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.1] - 2026-04-19
+
+### Fixed
+- **Hotfix**: Fixed an `ImportError` on CLI startup (`setup_shiba_logging` missing from `shibaclaw/cli/utils.py`) caused by aggressive autolinting.
+
 ## [0.1.0] - 2026-04-19
 
 ### Added
