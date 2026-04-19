@@ -1,32 +1,22 @@
 {
-  "version": "0.1.1",
-  "release_notes": "### ShibaClaw v0.1.1 Beta Release! 🎉\n\n- **CLI Hotfix**: Resolved a critical startup crash caused by a missing logging import.\n\n*(Includes all v0.1.0 additions: REST API documentation, leaner dependencies, and automated CI tests).* ",
-  "upgrade_notes": "Update to v0.1.1. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`). For specific channels, you may now need to install optional dependencies (e.g., `pip install shibaclaw[telegram]`).",
+  "version": "0.1.3",
+  "release_notes": "### ShibaClaw v0.1.3 Beta Release! 🎉\n\n- **Native OpenAI SDK Support**: Added `OpenAIThinker` for better multi-provider compatibility.\n- **Advanced Configuration Loader**: Robust config system with auto-migration.\n- **Bugfixes**: Resolved MCP WebUI visibility and Gemini streaming tool signatures. Thanks to @shirik for the PR!",
+  "upgrade_notes": "Update to v0.1.3. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`).",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Version bumped to 0.1.1, classifier changed to Beta, heavy deps moved to extras."
+      "note": "Version bumped to 0.1.3."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.1.1 hotfix entry."
+      "note": "Added v0.1.3 changelog entry."
     },
     {
-      "path": ".github/workflows/ci.yml",
+      "path": "shibaclaw/thinkers/openai_provider.py",
       "overwrite": true,
-      "note": "Added CI workflow for automated testing."
-    },
-    {
-      "path": "tests/test_api_routers.py",
-      "overwrite": true,
-      "note": "Added API smoke tests."
-    },
-    {
-      "path": "docs/API_REFERENCE.md",
-      "overwrite": true,
-      "note": "Added complete REST API documentation."
+      "note": "Added OpenAIThinker for native SDK support."
     }
   ]
 }

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3] - 2026-04-19
+
+### Added
+- **Native OpenAI SDK Support**: Added `OpenAIThinker` to replace the generic compatibility wrapper, providing direct integration with the OpenAI Python SDK and supporting provider-specific tool call metadata preservation.
+- **Advanced Configuration Loader**: Implemented a robust configuration system with automatic state migration and streamlined plugin onboarding.
+
+### Fixed
+- **MCP WebUI Visibility**: Resolved an issue affecting the display of MCP servers in the WebUI.
+- **Gemini Streaming Tool Signatures**: Fixed an issue where Gemini streaming was dropping or malforming tool signatures. *(Thanks @shirik for the PR!)*
+
 ## [0.1.2] - 2026-04-19
 
 ### Fixed
