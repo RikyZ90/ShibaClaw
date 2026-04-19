@@ -205,7 +205,7 @@ class OpenAIThinker(Thinker):
                         tc.function, {"name", "arguments"},
                     ) or None,
                 ))
-                
+
         u = getattr(response, "usage", None)
         usage = {
             "prompt_tokens": u.prompt_tokens if u else 0,

@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 import asyncio
+from types import SimpleNamespace
 
 from shibaclaw.thinkers.openai_provider import OpenAIThinker
 
