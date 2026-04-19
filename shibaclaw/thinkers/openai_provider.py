@@ -180,10 +180,10 @@ class OpenAIThinker(Thinker):
     def _parse_response(self, response: Any) -> LLMResponse:
         if not response.choices:
             return LLMResponse(content="Error: API returned empty choices.", finish_reason="error")
-            
+
         choice = response.choices[0]
         msg = choice.message
-        
+
         tool_calls = []
         if getattr(msg, "tool_calls", None):
             for tc in msg.tool_calls:
@@ -193,7 +193,7 @@ class OpenAIThinker(Thinker):
                         args = json_repair.loads(args)
                     except Exception:
                         args = {"raw": args}
-                
+
                 tool_calls.append(ToolCallRequest(
                     id=tc.id or _short_tool_id(),
                     name=tc.function.name,
