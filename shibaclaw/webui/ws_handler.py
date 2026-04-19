@@ -216,6 +216,8 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
     session["processing"] = True
     await _emit_to_session(session_key, {"type": "message_ack", "id": msg["id"], "content": content, "session_key": session_key})
+    # Emit session status to update UI about processing state
+    await _emit_session_status_all(session_key)
 
     async def run_agent_job(message):
         processing_state[session_key] = {
@@ -440,27 +442,45 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
 
 # ── Public API for agent_manager / gateway events ────────────
 
-async def deliver_to_browsers(session_key: str, content: str, *, source: str = "background") -> int:
+async def deliver_to_browsers(session_key: str, content: str, *, source: str = "background", msg_type: str = "response") -> int:
     """Deliver a background notification to matching browser WebSocket clients.
 
-    Returns the number of clients that received the message.
+    Args:
+        session_key: The session key to target. If empty string, broadcast to all connected clients.
+        content: The message content to deliver.
+        source: The source of the notification (default: "background").
+        msg_type: The WebSocket message type to use (default: "response").
+
+    Returns:
+        The number of clients that received the message.
     """
     payload = {
-        "type": "response",
+        "type": msg_type,
         "id": str(uuid.uuid4())[:8],
         "content": content,
         "attachments": [],
         "session_key": session_key,
     }
     delivered = 0
-    for ws_id, state in list(sessions.items()):
-        if state.get("session_key") != session_key:
-            continue
-        ws = _ws_clients.get(ws_id)
-        if ws:
+    
+    # If session_key is empty, broadcast to all connected clients
+    if session_key == "":
+        for ws in _ws_clients.values():
             try:
                 await ws.send_text(json.dumps(payload))
                 delivered += 1
             except Exception:
                 pass
+    else:
+        # Original behavior: deliver only to matching session
+        for ws_id, state in list(sessions.items()):
+            if state.get("session_key") != session_key:
+                continue
+            ws = _ws_clients.get(ws_id)
+            if ws:
+                try:
+                    await ws.send_text(json.dumps(payload))
+                    delivered += 1
+                except Exception:
+                    pass
     return delivered

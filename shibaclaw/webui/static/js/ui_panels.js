@@ -895,6 +895,20 @@ document.addEventListener("DOMContentLoaded", function() {
     document.addEventListener("input", function(e) {
         if (e.target && e.target.id === "skills-search") renderSkillsPanel();
     });
+
+    // Initialize context modal open state
+    if (typeof state !== 'undefined' && state) {
+        state.contextModalOpen = false;
+    }
+
+    // Set up listener for memory compaction events
+    if (typeof realtime !== 'undefined' && realtime) {
+        realtime.on("memory_compacted", () => {
+            if (state.contextModalOpen && state.sessionId) {
+                loadSession(state.sessionId);
+            }
+        });
+    });
 });
 
 /* ── end Skills panel ── */

@@ -22,12 +22,14 @@ class AgentManager:
         *,
         source: str = "background",
         persist: bool = True,
+        msg_type: str = "response",
     ) -> dict[str, Any]:
         """Persist and deliver a background notification to matching browser sessions."""
-        if not session_key or not content:
+        if not content:
             return {"delivered": False, "matched_sessions": 0}
-
-        if persist:
+        
+        # For broadcasting (empty session_key), we don't persist to any specific session
+        if persist and session_key:
             if not self.config:
                 self.load_latest_config()
             if not self.config:
@@ -46,7 +48,7 @@ class AgentManager:
 
         # Deliver via native WebSocket handler
         from shibaclaw.webui.ws_handler import deliver_to_browsers
-        delivered = await deliver_to_browsers(session_key, content, source=source)
+        delivered = await deliver_to_browsers(session_key, content, source=source, msg_type=msg_type)
 
         return {"delivered": delivered > 0, "matched_sessions": delivered}
 
