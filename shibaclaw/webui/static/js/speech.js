@@ -215,23 +215,22 @@ class MicrophoneInput {
         const base64 = await this.convertBlobToBase64(audioBlob);
 
         try {
-            if (state && state.socket) {
-                state.socket.emit("transcribe_audio", { audio: base64 }, (response) => {
-                    if (response.error) {
-                        console.error("Transcription error:", response.error);
-                        alert("Transcription failed: " + response.error);
-                    } else if (response.text) {
-                        const txt = response.text.trim();
-                        if (txt) {
-                            if (this.updateCallback) this.updateCallback(txt);
-                            if (this.sendCallback) this.sendCallback();
-                        }
+            if (typeof realtime !== "undefined" && realtime.connected) {
+                const response = await realtime.request("transcribe", { audio: base64 }, 30000);
+                if (response.error) {
+                    console.error("Transcription error:", response.error);
+                    alert("Transcription failed: " + response.error);
+                } else if (response.text) {
+                    const txt = response.text.trim();
+                    if (txt) {
+                        if (this.updateCallback) this.updateCallback(txt);
+                        if (this.sendCallback) this.sendCallback();
                     }
-                    this.audioChunks = [];
-                    this.status = Status.INACTIVE;
-                });
+                }
+                this.audioChunks = [];
+                this.status = Status.INACTIVE;
             } else {
-                console.error("Socket not connected");
+                console.error("WebSocket not connected");
                 this.status = Status.INACTIVE;
             }
         } catch (error) {

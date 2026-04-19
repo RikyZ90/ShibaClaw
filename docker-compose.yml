@@ -39,6 +39,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:19999:19999"
+      - "127.0.0.1:19998:19998"
 
   shibaclaw-cli:
     container_name: shibaclaw-cli

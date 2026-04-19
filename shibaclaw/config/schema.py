@@ -114,6 +114,7 @@ class GatewayConfig(Base):
 
     host: str = "127.0.0.1"
     port: int = 19999
+    ws_port: int = 19998  # WebSocket port for realtime WebUI↔Gateway communication
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
     rate_limit_per_minute: int = 0  # 0 = disabled; per-sender inbound message rate limit
 

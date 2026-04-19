@@ -8,7 +8,6 @@ from loguru import logger
 
 from shibaclaw.config.schema import Config
 
-# Global variable to store current config path (for multi-instance support)
 _current_config_path: Path | None = None
 
 
@@ -53,7 +52,6 @@ def load_config(config_path: Path | None = None) -> Config:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         data = _migrate_config(data)
-        # Sync plugin/channel defaults su config esistente
         try:
             from shibaclaw.cli.onboard import _onboard_plugins
             _onboard_plugins(path)
@@ -147,7 +145,9 @@ def _migrate_config(data: dict) -> dict:
         "toolTimeout": 30,
         "enabledTools": ["*"]
     }
-    if mcp_servers:
+    if not mcp_servers:
+        mcp_servers["mcp"] = dict(_MCP_DEFAULTS)
+    else:
         for name, server in mcp_servers.items():
             for key, default_val in _MCP_DEFAULTS.items():
                 if key not in server:

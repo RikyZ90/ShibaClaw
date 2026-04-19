@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import logging
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -16,6 +17,8 @@ from loguru import logger
 from shibaclaw import __logo__, __version__
 from .utils import console
 from shibaclaw.helpers.logging import setup_shiba_logging
+
+import websockets
 
 
 @dataclass(frozen=True)
@@ -314,7 +317,13 @@ async def gateway_command(
 
         for target in resolved_targets:
             if target.channel == "webui":
-                await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
+                # Try WebSocket broadcast first, fall back to HTTP callback
+                if _ws_clients:
+                    await _broadcast_ws_event("session.notify", {
+                        "content": response, "source": "heartbeat", "persist": True,
+                    }, session_key=target.session_key)
+                else:
+                    await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
                 continue
             if target.channel == "cli":
                 continue
@@ -386,8 +395,198 @@ async def gateway_command(
                 logger.debug("Update check failed: {}", e)
             await asyncio.sleep(_UPDATE_CHECK_INTERVAL)
 
+    # ── WebSocket server for realtime WebUI↔Gateway communication ───
+    _ws_clients: set[websockets.ServerConnection] = set()
+    _ws_start_time = time.time()
+
+    async def _ws_handler(websocket: websockets.ServerConnection):
+        """Handle a single WebSocket connection from the WebUI."""
+        authed = False
+        try:
+            # First message must be hello with auth token
+            raw = await asyncio.wait_for(websocket.recv(), timeout=10)
+            hello = json.loads(raw)
+            if hello.get("type") != "hello":
+                await websocket.close(4001, "Expected hello")
+                return
+            if auth_token and hello.get("token") != auth_token:
+                await websocket.send(json.dumps({"type": "error", "error": "unauthorized"}))
+                await websocket.close(4003, "Unauthorized")
+                return
+            authed = True
+            _ws_clients.add(websocket)
+            await websocket.send(json.dumps({
+                "type": "hello_ok",
+                "version": __version__,
+                "provider_ready": provider is not None,
+                "uptime": int(time.time() - _ws_start_time),
+            }))
+            logger.info("🔌 WebUI WebSocket client connected")
+
+            async for raw_msg in websocket:
+                try:
+                    msg = json.loads(raw_msg)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                msg_type = msg.get("type", "")
+                request_id = msg.get("id", str(uuid.uuid4())[:8])
+
+                if msg_type == "ping":
+                    await websocket.send(json.dumps({"type": "pong"}))
+
+                elif msg_type == "request":
+                    action = msg.get("action", "")
+                    payload = msg.get("payload", {})
+                    await _handle_ws_request(websocket, request_id, action, payload)
+
+        except websockets.ConnectionClosed:
+            pass
+        except Exception as e:
+            logger.debug("WS handler error: {}", e)
+        finally:
+            _ws_clients.discard(websocket)
+            if authed:
+                logger.info("🔌 WebUI WebSocket client disconnected")
+
+    async def _handle_ws_request(ws, request_id: str, action: str, payload: dict):
+        """Dispatch a WebSocket request from the WebUI."""
+        nonlocal _state
+
+        def _ok(data: dict | None = None):
+            return json.dumps({"type": "response", "id": request_id, "ok": True, "payload": data or {}})
+
+        def _err(error: str, code: int = 400):
+            return json.dumps({"type": "response", "id": request_id, "ok": False, "error": error})
+
+        try:
+            if action == "status":
+                await ws.send(_ok({
+                    "status": "ok" if provider else "idle",
+                    "uptime": int(time.time() - _ws_start_time),
+                    "provider_ready": provider is not None,
+                }))
+
+            elif action == "chat":
+                if not provider:
+                    await ws.send(_err("no_provider"))
+                    return
+
+                async def _on_ws_progress(text, *, tool_hint=False):
+                    try:
+                        await ws.send(json.dumps({
+                            "type": "event", "name": "chat.progress",
+                            "request_id": request_id,
+                            "payload": {"c": text, "h": tool_hint},
+                        }))
+                    except websockets.ConnectionClosed:
+                        pass
+
+                async def _on_ws_response_token(token_text):
+                    try:
+                        await ws.send(json.dumps({
+                            "type": "event", "name": "chat.response_token",
+                            "request_id": request_id,
+                            "payload": {"c": token_text},
+                        }))
+                    except websockets.ConnectionClosed:
+                        pass
+
+                try:
+                    out = await agent.process_direct(
+                        content=payload.get("content", ""),
+                        session_key=payload.get("session_key", "webui:direct"),
+                        channel=payload.get("channel", "webui"),
+                        chat_id=payload.get("chat_id", "direct"),
+                        on_progress=_on_ws_progress,
+                        on_response_token=_on_ws_response_token,
+                        media=payload.get("media"),
+                        metadata=payload.get("metadata"),
+                        profile_id=payload.get("profile_id"),
+                    )
+                    await ws.send(_ok({
+                        "content": out.content if out else "",
+                        "media": out.media if out else [],
+                    }))
+                except Exception as e:
+                    await ws.send(_err(str(e)))
+
+            elif action == "restart":
+                await ws.send(_ok({"status": "restarting"}))
+                _state["restart"] = True
+                asyncio.get_event_loop().call_later(
+                    0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
+                )
+
+            elif action == "cron.list":
+                def _ser(j):
+                    return {
+                        "id": j.id, "name": j.name, "enabled": j.enabled,
+                        "schedule": {"kind": j.schedule.kind, "atMs": j.schedule.at_ms,
+                                     "everyMs": j.schedule.every_ms, "expr": j.schedule.expr,
+                                     "tz": j.schedule.tz},
+                        "payload": {"message": j.payload.message, "deliver": j.payload.deliver,
+                                    "channel": j.payload.channel, "to": j.payload.to},
+                        "state": {"nextRunAtMs": j.state.next_run_at_ms,
+                                  "lastRunAtMs": j.state.last_run_at_ms,
+                                  "lastStatus": j.state.last_status,
+                                  "lastError": j.state.last_error},
+                        "deleteAfterRun": j.delete_after_run,
+                    }
+                await ws.send(_ok({"jobs": [_ser(j) for j in cron.list_jobs(include_disabled=True)]}))
+
+            elif action == "cron.trigger":
+                job_id = payload.get("job_id", "")
+                ran = await cron.run_job(job_id, force=True)
+                await ws.send(_ok({"triggered": ran}))
+
+            elif action == "heartbeat.status":
+                await ws.send(_ok(heartbeat.status()))
+
+            elif action == "heartbeat.trigger":
+                try:
+                    result = await heartbeat.trigger_now()
+                    await ws.send(_ok({"triggered": True, "response": result}))
+                except Exception as e:
+                    await ws.send(_err(str(e)))
+
+            elif action == "archive":
+                snapshot = payload.get("snapshot", [])
+                archived = False
+                if snapshot and hasattr(agent, "memory_consolidator"):
+                    try:
+                        await agent.memory_consolidator.archive_snapshot(snapshot)
+                        archived = True
+                    except Exception:
+                        pass
+                await ws.send(_ok({"archived": archived}))
+
+            else:
+                await ws.send(_err(f"unknown action: {action}"))
+
+        except websockets.ConnectionClosed:
+            pass
+        except Exception as e:
+            try:
+                await ws.send(_err(str(e)))
+            except Exception:
+                pass
+
+    async def _broadcast_ws_event(name: str, payload: dict, session_key: str | None = None):
+        """Broadcast an event to all connected WebSocket clients."""
+        msg = json.dumps({
+            "type": "event", "name": name,
+            "session_key": session_key,
+            "payload": payload,
+        })
+        for ws in list(_ws_clients):
+            try:
+                await ws.send(msg)
+            except Exception:
+                _ws_clients.discard(ws)
+
     async def run():
         _start_time = time.time()
+        _ws_start_time = _start_time
 
         async def _health_handler(reader, writer):
             nonlocal _state
@@ -523,12 +722,18 @@ async def gateway_command(
                 writer.close()
 
         health_srv = await asyncio.start_server(_health_handler, host, port)
+
+        ws_port = config.gateway.ws_port
+        ws_server = await websockets.serve(_ws_handler, host, ws_port)
+        logger.info("🔌 Gateway WebSocket server listening on {}:{}", host, ws_port)
+
         try:
             await heartbeat.start()
             await asyncio.gather(
                 agent.run(),
                 channels.start_all(),
                 health_srv.serve_forever(),
+                ws_server.serve_forever(),
                 _update_check_loop(),
             )
         except (KeyboardInterrupt, asyncio.CancelledError):

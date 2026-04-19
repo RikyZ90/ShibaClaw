@@ -113,3 +113,31 @@ class GithubCopilotThinker(OpenAIThinker):
             reasoning_effort=reasoning_effort,
             tool_choice=tool_choice,
         )
+
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        try:
+            session_token = await self._get_session_token()
+            self._client.api_key = session_token
+        except Exception as e:
+            return LLMResponse(content=f"Error authenticating with Github Copilot: {e}", finish_reason="error")
+
+        return await super().chat_streaming(
+            messages=messages,
+            on_token=on_token,
+            tools=tools,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning_effort=reasoning_effort,
+            tool_choice=tool_choice,
+        )

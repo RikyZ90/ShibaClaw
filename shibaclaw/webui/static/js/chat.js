@@ -419,7 +419,7 @@ function sendMessage() {
         const attachments = [...state.stagedFiles];
         addUserMessage(content, attachments);
         
-        state.socket.emit("user_message", { 
+        realtime.emit("message", { 
             content,
             attachments: attachments.map(a => ({
                 name: a.name,
