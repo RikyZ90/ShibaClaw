@@ -15,6 +15,10 @@
 
 ---
 
+🎉 **Welcome to ShibaClaw v0.1.0 Beta!** This release brings a fully documented **REST API Reference**, automated CI pipelines, and a leaner foundational structure. Ready for testing! See the [Changelog](./CHANGELOG.md) for details.
+
+---
+
 ShibaClaw is a **security-first AI agent** for your terminal and browser.
 Security isn't glue code — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
 
