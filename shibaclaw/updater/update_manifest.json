@@ -1,37 +1,37 @@
 {
-  "version": "0.0.38",
-  "release_notes": "### Native WebSocket · Gemini env-var support · WebUI polish\n\n- **Native WebSocket transport** — Socket.IO replaced with a native WebSocket layer. Gateway runs a dedicated WS server on port `19998`; browser uses new `realtime.js` adapter. `python-socketio` moved to optional `[mochat]` extra.\n- **Gemini raw env-var** — `GEMINI_API_KEY` in the environment is now accepted directly by provider matching, no stored key needed. Google OpenAI-compat endpoint (`generativelanguage.googleapis.com/v1beta/openai/`) pre-configured.\n- **WebUI provider placeholders** — API-key fields in Settings and Onboard wizard show provider-specific hints (`AIza…`, `sk-ant-…`, `gsk_…`, etc.).\n- **`message` tool workspace context** — Relative media paths resolved against the configured workspace, fixing file-attachment issues across channels.",
-  "upgrade_notes": "Update to v0.0.38. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers to pick up the new WebSocket port 19998 (`docker compose up -d --build`).",
+  "version": "0.0.40",
+  "release_notes": "### Memory compaction notifications · WebSocket broadcast · Critical JS fix\n\n- **Memory compaction WebUI notification** — After auto-compaction, the backend broadcasts a `memory_compacted` event to all connected WebUI clients. The context viewer auto-refreshes when open.\n- **WebSocket broadcast support** — `deliver_to_browsers()` now accepts an empty `session_key` to broadcast to all clients, with a configurable `msg_type` parameter.\n- **Session status emission** — The WebSocket handler emits `session_status` immediately when a message starts processing.\n- **Fix: WebUI stuck on \"Connecting...\"** — A JavaScript syntax error in `ui_panels.js` (mismatched bracket) prevented `startApp()` from being defined, blocking WebSocket initialization entirely.",
+  "upgrade_notes": "Update to v0.0.40. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`).",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Version bumped to 0.0.38; python-socketio moved to optional extra."
+      "note": "Version bumped to 0.0.40."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.0.38 entry."
+      "note": "Added v0.0.40 entry."
     },
     {
-      "path": "shibaclaw/config/schema.py",
+      "path": "shibaclaw/agent/memory.py",
       "overwrite": true,
-      "note": "Added ws_port to GatewayConfig; added _provider_has_credentials helper and updated provider matching for env-var support."
+      "note": "Added memory_compacted notification broadcast after auto-compaction."
     },
     {
-      "path": "shibaclaw/thinkers/registry.py",
+      "path": "shibaclaw/webui/agent_manager.py",
       "overwrite": true,
-      "note": "Gemini default_api_base set to Google OpenAI-compat endpoint."
+      "note": "Support empty session_key for broadcast and custom msg_type in deliver_background_notification."
+    },
+    {
+      "path": "shibaclaw/webui/ws_handler.py",
+      "overwrite": true,
+      "note": "Broadcast support in deliver_to_browsers; session status emission on message processing start."
     },
     {
       "path": "shibaclaw/webui/static/js/ui_panels.js",
       "overwrite": true,
-      "note": "Added providerKeyPlaceholder(); switched to realtime WebSocket adapter."
-    },
-    {
-      "path": "docker-compose.yml",
-      "overwrite": true,
-      "note": "Expose gateway WebSocket port 19998."
+      "note": "Fixed critical syntax error (mismatched bracket) that prevented WebSocket initialization; added memory_compacted event listener."
     }
   ]
 }

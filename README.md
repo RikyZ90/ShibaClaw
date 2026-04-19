@@ -6,7 +6,7 @@
 <h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
 
 <p align="center">
-  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.38-orange?style=flat-square" alt="version"></a>   
+  <a href="https://github.com/RikyZ90/ShibaClaw/releases"><img src="https://img.shields.io/badge/version-v0.0.40-orange?style=flat-square" alt="version"></a>   
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
   <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square" alt="license"></a>
@@ -231,14 +231,14 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.0.38
+## Latest — v0.0.40
 
-- **Native WebSocket transport** — Socket.IO replaced with a native WebSocket layer (gateway port `19998`, browser `realtime.js` adapter). `python-socketio` removed from core deps.
-- **Gemini env-var support** — `GEMINI_API_KEY` in the environment is picked up automatically; Google OpenAI-compat endpoint pre-configured.
-- **WebUI provider placeholders** — API-key inputs now show provider-specific hints (`AIza…`, `sk-ant-…`, `gsk_…`, …).
-- **`message` tool workspace context** — relative media paths resolved against the agent workspace for reliable file attachments.
+- **Memory compaction WebUI notification** — After auto-compaction, a `memory_compacted` event is broadcast to all connected clients. The context viewer auto-refreshes when open.
+- **WebSocket broadcast support** — `deliver_to_browsers()` now supports broadcasting to all clients with configurable message types.
+- **Session status emission** — Processing state is emitted immediately when a message starts, keeping the UI in sync.
+- **Fix: WebUI stuck on "Connecting..."** — A JS syntax error in `ui_panels.js` blocked WebSocket initialization entirely.
 
-→ [v0.0.38 full changelog](./CHANGELOG.md)
+→ [v0.0.40 full changelog](./CHANGELOG.md)
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 
