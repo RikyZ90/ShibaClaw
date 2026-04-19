@@ -304,11 +304,19 @@ class OpenAIThinker(Thinker):
                                 "id": tc_delta.id or "",
                                 "name": "",
                                 "arguments": "",
+                                "provider_specific_fields": {},
+                                "function_provider_specific_fields": {},
                             }
                         tc = tool_call_chunks[idx]
                         if tc_delta.id:
                             tc["id"] = tc_delta.id
+                        tc["provider_specific_fields"].update(
+                            _extract_extra_fields(tc_delta, {"id", "type", "function", "index"}),
+                        )
                         if tc_delta.function:
+                            tc["function_provider_specific_fields"].update(
+                                _extract_extra_fields(tc_delta.function, {"name", "arguments"}),
+                            )
                             if tc_delta.function.name:
                                 tc["name"] += tc_delta.function.name
                             if tc_delta.function.arguments:
@@ -327,6 +335,8 @@ class OpenAIThinker(Thinker):
                     id=tc["id"] or _short_tool_id(),
                     name=tc["name"],
                     arguments=args,
+                    provider_specific_fields=tc["provider_specific_fields"] or None,
+                    function_provider_specific_fields=tc["function_provider_specific_fields"] or None,
                 ))
 
             return LLMResponse(
