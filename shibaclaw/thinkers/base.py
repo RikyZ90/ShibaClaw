@@ -193,6 +193,31 @@ class Thinker(ABC):
         """
         pass
 
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        """Stream a chat completion, calling on_token(text_chunk) for each delta.
+
+        Default implementation falls back to non-streaming chat().
+        Providers override this to enable true token-by-token streaming.
+        """
+        response = await self.chat(
+            messages=messages, tools=tools, model=model,
+            max_tokens=max_tokens, temperature=temperature,
+            reasoning_effort=reasoning_effort, tool_choice=tool_choice,
+        )
+        if on_token and response.content and not response.has_tool_calls:
+            await on_token(response.content)
+        return response
+
     @classmethod
     def _is_transient_error(cls, content: str | None) -> bool:
         err = (content or "").lower()
@@ -290,6 +315,74 @@ class Thinker(ABC):
             await asyncio.sleep(delay)
 
         return await self._safe_chat(**kw)
+
+    async def chat_with_retry_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: object = _SENTINEL,
+        temperature: object = _SENTINEL,
+        reasoning_effort: object = _SENTINEL,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        """Like chat_with_retry but uses streaming for the final response."""
+        if max_tokens is self._SENTINEL:
+            max_tokens = self.generation.max_tokens
+        if temperature is self._SENTINEL:
+            temperature = self.generation.temperature
+        if reasoning_effort is self._SENTINEL:
+            reasoning_effort = self.generation.reasoning_effort
+
+        kw: dict[str, Any] = dict(
+            messages=messages, on_token=on_token, tools=tools,
+            model=model, max_tokens=max_tokens, temperature=temperature,
+            reasoning_effort=reasoning_effort, tool_choice=tool_choice,
+        )
+
+        for attempt, delay in enumerate(self._CHAT_RETRY_DELAYS, start=1):
+            try:
+                response = await asyncio.wait_for(
+                    self.chat_streaming(**kw), timeout=self._CHAT_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                response = LLMResponse(
+                    content="Error calling LLM: request timed out",
+                    finish_reason="error",
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                response = LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
+
+            if response.finish_reason != "error":
+                return response
+
+            if not self._is_transient_error(response.content):
+                return response
+
+            logger.warning(
+                "LLM streaming transient error (attempt {}/{}), retrying in {}s: {}",
+                attempt, len(self._CHAT_RETRY_DELAYS), delay,
+                (response.content or "")[:120].lower(),
+            )
+            await asyncio.sleep(delay)
+
+        # Final attempt
+        try:
+            return await asyncio.wait_for(
+                self.chat_streaming(**kw), timeout=self._CHAT_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            return LLMResponse(
+                content="Error calling LLM: request timed out",
+                finish_reason="error",
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            return LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
 
     @abstractmethod
     def get_default_model(self) -> str:

@@ -2,6 +2,45 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.0.40] - 2026-04-19
+
+### Added
+- **Memory compaction WebUI notification** — After auto-compaction, the backend now broadcasts a `memory_compacted` event to all connected WebUI clients. When the context viewer is open, it auto-refreshes to reflect the compacted token count.
+- **WebSocket broadcast support** — `deliver_to_browsers()` now accepts an empty `session_key` to broadcast a message to all connected clients, with a configurable `msg_type` parameter for custom event types.
+- **Session status emission on processing** — The WebSocket handler now emits `session_status` updates immediately when a message starts processing, keeping the UI in sync with the backend state.
+
+### Fixed
+- **WebUI stuck on "Connecting..."** — A JavaScript syntax error in `ui_panels.js` (mismatched bracket `});` instead of `}` in the memory compaction listener) prevented the entire file from executing. Since `ui_panels.js` defines `startApp()`, this blocked WebSocket initialization and left the UI permanently stuck on "Connecting..." with no token prompt and no errors in the console.
+
+## [0.0.38] - 2026-04-18
+
+### Added
+- **Token-by-token response streaming** — The LLM response is now streamed to the browser in real time, character by character. Supported natively for all OpenAI-compatible providers (OpenRouter, GitHub Copilot, Groq, DeepSeek, etc.) and Anthropic via their respective streaming APIs. Providers without native streaming support (Azure, Custom, Codex) automatically fall back to delivering the full response in one shot without errors.
+  - New abstract method `chat_streaming()` on `Thinker` base class, with a non-streaming default fallback so existing provider subclasses work unchanged.
+  - New `chat_with_retry_streaming()` on `Thinker` base class with the same transient-error retry logic (backoff on 429/5xx) as `chat_with_retry()`.
+  - `OpenAIThinker` and `AnthropicThinker` implement true streaming via `stream=True` / `messages.stream()`.
+  - `GithubCopilotThinker` overrides `chat_streaming()` to refresh the short-lived OAuth session token before each streaming call (same pattern as its `chat()` override).
+  - `on_response_token` callback threaded through `_run_agent_loop` → `_process_message` → `process_direct`.
+  - Gateway emits `chat.response_token` WebSocket events for each text delta.
+  - `GatewayClient.chat_stream()` yields `{"t": "rt"}` events for response token chunks.
+  - `ws_handler` accumulates streamed content and forwards `response_chunk` messages to the browser.
+  - Browser (`realtime.js`, `api_socket.js`) progressively renders each chunk into a live message bubble using the existing Markdown renderer; the bubble is finalised with the complete content when the `response` event arrives.
+
+### Fixed
+- **Streaming bubble stuck on tool call** — If the model emits text tokens then switches to a tool call (e.g. extended thinking before tool use), the partial streaming bubble is now immediately removed when a `thinking` or `tool` progress event arrives, preventing stale content from showing in the chat.
+- **Processing state locked after empty response** — When the agent dispatches a reply through a channel tool (e.g. `MessageTool`) and returns no direct WebUI response, the WebSocket handler previously did an early return without emitting a `response` event, leaving `state.processing = true` and the send button permanently disabled until page reload. The `response` event is now always emitted.
+
+## [0.0.38] - 2026-04-18
+
+### Added
+- **Native WebSocket transport** — Replaced Socket.IO with a native WebSocket layer. The gateway now runs a dedicated WS server on port `19998`; the WebUI connects via a new `realtime.js` adapter (drop-in replacement for the Socket.IO client). Eliminates the `python-socketio` dependency from the core install — moved to the optional `[mochat]` extra. New files: `gateway_client.py`, `ws_handler.py`, `realtime.js`.
+- **Gemini raw env-var support** — `GEMINI_API_KEY` set in the environment is now accepted directly by the config and provider-matching logic without needing a stored key. Auto-detection via env var works alongside existing stored keys. *(Thanks [@shirik](https://github.com/shirik)!)*
+- **Gemini OpenAI-compat endpoint** — `default_api_base` for the Gemini provider is now set to `https://generativelanguage.googleapis.com/v1beta/openai/`, enabling out-of-the-box routing without manual configuration. *(Thanks [@shirik](https://github.com/shirik)!)*
+
+### Changed
+- **WebUI provider API-key placeholders** — Settings panel and Onboard wizard now show provider-specific placeholder text (`AIza…` for Gemini, `sk-ant-…` for Anthropic, `gsk_…` for Groq, etc.) instead of the generic `sk-...`. *(Thanks [@shirik](https://github.com/shirik)!)*
+- **`message` tool workspace context** — `MessageTool` now receives and uses the agent workspace path to resolve relative media file paths, improving file-attachment reliability across channels.
+
 ## [0.0.37] - 2026-04-17
 
 ### Fixed

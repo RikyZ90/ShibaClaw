@@ -20,7 +20,7 @@ ENV PATH="/opt/tools/bin:$PATH"
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 19999 3000
+EXPOSE 19999 19998 3000
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["shibaclaw", "gateway"]

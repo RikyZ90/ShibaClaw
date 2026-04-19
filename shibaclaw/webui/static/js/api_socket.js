@@ -1,47 +1,31 @@
-// ── Socket.IO Connection ─────────────────────────────────────
+// ── Streaming helpers ────────────────────────────────────────
+function _discardStreamBubble(msgId) {
+    const mid = msgId || "stream";
+    const bubble = document.getElementById("stream-bubble-" + mid);
+    if (bubble) {
+        const group = bubble.closest(".message-group");
+        if (group) group.remove();
+        bubble.remove();
+    }
+    if (state._streamBuffers) delete state._streamBuffers[mid];
+}
+
+// ── WebSocket Connection (via realtime.js adapter) ───────────
 function initSocket() {
-    const savedSessionId = localStorage.getItem("shiba_session_id");
     const token = getStoredToken();
     
-    state.socket = io({
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 10,
-        query: savedSessionId ? { session_id: savedSessionId } : {},
-        auth: token ? { token } : {},
-    });
+    // Connect using native WebSocket adapter
+    realtime.connect(token);
 
-    const { socket } = state;
+    // Expose as state.socket for backward compatibility with UI checks
+    state.socket = realtime;
 
-    socket.on("connect", () => {
-        state.socket.connected = true;
+    realtime.on("connected", (data) => {
         fetchStatus();
-    });
 
-    socket.on("disconnect", () => {
-        state.socket.connected = false;
-        statusDot.className = "status-dot disconnected";
-        statusText.textContent = "Disconnected";
-        hideTypingBubble();
-        hideThinking();
-        state.processing = false;
-        updateSendButton();
-        console.log("WebSocket disconnected.");
-    });
-
-    socket.on("connect_error", (err) => {
-        if (err && err.message === "Unauthorized") {
-            console.warn("Socket.IO auth rejected — showing login");
-            socket.disconnect();
-            showLogin("Invalid token. Please try again.");
-        }
-    });
-
-    socket.on("connected", (data) => {
         if (state._initialConnectDone) {
             if (state.sessionId && state.sessionId !== data.session_id) {
-                socket.emit("switch_session", { session_id: state.sessionId });
+                realtime.emit("switch_session", { session_id: state.sessionId });
             }
             return;
         }
@@ -54,29 +38,115 @@ function initSocket() {
         }
     });
 
-    socket.on("agent_thinking", (data) => {
+    realtime.on("disconnect", () => {
+        statusDot.className = "status-dot disconnected";
+        statusText.textContent = "Disconnected";
+        hideTypingBubble();
+        hideThinking();
+        state.processing = false;
+        updateSendButton();
+        console.log("WebSocket disconnected.");
+    });
+
+    realtime.on("agent_thinking", (data) => {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         showThinking(data.content);
         addProcessStep(data.id, data.content, "GEN");
+        // If streaming was in progress, discard the partial bubble (model chose tools)
+        _discardStreamBubble(data.id);
     });
 
-    socket.on("agent_tool", (data) => {
+    realtime.on("agent_tool", (data) => {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         showThinking(data.content);
         addProcessStep(data.id, data.content, "EXE");
+        // If streaming was in progress, discard the partial bubble (model chose tools)
+        _discardStreamBubble(data.id);
     });
 
-    socket.on("agent_response", (data) => {
+    // ── Streaming response chunks ──
+    realtime.on("agent_response_chunk", (data) => {
+        if (data.session_key && data.session_key !== state.sessionId) return;
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        hideThinking();
+
+        // Accumulate streamed text per message id
+        if (!state._streamBuffers) state._streamBuffers = {};
+        const mid = data.id || "stream";
+        state._streamBuffers[mid] = (state._streamBuffers[mid] || "") + (data.content || "");
+
+        // Get or create the streaming bubble
+        let bubble = document.getElementById("stream-bubble-" + mid);
+        if (!bubble) {
+            collapseProcessGroup(mid);
+            activateChat();
+            const group = createMessageGroup("agent");
+            bubble = document.createElement("div");
+            bubble.className = "message-bubble";
+            bubble.id = "stream-bubble-" + mid;
+            group.querySelector(".message-content").appendChild(bubble);
+            addTimestamp(group);
+            chatHistory.appendChild(group);
+        }
+
+        // Render accumulated markdown
+        bubble.innerHTML = renderMarkdown(state._streamBuffers[mid]);
+        enhanceCodeBlocks(bubble);
+        scrollToBottom();
+    });
+
+    realtime.on("agent_response", (data) => {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         hideThinking();
         collapseProcessGroup(data.id);
-        addAgentMessage(data.id, data.content, data.attachments || []);
+
+        // If streaming already created the bubble, finalize it with the complete content
+        const mid = data.id || "stream";
+        const streamBubble = document.getElementById("stream-bubble-" + mid);
+        if (streamBubble) {
+            // Clean up stream buffer
+            if (state._streamBuffers) delete state._streamBuffers[mid];
+            // Re-render with final content (which may include <think> stripping, etc.)
+            if (data.content) {
+                streamBubble.innerHTML = renderMarkdown(data.content);
+                enhanceCodeBlocks(streamBubble);
+            }
+            streamBubble.removeAttribute("id"); // Remove stream id marker
+
+            // Append any attachments
+            if (data.attachments && data.attachments.length) {
+                data.attachments.forEach(file => {
+                    if (file.type && file.type.startsWith("image/")) {
+                        const img = document.createElement("img");
+                        img.src = file.url;
+                        img.onclick = () => window.open(file.url, "_blank");
+                        streamBubble.appendChild(img);
+                    } else {
+                        const link = document.createElement("a");
+                        link.href = "#";
+                        link.className = "file-attachment-link";
+                        link.innerHTML = `
+                            <span class="material-icons-round">insert_drive_file</span>
+                            <span>${file.name || "attachment"}</span>
+                        `;
+                        link.addEventListener("click", (e) => {
+                            e.preventDefault();
+                            downloadAttachment(file.url, file.name || "file");
+                        });
+                        streamBubble.appendChild(link);
+                    }
+                });
+            }
+        } else {
+            addAgentMessage(data.id, data.content, data.attachments || []);
+        }
         
         // Play text-to-speech if enabled
         if (window.speechTTS && window.speechTTS.enabled && data.content) {
@@ -93,7 +163,7 @@ function initSocket() {
         refreshTokenBadge();
     });
 
-    socket.on("error", (data) => {
+    realtime.on("error", (data) => {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
@@ -104,19 +174,19 @@ function initSocket() {
         updateSendButton();
     });
 
-    socket.on("message_queued", (data) => {
+    realtime.on("message_queued", (data) => {
         state.queueCount = data.position || (state.queueCount + 1);
         updateQueueIndicator();
     });
 
-    socket.on("message_ack", (data) => {
+    realtime.on("message_ack", (data) => {
         if (data.session_key && data.session_key !== state.sessionId) return;
         setWorkingState(true);
         clearTimeout(state._typingBubbleTimeout);
         state._typingBubbleTimeout = setTimeout(() => showTypingBubble(), 150);
     });
 
-    socket.on("session_reset", (data) => {
+    realtime.on("session_reset", (data) => {
         Object.values(state.processGroups).forEach(pg => {
             if (pg && pg.timer) clearInterval(pg.timer);
         });
@@ -134,9 +204,7 @@ function initSocket() {
         refreshTokenBadge();
     });
 
-
-
-    socket.on("session_status", (data) => {
+    realtime.on("session_status", (data) => {
         if (data.session_key && data.session_key !== state.sessionId) return;
         if (data.processing) {
             state.processing = true;
@@ -151,10 +219,10 @@ function initSocket() {
             
             const events = data.events || [];
             for (const evt of events) {
-                if (evt.type === "agent_thinking") {
+                if (evt.type === "agent_thinking" || evt.type === "thinking") {
                     showThinking(evt.content);
                     addProcessStep(evt.id, evt.content, "GEN");
-                } else if (evt.type === "agent_tool") {
+                } else if (evt.type === "agent_tool" || evt.type === "tool") {
                     showThinking(evt.content);
                     addProcessStep(evt.id, evt.content, "EXE");
                 }
@@ -206,7 +274,7 @@ async function fetchStatus() {
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;
 
             const isConfigured = data.agent_configured || oauthConfigured;
-            if (isConfigured && state.socket && state.socket.connected) {
+            if (isConfigured && realtime.connected) {
                 state.gatewayUp = true;
                 state.gatewayKnown = true;
                 state.gatewayUnreachableCount = 0;
@@ -229,7 +297,7 @@ async function fetchStatus() {
 
 // ── Gateway Health Polling ─────────────────────────────────────
 async function checkGatewayHealth() {
-    if (!state.socket || !state.socket.connected) {
+    if (!realtime.connected) {
         state.gatewayUp = false;
         state.gatewayKnown = true;
         if (!state.processing) setStatusIndicator("disconnected");
@@ -270,7 +338,7 @@ async function checkGatewayHealth() {
 }
 
 function updateUIFromHealthState() {
-    if (!state.socket || !state.socket.connected) {
+    if (!realtime.connected) {
         setStatusIndicator("disconnected");
         return;
     }

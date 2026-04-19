@@ -367,6 +367,18 @@ class ScentKeeper:
                 "🐕 Memory compacted: {} -> {} tokens",
                 current_tokens, new_tokens,
             )
+            # Notify WebUI clients that memory has been compacted
+            try:
+                from shibaclaw.webui.agent_manager import agent_manager
+                await agent_manager.deliver_background_notification(
+                    session_key="",  # empty string = broadcast to all clients
+                    content="Memory compacted",
+                    source="memory_compact",
+                    msg_type="memory_compacted",
+                    persist=False
+                )
+            except Exception as e:
+                logger.debug("Failed to send memory compacted notification: {}", e)
             return True
         except Exception:
             logger.exception("Memory compaction failed")

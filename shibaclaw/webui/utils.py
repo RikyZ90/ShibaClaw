@@ -208,7 +208,21 @@ def _compute_session_tokens(session_id: str, wp: Path, pm, estimate_message_toke
 
 
 async def _gateway_request(method: str, path: str) -> dict | None:
-    """Send a raw HTTP request to the gateway and return parsed JSON or None."""
+    """Send a request to the gateway, preferring WebSocket when available."""
+    from .gateway_client import gateway_client
+
+    # Map well-known HTTP paths to WS actions
+    _path_to_action = {
+        "/": "status",
+        "/api/cron/list": "cron.list",
+        "/heartbeat/status": "heartbeat.status",
+    }
+
+    action = _path_to_action.get(path)
+    if action and gateway_client.connected:
+        return await gateway_client.request(action)
+
+    # Fallback: raw HTTP
     hosts, port = _resolve_gateway_hosts()
     if not hosts:
         return None
@@ -238,7 +252,25 @@ async def _gateway_request(method: str, path: str) -> dict | None:
 
 
 async def _gateway_post(path: str, body: dict) -> dict | None:
-    """Send a POST with a JSON body to the gateway and return parsed JSON."""
+    """Send a POST to the gateway, preferring WebSocket when available."""
+    from .gateway_client import gateway_client
+
+    _path_to_action = {
+        "/restart": "restart",
+        "/heartbeat/trigger": "heartbeat.trigger",
+        "/api/archive": "archive",
+    }
+
+    action = _path_to_action.get(path)
+    if action and gateway_client.connected:
+        return await gateway_client.request(action, body)
+
+    # Handle cron trigger: /api/cron/trigger/{job_id}
+    if path.startswith("/api/cron/trigger/") and gateway_client.connected:
+        job_id = path.split("/")[-1]
+        return await gateway_client.request("cron.trigger", {"job_id": job_id})
+
+    # Fallback: raw HTTP
     hosts, port = _resolve_gateway_hosts()
     if not hosts:
         return None
@@ -278,12 +310,20 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
 
 
 async def _gateway_chat_stream(payload: dict):
-    """Stream chat response from the gateway as NDJSON events.
+    """Stream chat response from the gateway, preferring WebSocket.
 
     Yields dicts: {"t":"p","c":text,"h":bool} for progress,
                   {"t":"r","content":str,"media":list} for final result,
                   {"t":"e","error":str} on error.
     """
+    from .gateway_client import gateway_client
+
+    if gateway_client.connected:
+        async for event in gateway_client.chat_stream(payload):
+            yield event
+        return
+
+    # Fallback: HTTP NDJSON streaming
     hosts, port = _resolve_gateway_hosts()
     if not hosts:
         raise ConnectionError("Gateway not configured")
