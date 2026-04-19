@@ -1,0 +1,5 @@
+{
+    "version": "0.1.2",
+    "release_notes": "Stability patch: eliminates WebSocket `connection_lost` errors on long agent tasks, fixes the thinking panel flash bug, unblocks file browser/settings during agent work, and resolves 88 CI lint errors.",
+    "changes": []
+}

@@ -54,7 +54,9 @@ class AnthropicThinker(Thinker):
 
             elif role == "user":
                 if isinstance(content, str):
-                    anthropic_messages.append({"role": "user", "content": [{"type": "text", "text": content}]})
+                    anthropic_messages.append(
+                        {"role": "user", "content": [{"type": "text", "text": content}]}
+                    )
                 elif isinstance(content, list):
                     # Extract image blocks assuming formatting is standard
                     new_content = []
@@ -68,10 +70,16 @@ class AnthropicThinker(Thinker):
                                     # Assuming standard base64 data uri format
                                     meta, b64 = url.split(",", 1)
                                     mime = meta.split(":")[1].split(";")[0]
-                                    new_content.append({
-                                        "type": "image",
-                                        "source": {"type": "base64", "media_type": mime, "data": b64}
-                                    })
+                                    new_content.append(
+                                        {
+                                            "type": "image",
+                                            "source": {
+                                                "type": "base64",
+                                                "media_type": mime,
+                                                "data": b64,
+                                            },
+                                        }
+                                    )
                             else:
                                 new_content.append(blk)
                         elif isinstance(blk, str):
@@ -85,25 +93,35 @@ class AnthropicThinker(Thinker):
 
                 tool_calls = msg.get("tool_calls", [])
                 for tc in tool_calls:
-                    new_content.append({
-                        "type": "tool_use",
-                        "id": getattr(tc, "id", None) or tc.get("id"),
-                        "name": tc["function"]["name"] if isinstance(tc, dict) else tc.function.name,
-                        "input": getattr(tc.function, "arguments", None) if not isinstance(tc, dict) else (tc["function"].get("arguments") or {})
-                    })
+                    new_content.append(
+                        {
+                            "type": "tool_use",
+                            "id": getattr(tc, "id", None) or tc.get("id"),
+                            "name": tc["function"]["name"]
+                            if isinstance(tc, dict)
+                            else tc.function.name,
+                            "input": getattr(tc.function, "arguments", None)
+                            if not isinstance(tc, dict)
+                            else (tc["function"].get("arguments") or {}),
+                        }
+                    )
                 if new_content:
                     anthropic_messages.append({"role": "assistant", "content": new_content})
 
             elif role == "tool":
                 result = str(content) if not isinstance(content, str) else content
-                anthropic_messages.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": msg.get("tool_call_id"),
-                        "content": result
-                    }]
-                })
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": msg.get("tool_call_id"),
+                                "content": result,
+                            }
+                        ],
+                    }
+                )
 
         return system_prompt.strip(), anthropic_messages
 
@@ -113,11 +131,13 @@ class AnthropicThinker(Thinker):
         for t in tools:
             fn = t.get("function")
             if fn:
-                anthropic_tools.append({
-                    "name": fn.get("name"),
-                    "description": fn.get("description", ""),
-                    "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
-                })
+                anthropic_tools.append(
+                    {
+                        "name": fn.get("name"),
+                        "description": fn.get("description", ""),
+                        "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
+                    }
+                )
         return anthropic_tools
 
     async def chat(
@@ -142,7 +162,9 @@ class AnthropicThinker(Thinker):
         }
 
         if system_prompt:
-            kwargs["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+            kwargs["system"] = [
+                {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}
+            ]
 
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
@@ -162,11 +184,7 @@ class AnthropicThinker(Thinker):
             if blk.type == "text":
                 content_text += blk.text
             elif blk.type == "tool_use":
-                tool_calls.append(ToolCallRequest(
-                    id=blk.id,
-                    name=blk.name,
-                    arguments=blk.input
-                ))
+                tool_calls.append(ToolCallRequest(id=blk.id, name=blk.name, arguments=blk.input))
             elif blk.type == "thinking":
                 thinking_blocks.append({"type": "thinking", "text": blk.thinking})
 
@@ -176,7 +194,7 @@ class AnthropicThinker(Thinker):
             usage_data = {
                 "prompt_tokens": getattr(u, "input_tokens", 0),
                 "completion_tokens": getattr(u, "output_tokens", 0),
-                "total_tokens": getattr(u, "input_tokens", 0) + getattr(u, "output_tokens", 0)
+                "total_tokens": getattr(u, "input_tokens", 0) + getattr(u, "output_tokens", 0),
             }
 
         return LLMResponse(
@@ -184,7 +202,7 @@ class AnthropicThinker(Thinker):
             tool_calls=tool_calls,
             usage=usage_data,
             thinking_blocks=thinking_blocks if thinking_blocks else None,
-            finish_reason=response.stop_reason or "stop"
+            finish_reason=response.stop_reason or "stop",
         )
 
     def get_default_model(self) -> str:
@@ -213,7 +231,9 @@ class AnthropicThinker(Thinker):
         }
 
         if system_prompt:
-            kwargs["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+            kwargs["system"] = [
+                {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}
+            ]
 
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
@@ -245,9 +265,13 @@ class AnthropicThinker(Thinker):
                     if blk.type == "text":
                         content_text += blk.text
                     elif blk.type == "tool_use":
-                        tool_calls.append(ToolCallRequest(
-                            id=blk.id, name=blk.name, arguments=blk.input,
-                        ))
+                        tool_calls.append(
+                            ToolCallRequest(
+                                id=blk.id,
+                                name=blk.name,
+                                arguments=blk.input,
+                            )
+                        )
                     elif blk.type == "thinking":
                         thinking_blocks.append({"type": "thinking", "text": blk.thinking})
 
@@ -256,7 +280,8 @@ class AnthropicThinker(Thinker):
                     usage_data = {
                         "prompt_tokens": getattr(u, "input_tokens", 0),
                         "completion_tokens": getattr(u, "output_tokens", 0),
-                        "total_tokens": getattr(u, "input_tokens", 0) + getattr(u, "output_tokens", 0),
+                        "total_tokens": getattr(u, "input_tokens", 0)
+                        + getattr(u, "output_tokens", 0),
                     }
 
             return LLMResponse(

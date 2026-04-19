@@ -1,4 +1,4 @@
-﻿"""Cron tool for scheduling reminders and tasks."""
+"""Cron tool for scheduling reminders and tasks."""
 
 from contextvars import ContextVar
 from datetime import datetime, timezone

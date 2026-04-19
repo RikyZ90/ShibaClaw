@@ -96,7 +96,6 @@ def create_app(
         Route("/api/context", api_context_get),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
-
         Route("/api/cron/jobs", api_cron_list, methods=["GET"]),
         Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
         Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
@@ -141,6 +140,7 @@ async def _check_update_on_startup() -> None:
     try:
         await asyncio.sleep(3)
         from shibaclaw.updater.checker import check_for_update
+
         result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
         if result.get("update_available"):
             logger.info(
@@ -157,6 +157,7 @@ async def _sync_skills_on_startup() -> None:
     try:
         await asyncio.sleep(1)
         from shibaclaw.helpers.helpers import sync_profiles, sync_skills
+
         cfg = agent_manager.config
         if cfg:
             sync_skills(cfg.workspace_path)
@@ -196,6 +197,7 @@ async def _start_gateway_client() -> None:
                 content = payload.get("content", "")
                 if sk and content:
                     await agent_manager.deliver_background_notification(sk, content)
+
             gateway_client.on_event("session.notify", _on_session_notify)
 
             await gateway_client.start()
@@ -226,6 +228,8 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
         port=port,
         log_level="warning",
         access_log=False,
+        ws_ping_interval=None,
+        ws_ping_timeout=None,
     )
     server = uvicorn.Server(server_config)
     await server.serve()

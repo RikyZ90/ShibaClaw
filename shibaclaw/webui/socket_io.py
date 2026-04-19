@@ -31,11 +31,13 @@ def _build_attachments(media_paths: list[str]) -> list[Dict[str, str]]:
     for m_path in media_paths:
         p = Path(m_path)
         res = mimetypes.guess_type(m_path)
-        atts.append({
-            "name": p.name,
-            "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
-            "type": res[0] or "application/octet-stream"
-        })
+        atts.append(
+            {
+                "name": p.name,
+                "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
+                "type": res[0] or "application/octet-stream",
+            }
+        )
     return atts
 
 
@@ -45,18 +47,26 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
     async def _emit_session_status(room: str, session_key: str) -> None:
         ps = processing_state.get(session_key)
         if ps and ps.get("processing"):
-            await sio.emit("session_status", {
-                "session_key": session_key,
-                "processing": True,
-                "msg_id": ps.get("msg_id", ""),
-                "events": ps.get("events", []),
-                "started_at": ps.get("started_at", 0),
-            }, room=room)
+            await sio.emit(
+                "session_status",
+                {
+                    "session_key": session_key,
+                    "processing": True,
+                    "msg_id": ps.get("msg_id", ""),
+                    "events": ps.get("events", []),
+                    "started_at": ps.get("started_at", 0),
+                },
+                room=room,
+            )
         else:
-            await sio.emit("session_status", {
-                "session_key": session_key,
-                "processing": False,
-            }, room=room)
+            await sio.emit(
+                "session_status",
+                {
+                    "session_key": session_key,
+                    "processing": False,
+                },
+                room=room,
+            )
 
     @sio.event
     async def connect(sid, environ, auth=None):
@@ -79,6 +89,7 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         profile_id = "default"
         try:
             from shibaclaw.brain.manager import PackManager
+
             if agent_manager.config:
                 pm = PackManager(agent_manager.config.workspace_path)
                 sess = pm.get_or_create(session_id)
@@ -86,11 +97,15 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         except Exception:
             pass
 
-        await sio.emit("connected", {
-            "session_id": session_id,
-            "profile_id": profile_id,
-            "message": "🐕 ShibaClaw WebUI connected!",
-        }, room=sid)
+        await sio.emit(
+            "connected",
+            {
+                "session_id": session_id,
+                "profile_id": profile_id,
+                "message": "🐕 ShibaClaw WebUI connected!",
+            },
+            room=sid,
+        )
 
         await _emit_session_status(sid, session_id)
 
@@ -110,7 +125,9 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
             return
 
         content = data.get("content", "").strip()
-        session = sessions.setdefault(sid, {"session_key": f"webui:{sid[:8]}", "processing": False, "queue": []})
+        session = sessions.setdefault(
+            sid, {"session_key": f"webui:{sid[:8]}", "processing": False, "queue": []}
+        )
         session_key = session["session_key"]
         sk_room = _room(session_key)
 
@@ -120,33 +137,45 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
             url = att.get("url", "")
             if att.get("type", "").startswith("image/"):
                 try:
-                    p_str = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("path", [None])[0]
-                    if p_str: media_paths.append(p_str)
-                except Exception: pass
+                    p_str = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get(
+                        "path", [None]
+                    )[0]
+                    if p_str:
+                        media_paths.append(p_str)
+                except Exception:
+                    pass
             else:
                 content += f"\n\n[Attached file: {att.get('name', 'file')}]"
 
-            attachments_data.append({
-                "name": att.get("name"),
-                "url": url,
-                "type": att.get("type")
-            })
+            attachments_data.append({"name": att.get("name"), "url": url, "type": att.get("type")})
 
         msg = {
             "id": str(uuid.uuid4())[:8],
             "content": content,
             "media": media_paths if media_paths else None,
-            "attachments": attachments_data
+            "attachments": attachments_data,
         }
 
         if session.get("processing"):
             session.setdefault("queue", []).append(msg)
-            await sio.emit("message_ack", {"id": msg["id"], "content": content, "session_key": session_key}, room=sk_room)
-            await sio.emit("message_queued", {"id": msg["id"], "position": len(session["queue"]), "session_key": session_key}, room=sk_room)
+            await sio.emit(
+                "message_ack",
+                {"id": msg["id"], "content": content, "session_key": session_key},
+                room=sk_room,
+            )
+            await sio.emit(
+                "message_queued",
+                {"id": msg["id"], "position": len(session["queue"]), "session_key": session_key},
+                room=sk_room,
+            )
             return
 
         session["processing"] = True
-        await sio.emit("message_ack", {"id": msg["id"], "content": content, "session_key": session_key}, room=sk_room)
+        await sio.emit(
+            "message_ack",
+            {"id": msg["id"], "content": content, "session_key": session_key},
+            room=sk_room,
+        )
 
         async def run_agent_job(message):
             processing_state[session_key] = {
@@ -168,6 +197,7 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                 # Resolve profile_id from session metadata
                 try:
                     from shibaclaw.brain.manager import PackManager
+
                     pm = PackManager(agent_manager.config.workspace_path)
                     sess = pm.get_or_create(session_key)
                     pid = sess.metadata.get("profile_id")
@@ -182,14 +212,25 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                 async for event in _gateway_chat_stream(payload):
                     if event.get("t") == "p":
                         event_type = "agent_tool" if event.get("h") else "agent_thinking"
-                        evt = {"type": event_type, "id": message["id"], "content": event.get("c", ""), "tool_hint": event.get("h", False)}
+                        evt = {
+                            "type": event_type,
+                            "id": message["id"],
+                            "content": event.get("c", ""),
+                            "tool_hint": event.get("h", False),
+                        }
                         ps = processing_state.get(session_key)
                         if ps:
                             ps["events"].append(evt)
-                        await sio.emit(event_type, {
-                            "id": message["id"], "content": event.get("c", ""),
-                            "tool_hint": event.get("h", False), "session_key": session_key
-                        }, room=sk_room)
+                        await sio.emit(
+                            event_type,
+                            {
+                                "id": message["id"],
+                                "content": event.get("c", ""),
+                                "tool_hint": event.get("h", False),
+                                "session_key": session_key,
+                            },
+                            room=sk_room,
+                        )
                     elif event.get("t") == "r":
                         response_content = event.get("content", "")
                         response_media = event.get("media", [])
@@ -201,17 +242,22 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                 # Update attachment metadata on persisted session
                 try:
                     from shibaclaw.brain.manager import PackManager
+
                     pm = PackManager(agent_manager.config.workspace_path)
                     sess = pm.get_or_create(session_key)
                     if sess and sess.messages:
-                        for m_idx in range(len(sess.messages)-1, -1, -1):
+                        for m_idx in range(len(sess.messages) - 1, -1, -1):
                             if sess.messages[m_idx].get("role") == "user":
-                                sess.messages[m_idx].setdefault("metadata", {})["attachments"] = message.get("attachments", [])
+                                sess.messages[m_idx].setdefault("metadata", {})["attachments"] = (
+                                    message.get("attachments", [])
+                                )
                                 break
-                        for m_idx in range(len(sess.messages)-1, -1, -1):
+                        for m_idx in range(len(sess.messages) - 1, -1, -1):
                             if sess.messages[m_idx].get("role") == "assistant":
                                 if final_atts:
-                                    sess.messages[m_idx].setdefault("metadata", {})["attachments"] = final_atts
+                                    sess.messages[m_idx].setdefault("metadata", {})[
+                                        "attachments"
+                                    ] = final_atts
                                 pm.save(sess)
                                 break
                 except Exception:
@@ -220,18 +266,24 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                 if not response_content and not final_atts:
                     return
 
-                await sio.emit("agent_response", {
-                    "id": message["id"],
-                    "content": response_content,
-                    "attachments": final_atts,
-                    "session_key": session_key
-                }, room=sk_room)
+                await sio.emit(
+                    "agent_response",
+                    {
+                        "id": message["id"],
+                        "content": response_content,
+                        "attachments": final_atts,
+                        "session_key": session_key,
+                    },
+                    room=sk_room,
+                )
 
             except asyncio.CancelledError:
                 pass
             except Exception as e:
                 logger.exception("WebUI processing error")
-                await sio.emit("error", {"message": f"Error: {e}", "session_key": session_key}, room=sk_room)
+                await sio.emit(
+                    "error", {"message": f"Error: {e}", "session_key": session_key}, room=sk_room
+                )
             finally:
                 q = session.get("queue") or []
                 if q:
@@ -254,7 +306,11 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         session["processing"] = False
         sk = session.get("session_key", "")
         processing_state.pop(sk, None)
-        await sio.emit("agent_response", {"id": "stop", "content": "🐕 Halted the hunt.", "session_key": sk}, room=_room(sk))
+        await sio.emit(
+            "agent_response",
+            {"id": "stop", "content": "🐕 Halted the hunt.", "session_key": sk},
+            room=_room(sk),
+        )
 
     @sio.event
     async def new_session(sid, data=None):
@@ -270,6 +326,7 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         profile_id = (data or {}).get("profile_id", "default")
         try:
             from shibaclaw.brain.manager import PackManager
+
             if agent_manager.config:
                 pm = PackManager(agent_manager.config.workspace_path)
                 sess = pm.get_or_create(new_key)
@@ -278,11 +335,15 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
         except Exception:
             pass
 
-        await sio.emit("session_reset", {
-            "session_id": new_key,
-            "profile_id": profile_id,
-            "message": "New session started.",
-        }, room=sid)
+        await sio.emit(
+            "session_reset",
+            {
+                "session_id": new_key,
+                "profile_id": profile_id,
+                "message": "New session started.",
+            },
+            room=sid,
+        )
 
     @sio.event
     async def switch_session(sid, data=None):
@@ -332,7 +393,7 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
             res = await client.audio.transcriptions.create(
                 model=config.audio.model or "whisper-large-v3-turbo",
                 file=audio_file,
-                response_format="text"
+                response_format="text",
             )
 
             return {"text": str(res).strip()}

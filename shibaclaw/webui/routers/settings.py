@@ -33,6 +33,7 @@ async def api_settings_post(request: Request):
 
         data = await request.json()
         from shibaclaw.config.schema import Config
+
         merged = agent_manager.config.model_dump(mode="json", by_alias=True)
         _deep_merge(merged, data)
 
@@ -42,11 +43,13 @@ async def api_settings_post(request: Request):
             return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
 
         from shibaclaw.config.loader import save_config
+
         save_config(new_cfg)
         agent_manager.config = new_cfg
         # Rebuild provider so ensure_agent() picks up new API keys immediately
         try:
             from shibaclaw.cli.commands import _make_provider
+
             agent_manager.provider = _make_provider(new_cfg, exit_on_error=False)
         except Exception:
             agent_manager.provider = None

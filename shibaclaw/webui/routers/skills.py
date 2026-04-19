@@ -40,22 +40,26 @@ async def api_skills_list(request: Request):
         missing = loader._get_missing_requirements(skill_meta) if not available else ""
         always_yaml = bool(skill_meta.get("always") or meta.get("always"))
 
-        skills.append({
-            "name": s["name"],
-            "description": meta.get("description", s["name"]),
-            "source": s["source"],
-            "path": s["path"],
-            "available": available,
-            "missing_requirements": missing,
-            "always": always_yaml,
-            "pinned": s["name"] in pinned,
-        })
+        skills.append(
+            {
+                "name": s["name"],
+                "description": meta.get("description", s["name"]),
+                "source": s["source"],
+                "path": s["path"],
+                "available": available,
+                "missing_requirements": missing,
+                "always": always_yaml,
+                "pinned": s["name"] in pinned,
+            }
+        )
 
-    return JSONResponse({
-        "skills": skills,
-        "pinned_skills": pinned,
-        "max_pinned_skills": max_pinned,
-    })
+    return JSONResponse(
+        {
+            "skills": skills,
+            "pinned_skills": pinned,
+            "max_pinned_skills": max_pinned,
+        }
+    )
 
 
 async def api_skills_pin(request: Request):
@@ -89,6 +93,7 @@ async def api_skills_pin(request: Request):
 
     cfg.agents.defaults.pinned_skills = list(skill_names)
     from shibaclaw.config.loader import save_config
+
     save_config(cfg)
     logger.info("Pinned skills updated: {}", skill_names)
 
@@ -123,6 +128,7 @@ async def api_skills_delete(request: Request):
     if cfg and name in cfg.agents.defaults.pinned_skills:
         cfg.agents.defaults.pinned_skills.remove(name)
         from shibaclaw.config.loader import save_config
+
         save_config(cfg)
 
     logger.info("Deleted workspace skill: {}", name)

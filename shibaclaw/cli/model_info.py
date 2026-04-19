@@ -15,7 +15,6 @@ _STATIC_MODEL_COST = {
     "claude-3-5-sonnet-20240620": {"max_input_tokens": 200000, "max_tokens": 8192},
     "claude-3-5-haiku-20241022": {"max_input_tokens": 200000, "max_tokens": 8192},
     "claude-3-opus-20240229": {"max_input_tokens": 200000, "max_tokens": 4096},
-
     "gpt-4o": {"max_input_tokens": 128000, "max_tokens": 16384},
     "gpt-4o-2024-05-13": {"max_input_tokens": 128000, "max_tokens": 16384},
     "gpt-4o-2024-08-06": {"max_input_tokens": 128000, "max_tokens": 16384},
@@ -26,38 +25,32 @@ _STATIC_MODEL_COST = {
     "o1-preview": {"max_input_tokens": 128000, "max_tokens": 32768},
     "o1-mini": {"max_input_tokens": 128000, "max_tokens": 65536},
     "o3-mini": {"max_input_tokens": 200000, "max_tokens": 100000},
-
     "deepseek-chat": {"max_input_tokens": 64000, "max_tokens": 8192},
     "deepseek-coder": {"max_input_tokens": 64000, "max_tokens": 8192},
     "deepseek-reasoner": {"max_input_tokens": 64000, "max_tokens": 8192},
-
     "qwen-plus": {"max_input_tokens": 131072, "max_tokens": 8192},
     "qwen-max": {"max_input_tokens": 32768, "max_tokens": 8192},
     "qwen-turbo": {"max_input_tokens": 131072, "max_tokens": 8192},
-
     "glm-4-plus": {"max_input_tokens": 128000, "max_tokens": 8192},
     "glm-4-0520": {"max_input_tokens": 128000, "max_tokens": 8192},
     "glm-4-air": {"max_input_tokens": 128000, "max_tokens": 8192},
-
     "moonshot-v1-8k": {"max_input_tokens": 8000, "max_tokens": 4096},
     "moonshot-v1-32k": {"max_input_tokens": 32000, "max_tokens": 4096},
     "moonshot-v1-128k": {"max_input_tokens": 128000, "max_tokens": 4096},
     "kimi-k2.5": {"max_input_tokens": 128000, "max_tokens": 8192},
-
     "gemini-1.5-pro": {"max_input_tokens": 2000000, "max_tokens": 8192},
     "gemini-1.5-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
     "gemini-2.0-pro-exp-02-05": {"max_input_tokens": 2000000, "max_tokens": 8192},
     "gemini-2.0-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
-
     "MiniMax-Text-01": {"max_input_tokens": 128000, "max_tokens": 8192},
     "MiniMax-M2.1": {"max_input_tokens": 128000, "max_tokens": 8192},
-
     "llama3-8b-8192": {"max_input_tokens": 8192, "max_tokens": 8192},
     "llama3-70b-8192": {"max_input_tokens": 8192, "max_tokens": 8192},
     "gemma2-9b-it": {"max_input_tokens": 8192, "max_tokens": 8192},
     "mixtral-8x7b-32768": {"max_input_tokens": 32768, "max_tokens": 8192},
     "nemotron-70b-instruct": {"max_input_tokens": 8192, "max_tokens": 8192},
 }
+
 
 @lru_cache(maxsize=1)
 def get_all_models() -> list[str]:

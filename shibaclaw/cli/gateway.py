@@ -45,14 +45,17 @@ def resolve_cron_target(job: Any) -> HeartbeatTarget:
     session_key = job.payload.session_key or f"{channel}:{chat_id}"
 
     if channel == "webui":
-        session_key = resolve_webui_session_key(job.payload.session_key, job.payload.to) or session_key
+        session_key = (
+            resolve_webui_session_key(job.payload.session_key, job.payload.to) or session_key
+        )
         chat_id = session_key.split(":", 1)[1] if ":" in session_key else session_key
 
     return HeartbeatTarget(channel=channel, chat_id=chat_id, session_key=session_key)
 
 
 def select_heartbeat_target(
-    sessions: list[dict[str, Any]], enabled_channels: set[str],
+    sessions: list[dict[str, Any]],
+    enabled_channels: set[str],
 ) -> HeartbeatTarget:
     webui_candidate: HeartbeatTarget | None = None
 
@@ -128,11 +131,15 @@ def resolve_heartbeat_targets(
             if not session_key:
                 continue
             chat_id = session_key.split(":", 1)[1] if ":" in session_key else session_key
-            resolved.append(HeartbeatTarget(channel="webui", chat_id=chat_id, session_key=session_key))
+            resolved.append(
+                HeartbeatTarget(channel="webui", chat_id=chat_id, session_key=session_key)
+            )
             continue
 
         chat_id = target_value or "direct"
-        resolved.append(HeartbeatTarget(channel=channel, chat_id=chat_id, session_key=f"{channel}:{chat_id}"))
+        resolved.append(
+            HeartbeatTarget(channel=channel, chat_id=chat_id, session_key=f"{channel}:{chat_id}")
+        )
 
     return resolved
 
@@ -193,7 +200,9 @@ async def notify_webui_session(
                     headers=headers,
                 )
             if result.is_success:
-                logger.info("{}: delivered response to WebUI session {}", source.capitalize(), session_key)
+                logger.info(
+                    "{}: delivered response to WebUI session {}", source.capitalize(), session_key
+                )
                 return True
             logger.debug(
                 "{}: WebUI notify endpoint returned {} from {}",
@@ -202,9 +211,13 @@ async def notify_webui_session(
                 base_url,
             )
         except Exception as exc:
-            logger.debug("{}: failed to notify WebUI via {}: {}", source.capitalize(), base_url, exc)
+            logger.debug(
+                "{}: failed to notify WebUI via {}: {}", source.capitalize(), base_url, exc
+            )
 
-    logger.warning("{}: unable to deliver response to WebUI session {}", source.capitalize(), session_key)
+    logger.warning(
+        "{}: unable to deliver response to WebUI session {}", source.capitalize(), session_key
+    )
     return False
 
 
@@ -244,13 +257,16 @@ async def gateway_command(
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
         console.print("[yellow]🐾 Entering idle mode...[/yellow]")
-        console.print("[dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
+        console.print(
+            "[dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
+        )
 
     session_manager = PackManager(config.workspace_path)
     cron = CronService(get_cron_dir() / "jobs.json")
 
     agent = ShibaBrain(
-        bus=bus, provider=provider,
+        bus=bus,
+        provider=provider,
         workspace=config.workspace_path,
         model=config.agents.defaults.model,
         max_iterations=config.agents.defaults.max_tool_iterations,
@@ -304,7 +320,9 @@ async def gateway_command(
         return outbound.content if outbound else ""
 
     async def on_heartbeat_notify(
-        response: str, *, targets: dict[str, str] | None = None,
+        response: str,
+        *,
+        targets: dict[str, str] | None = None,
     ) -> None:
         from shibaclaw.bus.events import OutboundMessage
 
@@ -321,11 +339,19 @@ async def gateway_command(
             if target.channel == "webui":
                 # Try WebSocket broadcast first, fall back to HTTP callback
                 if _ws_clients:
-                    await _broadcast_ws_event("session.notify", {
-                        "content": response, "source": "heartbeat", "persist": True,
-                    }, session_key=target.session_key)
+                    await _broadcast_ws_event(
+                        "session.notify",
+                        {
+                            "content": response,
+                            "source": "heartbeat",
+                            "persist": True,
+                        },
+                        session_key=target.session_key,
+                    )
                 else:
-                    await notify_webui_session(target.session_key, response, auth_token, source="heartbeat")
+                    await notify_webui_session(
+                        target.session_key, response, auth_token, source="heartbeat"
+                    )
                 continue
             if target.channel == "cli":
                 continue
@@ -338,9 +364,13 @@ async def gateway_command(
 
     hb_cfg = config.gateway.heartbeat
     heartbeat = HeartbeatService(
-        workspace=config.workspace_path, provider=provider, model=agent.model,
-        on_execute=on_heartbeat_execute, on_notify=on_heartbeat_notify,
-        interval_s=hb_cfg.interval_s, enabled=hb_cfg.enabled,
+        workspace=config.workspace_path,
+        provider=provider,
+        model=agent.model,
+        on_execute=on_heartbeat_execute,
+        on_notify=on_heartbeat_notify,
+        interval_s=hb_cfg.interval_s,
+        enabled=hb_cfg.enabled,
         session_key=hb_cfg.session_key,
         targets=hb_cfg.targets,
         profile_id=hb_cfg.profile_id,
@@ -354,7 +384,9 @@ async def gateway_command(
         status_parts.append(f"  [green]✓[/green] Channels: {', '.join(channels.enabled_channels)}")
     if provider is None:
         status_parts.append("  [yellow]⚠ No AI provider configured[/yellow]")
-        status_parts.append("  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
+        status_parts.append(
+            "  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
+        )
     c_status = cron.status()
     hb_info = f"✓ Heartbeat: {hb_cfg.interval_s}s" if hb_cfg.enabled else "Heartbeat: disabled"
     status_parts.append(
@@ -365,18 +397,21 @@ async def gateway_command(
     status_parts.append(f"  {hb_info}")
     webui_url = os.environ.get("SHIBACLAW_WEBUI_URL", "http://localhost:3000")
     status_parts.append(f"  [cyan]🖥️  WebUI:[/cyan] [link={webui_url}]{webui_url}[/link]")
-    status_parts.append("  [dim]Run [bold]shibaclaw print-token[/bold] to show the WebUI auth token[/dim]")
+    status_parts.append(
+        "  [dim]Run [bold]shibaclaw print-token[/bold] to show the WebUI auth token[/dim]"
+    )
     console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
     _state = {"restart": False}
 
-    _UPDATE_CHECK_INTERVAL = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "12")) * 3600
+    update_check_interval = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "12")) * 3600
 
     async def _update_check_loop():
         await asyncio.sleep(60)
         while True:
             try:
                 from shibaclaw.updater.checker import check_for_update
+
                 result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
                 if result.get("update_available"):
                     current = result.get("current", "?")
@@ -389,13 +424,19 @@ async def gateway_command(
                         f"Docker: docker compose pull && docker compose up -d\n"
                         f"{release_url}"
                     ).strip()
-                    logger.info("🆕 Update available: {} → {} (pip install --upgrade shibaclaw)", current, latest)
+                    logger.info(
+                        "🆕 Update available: {} → {} (pip install --upgrade shibaclaw)",
+                        current,
+                        latest,
+                    )
                     await on_heartbeat_notify(msg)
                 else:
-                    logger.debug("Update check: already on latest version ({}).", result.get("current", "?"))
+                    logger.debug(
+                        "Update check: already on latest version ({}).", result.get("current", "?")
+                    )
             except Exception as e:
                 logger.debug("Update check failed: {}", e)
-            await asyncio.sleep(_UPDATE_CHECK_INTERVAL)
+            await asyncio.sleep(update_check_interval)
 
     # ── WebSocket server for realtime WebUI↔Gateway communication ───
     _ws_clients: set[websockets.ServerConnection] = set()
@@ -417,12 +458,16 @@ async def gateway_command(
                 return
             authed = True
             _ws_clients.add(websocket)
-            await websocket.send(json.dumps({
-                "type": "hello_ok",
-                "version": __version__,
-                "provider_ready": provider is not None,
-                "uptime": int(time.time() - _ws_start_time),
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "hello_ok",
+                        "version": __version__,
+                        "provider_ready": provider is not None,
+                        "uptime": int(time.time() - _ws_start_time),
+                    }
+                )
+            )
             logger.info("🔌 WebUI WebSocket client connected")
 
             async for raw_msg in websocket:
@@ -455,62 +500,102 @@ async def gateway_command(
         nonlocal _state
 
         def _ok(data: dict | None = None):
-            return json.dumps({"type": "response", "id": request_id, "ok": True, "payload": data or {}})
+            return json.dumps(
+                {"type": "response", "id": request_id, "ok": True, "payload": data or {}}
+            )
 
         def _err(error: str, code: int = 400):
             return json.dumps({"type": "response", "id": request_id, "ok": False, "error": error})
 
         try:
             if action == "status":
-                await ws.send(_ok({
-                    "status": "ok" if provider else "idle",
-                    "uptime": int(time.time() - _ws_start_time),
-                    "provider_ready": provider is not None,
-                }))
+                await ws.send(
+                    _ok(
+                        {
+                            "status": "ok" if provider else "idle",
+                            "uptime": int(time.time() - _ws_start_time),
+                            "provider_ready": provider is not None,
+                        }
+                    )
+                )
 
             elif action == "chat":
                 if not provider:
                     await ws.send(_err("no_provider"))
                     return
 
-                async def _on_ws_progress(text, *, tool_hint=False):
-                    try:
-                        await ws.send(json.dumps({
-                            "type": "event", "name": "chat.progress",
-                            "request_id": request_id,
-                            "payload": {"c": text, "h": tool_hint},
-                        }))
-                    except websockets.ConnectionClosed:
-                        pass
+                async def _run_chat(ws, request_id, payload):
+                    async def _on_ws_progress(text, *, tool_hint=False):
+                        try:
+                            await ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "event",
+                                        "name": "chat.progress",
+                                        "request_id": request_id,
+                                        "payload": {"c": text, "h": tool_hint},
+                                    }
+                                )
+                            )
+                        except websockets.ConnectionClosed:
+                            pass
 
-                async def _on_ws_response_token(token_text):
-                    try:
-                        await ws.send(json.dumps({
-                            "type": "event", "name": "chat.response_token",
-                            "request_id": request_id,
-                            "payload": {"c": token_text},
-                        }))
-                    except websockets.ConnectionClosed:
-                        pass
+                    async def _on_ws_response_token(token_text):
+                        try:
+                            await ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "event",
+                                        "name": "chat.response_token",
+                                        "request_id": request_id,
+                                        "payload": {"c": token_text},
+                                    }
+                                )
+                            )
+                        except websockets.ConnectionClosed:
+                            pass
 
-                try:
-                    out = await agent.process_direct(
-                        content=payload.get("content", ""),
-                        session_key=payload.get("session_key", "webui:direct"),
-                        channel=payload.get("channel", "webui"),
-                        chat_id=payload.get("chat_id", "direct"),
-                        on_progress=_on_ws_progress,
-                        on_response_token=_on_ws_response_token,
-                        media=payload.get("media"),
-                        metadata=payload.get("metadata"),
-                        profile_id=payload.get("profile_id"),
-                    )
-                    await ws.send(_ok({
-                        "content": out.content if out else "",
-                        "media": out.media if out else [],
-                    }))
-                except Exception as e:
-                    await ws.send(_err(str(e)))
+                    try:
+                        out = await agent.process_direct(
+                            content=payload.get("content", ""),
+                            session_key=payload.get("session_key", "webui:direct"),
+                            channel=payload.get("channel", "webui"),
+                            chat_id=payload.get("chat_id", "direct"),
+                            on_progress=_on_ws_progress,
+                            on_response_token=_on_ws_response_token,
+                            media=payload.get("media"),
+                            metadata=payload.get("metadata"),
+                            profile_id=payload.get("profile_id"),
+                        )
+                        await ws.send(
+                            json.dumps(
+                                {
+                                    "type": "response",
+                                    "id": request_id,
+                                    "ok": True,
+                                    "payload": {
+                                        "content": out.content if out else "",
+                                        "media": out.media if out else [],
+                                    },
+                                }
+                            )
+                        )
+                    except Exception as e:
+                        try:
+                            await ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "response",
+                                        "id": request_id,
+                                        "ok": False,
+                                        "error": str(e),
+                                    }
+                                )
+                            )
+                        except websockets.ConnectionClosed:
+                            pass
+
+                asyncio.create_task(_run_chat(ws, request_id, payload))
 
             elif action == "restart":
                 await ws.send(_ok({"status": "restarting"}))
@@ -520,21 +605,37 @@ async def gateway_command(
                 )
 
             elif action == "cron.list":
+
                 def _ser(j):
                     return {
-                        "id": j.id, "name": j.name, "enabled": j.enabled,
-                        "schedule": {"kind": j.schedule.kind, "atMs": j.schedule.at_ms,
-                                     "everyMs": j.schedule.every_ms, "expr": j.schedule.expr,
-                                     "tz": j.schedule.tz},
-                        "payload": {"message": j.payload.message, "deliver": j.payload.deliver,
-                                    "channel": j.payload.channel, "to": j.payload.to},
-                        "state": {"nextRunAtMs": j.state.next_run_at_ms,
-                                  "lastRunAtMs": j.state.last_run_at_ms,
-                                  "lastStatus": j.state.last_status,
-                                  "lastError": j.state.last_error},
+                        "id": j.id,
+                        "name": j.name,
+                        "enabled": j.enabled,
+                        "schedule": {
+                            "kind": j.schedule.kind,
+                            "atMs": j.schedule.at_ms,
+                            "everyMs": j.schedule.every_ms,
+                            "expr": j.schedule.expr,
+                            "tz": j.schedule.tz,
+                        },
+                        "payload": {
+                            "message": j.payload.message,
+                            "deliver": j.payload.deliver,
+                            "channel": j.payload.channel,
+                            "to": j.payload.to,
+                        },
+                        "state": {
+                            "nextRunAtMs": j.state.next_run_at_ms,
+                            "lastRunAtMs": j.state.last_run_at_ms,
+                            "lastStatus": j.state.last_status,
+                            "lastError": j.state.last_error,
+                        },
                         "deleteAfterRun": j.delete_after_run,
                     }
-                await ws.send(_ok({"jobs": [_ser(j) for j in cron.list_jobs(include_disabled=True)]}))
+
+                await ws.send(
+                    _ok({"jobs": [_ser(j) for j in cron.list_jobs(include_disabled=True)]})
+                )
 
             elif action == "cron.trigger":
                 job_id = payload.get("job_id", "")
@@ -575,11 +676,14 @@ async def gateway_command(
 
     async def _broadcast_ws_event(name: str, payload: dict, session_key: str | None = None):
         """Broadcast an event to all connected WebSocket clients."""
-        msg = json.dumps({
-            "type": "event", "name": name,
-            "session_key": session_key,
-            "payload": payload,
-        })
+        msg = json.dumps(
+            {
+                "type": "event",
+                "name": name,
+                "session_key": session_key,
+                "payload": payload,
+            }
+        )
         for ws in list(_ws_clients):
             try:
                 await ws.send(msg)
@@ -602,7 +706,11 @@ async def gateway_command(
                     return f"Authorization: Bearer {auth_token}".encode() in data
 
                 def _json_response(body: dict, status: int = 200) -> bytes:
-                    phrase = "OK" if status == 200 else ("Unauthorized" if status == 401 else "Not Found")
+                    phrase = (
+                        "OK"
+                        if status == 200
+                        else ("Unauthorized" if status == 401 else "Not Found")
+                    )
                     payload = json.dumps(body, ensure_ascii=False).encode()
                     return (
                         f"HTTP/1.0 {status} {phrase}\r\n"
@@ -616,22 +724,34 @@ async def gateway_command(
                     if idx < 0:
                         return {}
                     try:
-                        return json.loads(data[idx + 4:])
+                        return json.loads(data[idx + 4 :])
                     except (json.JSONDecodeError, ValueError):
                         return {}
 
                 def _serialize_cron_job(j) -> dict:
                     return {
-                        "id": j.id, "name": j.name, "enabled": j.enabled,
-                        "schedule": {"kind": j.schedule.kind, "atMs": j.schedule.at_ms,
-                                     "everyMs": j.schedule.every_ms, "expr": j.schedule.expr,
-                                     "tz": j.schedule.tz},
-                        "payload": {"message": j.payload.message, "deliver": j.payload.deliver,
-                                    "channel": j.payload.channel, "to": j.payload.to},
-                        "state": {"nextRunAtMs": j.state.next_run_at_ms,
-                                  "lastRunAtMs": j.state.last_run_at_ms,
-                                  "lastStatus": j.state.last_status,
-                                  "lastError": j.state.last_error},
+                        "id": j.id,
+                        "name": j.name,
+                        "enabled": j.enabled,
+                        "schedule": {
+                            "kind": j.schedule.kind,
+                            "atMs": j.schedule.at_ms,
+                            "everyMs": j.schedule.every_ms,
+                            "expr": j.schedule.expr,
+                            "tz": j.schedule.tz,
+                        },
+                        "payload": {
+                            "message": j.payload.message,
+                            "deliver": j.payload.deliver,
+                            "channel": j.payload.channel,
+                            "to": j.payload.to,
+                        },
+                        "state": {
+                            "nextRunAtMs": j.state.next_run_at_ms,
+                            "lastRunAtMs": j.state.last_run_at_ms,
+                            "lastStatus": j.state.last_status,
+                            "lastError": j.state.last_error,
+                        },
                         "deleteAfterRun": j.delete_after_run,
                     }
 
@@ -642,8 +762,7 @@ async def gateway_command(
                         writer.write(_json_response({"status": "restarting"}))
                         _state["restart"] = True
                         asyncio.get_event_loop().call_later(
-                            0.5,
-                            lambda: [t.cancel() for t in asyncio.all_tasks()]
+                            0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
                         )
                 elif "GET" in request_line and "/heartbeat/status" in request_line:
                     writer.write(_json_response(heartbeat.status()))
@@ -663,11 +782,22 @@ async def gateway_command(
                         writer.write(_json_response({"error": "no_provider"}, 503))
                     else:
                         body = _parse_body()
-                        writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-ndjson\r\nConnection: close\r\n\r\n")
+                        writer.write(
+                            b"HTTP/1.1 200 OK\r\nContent-Type: application/x-ndjson\r\nConnection: close\r\n\r\n"
+                        )
                         await writer.drain()
+
                         async def _on_progress(text, *, tool_hint=False):
-                            writer.write((json.dumps({"t": "p", "c": text, "h": tool_hint}, ensure_ascii=False) + "\n").encode())
+                            writer.write(
+                                (
+                                    json.dumps(
+                                        {"t": "p", "c": text, "h": tool_hint}, ensure_ascii=False
+                                    )
+                                    + "\n"
+                                ).encode()
+                            )
                             await writer.drain()
+
                         try:
                             out = await agent.process_direct(
                                 content=body.get("content", ""),
@@ -679,20 +809,44 @@ async def gateway_command(
                                 metadata=body.get("metadata"),
                                 profile_id=body.get("profile_id"),
                             )
-                            writer.write((json.dumps({
-                                "t": "r",
-                                "content": out.content if out else "",
-                                "media": out.media if out else [],
-                            }, ensure_ascii=False) + "\n").encode())
+                            writer.write(
+                                (
+                                    json.dumps(
+                                        {
+                                            "t": "r",
+                                            "content": out.content if out else "",
+                                            "media": out.media if out else [],
+                                        },
+                                        ensure_ascii=False,
+                                    )
+                                    + "\n"
+                                ).encode()
+                            )
                         except Exception as e:
-                            writer.write((json.dumps({"t": "e", "error": str(e)}, ensure_ascii=False) + "\n").encode())
+                            writer.write(
+                                (
+                                    json.dumps({"t": "e", "error": str(e)}, ensure_ascii=False)
+                                    + "\n"
+                                ).encode()
+                            )
                 elif "GET" in request_line and "/api/cron/list" in request_line:
-                    writer.write(_json_response({"jobs": [_serialize_cron_job(j) for j in cron.list_jobs(include_disabled=True)]}))
+                    writer.write(
+                        _json_response(
+                            {
+                                "jobs": [
+                                    _serialize_cron_job(j)
+                                    for j in cron.list_jobs(include_disabled=True)
+                                ]
+                            }
+                        )
+                    )
                 elif "POST" in request_line and "/api/cron/trigger/" in request_line:
                     if not _check_auth():
                         writer.write(_json_response({"error": "unauthorized"}, 401))
                     else:
-                        job_id = request_line.split("/api/cron/trigger/")[1].split(" ")[0].split("?")[0]
+                        job_id = (
+                            request_line.split("/api/cron/trigger/")[1].split(" ")[0].split("?")[0]
+                        )
                         ran = await cron.run_job(job_id, force=True)
                         writer.write(_json_response({"triggered": ran}))
                 elif "POST" in request_line and "/api/archive" in request_line:
@@ -710,11 +864,15 @@ async def gateway_command(
                                 pass
                         writer.write(_json_response({"archived": archived}))
                 elif "GET" in request_line:
-                    writer.write(_json_response({
-                        "status": "ok" if provider else "idle",
-                        "uptime": int(time.time() - _start_time),
-                        "provider_ready": provider is not None,
-                    }))
+                    writer.write(
+                        _json_response(
+                            {
+                                "status": "ok" if provider else "idle",
+                                "uptime": int(time.time() - _start_time),
+                                "provider_ready": provider is not None,
+                            }
+                        )
+                    )
                 else:
                     writer.write(_json_response({"error": "not found"}, 404))
                 await writer.drain()
@@ -726,7 +884,9 @@ async def gateway_command(
         health_srv = await asyncio.start_server(_health_handler, host, port)
 
         ws_port = config.gateway.ws_port
-        ws_server = await websockets.serve(_ws_handler, host, ws_port)
+        ws_server = await websockets.serve(
+            _ws_handler, host, ws_port, ping_interval=None, ping_timeout=None
+        )
         logger.info("🔌 Gateway WebSocket server listening on {}:{}", host, ws_port)
 
         try:

@@ -1,6 +1,6 @@
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 from starlette.testclient import TestClient
 
 from shibaclaw.config.schema import Config
@@ -12,11 +12,11 @@ from shibaclaw.webui.server import create_app
 def mock_config(tmp_path):
     config = Config()
     config.agents.defaults.workspace = str(tmp_path)
-    
+
     # Needs a dummy provider to ensure we don't err out during status check
     class DummyProvider:
         pass
-        
+
     with patch("shibaclaw.webui.auth._auth_enabled", return_value=False):
         yield config, DummyProvider()
 

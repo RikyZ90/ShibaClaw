@@ -46,17 +46,22 @@ class AgentManager:
 
         # Deliver via native WebSocket handler
         from shibaclaw.webui.ws_handler import deliver_to_browsers
-        delivered = await deliver_to_browsers(session_key, content, source=source, msg_type=msg_type)
+
+        delivered = await deliver_to_browsers(
+            session_key, content, source=source, msg_type=msg_type
+        )
 
         return {"delivered": delivered > 0, "matched_sessions": delivered}
 
     def load_latest_config(self):
         """Load the latest config from disk."""
         from shibaclaw.config.loader import load_config
+
         self.config = load_config()
 
         try:
             from shibaclaw.cli.commands import _make_provider
+
             self.provider = _make_provider(self.config, exit_on_error=False)
         except Exception:
             self.provider = None
@@ -65,11 +70,13 @@ class AgentManager:
         """Reload local config and signal gateway to pick up changes."""
         self.load_latest_config()
         from shibaclaw.webui.utils import _gateway_request
+
         await _gateway_request("POST", "/restart")
 
     async def archive_via_gateway(self, snapshot: list[dict]):
         """Send session snapshot to the gateway for memory archival."""
         from shibaclaw.webui.utils import _gateway_post
+
         await _gateway_post("/api/archive", {"snapshot": snapshot})
 
 

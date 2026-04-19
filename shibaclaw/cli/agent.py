@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import signal
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.application import run_in_terminal
@@ -30,16 +30,20 @@ from .utils import (
 _PROMPT_SESSION: Optional[PromptSession] = None
 _SAVED_TERM_ATTRS = None
 
+
 def _init_prompt_session() -> None:
     """Create the prompt_toolkit session with persistent file history."""
     global _PROMPT_SESSION, _SAVED_TERM_ATTRS
 
     try:
         import termios
+
         _SAVED_TERM_ATTRS = termios.tcgetattr(sys.stdin.fileno())
-    except Exception: pass
+    except Exception:
+        pass
 
     from shibaclaw.config.paths import get_cli_history_path
+
     history_file = get_cli_history_path()
     history_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -65,20 +69,25 @@ async def _read_interactive_input_async() -> str:
 
 async def _print_interactive_line(text: str) -> None:
     """Print async interactive updates with prompt_toolkit-safe Rich styling."""
+
     def _write() -> None:
         icon = "[🐾]"
-        if "search" in text.lower() or "find" in text.lower(): icon = "[🔍]"
-        elif "tool" in text.lower() or "exec" in text.lower(): icon = "[🛠️]"
+        if "search" in text.lower() or "find" in text.lower():
+            icon = "[🔍]"
+        elif "tool" in text.lower() or "exec" in text.lower():
+            icon = "[🛠️]"
 
         ansi = render_interactive_ansi(
             lambda c: c.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
         )
         print_formatted_text(ANSI(ansi), end="")
+
     await run_in_terminal(_write)
 
 
 async def _print_interactive_response(response: str, render_markdown: bool) -> None:
     """Print async interactive replies with prompt_toolkit-safe Rich styling."""
+
     def _write() -> None:
         ansi = render_interactive_ansi(
             lambda c: (
@@ -89,6 +98,7 @@ async def _print_interactive_response(response: str, render_markdown: bool) -> N
             )
         )
         print_formatted_text(ANSI(ansi), end="")
+
     await run_in_terminal(_write)
 
 
@@ -107,18 +117,22 @@ def agent_command(
     from shibaclaw.config.paths import get_cron_dir
     from shibaclaw.cron.service import CronService
 
-    if logs: logger.enable("shibaclaw")
-    else: logger.disable("shibaclaw")
+    if logs:
+        logger.enable("shibaclaw")
+    else:
+        logger.disable("shibaclaw")
 
     bus = MessageBus()
     from .base import _make_provider
+
     provider = _make_provider(config_obj)
 
     cron_store_path = get_cron_dir() / "jobs.json"
-    cron = CronService(cron_store_path)
+    CronService(cron_store_path)
 
     agent_loop = ShibaBrain(
-        bus=bus, provider=provider,
+        bus=bus,
+        provider=provider,
         workspace=config_obj.workspace_path,
         model=config_obj.agents.defaults.model,
         max_iterations=config_obj.agents.defaults.max_tool_iterations,
@@ -140,25 +154,35 @@ def agent_command(
 
     async def _cli_progress(content: str, *, tool_hint: bool = False) -> None:
         ch = agent_loop.channels_config
-        if ch and tool_hint and not ch.send_tool_hints: return
-        if ch and not tool_hint and not ch.send_progress: return
+        if ch and tool_hint and not ch.send_tool_hints:
+            return
+        if ch and not tool_hint and not ch.send_progress:
+            return
         print_cli_progress_line(content, _thinking)
 
     if message:
+
         async def run_once():
             nonlocal _thinking
             _thinking = ThinkingSpinner(enabled=not logs)
             with _thinking:
-                outbound = await agent_loop.process_direct(message, session_id, on_progress=_cli_progress)
+                outbound = await agent_loop.process_direct(
+                    message, session_id, on_progress=_cli_progress
+                )
                 resp = outbound.content if outbound else ""
             print_agent_response(resp, render_markdown=markdown)
             await agent_loop.close_mcp()
+
         asyncio.run(run_once())
     else:
         _init_prompt_session()
-        console.print(f"{__logo__} Interactive mode (type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n")
+        console.print(
+            f"{__logo__} Interactive mode (type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n"
+        )
 
-        cli_channel, cli_chat_id = session_id.split(":", 1) if ":" in session_id else ("cli", session_id)
+        cli_channel, cli_chat_id = (
+            session_id.split(":", 1) if ":" in session_id else ("cli", session_id)
+        )
 
         def _handle_signal(signum, frame):
             restore_terminal(_SAVED_TERM_ATTRS)
@@ -166,7 +190,8 @@ def agent_command(
 
         signal.signal(signal.SIGINT, _handle_signal)
         signal.signal(signal.SIGTERM, _handle_signal)
-        if hasattr(signal, 'SIGHUP'): signal.signal(signal.SIGHUP, _handle_signal)
+        if hasattr(signal, "SIGHUP"):
+            signal.signal(signal.SIGHUP, _handle_signal)
 
         async def run_interactive():
             bus_task = asyncio.create_task(agent_loop.run())
@@ -180,15 +205,23 @@ def agent_command(
                         if msg.metadata.get("_progress"):
                             is_tool = msg.metadata.get("_tool_hint", False)
                             ch = agent_loop.channels_config
-                            if not (ch and ((is_tool and not ch.send_tool_hints) or (not is_tool and not ch.send_progress))):
+                            if not (
+                                ch
+                                and (
+                                    (is_tool and not ch.send_tool_hints)
+                                    or (not is_tool and not ch.send_progress)
+                                )
+                            ):
                                 await _print_interactive_line(msg.content)
                         elif not turn_done.is_set():
-                            if msg.content: turn_response.append(msg.content)
+                            if msg.content:
+                                turn_response.append(msg.content)
                             turn_done.set()
                         elif msg.content:
                             await _print_interactive_response(msg.content, render_markdown=markdown)
                     except (asyncio.TimeoutError, asyncio.CancelledError):
-                        if isinstance(sys.exc_info()[0], asyncio.CancelledError): break
+                        if isinstance(sys.exc_info()[0], asyncio.CancelledError):
+                            break
                         continue
 
             outbound_task = asyncio.create_task(_consume_outbound())
@@ -199,7 +232,8 @@ def agent_command(
                         flush_pending_tty_input()
                         user_input = await _read_interactive_input_async()
                         cmd = user_input.strip()
-                        if not cmd: continue
+                        if not cmd:
+                            continue
                         if cmd.lower() in {"exit", "quit", "/exit", "/quit", ":q"}:
                             restore_terminal(_SAVED_TERM_ATTRS)
                             console.print("\nGoodbye!")
@@ -209,14 +243,24 @@ def agent_command(
                         turn_response.clear()
 
                         from shibaclaw.bus.events import InboundMessage
-                        await bus.publish_inbound(InboundMessage(channel=cli_channel, sender_id="user", chat_id=cli_chat_id, content=user_input))
+
+                        await bus.publish_inbound(
+                            InboundMessage(
+                                channel=cli_channel,
+                                sender_id="user",
+                                chat_id=cli_chat_id,
+                                content=user_input,
+                            )
+                        )
 
                         nonlocal _thinking
                         _thinking = ThinkingSpinner(enabled=not logs)
-                        with _thinking: await turn_done.wait()
+                        with _thinking:
+                            await turn_done.wait()
                         _thinking = None
 
-                        if turn_response: print_agent_response(turn_response[0], render_markdown=markdown)
+                        if turn_response:
+                            print_agent_response(turn_response[0], render_markdown=markdown)
                     except (KeyboardInterrupt, EOFError):
                         restore_terminal(_SAVED_TERM_ATTRS)
                         console.print("\nGoodbye!")

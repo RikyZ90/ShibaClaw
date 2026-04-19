@@ -24,14 +24,14 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 _ONBOARD_PROVIDERS = [
-    ("openrouter", "OpenRouter",     "OPENROUTER_API_KEY",  "google/gemma-3-27b-it:free", False, False),
-    ("anthropic",  "Anthropic",      "ANTHROPIC_API_KEY",   "claude-opus-4-5",                       False, False),
-    ("openai",     "OpenAI",         "OPENAI_API_KEY",      "gpt-4o",                                False, False),
-    ("gemini",     "Gemini",         "GEMINI_API_KEY",      "gemini/gemini-2.0-flash",               False, False),
-    ("deepseek",   "DeepSeek",       "DEEPSEEK_API_KEY",    "deepseek/deepseek-chat",                False, False),
-    ("groq",       "Groq",           "GROQ_API_KEY",        "groq/llama-3.3-70b-versatile",         False, False),
-    ("ollama",     "Ollama (local)", "",                    "ollama/llama3.2",                       True,  False),
-    ("github_copilot", "GitHub Copilot (OAuth)", "",        "oswe-vscode-prime",                 False, True),
+    ("openrouter", "OpenRouter", "OPENROUTER_API_KEY", "google/gemma-3-27b-it:free", False, False),
+    ("anthropic", "Anthropic", "ANTHROPIC_API_KEY", "claude-opus-4-5", False, False),
+    ("openai", "OpenAI", "OPENAI_API_KEY", "gpt-4o", False, False),
+    ("gemini", "Gemini", "GEMINI_API_KEY", "gemini/gemini-2.0-flash", False, False),
+    ("deepseek", "DeepSeek", "DEEPSEEK_API_KEY", "deepseek/deepseek-chat", False, False),
+    ("groq", "Groq", "GROQ_API_KEY", "groq/llama-3.3-70b-versatile", False, False),
+    ("ollama", "Ollama (local)", "", "ollama/llama3.2", True, False),
+    ("github_copilot", "GitHub Copilot (OAuth)", "", "oswe-vscode-prime", False, True),
 ]
 
 
@@ -51,10 +51,8 @@ def _detect_env_keys() -> dict[str, str]:
 def _detect_oauth() -> list[str]:
     """Return provider names already authenticated via OAuth."""
     from shibaclaw.thinkers.registry import PROVIDERS
-    return [
-        spec.name for spec in PROVIDERS
-        if spec.is_oauth and _is_oauth_authenticated(spec)
-    ]
+
+    return [spec.name for spec in PROVIDERS if spec.is_oauth and _is_oauth_authenticated(spec)]
 
 
 def _is_already_configured(config, name: str) -> bool:
@@ -73,7 +71,8 @@ def _pick_provider(config, env_found: dict[str, str], oauth_found: list[str]):
     _rule("Step 1 / 3  —  LLM Provider")
 
     choices = [
-        entry for entry in _ONBOARD_PROVIDERS
+        entry
+        for entry in _ONBOARD_PROVIDERS
         if entry[0] not in env_found
         and entry[0] not in oauth_found
         and not _is_already_configured(config, entry[0])
@@ -141,6 +140,7 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
     _rule("Optional  --  Chat Channel")
 
     from shibaclaw.integrations.registry import discover_all
+
     channels = {
         name: cls.display_name
         for name, cls in sorted(discover_all().items())
@@ -184,8 +184,10 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
         import importlib
 
         from pydantic import BaseModel
+
         mod = importlib.import_module(f"shibaclaw.integrations.{chosen}")
         from shibaclaw.integrations.registry import discover_all as _da
+
         cls = _da()[chosen]
         cfg_cls_name = cls.__name__.replace("Channel", "Config")
         cfg_cls = getattr(mod, cfg_cls_name, None)
@@ -227,12 +229,15 @@ def _show_summary(config_path: Path, provider: str, model: str) -> None:
     console.print('  Chat:     [cyan]shibaclaw agent -m "Hello!"[/cyan]')
     console.print("  WebUI:    [cyan]shibaclaw web[/cyan]")
     console.print("  Gateway:  [cyan]shibaclaw gateway[/cyan]")
-    console.print("\n  [dim]You can also onboard via the WebUI at[/dim] [bold cyan]http://localhost:3000[/bold cyan]\n")
+    console.print(
+        "\n  [dim]You can also onboard via the WebUI at[/dim] [bold cyan]http://localhost:3000[/bold cyan]\n"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Plugin helpers (unchanged from previous version)
 # ---------------------------------------------------------------------------
+
 
 def _merge_missing_defaults(existing: Any, defaults: Any) -> Any:
     if not isinstance(existing, dict) or not isinstance(defaults, dict):
@@ -272,6 +277,7 @@ def _onboard_plugins(config_path: Path) -> None:
 # Gateway restart helper
 # ---------------------------------------------------------------------------
 
+
 def _try_restart_gateway(config) -> None:
     """If the gateway is running, POST /restart to reload config."""
     import urllib.error
@@ -292,6 +298,7 @@ def _try_restart_gateway(config) -> None:
     # Send restart
     try:
         from shibaclaw.webui.server import get_auth_token
+
         token = get_auth_token()
         req = urllib.request.Request(f"http://{host}:{port}/restart", method="POST")
         if token:
@@ -306,6 +313,7 @@ def _try_restart_gateway(config) -> None:
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
 
 def onboard_command(
     workspace: Optional[str] = None,
@@ -347,7 +355,9 @@ def onboard_command(
     for name, key in env_found.items():
         label = next((p[1] for p in _ONBOARD_PROVIDERS if p[0] == name), name)
         masked = "*" * max(0, len(key) - 4) + key[-4:] if len(key) > 4 else "****"
-        console.print(f"[green]v[/green] Detected [bold]{label}[/bold] key from environment ({masked})")
+        console.print(
+            f"[green]v[/green] Detected [bold]{label}[/bold] key from environment ({masked})"
+        )
         p = getattr(config.providers, name, None)
         if p is not None and not p.api_key:
             p.api_key = key
@@ -361,8 +371,10 @@ def onboard_command(
     chosen_model = config.agents.defaults.model
 
     # Show current config if already set
-    has_any_provider = bool(env_found) or bool(oauth_found) or any(
-        _is_already_configured(config, p[0]) for p in _ONBOARD_PROVIDERS
+    has_any_provider = (
+        bool(env_found)
+        or bool(oauth_found)
+        or any(_is_already_configured(config, p[0]) for p in _ONBOARD_PROVIDERS)
     )
 
     if has_any_provider and chosen_model:
@@ -398,8 +410,13 @@ def onboard_command(
         elif not chosen_model:
             # No provider selected and no model — pick a default from env
             default_model = next(
-                (p[3] for p in _ONBOARD_PROVIDERS
-                 if p[0] in env_found or p[0] in oauth_found or _is_already_configured(config, p[0])),
+                (
+                    p[3]
+                    for p in _ONBOARD_PROVIDERS
+                    if p[0] in env_found
+                    or p[0] in oauth_found
+                    or _is_already_configured(config, p[0])
+                ),
                 "google/gemma-3-27b-it:free",
             )
             _rule("Step 3 / 3  —  Model")

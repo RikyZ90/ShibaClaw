@@ -12,6 +12,7 @@ from loguru import logger
 @dataclass
 class ToolCallRequest:
     """A tool call request from the LLM."""
+
     id: str
     name: str
     arguments: dict[str, Any]
@@ -31,13 +32,16 @@ class ToolCallRequest:
         if self.provider_specific_fields:
             tool_call["provider_specific_fields"] = self.provider_specific_fields
         if self.function_provider_specific_fields:
-            tool_call["function"]["provider_specific_fields"] = self.function_provider_specific_fields
+            tool_call["function"]["provider_specific_fields"] = (
+                self.function_provider_specific_fields
+            )
         return tool_call
 
 
 @dataclass
 class LLMResponse:
     """Response from an LLM provider."""
+
     content: str | None
     tool_calls: list[ToolCallRequest] = field(default_factory=list)
     finish_reason: str = "stop"
@@ -69,7 +73,7 @@ class GenerationSettings:
 class Thinker(ABC):
     """
     Abstract base class for thinkers (LLM providers).
-    
+
     Implementations should handle the specifics of each provider's API
     while maintaining a consistent interface.
     """
@@ -106,7 +110,11 @@ class Thinker(ABC):
 
             if isinstance(content, str) and not content:
                 clean = dict(msg)
-                clean["content"] = None if (msg.get("role") == "assistant" and msg.get("tool_calls")) else "(empty)"
+                clean["content"] = (
+                    None
+                    if (msg.get("role") == "assistant" and msg.get("tool_calls"))
+                    else "(empty)"
+                )
                 result.append(clean)
                 continue
 
@@ -173,7 +181,7 @@ class Thinker(ABC):
     ) -> LLMResponse:
         """
         Send a chat completion request.
-        
+
         Args:
             messages: List of message dicts with 'role' and 'content'.
             tools: Optional list of tool definitions.
@@ -181,7 +189,7 @@ class Thinker(ABC):
             max_tokens: Maximum tokens in response.
             temperature: Sampling temperature.
             tool_choice: Tool selection strategy ("auto", "required", or specific tool dict).
-        
+
         Returns:
             LLMResponse with content and/or tool calls.
         """
@@ -204,9 +212,13 @@ class Thinker(ABC):
         Providers override this to enable true token-by-token streaming.
         """
         response = await self.chat(
-            messages=messages, tools=tools, model=model,
-            max_tokens=max_tokens, temperature=temperature,
-            reasoning_effort=reasoning_effort, tool_choice=tool_choice,
+            messages=messages,
+            tools=tools,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning_effort=reasoning_effort,
+            tool_choice=tool_choice,
         )
         if on_token and response.content and not response.has_tool_calls:
             await on_token(response.content)
@@ -239,13 +251,14 @@ class Thinker(ABC):
                 result.append(msg)
         return result if found else None
 
-    _CHAT_TIMEOUT = 120  # seconds – safety net for hung LLM API calls
+    _CHAT_TIMEOUT = 1800  # seconds – safety net for hung LLM API calls
 
     async def _safe_chat(self, **kwargs: Any) -> LLMResponse:
         """Call chat() and convert unexpected exceptions to error responses."""
         try:
             return await asyncio.wait_for(
-                self.chat(**kwargs), timeout=self._CHAT_TIMEOUT,
+                self.chat(**kwargs),
+                timeout=self._CHAT_TIMEOUT,
             )
         except asyncio.TimeoutError:
             return LLMResponse(
@@ -282,9 +295,13 @@ class Thinker(ABC):
             reasoning_effort = self.generation.reasoning_effort
 
         kw: dict[str, Any] = dict(
-            messages=messages, tools=tools, model=model,
-            max_tokens=max_tokens, temperature=temperature,
-            reasoning_effort=reasoning_effort, tool_choice=tool_choice,
+            messages=messages,
+            tools=tools,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning_effort=reasoning_effort,
+            tool_choice=tool_choice,
         )
 
         for attempt, delay in enumerate(self._CHAT_RETRY_DELAYS, start=1):
@@ -296,14 +313,18 @@ class Thinker(ABC):
             if not self._is_transient_error(response.content):
                 stripped = self._strip_image_content(messages)
                 if stripped is not None:
-                    logger.warning("Non-transient LLM error with image content, retrying without images")
+                    logger.warning(
+                        "Non-transient LLM error with image content, retrying without images"
+                    )
                     return await self._safe_chat(**{**kw, "messages": stripped})
                 return response
 
             if log_transient_errors:
                 logger.warning(
                     "LLM transient error (attempt {}/{}), retrying in {}s: {}",
-                    attempt, len(self._CHAT_RETRY_DELAYS), delay,
+                    attempt,
+                    len(self._CHAT_RETRY_DELAYS),
+                    delay,
                     (response.content or "")[:120].lower(),
                 )
             await asyncio.sleep(delay)
@@ -330,15 +351,21 @@ class Thinker(ABC):
             reasoning_effort = self.generation.reasoning_effort
 
         kw: dict[str, Any] = dict(
-            messages=messages, on_token=on_token, tools=tools,
-            model=model, max_tokens=max_tokens, temperature=temperature,
-            reasoning_effort=reasoning_effort, tool_choice=tool_choice,
+            messages=messages,
+            on_token=on_token,
+            tools=tools,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning_effort=reasoning_effort,
+            tool_choice=tool_choice,
         )
 
         for attempt, delay in enumerate(self._CHAT_RETRY_DELAYS, start=1):
             try:
                 response = await asyncio.wait_for(
-                    self.chat_streaming(**kw), timeout=self._CHAT_TIMEOUT,
+                    self.chat_streaming(**kw),
+                    timeout=self._CHAT_TIMEOUT,
                 )
             except asyncio.TimeoutError:
                 response = LLMResponse(
@@ -358,7 +385,9 @@ class Thinker(ABC):
 
             logger.warning(
                 "LLM streaming transient error (attempt {}/{}), retrying in {}s: {}",
-                attempt, len(self._CHAT_RETRY_DELAYS), delay,
+                attempt,
+                len(self._CHAT_RETRY_DELAYS),
+                delay,
                 (response.content or "")[:120].lower(),
             )
             await asyncio.sleep(delay)
@@ -366,7 +395,8 @@ class Thinker(ABC):
         # Final attempt
         try:
             return await asyncio.wait_for(
-                self.chat_streaming(**kw), timeout=self._CHAT_TIMEOUT,
+                self.chat_streaming(**kw),
+                timeout=self._CHAT_TIMEOUT,
             )
         except asyncio.TimeoutError:
             return LLMResponse(

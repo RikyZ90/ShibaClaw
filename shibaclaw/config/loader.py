@@ -43,6 +43,7 @@ def load_config(config_path: Path | None = None) -> Config:
         # Sync plugin/channel defaults
         try:
             from shibaclaw.cli.onboard import _onboard_plugins
+
             _onboard_plugins(path)
         except Exception:
             logger.debug("[config] _onboard_plugins failed on new config", exc_info=True)
@@ -54,6 +55,7 @@ def load_config(config_path: Path | None = None) -> Config:
         data = _migrate_config(data)
         try:
             from shibaclaw.cli.onboard import _onboard_plugins
+
             _onboard_plugins(path)
         except Exception:
             logger.debug("[config] _onboard_plugins failed on existing config", exc_info=True)
@@ -92,7 +94,7 @@ def _migrate_config(data: dict) -> dict:
     # Ensure email channel has all default fields (transparent migration)
     channels = data.get("channels", {})
     email = channels.get("email", {})
-    _EMAIL_DEFAULTS: dict = {
+    email_defaults: dict = {
         "enabled": False,
         "consentGranted": False,
         "imapHost": "",
@@ -115,7 +117,7 @@ def _migrate_config(data: dict) -> dict:
         "subjectPrefix": "Re: ",
         "allowFrom": [],
     }
-    for key, default_val in _EMAIL_DEFAULTS.items():
+    for key, default_val in email_defaults.items():
         if key not in email:
             email[key] = default_val
     channels["email"] = email
@@ -135,7 +137,7 @@ def _migrate_config(data: dict) -> dict:
 
     # Ensure mcpServers have all default fields
     mcp_servers = tools.get("mcpServers", {})
-    _MCP_DEFAULTS = {
+    mcp_defaults = {
         "type": None,
         "command": "",
         "args": [],
@@ -143,13 +145,13 @@ def _migrate_config(data: dict) -> dict:
         "url": "",
         "headers": {},
         "toolTimeout": 30,
-        "enabledTools": ["*"]
+        "enabledTools": ["*"],
     }
     if not mcp_servers:
-        mcp_servers["mcp"] = dict(_MCP_DEFAULTS)
+        mcp_servers["mcp"] = dict(mcp_defaults)
     else:
         for name, server in mcp_servers.items():
-            for key, default_val in _MCP_DEFAULTS.items():
+            for key, default_val in mcp_defaults.items():
                 if key not in server:
                     server[key] = default_val
     tools["mcpServers"] = mcp_servers

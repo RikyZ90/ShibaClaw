@@ -51,13 +51,13 @@ def normalize_manifest_path(path: str) -> str:
     )
     for prefix, replacement in prefixes:
         if normalized.startswith(prefix):
-            return replacement + normalized[len(prefix):]
+            return replacement + normalized[len(prefix) :]
     return normalized
 
 
 def personal_files_in_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     """Return only the changes that involve personal/template files requiring user attention."""
-    _PERSONAL_PATHS = {
+    personal_paths = {
         "USER.md",
         "SOUL.md",
         "AGENTS.md",
@@ -70,6 +70,6 @@ def personal_files_in_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]
     for change in manifest.get("changes", []):
         path = normalize_manifest_path(change.get("path", ""))
         is_skill = path.startswith("skills/") and path.endswith("SKILL.md")
-        if path in _PERSONAL_PATHS or is_skill:
+        if path in personal_paths or is_skill:
             result.append({**change, "path": path})
     return result

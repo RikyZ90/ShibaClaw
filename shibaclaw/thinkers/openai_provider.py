@@ -15,6 +15,7 @@ from shibaclaw.thinkers.registry import ProviderSpec, find_by_model, find_gatewa
 
 _ALNUM = string.ascii_letters + string.digits
 
+
 def _short_tool_id() -> str:
     """Generate a 9-char alphanumeric ID suitable for strict providers."""
     return "".join(secrets.choice(_ALNUM) for _ in range(9))
@@ -23,7 +24,7 @@ def _short_tool_id() -> str:
 class OpenAIThinker(Thinker):
     """
     Thinker using the native openai SDK for multi-provider support.
-    
+
     Supports OpenAI, OpenRouter, DeepSeek, vLLM, Ollama, and any other
     OpenAI-compatible endpoint.
     """
@@ -57,7 +58,9 @@ class OpenAIThinker(Thinker):
             default_headers.setdefault("HTTP-Referer", "https://github.com/RikyZ90/ShibaClaw")
             default_headers.setdefault("X-Title", "ShibaClaw")
 
-        logger.debug(f"OpenAIThinker init: api_key={'SET' if api_key else 'UNSET'} resolved_key={'SET' if resolved_key else 'UNSET'} base_url={resolved_base}")
+        logger.debug(
+            f"OpenAIThinker init: api_key={'SET' if api_key else 'UNSET'} resolved_key={'SET' if resolved_key else 'UNSET'} base_url={resolved_base}"
+        )
 
         self._client = AsyncOpenAI(
             api_key=resolved_key or "no-key",
@@ -65,7 +68,9 @@ class OpenAIThinker(Thinker):
             default_headers=default_headers,
         )
 
-    def _resolve_api_key(self, api_key: str | None, spec: ProviderSpec | None, model: str) -> str | None:
+    def _resolve_api_key(
+        self, api_key: str | None, spec: ProviderSpec | None, model: str
+    ) -> str | None:
         """Resolve the API key from kwargs or environment variables."""
         if api_key:
             return api_key
@@ -141,7 +146,9 @@ class OpenAIThinker(Thinker):
         except Exception as e:
             body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
             if body and body.strip():
-                return LLMResponse(content=f"Error calling LLM: {body.strip()[:500]}", finish_reason="error")
+                return LLMResponse(
+                    content=f"Error calling LLM: {body.strip()[:500]}", finish_reason="error"
+                )
             return LLMResponse(content=f"Error calling LLM: {e}", finish_reason="error")
 
     def _parse_response(self, response: Any) -> LLMResponse:
@@ -161,18 +168,24 @@ class OpenAIThinker(Thinker):
                     except Exception:
                         args = {"raw": args}
 
-                tool_calls.append(ToolCallRequest(
-                    id=tc.id or _short_tool_id(),
-                    name=tc.function.name,
-                    arguments=args,
-                ))
+                tool_calls.append(
+                    ToolCallRequest(
+                        id=tc.id or _short_tool_id(),
+                        name=tc.function.name,
+                        arguments=args,
+                    )
+                )
 
         u = getattr(response, "usage", None)
-        usage = {
-            "prompt_tokens": u.prompt_tokens if u else 0,
-            "completion_tokens": u.completion_tokens if u else 0,
-            "total_tokens": u.total_tokens if u else 0,
-        } if u else {}
+        usage = (
+            {
+                "prompt_tokens": u.prompt_tokens if u else 0,
+                "completion_tokens": u.completion_tokens if u else 0,
+                "total_tokens": u.total_tokens if u else 0,
+            }
+            if u
+            else {}
+        )
 
         return LLMResponse(
             content=msg.content,
@@ -284,11 +297,13 @@ class OpenAIThinker(Thinker):
                     args = json_repair.loads(args) if args else {}
                 except Exception:
                     args = {"raw": args}
-                tool_calls.append(ToolCallRequest(
-                    id=tc["id"] or _short_tool_id(),
-                    name=tc["name"],
-                    arguments=args,
-                ))
+                tool_calls.append(
+                    ToolCallRequest(
+                        id=tc["id"] or _short_tool_id(),
+                        name=tc["name"],
+                        arguments=args,
+                    )
+                )
 
             return LLMResponse(
                 content=content_text or None,
@@ -300,5 +315,7 @@ class OpenAIThinker(Thinker):
         except Exception as e:
             body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
             if body and body.strip():
-                return LLMResponse(content=f"Error calling LLM: {body.strip()[:500]}", finish_reason="error")
+                return LLMResponse(
+                    content=f"Error calling LLM: {body.strip()[:500]}", finish_reason="error"
+                )
             return LLMResponse(content=f"Error calling LLM: {e}", finish_reason="error")

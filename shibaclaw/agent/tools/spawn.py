@@ -1,4 +1,4 @@
-﻿"""Spawn tool for creating background subagents."""
+"""Spawn tool for creating background subagents."""
 
 from typing import TYPE_CHECKING, Any
 

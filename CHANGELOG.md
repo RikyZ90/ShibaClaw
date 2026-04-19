@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.2] - 2026-04-19
+
+### Fixed
+- **CI/CD — 88 lint errors eliminated**: All `ruff` violations across the codebase have been resolved (naming conventions, unused imports, ambiguous variable names, import ordering, E402 module-level imports). CI workflows now pass cleanly on every release.
+- **WebSocket connection drops during long tasks (`connection_lost`)**: Disabled automatic WebSocket ping/pong timeouts at all three transport layers (Uvicorn, gateway WS server, gateway WS client). The periodic "ping" mechanism was erroneously closing live connections when the agent was busy and could not respond in time.
+- **Thinking panel flash / timer freeze**: Removed a spurious `hideThinking()` call from the `agent_response_chunk` event handler. Previously, each streamed response token was hiding the thinking panel, causing a visible flash when the model transitioned between generation and tool use, and making the elapsed-time counter appear frozen.
+- **File browser and settings blocked while agent is running**: The gateway WebSocket handler was awaiting `agent.process_direct()` inline, which blocked the entire WS event loop for that client. Any concurrent request (e.g. health checks, settings) would time out until the agent finished. The chat handler is now launched as a separate `asyncio.Task`, keeping the handler loop free.
+- **Gateway health check noise while processing**: `checkGatewayHealth()` in the frontend now skips entirely when `state.processing` is true, preventing unnecessary timeout errors and false "Gateway Down" status while the agent is working.
+
+### Changed
+- **`_CHAT_TIMEOUT` increased** from 120 s to 1800 s in `shibaclaw/thinkers/base.py` to accommodate complex multi-step reasoning tasks.
+
 ## [0.1.1] - 2026-04-19
 
 ### Fixed

@@ -70,27 +70,27 @@ class ExecTool(Tool):
         self.install_audit_timeout = install_audit_timeout
         self.install_audit_block_severity = install_audit_block_severity
         self.deny_patterns = deny_patterns or [
-            r"\brm\s+-[rf]{1,2}\b",          # rm -r, rm -rf, rm -fr
-            r"\bdel\s+/[fq]\b",              # del /f, del /q
-            r"\brmdir\s+/s\b",               # rmdir /s
-            r"(?:^|[;&|]\s*)format\b",       # format (as standalone command only)
-            r"\b(mkfs|diskpart)\b",          # disk operations
-            r"\bdd\s+if=",                   # dd
-            r">\s*/dev/sd",                  # write to disk
+            r"\brm\s+-[rf]{1,2}\b",  # rm -r, rm -rf, rm -fr
+            r"\bdel\s+/[fq]\b",  # del /f, del /q
+            r"\brmdir\s+/s\b",  # rmdir /s
+            r"(?:^|[;&|]\s*)format\b",  # format (as standalone command only)
+            r"\b(mkfs|diskpart)\b",  # disk operations
+            r"\bdd\s+if=",  # dd
+            r">\s*/dev/sd",  # write to disk
             r"\b(shutdown|reboot|poweroff)\b",  # system power
-            r":\(\)\s*\{.*\};\s*:",          # fork bomb
-            r"\b(eval|alias)\b", # environment/execution manipulation
-            r"\bsudo\s+",                    # privilege escalation
-            r"\b(nc|netcat|ncat)\b",         # networking/shells
+            r":\(\)\s*\{.*\};\s*:",  # fork bomb
+            r"\b(eval|alias)\b",  # environment/execution manipulation
+            r"\bsudo\s+",  # privilege escalation
+            r"\b(nc|netcat|ncat)\b",  # networking/shells
             r"\b(bash|sh|zsh|dash)\s+-i\b",  # interactive shells
-            r"\$\([^)]*\)",                                          # command substitution $()
-            r"`[^`]*`",                                              # backtick execution
-            r"\|\s*(sh|bash|zsh|dash|fish)\b",                      # pipe to shell
-            r"\b(apt|apt-get|yum|dnf|brew)\s+(remove|purge)\b",      # system pkg removal (destructive)
-            r"\bpip3?\s+(uninstall)\b",                              # pip uninstall (destructive)
-            r"\b(npm|yarn|pnpm)\s+(remove|uninstall)\b",             # JS pkg removal (destructive)
-            r"\b(curl|wget)\b.*\|\s*(sh|bash|zsh|dash)\b",          # curl/wget pipe to shell
-            r"<\([^)]*\)",                                           # bash process substitution <()
+            r"\$\([^)]*\)",  # command substitution $()
+            r"`[^`]*`",  # backtick execution
+            r"\|\s*(sh|bash|zsh|dash|fish)\b",  # pipe to shell
+            r"\b(apt|apt-get|yum|dnf|brew)\s+(remove|purge)\b",  # system pkg removal (destructive)
+            r"\bpip3?\s+(uninstall)\b",  # pip uninstall (destructive)
+            r"\b(npm|yarn|pnpm)\s+(remove|uninstall)\b",  # JS pkg removal (destructive)
+            r"\b(curl|wget)\b.*\|\s*(sh|bash|zsh|dash)\b",  # curl/wget pipe to shell
+            r"<\([^)]*\)",  # bash process substitution <()
         ]
         self.allow_patterns = allow_patterns or []
         self.restrict_to_workspace = restrict_to_workspace
@@ -140,8 +140,11 @@ class ExecTool(Tool):
     # (Interpreter blocks removed: agent should be able to run code it writes within the workspace)
 
     async def execute(
-        self, command: str, working_dir: str | None = None,
-        timeout: int | None = None, **kwargs: Any,
+        self,
+        command: str,
+        working_dir: str | None = None,
+        timeout: int | None = None,
+        **kwargs: Any,
     ) -> str:
         cwd = working_dir or self.working_dir or os.getcwd()
         guard_error = self._guard_command(command, cwd)
@@ -193,8 +196,7 @@ class ExecTool(Tool):
                     try:
                         await asyncio.wait_for(
                             asyncio.shield(process.wait()),
-                            timeout=min(self._PROGRESS_INTERVAL,
-                                        effective_timeout - elapsed),
+                            timeout=min(self._PROGRESS_INTERVAL, effective_timeout - elapsed),
                         )
                     except asyncio.TimeoutError:
                         elapsed += self._PROGRESS_INTERVAL
@@ -202,7 +204,9 @@ class ExecTool(Tool):
                             break
                         logger.debug(
                             "exec still running ({}/{}s): {}",
-                            elapsed, effective_timeout, command[:80],
+                            elapsed,
+                            effective_timeout,
+                            command[:80],
                         )
                         continue
 
@@ -264,7 +268,9 @@ class ExecTool(Tool):
             return f"Error executing command: {str(e)}"
 
     async def _audit_install_command(
-        self, command: str, cwd: str,
+        self,
+        command: str,
+        cwd: str,
     ) -> AuditResult | None:
         """Check if command is an install and audit it. Returns None if not an install."""
         normalized = self._normalize_command(command)
@@ -292,8 +298,8 @@ class ExecTool(Tool):
         """
         result = cmd
         # Decode only explicit hex/unicode point escapes: \x41 → A, \u0041 → A
-        result = re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), result)
-        result = re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), result)
+        result = re.sub(r"\\x([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1), 16)), result)
+        result = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), result)
         # Collapse excessive whitespace (tab, multiple spaces → single space)
         result = re.sub(r"\s+", " ", result)
         return result
@@ -314,6 +320,7 @@ class ExecTool(Tool):
                 return "Error: Command blocked by safety guard (not in allowlist)"
 
         from shibaclaw.security.network import contains_internal_url
+
         if contains_internal_url(cmd):
             return "Error: Command blocked by safety guard (internal/private URL detected)"
 
@@ -330,7 +337,9 @@ class ExecTool(Tool):
                 try:
                     t = Path(target).expanduser().resolve()
                     if t.is_absolute() and cwd_path not in t.parents and t != cwd_path:
-                        return "Error: Command blocked by safety guard (redirect outside working dir)"
+                        return (
+                            "Error: Command blocked by safety guard (redirect outside working dir)"
+                        )
                 except Exception:
                     continue
 
@@ -347,7 +356,11 @@ class ExecTool(Tool):
 
     @staticmethod
     def _extract_absolute_paths(command: str) -> list[str]:
-        win_paths = re.findall(r"[A-Za-z]:\\[^\s\"'|><;]+", command)   # Windows: C:\...
-        posix_paths = re.findall(r"(?:^|[\s|>'\"])(/[^\s\"'>;|<]+)", command) # POSIX: /absolute only
-        home_paths = re.findall(r"(?:^|[\s|>'\"])(~[^\s\"'>;|<]*)", command) # POSIX/Windows home shortcut: ~
+        win_paths = re.findall(r"[A-Za-z]:\\[^\s\"'|><;]+", command)  # Windows: C:\...
+        posix_paths = re.findall(
+            r"(?:^|[\s|>'\"])(/[^\s\"'>;|<]+)", command
+        )  # POSIX: /absolute only
+        home_paths = re.findall(
+            r"(?:^|[\s|>'\"])(~[^\s\"'>;|<]*)", command
+        )  # POSIX/Windows home shortcut: ~
         return win_paths + posix_paths + home_paths

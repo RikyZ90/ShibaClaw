@@ -17,7 +17,10 @@ async def api_update_check(request: Request):
     force = request.query_params.get("force", "").lower() in ("1", "true", "yes")
     try:
         from shibaclaw.updater.checker import check_for_update
-        result = await asyncio.get_event_loop().run_in_executor(None, lambda: check_for_update(force=force))
+
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: check_for_update(force=force)
+        )
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -36,7 +39,10 @@ async def api_update_manifest(request: Request):
 
     try:
         from shibaclaw.updater.manifest import fetch_manifest, personal_files_in_manifest
-        manifest = await asyncio.get_event_loop().run_in_executor(None, lambda: fetch_manifest(manifest_url))
+
+        manifest = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: fetch_manifest(manifest_url)
+        )
         personal = personal_files_in_manifest(manifest)
         return JSONResponse({"manifest": manifest, "personal_files": personal})
     except Exception as e:
@@ -49,6 +55,7 @@ _ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli"})
 def _safe_argv() -> list[str]:
     """Return only trusted argv entries (flags + known subcommands)."""
     import sys
+
     safe = [sys.executable, "-m", "shibaclaw"]
     for arg in sys.argv[1:]:
         if arg.startswith("-") or arg in _ALLOWED_SUBCOMMANDS:
@@ -65,7 +72,9 @@ async def api_update_apply(request: Request):
 
     manifest = data.get("manifest")
     if not manifest or not isinstance(manifest, dict):
-        return JSONResponse({"error": "Missing or invalid 'manifest' in request body"}, status_code=400)
+        return JSONResponse(
+            {"error": "Missing or invalid 'manifest' in request body"}, status_code=400
+        )
 
     if not agent_manager.config:
         return JSONResponse({"error": "Agent not configured"}, status_code=400)
@@ -74,6 +83,7 @@ async def api_update_apply(request: Request):
 
     try:
         from shibaclaw.updater.apply import apply_update
+
         loop = asyncio.get_event_loop()
         report = await loop.run_in_executor(None, lambda: apply_update(manifest, workspace_root))
     except Exception as e:

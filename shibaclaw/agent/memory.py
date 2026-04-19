@@ -104,6 +104,7 @@ def _normalize_update_memory_args(args: Any) -> dict[str, Any] | None:
         return args[0] if args and isinstance(args[0], dict) else None
     return args if isinstance(args, dict) else None
 
+
 _TOOL_CHOICE_ERROR_MARKERS = (
     "tool_choice",
     "toolchoice",
@@ -181,13 +182,18 @@ class ScentKeeper:
             if tokens > max_tokens:
                 long_term = self._truncate_to_budget(long_term, max_tokens)
 
-        return f"## Long-term Memory\n{long_term}" if not long_term.lstrip().startswith("#") else long_term
+        return (
+            f"## Long-term Memory\n{long_term}"
+            if not long_term.lstrip().startswith("#")
+            else long_term
+        )
 
     @staticmethod
     def _truncate_to_budget(text: str, max_tokens: int) -> str:
         """Keep Markdown sections from the top until the token budget is exhausted."""
         import re as _re
-        sections = _re.split(r'(?=^## )', text, flags=_re.MULTILINE)
+
+        sections = _re.split(r"(?=^## )", text, flags=_re.MULTILINE)
         kept: list[str] = []
         for section in sections:
             candidate = "\n".join(kept + [section])
@@ -206,7 +212,9 @@ class ScentKeeper:
             ts = message.get("timestamp", "?")[:16]
             content = message.get("content") or ""
             if role == "ASSISTANT" and message.get("tool_calls"):
-                calls = [tc.get("function", {}).get("name", "unknown") for tc in message["tool_calls"]]
+                calls = [
+                    tc.get("function", {}).get("name", "unknown") for tc in message["tool_calls"]
+                ]
                 if content:
                     content += "\n"
                 content += f"[Tool Calls: {', '.join(calls)}]"
@@ -217,7 +225,11 @@ class ScentKeeper:
                 content = content[:250] + "\n...[TRUNCATED]...\n" + content[-250:]
             if not content.strip():
                 continue
-            tools = f" [executed: {', '.join(message['tools_used'])}]" if message.get("tools_used") else ""
+            tools = (
+                f" [executed: {', '.join(message['tools_used'])}]"
+                if message.get("tools_used")
+                else ""
+            )
             lines.append(f"[{ts}] {role}{tools}: {content.strip()}")
         return "\n".join(lines)
 
@@ -247,7 +259,10 @@ class ScentKeeper:
 {self._format_messages(messages)}"""
 
         chat_messages = [
-            {"role": "system", "content": "You are a memory consolidation assistant. Call save_memory."},
+            {
+                "role": "system",
+                "content": "You are a memory consolidation assistant. Call save_memory.",
+            },
             {"role": "user", "content": prompt},
         ]
 
@@ -293,7 +308,9 @@ class ScentKeeper:
             user_update = args.get("user_update", current_user)
 
             if entry is None or update is None or user_update is None:
-                logger.warning("Memory consolidation: save_memory payload contains null required fields")
+                logger.warning(
+                    "Memory consolidation: save_memory payload contains null required fields"
+                )
                 return await self._fail_or_raw_archive(messages)
 
             entry = _ensure_text(entry).strip()
@@ -332,7 +349,8 @@ class ScentKeeper:
 
         logger.info(
             "🐕 Memory compaction triggered: {} tokens (target {})",
-            current_tokens, target_tokens,
+            current_tokens,
+            target_tokens,
         )
 
         prompt = (
@@ -346,13 +364,18 @@ class ScentKeeper:
             f"## Current MEMORY.md\n{current}"
         )
         chat_messages = [
-            {"role": "system", "content": "You are a memory compaction assistant. Output only the compacted Markdown."},
+            {
+                "role": "system",
+                "content": "You are a memory compaction assistant. Output only the compacted Markdown.",
+            },
             {"role": "user", "content": prompt},
         ]
 
         try:
             response = await provider.chat_with_retry(
-                messages=chat_messages, tools=[], model=model,
+                messages=chat_messages,
+                tools=[],
+                model=model,
             )
             compacted = (response.content or "").strip()
             if not compacted:
@@ -363,24 +386,27 @@ class ScentKeeper:
             if new_tokens >= current_tokens:
                 logger.warning(
                     "Memory compaction did not reduce size ({} -> {}) — skipping",
-                    current_tokens, new_tokens,
+                    current_tokens,
+                    new_tokens,
                 )
                 return False
 
             await self.write_long_term(compacted)
             logger.info(
                 "🐕 Memory compacted: {} -> {} tokens",
-                current_tokens, new_tokens,
+                current_tokens,
+                new_tokens,
             )
             # Notify WebUI clients that memory has been compacted
             try:
                 from shibaclaw.webui.agent_manager import agent_manager
+
                 await agent_manager.deliver_background_notification(
                     session_key="",  # empty string = broadcast to all clients
                     content="Memory compacted",
                     source="memory_compact",
                     msg_type="memory_compacted",
-                    persist=False
+                    persist=False,
                 )
             except Exception as e:
                 logger.debug("Failed to send memory compacted notification: {}", e)
@@ -415,7 +441,10 @@ class ScentKeeper:
 {self._format_messages(messages)}"""
 
         chat_messages = [
-            {"role": "system", "content": "You are a fact-extraction assistant. Call update_long_term_memory."},
+            {
+                "role": "system",
+                "content": "You are a fact-extraction assistant. Call update_long_term_memory.",
+            },
             {"role": "user", "content": prompt},
         ]
 
@@ -432,7 +461,7 @@ class ScentKeeper:
                     messages=chat_messages,
                     tools=_PROACTIVE_LEARN_TOOL,
                     model=model,
-                    tool_choice="auto"
+                    tool_choice="auto",
                 )
 
             if not response.has_tool_calls:
@@ -449,8 +478,12 @@ class ScentKeeper:
                 await self.write_long_term(update)
             if user_update.strip() and user_update != current_user:
                 await self.write_user_profile(user_update)
-            if (update and update != current_memory) or (user_update.strip() and user_update != current_user):
-                logger.info("🐕 Proactive Learning: updated USER.md and long-term memory with new traces.")
+            if (update and update != current_memory) or (
+                user_update.strip() and user_update != current_user
+            ):
+                logger.info(
+                    "🐕 Proactive Learning: updated USER.md and long-term memory with new traces."
+                )
 
             return True
         except Exception as e:
@@ -468,16 +501,12 @@ class ScentKeeper:
     async def _raw_archive(self, messages: list[dict]) -> None:
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
         await self.append_history(
-            f"[{ts}] [RAW] {len(messages)} messages\n"
-            f"{self._format_messages(messages)}"
+            f"[{ts}] [RAW] {len(messages)} messages\n{self._format_messages(messages)}"
         )
-        logger.warning(
-            "🐕 Scent trail lost: raw-archived {} messages", len(messages)
-        )
+        logger.warning("🐕 Scent trail lost: raw-archived {} messages", len(messages))
 
 
 class PackMemory:
-
     _MAX_CONSOLIDATION_ROUNDS = 5
 
     def __init__(
@@ -539,7 +568,7 @@ class PackMemory:
 
     def estimate_session_prompt_tokens(self, session: Session) -> tuple[int, str]:
         history = session.get_history(max_messages=0)
-        channel, chat_id = (session.key.split(":", 1) if ":" in session.key else (None, None))
+        channel, chat_id = session.key.split(":", 1) if ":" in session.key else (None, None)
         probe_messages = self._build_messages(
             history=history,
             current_message="[token-probe]",
@@ -599,7 +628,7 @@ class PackMemory:
                     return
 
                 end_idx = boundary[0]
-                chunk = session.messages[session.last_consolidated:end_idx]
+                chunk = session.messages[session.last_consolidated : end_idx]
                 if not chunk:
                     return
 
@@ -627,17 +656,21 @@ class PackMemory:
         count = len(session.messages) - session.last_learned
         if count < self.learning_interval:
             return
-        chunk = session.messages[session.last_learned:]
+        chunk = session.messages[session.last_learned :]
         if not chunk:
             return
 
         lock = self.get_lock(session.key)
         async with lock:
-            logger.debug("🐕 Proactive Learning starting for {} ({} new messages)", session.key, len(chunk))
+            logger.debug(
+                "🐕 Proactive Learning starting for {} ({} new messages)", session.key, len(chunk)
+            )
             session.last_learned = len(session.messages)
             self.sessions.save(session)
 
-            success = await self.store.proactive_consolidate(chunk, self.provider, self.consolidation_model)
+            success = await self.store.proactive_consolidate(
+                chunk, self.provider, self.consolidation_model
+            )
             if not success:
                 logger.debug("🐕 Proactive Learning skipped/failed for {}", session.key)
         await self.maybe_compact_memory()
@@ -648,6 +681,7 @@ class PackMemory:
         mem_tokens = self.store.estimate_memory_tokens()
         if mem_tokens > self.memory_compact_threshold_tokens:
             await self.store.compact_long_term(
-                self.provider, self.consolidation_model,
+                self.provider,
+                self.consolidation_model,
                 target_tokens=self.memory_compact_threshold_tokens,
             )

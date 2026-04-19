@@ -57,6 +57,7 @@ class WhatsAppChannel(BaseChannel):
         # because the bridge_token is sent in cleartext over the WebSocket.
         try:
             from urllib.parse import urlparse as _urlparse
+
             _parsed = _urlparse(bridge_url)
             _host = (_parsed.hostname or "").lower()
             if _host not in ("localhost", "127.0.0.1", "::1", ""):
@@ -79,7 +80,9 @@ class WhatsAppChannel(BaseChannel):
                     self._ws = ws
                     # Send auth token if configured
                     if self.config.bridge_token:
-                        await ws.send(json.dumps({"type": "auth", "token": self.config.bridge_token}))
+                        await ws.send(
+                            json.dumps({"type": "auth", "token": self.config.bridge_token})
+                        )
                     self._connected = True
                     logger.info("Connected to WhatsApp bridge")
 
@@ -124,20 +127,21 @@ class WhatsAppChannel(BaseChannel):
                 chat_id = valid_ids[0]
                 if "@" not in chat_id:
                     chat_id = f"{chat_id}@s.whatsapp.net"
-                logger.debug("Invalid chat_id '{}', falling back to allowed user {}", msg.chat_id, chat_id)
+                logger.debug(
+                    "Invalid chat_id '{}', falling back to allowed user {}", msg.chat_id, chat_id
+                )
             elif len(valid_ids) > 1:
-                logger.error("Invalid chat_id '{}'. Multiple allowed users, cannot auto-resolve.", msg.chat_id)
+                logger.error(
+                    "Invalid chat_id '{}'. Multiple allowed users, cannot auto-resolve.",
+                    msg.chat_id,
+                )
                 return
             else:
                 logger.error("Invalid chat_id: {}", msg.chat_id)
                 return
 
         try:
-            payload = {
-                "type": "send",
-                "to": chat_id,
-                "text": msg.content
-            }
+            payload = {"type": "send", "to": chat_id, "text": msg.content}
             await self._ws.send(json.dumps(payload, ensure_ascii=False))
         except Exception as e:
             logger.error("Error sending WhatsApp message: {}", e)
@@ -175,7 +179,10 @@ class WhatsAppChannel(BaseChannel):
 
             # Handle voice transcription if it's a voice message
             if content == "[Voice Message]":
-                logger.info("Voice message received from {}, but direct download from bridge is not yet supported.", sender_id)
+                logger.info(
+                    "Voice message received from {}, but direct download from bridge is not yet supported.",
+                    sender_id,
+                )
                 content = "[Voice Message: Transcription not available for WhatsApp yet]"
 
             # Extract media paths (images/documents/videos downloaded by the bridge)
@@ -197,8 +204,8 @@ class WhatsAppChannel(BaseChannel):
                 metadata={
                     "message_id": message_id,
                     "timestamp": data.get("timestamp"),
-                    "is_group": data.get("isGroup", False)
-                }
+                    "is_group": data.get("isGroup", False),
+                },
             )
 
         elif msg_type == "status":
@@ -216,4 +223,4 @@ class WhatsAppChannel(BaseChannel):
             logger.info("Scan QR code in the bridge terminal to connect WhatsApp")
 
         elif msg_type == "error":
-            logger.error("WhatsApp bridge error: {}", data.get('error'))
+            logger.error("WhatsApp bridge error: {}", data.get("error"))

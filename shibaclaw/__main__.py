@@ -1,4 +1,4 @@
-﻿"""
+"""
 Entry point for running shibaclaw as a module: python -m shibaclaw
 """
 

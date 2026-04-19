@@ -13,7 +13,7 @@ from shibaclaw.thinkers.openai_provider import OpenAIThinker
 class GithubCopilotThinker(OpenAIThinker):
     """
     Thinker for Github Copilot Chat API.
-    
+
     Reads the OAuth access token (acquired via CLI login),
     exchanges it for a short-lived internal Copilot token,
     and calls the OpenAI-compatible Github Copilot endpoint.
@@ -67,11 +67,13 @@ class GithubCopilotThinker(OpenAIThinker):
                     "User-Agent": "shibaclaw/1.0",
                     "Editor-Version": "vscode/1.85.0",
                     "Editor-Plugin-Version": "copilot-chat/0.11.1",
-                }
+                },
             )
 
             if resp.status_code != 200:
-                raise RuntimeError(f"Failed to refresh Copilot token: {resp.status_code} - {resp.text}")
+                raise RuntimeError(
+                    f"Failed to refresh Copilot token: {resp.status_code} - {resp.text}"
+                )
 
             data = resp.json()
             self._cached_token = data.get("token")
@@ -99,7 +101,9 @@ class GithubCopilotThinker(OpenAIThinker):
             session_token = await self._get_session_token()
             self._client.api_key = session_token
         except Exception as e:
-            return LLMResponse(content=f"Error authenticating with Github Copilot: {e}", finish_reason="error")
+            return LLMResponse(
+                content=f"Error authenticating with Github Copilot: {e}", finish_reason="error"
+            )
 
         return await super().chat(
             messages=messages,
@@ -126,7 +130,9 @@ class GithubCopilotThinker(OpenAIThinker):
             session_token = await self._get_session_token()
             self._client.api_key = session_token
         except Exception as e:
-            return LLMResponse(content=f"Error authenticating with Github Copilot: {e}", finish_reason="error")
+            return LLMResponse(
+                content=f"Error authenticating with Github Copilot: {e}", finish_reason="error"
+            )
 
         return await super().chat_streaming(
             messages=messages,

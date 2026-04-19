@@ -69,7 +69,7 @@ class BaseChannel(ABC):
                 res = await client.audio.transcriptions.create(
                     model=self.audio_config.model or "whisper-large-v3-turbo",
                     file=audio_file,
-                    response_format="text"
+                    response_format="text",
                 )
             return str(res).strip()
         except Exception as e:
@@ -147,7 +147,8 @@ class BaseChannel(ABC):
             logger.warning(
                 "Access denied for sender {} on channel {}. "
                 "Add them to allowFrom list in config to grant access.",
-                sender_id, self.name,
+                sender_id,
+                self.name,
             )
             return
 

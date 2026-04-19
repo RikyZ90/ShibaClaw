@@ -25,11 +25,13 @@ async def api_sessions_get(request: Request):
     session_id = request.path_params["session_id"]
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
-    return JSONResponse({
-        "messages": session.messages,
-        "nickname": session.metadata.get("nickname"),
-        "profile_id": session.metadata.get("profile_id", "default"),
-    })
+    return JSONResponse(
+        {
+            "messages": session.messages,
+            "nickname": session.metadata.get("nickname"),
+            "profile_id": session.metadata.get("profile_id", "default"),
+        }
+    )
 
 
 async def api_sessions_patch(request: Request):
@@ -47,7 +49,9 @@ async def api_sessions_patch(request: Request):
         session.metadata["profile_id"] = data["profile_id"]
     if "nickname" in data or "profile_id" in data:
         pm.save(session)
-        return JSONResponse({"status": "updated", "profile_id": session.metadata.get("profile_id", "default")})
+        return JSONResponse(
+            {"status": "updated", "profile_id": session.metadata.get("profile_id", "default")}
+        )
     return JSONResponse({"error": "Nothing to update"}, status_code=400)
 
 
@@ -75,7 +79,7 @@ async def api_sessions_archive(request: Request):
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
 
-    snapshot = list(session.messages[session.last_consolidated:])
+    snapshot = list(session.messages[session.last_consolidated :])
 
     path = pm._get_session_path(session_id)
     if path.exists():

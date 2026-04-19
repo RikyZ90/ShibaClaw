@@ -31,7 +31,6 @@ class ProviderSpec:
     env_key: str  # API key environment variable, e.g. "DASHSCOPE_API_KEY"
     display_name: str = ""  # shown in `shibaclaw status`
 
-
     # extra env vars, e.g. (("ZHIPUAI_API_KEY", "{api_key}"),)
     env_extras: tuple[tuple[str, str], ...] = ()
 
@@ -44,7 +43,6 @@ class ProviderSpec:
 
     # gateway behavior
     strip_model_prefix: bool = False  # strip "provider/" before re-prefixing
-
 
     # per-model param overrides, e.g. (("kimi-k2.5", {"temperature": 1.0}),)
     model_overrides: tuple[tuple[str, dict[str, Any]], ...] = ()
@@ -76,7 +74,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="Custom",
         is_direct=True,
     ),
-
     # === Azure OpenAI (direct API calls with API version 2024-10-21) =====
     ProviderSpec(
         name="azure_openai",
@@ -135,7 +132,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
-
     # VolcEngine (火山引擎): OpenAI-compatible gateway, pay-per-use models
     ProviderSpec(
         name="volcengine",
@@ -151,7 +147,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
-
     # VolcEngine Coding Plan (火山引擎 Coding Plan): same key as volcengine
     ProviderSpec(
         name="volcengine_coding_plan",
@@ -167,7 +162,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=True,
         model_overrides=(),
     ),
-
     # BytePlus: VolcEngine international, pay-per-use models
     ProviderSpec(
         name="byteplus",
@@ -183,7 +177,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=True,
         model_overrides=(),
     ),
-
     # BytePlus Coding Plan: same key as byteplus
     ProviderSpec(
         name="byteplus_coding_plan",
@@ -199,8 +192,6 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=True,
         model_overrides=(),
     ),
-
-
     # === Standard providers (matched by model-name keywords) ===============
     # Anthropic: Direct native implementation, no prefix needed.
     ProviderSpec(
@@ -476,4 +467,3 @@ def find_by_name(name: str) -> ProviderSpec | None:
         if spec.name == name:
             return spec
     return None
-

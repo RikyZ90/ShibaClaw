@@ -25,7 +25,7 @@ async def api_onboard_providers(request: Request):
     current_model = cfg.agents.defaults.model if cfg else ""
     # Strip erroneous provider prefix (e.g. "openrouter/") from model names
     if current_provider and current_model.startswith(current_provider + "/"):
-        current_model = current_model[len(current_provider) + 1:]
+        current_model = current_model[len(current_provider) + 1 :]
 
     providers = []
     for name, label, env_key, default_model, is_local, is_oauth in _ONBOARD_PROVIDERS:
@@ -42,21 +42,25 @@ async def api_onboard_providers(request: Request):
         elif has_key:
             status = "configured"
 
-        providers.append({
-            "name": name,
-            "label": label,
-            "env_key": env_key,
-            "default_model": default_model,
-            "is_local": is_local,
-            "is_oauth": is_oauth,
-            "status": status,
-        })
+        providers.append(
+            {
+                "name": name,
+                "label": label,
+                "env_key": env_key,
+                "default_model": default_model,
+                "is_local": is_local,
+                "is_oauth": is_oauth,
+                "status": status,
+            }
+        )
 
-    return JSONResponse({
-        "providers": providers,
-        "current_provider": current_provider,
-        "current_model": current_model,
-    })
+    return JSONResponse(
+        {
+            "providers": providers,
+            "current_provider": current_provider,
+            "current_model": current_model,
+        }
+    )
 
 
 async def api_onboard_templates(request: Request):
@@ -68,6 +72,7 @@ async def api_onboard_templates(request: Request):
 
     wp = agent_manager.config.workspace_path
     from importlib.resources import files as pkg_files
+
     try:
         tpl = pkg_files("shibaclaw") / "templates"
     except Exception:
@@ -103,6 +108,7 @@ async def api_onboard_submit(request: Request):
         agent_manager.load_latest_config()
     if not agent_manager.config:
         from shibaclaw.config.schema import Config
+
         agent_manager.config = Config()
 
     cfg = agent_manager.config
@@ -119,11 +125,13 @@ async def api_onboard_submit(request: Request):
 
     # Save config
     from shibaclaw.config.loader import get_config_path, save_config
+
     config_path = get_config_path()
     save_config(cfg, config_path)
 
     # Run plugin defaults
     from shibaclaw.cli.onboard import _onboard_plugins
+
     _onboard_plugins(config_path)
 
     # Sync workspace templates
@@ -132,6 +140,7 @@ async def api_onboard_submit(request: Request):
         wp.mkdir(parents=True, exist_ok=True)
 
     from importlib.resources import files as pkg_files
+
     try:
         tpl = pkg_files("shibaclaw") / "templates"
     except Exception:
@@ -156,6 +165,7 @@ async def api_onboard_submit(request: Request):
             hist_dest.write_text("", encoding="utf-8")
 
     from shibaclaw.helpers.helpers import sync_profiles, sync_skills
+
     sync_skills(wp)
     sync_profiles(wp)
 

@@ -21,6 +21,7 @@ from loguru import logger
 
 class Severity(str, Enum):
     """CVE severity levels, ordered from most to least severe."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -65,6 +66,7 @@ _SEVERITY_ORDER = {
 @dataclass
 class Vulnerability:
     """A single known vulnerability."""
+
     package: str
     version: str
     cve_id: str
@@ -75,6 +77,7 @@ class Vulnerability:
 @dataclass
 class AuditResult:
     """Result of a vulnerability audit on an install command."""
+
     allowed: bool
     confidence: str  # "high", "medium", "low"
     manager: str  # "pip", "npm", "apt", etc.
@@ -137,6 +140,7 @@ def detect_install_command(command: str) -> str | None:
 
 # ─── Audit runners ──────────────────────────────────────────────────
 
+
 async def _run_subprocess(
     cmd: list[str],
     timeout: int = 120,
@@ -174,7 +178,9 @@ async def _run_subprocess(
 
 
 async def _audit_pip(
-    command: str, timeout: int = 120, block_severity: str = "high",
+    command: str,
+    timeout: int = 120,
+    block_severity: str = "high",
 ) -> AuditResult:
     """Audit a pip install command using pip-audit.
 
@@ -199,9 +205,22 @@ async def _audit_pip(
                 continue
             if token.startswith("-"):
                 # Flags that consume the next arg
-                if token in ("-r", "--requirement", "-c", "--constraint", "-e", "--editable",
-                             "-t", "--target", "--prefix", "-i", "--index-url",
-                             "--extra-index-url", "-f", "--find-links"):
+                if token in (
+                    "-r",
+                    "--requirement",
+                    "-c",
+                    "--constraint",
+                    "-e",
+                    "--editable",
+                    "-t",
+                    "--target",
+                    "--prefix",
+                    "-i",
+                    "--index-url",
+                    "--extra-index-url",
+                    "-f",
+                    "--find-links",
+                ):
                     skip_next = True
                 continue
             packages.append(token)
@@ -226,8 +245,13 @@ async def _audit_pip(
     pkg_list = "\n".join(packages)
     try:
         process = await asyncio.create_subprocess_exec(
-            "pip-audit", "--format", "json", "--desc", "--progress-spinner=off",
-            "-r", "/dev/stdin",
+            "pip-audit",
+            "--format",
+            "json",
+            "--desc",
+            "--progress-spinner=off",
+            "-r",
+            "/dev/stdin",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -236,9 +260,8 @@ async def _audit_pip(
             process.communicate(input=pkg_list.encode()),
             timeout=timeout,
         )
-        returncode = process.returncode or 0
         stdout = stdout_bytes.decode("utf-8", errors="replace")
-        stderr = stderr_bytes.decode("utf-8", errors="replace")
+        stderr_bytes.decode("utf-8", errors="replace")
     except asyncio.TimeoutError:
         result.warnings.append("pip-audit timed out — allowing install with caution")
         result.confidence = "low"
@@ -282,13 +305,18 @@ def _parse_pip_audit_json(output: str) -> list[Vulnerability]:
         pkg_name = dep.get("name", "unknown")
         pkg_version = dep.get("version", "?")
         for vuln in dep.get("vulns", []):
-            vulns.append(Vulnerability(
-                package=pkg_name,
-                version=pkg_version,
-                cve_id=vuln.get("id", vuln.get("aliases", ["UNKNOWN"])[0] if vuln.get("aliases") else "UNKNOWN"),
-                severity=Severity.from_str(vuln.get("severity", "unknown")),
-                description=vuln.get("description", "")[:200],
-            ))
+            vulns.append(
+                Vulnerability(
+                    package=pkg_name,
+                    version=pkg_version,
+                    cve_id=vuln.get(
+                        "id",
+                        vuln.get("aliases", ["UNKNOWN"])[0] if vuln.get("aliases") else "UNKNOWN",
+                    ),
+                    severity=Severity.from_str(vuln.get("severity", "unknown")),
+                    description=vuln.get("description", "")[:200],
+                )
+            )
             # Try to get proper severity from description or details
             desc_lower = vuln.get("description", "").lower()
             if any(word in desc_lower for word in ("critical", "remote code execution", "rce")):
@@ -303,7 +331,9 @@ def _parse_pip_audit_json(output: str) -> list[Vulnerability]:
 
 
 async def _audit_npm(
-    command: str, timeout: int = 120, block_severity: str = "high",
+    command: str,
+    timeout: int = 120,
+    block_severity: str = "high",
     cwd: str | None = None,
 ) -> AuditResult:
     """Audit an npm/yarn/pnpm install using npm audit."""
@@ -319,7 +349,9 @@ async def _audit_npm(
     # Run npm audit --json on the current project
     audit_cmd = ["npm", "audit", "--json"]
     returncode, stdout, stderr = await _run_subprocess(
-        audit_cmd, timeout=timeout, cwd=cwd,
+        audit_cmd,
+        timeout=timeout,
+        cwd=cwd,
     )
 
     if returncode == -1:
@@ -354,18 +386,21 @@ def _parse_npm_audit_json(output: str) -> list[Vulnerability]:
         severity_str = info.get("severity", "unknown")
         for via_entry in info.get("via", []):
             if isinstance(via_entry, dict):
-                vulns.append(Vulnerability(
-                    package=pkg_name,
-                    version=info.get("range", "?"),
-                    cve_id=via_entry.get("url", via_entry.get("source", "UNKNOWN")),
-                    severity=Severity.from_str(via_entry.get("severity", severity_str)),
-                    description=via_entry.get("title", "")[:200],
-                ))
+                vulns.append(
+                    Vulnerability(
+                        package=pkg_name,
+                        version=info.get("range", "?"),
+                        cve_id=via_entry.get("url", via_entry.get("source", "UNKNOWN")),
+                        severity=Severity.from_str(via_entry.get("severity", severity_str)),
+                        description=via_entry.get("title", "")[:200],
+                    )
+                )
     return vulns
 
 
 async def _audit_system_pkg(
-    command: str, manager: str,
+    command: str,
+    manager: str,
 ) -> AuditResult:
     """Basic audit for system package managers (apt, dnf, yum).
 
@@ -413,14 +448,18 @@ async def _audit_brew(command: str) -> AuditResult:
 
 # ─── Classification ─────────────────────────────────────────────────
 
+
 def _classify_vulnerabilities(
-    vulns: list[Vulnerability], threshold: Severity,
+    vulns: list[Vulnerability],
+    threshold: Severity,
 ) -> tuple[bool, str]:
     """Classify vulnerabilities and decide if install should proceed.
 
     Returns (allowed, summary).
     """
-    blocked_vulns = [v for v in vulns if _SEVERITY_ORDER.get(v.severity, 0) >= _SEVERITY_ORDER.get(threshold, 0)]
+    blocked_vulns = [
+        v for v in vulns if _SEVERITY_ORDER.get(v.severity, 0) >= _SEVERITY_ORDER.get(threshold, 0)
+    ]
 
     if blocked_vulns:
         crit = sum(1 for v in blocked_vulns if v.severity == Severity.CRITICAL)
@@ -436,10 +475,14 @@ def _classify_vulnerabilities(
         return False, f"BLOCKED: {', '.join(parts)} severity vulnerability(ies) found"
 
     # Below threshold — allow with note
-    return True, f"Allowed: {len(vulns)} vulnerability(ies) found, all below '{threshold.value}' threshold"
+    return (
+        True,
+        f"Allowed: {len(vulns)} vulnerability(ies) found, all below '{threshold.value}' threshold",
+    )
 
 
 # ─── Public API ──────────────────────────────────────────────────────
+
 
 async def audit_install(
     command: str,
@@ -464,7 +507,9 @@ async def audit_install(
     if manager is None:
         # Not an install command — shouldn't reach here, but be safe
         return AuditResult(
-            allowed=True, confidence="high", manager="unknown",
+            allowed=True,
+            confidence="high",
+            manager="unknown",
             summary="Not recognized as an install command",
         )
 
@@ -475,7 +520,10 @@ async def audit_install(
             result = await _audit_pip(command, timeout=timeout, block_severity=block_severity)
         elif manager in ("npm", "yarn", "pnpm"):
             result = await _audit_npm(
-                command, timeout=timeout, block_severity=block_severity, cwd=cwd,
+                command,
+                timeout=timeout,
+                block_severity=block_severity,
+                cwd=cwd,
             )
         elif manager in ("apt", "dnf", "yum"):
             result = await _audit_system_pkg(command, manager)
@@ -483,14 +531,18 @@ async def audit_install(
             result = await _audit_brew(command)
         else:
             result = AuditResult(
-                allowed=True, confidence="low", manager=manager,
+                allowed=True,
+                confidence="low",
+                manager=manager,
                 summary=f"No audit strategy for {manager} — allowing with caution",
                 warnings=[f"No vulnerability scanner available for {manager}"],
             )
     except Exception as e:
         logger.warning("Install audit error for {}: {}", manager, e)
         result = AuditResult(
-            allowed=True, confidence="low", manager=manager,
+            allowed=True,
+            confidence="low",
+            manager=manager,
             summary=f"Audit failed: {e} — allowing install with caution",
             warnings=[f"Audit error: {e}. Install permitted as fallback."],
         )

@@ -9,10 +9,10 @@ import typer
 from rich.table import Table
 
 from shibaclaw import __logo__, __version__
+from shibaclaw.helpers.logging import setup_shiba_logging
 
 from .base import _load_runtime_config, _make_provider
 from .utils import console
-from shibaclaw.helpers.logging import setup_shiba_logging
 
 app = typer.Typer(
     name="shibaclaw",
@@ -40,6 +40,7 @@ def main(
 def print_token():
     """Print the WebUI authentication token."""
     from shibaclaw.webui.server import get_auth_token
+
     token = get_auth_token()
     if token:
         console.print(f"[green]🔑 Token: {token}[/green]")
@@ -54,12 +55,15 @@ def onboard(
 ):
     """Initialize shibaclaw configuration and workspace."""
     from .onboard import onboard_command
+
     onboard_command(workspace=workspace, config_override=config)
 
 
 @app.command()
 def gateway(
-    host: Optional[str] = typer.Option(None, "--host", "-H", help="Gateway host (default: 127.0.0.1 or from config)"),
+    host: Optional[str] = typer.Option(
+        None, "--host", "-H", help="Gateway host (default: 127.0.0.1 or from config)"
+    ),
     port: Optional[int] = typer.Option(None, "--port", "-p", help="Gateway port"),
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
@@ -67,7 +71,12 @@ def gateway(
 ):
     """Start the shibaclaw gateway."""
     from .gateway import gateway_command
-    asyncio.run(gateway_command(host=host, port_override=port, workspace=workspace, verbose=verbose, config_path=config))
+
+    asyncio.run(
+        gateway_command(
+            host=host, port_override=port, workspace=workspace, verbose=verbose, config_path=config
+        )
+    )
 
 
 @app.command()
@@ -76,7 +85,9 @@ def web(
     port: int = typer.Option(3000, "--port", "-p", help="WebUI port"),
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
-    with_gateway: bool = typer.Option(False, "--with-gateway", "-g", help="Start the gateway in the background automatically"),
+    with_gateway: bool = typer.Option(
+        False, "--with-gateway", "-g", help="Start the gateway in the background automatically"
+    ),
 ):
     """Start the ShibaClaw WebUI in the browser."""
     import os
@@ -113,8 +124,10 @@ def web(
             "--port",
             str(gateway_port),
         ]
-        if workspace: gw_cmd.extend(["--workspace", workspace])
-        if config: gw_cmd.extend(["--config", config])
+        if workspace:
+            gw_cmd.extend(["--workspace", workspace])
+        if config:
+            gw_cmd.extend(["--config", config])
 
         gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy())
         deadline = time.monotonic() + 5.0
@@ -131,10 +144,14 @@ def web(
     console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     console.print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
     if token:
-        console.print(f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token)-4)}[/bold]")
+        console.print(
+            f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token) - 4)}[/bold]"
+        )
     if provider is None:
         console.print("")
-        console.print("  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]")
+        console.print(
+            "  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
+        )
 
     try:
         asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
@@ -147,19 +164,25 @@ def web(
             except subprocess.TimeoutExpired:
                 gateway_proc.kill()
 
+
 @app.command()
 def agent(
     message: Optional[str] = typer.Argument(None, help="Message to send to the agent"),
     session_id: str = typer.Option("cli:direct", "--session", "-s", help="Session ID"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
-    markdown: bool = typer.Option(True, "--markdown/--no-markdown", help="Render output as Markdown"),
+    markdown: bool = typer.Option(
+        True, "--markdown/--no-markdown", help="Render output as Markdown"
+    ),
     logs: bool = typer.Option(False, "--logs/--no-logs", help="Show runtime logs"),
 ):
     """Interact with the agent directly."""
     from .agent import agent_command
+
     cfg = _load_runtime_config(config, workspace)
-    agent_command(message=message, session_id=session_id, config_obj=cfg, markdown=markdown, logs=logs)
+    agent_command(
+        message=message, session_id=session_id, config_obj=cfg, markdown=markdown, logs=logs
+    )
 
 
 @app.command()
@@ -172,8 +195,12 @@ def status():
 
     cfg_path, cfg = get_config_path(), load_config()
     console.print(f"{__logo__} [bold]shibaclaw Status[/bold]\n")
-    console.print(f"Config: {cfg_path} {'[green]✓[/green]' if cfg_path.exists() else '[red]✗[/red]'}")
-    console.print(f"Workspace: {cfg.workspace_path} {'[green]✓[/green]' if cfg.workspace_path.exists() else '[red]✗[/red]'}")
+    console.print(
+        f"Config: {cfg_path} {'[green]✓[/green]' if cfg_path.exists() else '[red]✗[/red]'}"
+    )
+    console.print(
+        f"Workspace: {cfg.workspace_path} {'[green]✓[/green]' if cfg.workspace_path.exists() else '[red]✗[/red]'}"
+    )
 
     if cfg_path.exists():
         console.print(f"Model: [bold cyan]{cfg.agents.defaults.model}[/bold cyan]")
@@ -183,7 +210,9 @@ def status():
                 if spec.is_oauth:
                     status_text = _oauth_provider_status(spec)
                 elif spec.is_local:
-                    status_text = f"[green]✓ {p.api_base}[/green]" if p.api_base else "[dim]not set[/dim]"
+                    status_text = (
+                        f"[green]✓ {p.api_base}[/green]" if p.api_base else "[dim]not set[/dim]"
+                    )
                 else:
                     status_text = "[green]✓[/green]" if p.api_key else "[dim]not set[/dim]"
                 console.print(f"{spec.label}: {status_text}")
@@ -198,6 +227,7 @@ def channels_status():
     """Show channel status."""
     from shibaclaw.config.loader import load_config
     from shibaclaw.integrations.registry import discover_all
+
     cfg = load_config()
     table = Table(title="Channel Status")
     table.add_column("Channel", style="cyan")
@@ -221,6 +251,7 @@ app.add_typer(provider_app, name="provider")
 def provider_login_cmd(provider: str = typer.Argument(..., help="OAuth provider")):
     """Authenticate with an OAuth provider."""
     from .auth import provider_login
+
     provider_login(provider)
 
 

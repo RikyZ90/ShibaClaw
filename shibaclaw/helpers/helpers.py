@@ -44,6 +44,7 @@ def current_time_str() -> str:
 
 _UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*]')
 
+
 def safe_filename(name: str) -> str:
     """Replace unsafe path characters with underscores."""
     return _UNSAFE_CHARS.sub("_", name).strip()
@@ -71,9 +72,9 @@ def split_message(content: str, max_len: int = 2000) -> list[str]:
             break
         cut = content[:max_len]
         # Try to break at newline first, then space, then hard break
-        pos = cut.rfind('\n')
+        pos = cut.rfind("\n")
         if pos <= 0:
-            pos = cut.rfind(' ')
+            pos = cut.rfind(" ")
         if pos <= 0:
             pos = max_len
         chunks.append(content[:pos])
@@ -119,6 +120,7 @@ def _sync_builtin_skills_to_workspace(workspace: Path, silent: bool = False) -> 
     # Existing skills — ask before overwriting
     if existing_skills and not silent:
         from rich.console import Console
+
         con = Console()
         names = ", ".join(s.name for s in existing_skills)
         con.print(f"  [yellow]Skills already present:[/yellow] {names}")
@@ -134,6 +136,7 @@ def _sync_builtin_skills_to_workspace(workspace: Path, silent: bool = False) -> 
 
     if copied and not silent:
         from rich.console import Console
+
         for name in copied:
             Console().print(f"  [dim]Synced skill {name} to workspace/skills/{name}[/dim]")
 
@@ -317,9 +320,7 @@ def sync_profiles(workspace: Path) -> list[str]:
             soul_dest = dest_dir / "SOUL.md"
             if soul_src.is_file() and not soul_dest.exists():
                 dest_dir.mkdir(exist_ok=True)
-                soul_dest.write_text(
-                    soul_src.read_text(encoding="utf-8"), encoding="utf-8"
-                )
+                soul_dest.write_text(soul_src.read_text(encoding="utf-8"), encoding="utf-8")
                 added.append(f"profiles/{profile_dir.name}/SOUL.md")
 
     return added
@@ -333,6 +334,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
     customised).  In *silent* mode existing files are never touched.
     """
     from importlib.resources import files as pkg_files
+
     try:
         tpl = pkg_files("shibaclaw") / "templates"
     except Exception:
@@ -371,6 +373,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
     # Existing templates — ask before overwriting
     if existing_templates and not silent:
         from rich.console import Console
+
         con = Console()
         names = ", ".join(d.name for _, d in existing_templates)
         con.print(f"  [yellow]Templates already customised:[/yellow] {names}")
@@ -394,6 +397,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
         manifest_dest = profiles_dest / "manifest.json"
         if manifest_src.is_file():
             import json as _json
+
             builtin_manifest = _json.loads(manifest_src.read_text(encoding="utf-8"))
             if manifest_dest.exists():
                 try:
@@ -427,6 +431,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
 
     if added and not silent:
         from rich.console import Console
+
         for name in added:
             Console().print(f"  [dim]Created {name}[/dim]")
     return added

@@ -41,16 +41,16 @@ def _save_cache(data: dict) -> None:
 
 def _parse_version(v: str) -> tuple:
     v = v.lstrip("v")
-    m = re.match(r'^(\d+(?:\.\d+)*)\s*[-.]?\s*(a|alpha|b|beta|rc)?(\d*)\s*$', v, re.IGNORECASE)
+    m = re.match(r"^(\d+(?:\.\d+)*)\s*[-.]?\s*(a|alpha|b|beta|rc)?(\d*)\s*$", v, re.IGNORECASE)
     if not m:
-        nums = re.findall(r'\d+', v)
+        nums = re.findall(r"\d+", v)
         return tuple(int(n) for n in nums) + (3, 0) if nums else (0, 3, 0)
-    numeric = tuple(int(x) for x in m.group(1).split('.'))
-    suffix = (m.group(2) or '').lower()
+    numeric = tuple(int(x) for x in m.group(1).split("."))
+    suffix = (m.group(2) or "").lower()
     suffix_num = int(m.group(3)) if m.group(3) else 0
-    _PRE_ORDER = {'a': 0, 'alpha': 0, 'b': 1, 'beta': 1, 'rc': 2}
-    if suffix in _PRE_ORDER:
-        return numeric + (_PRE_ORDER[suffix], suffix_num)
+    pre_order = {"a": 0, "alpha": 0, "b": 1, "beta": 1, "rc": 2}
+    if suffix in pre_order:
+        return numeric + (pre_order[suffix], suffix_num)
     return numeric + (3, 0)
 
 
@@ -73,7 +73,10 @@ def check_for_update(force: bool = False) -> dict[str, Any]:
     try:
         req = urllib.request.Request(
             _API_URL,
-            headers={"Accept": "application/vnd.github+json", "User-Agent": f"ShibaClaw/{__version__}"},
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"ShibaClaw/{__version__}",
+            },
         )
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode("utf-8"))

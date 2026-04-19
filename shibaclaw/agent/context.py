@@ -141,7 +141,9 @@ Skills with available="false" need dependencies installed first - you can try in
             lines.append(f"Agent Iteration: {iteration} / {max_iterations}")
         if available_channels:
             lines.append(f"Available Channels: {', '.join(available_channels)}")
-            lines.append('Use the message tool with channel="<name>" to send cross-channel messages.')
+            lines.append(
+                'Use the message tool with channel="<name>" to send cross-channel messages.'
+            )
         return "## Live State\n\n" + "\n".join(lines)
 
     def _get_identity(self) -> str:
@@ -163,7 +165,7 @@ Skills with available="false" need dependencies installed first - you can try in
 - Use file tools when they are simpler or more reliable than shell commands.
 """
 
-        Guidelines = """## ShibaClaw Guidelines
+        guidelines = """## ShibaClaw Guidelines
 - State intent before tool calls, but NEVER predict or claim results before receiving them.
 - Before modifying a file, read it first. Do not assume files or directories exist.
 - After writing or editing a file, re-read it if accuracy matters.
@@ -206,7 +208,7 @@ Root: {workspace_path}
 
 {platform_policy}
 
-{Guidelines}"""
+{guidelines}"""
 
     @staticmethod
     def _build_runtime_context(channel: str | None, chat_id: str | None) -> str:
@@ -238,7 +240,9 @@ Root: {workspace_path}
             if file_path.exists():
                 current_mtimes[str(file_path)] = file_path.stat().st_mtime
 
-        if cache_key in self._bootstrap_cache and current_mtimes == self._bootstrap_mtimes.get(cache_key):
+        if cache_key in self._bootstrap_cache and current_mtimes == self._bootstrap_mtimes.get(
+            cache_key
+        ):
             return self._bootstrap_cache[cache_key]
 
         parts = []
@@ -279,14 +283,17 @@ Root: {workspace_path}
         user_content = self._build_user_content(current_message, media)
 
         return [
-            {"role": "system", "content": self.build_system_prompt(
-                skill_names,
-                channel=channel,
-                chat_id=chat_id,
-                memory_max_prompt_tokens=memory_max_prompt_tokens,
-                available_channels=available_channels,
-                profile_id=profile_id,
-            )},
+            {
+                "role": "system",
+                "content": self.build_system_prompt(
+                    skill_names,
+                    channel=channel,
+                    chat_id=chat_id,
+                    memory_max_prompt_tokens=memory_max_prompt_tokens,
+                    available_channels=available_channels,
+                    profile_id=profile_id,
+                ),
+            },
             *history,
             {"role": current_role, "content": user_content},
         ]
@@ -307,11 +314,13 @@ Root: {workspace_path}
             if not mime or not mime.startswith("image/"):
                 continue
             b64 = base64.b64encode(raw).decode()
-            images.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:{mime};base64,{b64}"},
-                "_meta": {"path": str(p)},
-            })
+            images.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{b64}"},
+                    "_meta": {"path": str(p)},
+                }
+            )
 
         if not images:
             return text
@@ -322,8 +331,11 @@ Root: {workspace_path}
         self._tool_output_nonce = secrets.token_hex(8)
 
     def add_tool_result(
-        self, messages: list[dict[str, Any]],
-        tool_call_id: str, tool_name: str, result: str,
+        self,
+        messages: list[dict[str, Any]],
+        tool_call_id: str,
+        tool_name: str,
+        result: str,
     ) -> list[dict[str, Any]]:
         """Add a tool result to the message list, wrapped with a randomized delimiter for security."""
         tag = f"tool_output_{self._tool_output_nonce}"
@@ -332,22 +344,32 @@ Root: {workspace_path}
         closing_tag = f"</{tag}>"
         sanitized = result.replace(closing_tag, f"<\\/{tag}>")
 
-        safe_result = f"<{tag} name=\"{tool_name}\">\n{sanitized}\n</{tag}>"
-        messages.append({"role": "tool", "tool_call_id": tool_call_id, "name": tool_name, "content": safe_result})
+        safe_result = f'<{tag} name="{tool_name}">\n{sanitized}\n</{tag}>'
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "name": tool_name,
+                "content": safe_result,
+            }
+        )
         return messages
 
     def add_assistant_message(
-        self, messages: list[dict[str, Any]],
+        self,
+        messages: list[dict[str, Any]],
         content: str | None,
         tool_calls: list[dict[str, Any]] | None = None,
         reasoning_content: str | None = None,
         thinking_blocks: list[dict] | None = None,
     ) -> list[dict[str, Any]]:
         """Add an assistant message to the message list."""
-        messages.append(build_assistant_message(
-            content,
-            tool_calls=tool_calls,
-            reasoning_content=reasoning_content,
-            thinking_blocks=thinking_blocks,
-        ))
+        messages.append(
+            build_assistant_message(
+                content,
+                tool_calls=tool_calls,
+                reasoning_content=reasoning_content,
+                thinking_blocks=thinking_blocks,
+            )
+        )
         return messages

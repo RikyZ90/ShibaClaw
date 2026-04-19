@@ -69,7 +69,6 @@ PUBLIC_PATHS = ("/static/", "/api/auth/", "/api/file-get")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-
     async def dispatch(self, request: Request, call_next):
         if not _auth_enabled():
             return await call_next(request)

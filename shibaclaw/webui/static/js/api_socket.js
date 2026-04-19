@@ -73,7 +73,6 @@ function initSocket() {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
-        hideThinking();
 
         // Accumulate streamed text per message id
         if (!state._streamBuffers) state._streamBuffers = {};
@@ -297,10 +296,11 @@ async function fetchStatus() {
 
 // ── Gateway Health Polling ─────────────────────────────────────
 async function checkGatewayHealth() {
+    if (state.processing) return;
     if (!realtime.connected) {
         state.gatewayUp = false;
         state.gatewayKnown = true;
-        if (!state.processing) setStatusIndicator("disconnected");
+        setStatusIndicator("disconnected");
         return;
     }
 

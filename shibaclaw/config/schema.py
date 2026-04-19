@@ -46,10 +46,16 @@ class AgentDefaults(Base):
     reasoning_effort: str | None = None  # low / medium / high - enables LLM thinking mode
     learning_enabled: bool = True  # Periodically update long-term memory in background
     learning_interval: int = 10  # Number of new messages before triggering background learning
-    memory_max_prompt_tokens: int = 2000  # Max tokens from MEMORY.md injected into the system prompt
+    memory_max_prompt_tokens: int = (
+        2000  # Max tokens from MEMORY.md injected into the system prompt
+    )
     memory_compact_threshold_tokens: int = 1600  # Token threshold that triggers automatic memory compaction (should be < memory_max_prompt_tokens)
-    consolidation_model: str | None = None  # Cheaper model for memory consolidation/compaction (None = use main model)
-    pinned_skills: list[str] = Field(default_factory=list)  # Skills always injected into prompt extras
+    consolidation_model: str | None = (
+        None  # Cheaper model for memory consolidation/compaction (None = use main model)
+    )
+    pinned_skills: list[str] = Field(
+        default_factory=list
+    )  # Skills always injected into prompt extras
     max_pinned_skills: int = 5  # Max number of pinned skills
 
 
@@ -71,15 +77,19 @@ class ProvidersConfig(Base):
     """Configuration for LLM providers."""
 
     custom: ProviderConfig = Field(default_factory=ProviderConfig)  # Any OpenAI-compatible endpoint
-    azure_openai: ProviderConfig = Field(default_factory=ProviderConfig)  # Azure OpenAI (model = deployment name)
+    azure_openai: ProviderConfig = Field(
+        default_factory=ProviderConfig
+    )  # Azure OpenAI (model = deployment name)
     anthropic: ProviderConfig = Field(default_factory=ProviderConfig)
     openai: ProviderConfig = Field(default_factory=ProviderConfig)
-    openrouter: ProviderConfig = Field(default_factory=lambda: ProviderConfig(
-        extra_headers={
-            "HTTP-Referer": "https://github.com/RikyZ90/ShibaClaw",
-            "X-Title": "ShibaClaw",
-        }
-    ))
+    openrouter: ProviderConfig = Field(
+        default_factory=lambda: ProviderConfig(
+            extra_headers={
+                "HTTP-Referer": "https://github.com/RikyZ90/ShibaClaw",
+                "X-Title": "ShibaClaw",
+            }
+        )
+    )
     deepseek: ProviderConfig = Field(default_factory=ProviderConfig)
     groq: ProviderConfig = Field(default_factory=ProviderConfig)
     zhipu: ProviderConfig = Field(default_factory=ProviderConfig)
@@ -92,9 +102,15 @@ class ProvidersConfig(Base):
     aihubmix: ProviderConfig = Field(default_factory=ProviderConfig)  # AiHubMix API gateway
     siliconflow: ProviderConfig = Field(default_factory=ProviderConfig)  # SiliconFlow (硅基流动)
     volcengine: ProviderConfig = Field(default_factory=ProviderConfig)  # VolcEngine (火山引擎)
-    volcengine_coding_plan: ProviderConfig = Field(default_factory=ProviderConfig)  # VolcEngine Coding Plan
-    byteplus: ProviderConfig = Field(default_factory=ProviderConfig)  # BytePlus (VolcEngine international)
-    byteplus_coding_plan: ProviderConfig = Field(default_factory=ProviderConfig)  # BytePlus Coding Plan
+    volcengine_coding_plan: ProviderConfig = Field(
+        default_factory=ProviderConfig
+    )  # VolcEngine Coding Plan
+    byteplus: ProviderConfig = Field(
+        default_factory=ProviderConfig
+    )  # BytePlus (VolcEngine international)
+    byteplus_coding_plan: ProviderConfig = Field(
+        default_factory=ProviderConfig
+    )  # BytePlus Coding Plan
     openai_codex: ProviderConfig = Field(default_factory=ProviderConfig)  # OpenAI Codex (OAuth)
     github_copilot: ProviderConfig = Field(default_factory=ProviderConfig)  # Github Copilot (OAuth)
 
@@ -105,7 +121,9 @@ class HeartbeatConfig(Base):
     enabled: bool = True
     interval_s: int = 30 * 60  # 30 minutes
     session_key: str = "heartbeat:default"  # Stable session key for heartbeat conversations
-    targets: dict[str, str] = Field(default_factory=dict)  # Channel → chat_id map (e.g. {"telegram": "12345", "webui": "recent"})
+    targets: dict[str, str] = Field(
+        default_factory=dict
+    )  # Channel → chat_id map (e.g. {"telegram": "12345", "webui": "recent"})
     profile_id: str | None = None  # Profile to use for heartbeat agent (e.g. "builder", "hacker")
 
 
@@ -135,7 +153,6 @@ class AudioConfig(Base):
     api_key: str | None = None
     model: str = "whisper-large-v3-turbo"  # default STT model for Groq
     tts_enabled: bool = False
-
 
 
 class WebToolsConfig(Base):
@@ -168,7 +185,9 @@ class MCPServerConfig(Base):
     url: str = ""  # HTTP/SSE: endpoint URL
     headers: dict[str, str] = Field(default_factory=dict)  # HTTP/SSE: custom headers
     tool_timeout: int = 30  # seconds before a tool call is cancelled
-    enabled_tools: list[str] = Field(default_factory=lambda: ["*"])  # Only register these tools; accepts raw MCP names or wrapped mcp_<server>_<tool> names; ["*"] = all tools; [] = no tools
+    enabled_tools: list[str] = Field(
+        default_factory=lambda: ["*"]
+    )  # Only register these tools; accepts raw MCP names or wrapped mcp_<server>_<tool> names; ["*"] = all tools; [] = no tools
 
 
 class ToolsConfig(Base):
@@ -292,8 +311,10 @@ class Config(BaseSettings):
             return p.api_base
         if name:
             spec = find_by_name(name)
-            if spec and spec.default_api_base and (
-                spec.is_gateway or spec.is_local or spec.name == "gemini"
+            if (
+                spec
+                and spec.default_api_base
+                and (spec.is_gateway or spec.is_local or spec.name == "gemini")
             ):
                 return spec.default_api_base
         return None

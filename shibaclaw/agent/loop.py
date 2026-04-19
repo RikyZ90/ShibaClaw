@@ -42,7 +42,7 @@ class ShibaBrain:
     _TOOL_RESULT_MAX_CHARS = 16_000
     _TOOL_RESULT_LOOP_MAX_CHARS = 8_000
     _TOOL_EXECUTION_TIMEOUT = 660  # seconds – safety net (ExecTool max is 600)
-    _LOOP_WALL_TIMEOUT = 600       # seconds – hard wall-clock cap on entire loop
+    _LOOP_WALL_TIMEOUT = 600  # seconds – hard wall-clock cap on entire loop
 
     def __init__(
         self,
@@ -100,7 +100,9 @@ class ShibaBrain:
         self._mcp_connecting = False
         self._active_tasks: dict[str, list[asyncio.Task]] = {}  # session_key -> tasks
         self._background_tasks: list[asyncio.Task] = []
-        self._session_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+        self._session_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
+            weakref.WeakValueDictionary()
+        )
         self.memory_consolidator = PackMemory(
             workspace=workspace,
             provider=provider,
@@ -140,23 +142,31 @@ class ShibaBrain:
         """Register the default set of tools."""
         allowed_dir = self.workspace if self.restrict_to_workspace else None
         extra_read = [BUILTIN_SKILLS_DIR] if allowed_dir else None
-        self.tools.register(ReadFileTool(workspace=self.workspace, allowed_dir=allowed_dir, extra_allowed_dirs=extra_read))
+        self.tools.register(
+            ReadFileTool(
+                workspace=self.workspace, allowed_dir=allowed_dir, extra_allowed_dirs=extra_read
+            )
+        )
         for cls in (WriteFileTool, EditFileTool, ListDirTool):
             self.tools.register(cls(workspace=self.workspace, allowed_dir=allowed_dir))
         if self.exec_config.enable:
-            self.tools.register(ExecTool(
-                working_dir=str(self.workspace),
-                timeout=self.exec_config.timeout,
-                restrict_to_workspace=self.restrict_to_workspace,
-                path_append=self.exec_config.path_append,
-                install_audit=self.exec_config.install_audit,
-                install_audit_timeout=self.exec_config.install_audit_timeout,
-                install_audit_block_severity=self.exec_config.install_audit_block_severity,
-            ))
+            self.tools.register(
+                ExecTool(
+                    working_dir=str(self.workspace),
+                    timeout=self.exec_config.timeout,
+                    restrict_to_workspace=self.restrict_to_workspace,
+                    path_append=self.exec_config.path_append,
+                    install_audit=self.exec_config.install_audit,
+                    install_audit_timeout=self.exec_config.install_audit_timeout,
+                    install_audit_block_severity=self.exec_config.install_audit_block_severity,
+                )
+            )
         self.tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
         self.tools.register(MemorySearchTool(workspace=self.workspace))
-        self.tools.register(MessageTool(send_callback=self.bus.publish_outbound, workspace=self.workspace))
+        self.tools.register(
+            MessageTool(send_callback=self.bus.publish_outbound, workspace=self.workspace)
+        )
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
@@ -167,6 +177,7 @@ class ShibaBrain:
             return
         self._mcp_connecting = True
         from shibaclaw.agent.tools.mcp import connect_mcp_servers
+
         try:
             self._mcp_stack = AsyncExitStack()
             await self._mcp_stack.__aenter__()
@@ -191,7 +202,12 @@ class ShibaBrain:
         session_key: str | None = None,
     ) -> None:
         """Update context for all tools that need routing info."""
-        logger.debug("🛠️ Setting tool context: channel={}, chat_id={}, message_id={}", channel, chat_id, message_id)
+        logger.debug(
+            "🛠️ Setting tool context: channel={}, chat_id={}, message_id={}",
+            channel,
+            chat_id,
+            message_id,
+        )
         for name in ("message", "spawn", "cron"):
             if tool := self.tools.get(name):
                 if hasattr(tool, "set_context"):
@@ -211,12 +227,14 @@ class ShibaBrain:
     @staticmethod
     def _tool_hint(tool_calls: list) -> str:
         """Format tool calls as concise hint, e.g. 'web_search("query")'."""
+
         def _fmt(tc):
             args = (tc.arguments[0] if isinstance(tc.arguments, list) else tc.arguments) or {}
             val = next(iter(args.values()), None) if isinstance(args, dict) else None
             if not isinstance(val, str):
                 return tc.name
             return f'{tc.name}("{val}")'
+
         return ", ".join(_fmt(tc) for tc in tool_calls)
 
     async def _run_agent_loop(
@@ -264,7 +282,6 @@ class ShibaBrain:
                 break
             iteration += 1
 
-
             live_block = self.context.build_runtime_block(
                 channel=channel,
                 chat_id=chat_id,
@@ -293,12 +310,11 @@ class ShibaBrain:
                     tool_hint = self._strip_think(tool_hint)
                     await on_progress(tool_hint, tool_hint=True)
 
-                tool_call_dicts = [
-                    tc.to_openai_tool_call()
-                    for tc in response.tool_calls
-                ]
+                tool_call_dicts = [tc.to_openai_tool_call() for tc in response.tool_calls]
                 messages = self.context.add_assistant_message(
-                    messages, response.content, tool_call_dicts,
+                    messages,
+                    response.content,
+                    tool_call_dicts,
                     reasoning_content=response.reasoning_content,
                     thinking_blocks=response.thinking_blocks,
                 )
@@ -319,8 +335,7 @@ class ShibaBrain:
                             try:
                                 await asyncio.wait_for(
                                     asyncio.shield(tool_future),
-                                    timeout=min(_heartbeat,
-                                                self._TOOL_EXECUTION_TIMEOUT - _waited),
+                                    timeout=min(_heartbeat, self._TOOL_EXECUTION_TIMEOUT - _waited),
                                 )
                             except asyncio.TimeoutError:
                                 _waited += _heartbeat
@@ -347,7 +362,11 @@ class ShibaBrain:
                         result = f"Error: Tool '{tool_call.name}' failed: {exc}"
                     if len(result) > self._TOOL_RESULT_LOOP_MAX_CHARS:
                         half = self._TOOL_RESULT_LOOP_MAX_CHARS // 2
-                        result = result[:half] + f"\n...[TRUNCATED — {len(result)} chars total]...\n" + result[-half:]
+                        result = (
+                            result[:half]
+                            + f"\n...[TRUNCATED — {len(result)} chars total]...\n"
+                            + result[-half:]
+                        )
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )
@@ -360,7 +379,9 @@ class ShibaBrain:
                     final_content = clean or "Sorry, I encountered an error calling the AI model."
                     break
                 messages = self.context.add_assistant_message(
-                    messages, clean, reasoning_content=response.reasoning_content,
+                    messages,
+                    clean,
+                    reasoning_content=response.reasoning_content,
                     thinking_blocks=response.thinking_blocks,
                 )
                 final_content = clean
@@ -403,8 +424,10 @@ class ShibaBrain:
                 task = asyncio.create_task(self._dispatch(msg))
                 self._active_tasks.setdefault(msg.session_key, []).append(task)
                 task.add_done_callback(
-                    lambda t, k=msg.session_key: self._active_tasks.get(k, [])
-                    and self._safe_remove_task(self._active_tasks.get(k, []), t)
+                    lambda t, k=msg.session_key: (
+                        self._active_tasks.get(k, [])
+                        and self._safe_remove_task(self._active_tasks.get(k, []), t)
+                    )
                 )
 
     async def _handle_stop(self, msg: InboundMessage) -> None:
@@ -419,9 +442,13 @@ class ShibaBrain:
         sub_cancelled = await self.subagents.cancel_by_session(msg.session_key)
         total = cancelled + sub_cancelled
         content = f"🐕 Halted {total} hunt(s)." if total else "No active scent to stop."
-        await self.bus.publish_outbound(OutboundMessage(
-            channel=msg.channel, chat_id=msg.chat_id, content=content,
-        ))
+        await self.bus.publish_outbound(
+            OutboundMessage(
+                channel=msg.channel,
+                chat_id=msg.chat_id,
+                content=content,
+            )
+        )
 
     _ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli"})
 
@@ -435,9 +462,13 @@ class ShibaBrain:
         return safe
 
     async def _handle_restart(self, msg: InboundMessage) -> None:
-        await self.bus.publish_outbound(OutboundMessage(
-            channel=msg.channel, chat_id=msg.chat_id, content="🐕 Woof! Restarting the hunt...",
-        ))
+        await self.bus.publish_outbound(
+            OutboundMessage(
+                channel=msg.channel,
+                chat_id=msg.chat_id,
+                content="🐕 Woof! Restarting the hunt...",
+            )
+        )
 
         safe_argv = self._safe_argv()
 
@@ -456,19 +487,26 @@ class ShibaBrain:
                 if response is not None:
                     await self.bus.publish_outbound(response)
                 elif msg.channel == "cli":
-                    await self.bus.publish_outbound(OutboundMessage(
-                        channel=msg.channel, chat_id=msg.chat_id,
-                        content="", metadata=msg.metadata or {},
-                    ))
+                    await self.bus.publish_outbound(
+                        OutboundMessage(
+                            channel=msg.channel,
+                            chat_id=msg.chat_id,
+                            content="",
+                            metadata=msg.metadata or {},
+                        )
+                    )
             except asyncio.CancelledError:
                 logger.debug("Task cancelled for session {}", msg.session_key)
                 raise
             except Exception:
                 logger.exception("Error processing message for session {}", msg.session_key)
-                await self.bus.publish_outbound(OutboundMessage(
-                    channel=msg.channel, chat_id=msg.chat_id,
-                    content="Sorry, I encountered an error.",
-                ))
+                await self.bus.publish_outbound(
+                    OutboundMessage(
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        content="Sorry, I encountered an error.",
+                    )
+                )
 
     async def close_mcp(self) -> None:
         """Drain pending background archives, then close MCP connections."""
@@ -508,12 +546,14 @@ class ShibaBrain:
     ) -> OutboundMessage | None:
         if self.provider is None:
             return OutboundMessage(
-                channel=msg.channel, chat_id=msg.chat_id,
+                channel=msg.channel,
+                chat_id=msg.chat_id,
                 content="🐕 Shiba is idle. Please configure an AI provider in the WebUI to start hunting!",
             )
         if msg.channel == "system":
-            channel, chat_id = (msg.chat_id.split(":", 1) if ":" in msg.chat_id
-                                else ("cli", msg.chat_id))
+            channel, chat_id = (
+                msg.chat_id.split(":", 1) if ":" in msg.chat_id else ("cli", msg.chat_id)
+            )
             logger.debug("Processing system message from {}", msg.sender_id)
             key = f"{channel}:{chat_id}"
             session = self.sessions.get_or_create(key)
@@ -529,21 +569,28 @@ class ShibaBrain:
             current_role = "assistant" if msg.sender_id == "subagent" else "user"
             messages = self.context.build_messages(
                 history=history,
-                current_message=msg.content, channel=channel, chat_id=chat_id,
+                current_message=msg.content,
+                channel=channel,
+                chat_id=chat_id,
                 current_role=current_role,
                 memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
                 available_channels=self._available_channels,
                 profile_id=profile_id,
             )
             final_content, _, all_msgs = await self._run_agent_loop(
-                messages, channel=channel, chat_id=chat_id,
+                messages,
+                channel=channel,
+                chat_id=chat_id,
                 profile_id=profile_id,
             )
             self._save_turn(session, all_msgs, 1 + len(history))
             self.sessions.save(session)
             self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
-            return OutboundMessage(channel=channel, chat_id=chat_id,
-                                  content=final_content or "Background task completed.")
+            return OutboundMessage(
+                channel=channel,
+                chat_id=chat_id,
+                content=final_content or "Background task completed.",
+            )
 
         preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
         key = session_key or msg.session_key
@@ -562,7 +609,7 @@ class ShibaBrain:
 
         cmd = msg.content.strip().lower()
         if cmd == "/new":
-            snapshot = session.messages[session.last_consolidated:]
+            snapshot = session.messages[session.last_consolidated :]
             session.clear()
             self.sessions.save(session)
             self.sessions.invalidate(session.key)
@@ -570,8 +617,9 @@ class ShibaBrain:
             if snapshot:
                 self._schedule_background(self.memory_consolidator.archive_snapshot(snapshot))
 
-            return OutboundMessage(channel=msg.channel, chat_id=msg.chat_id,
-                                  content="New session started.")
+            return OutboundMessage(
+                channel=msg.channel, chat_id=msg.chat_id, content="New session started."
+            )
         if cmd == "/help":
             lines = [
                 "🐕 shibaclaw commands:",
@@ -581,7 +629,9 @@ class ShibaBrain:
                 "/help — Show available commands",
             ]
             return OutboundMessage(
-                channel=msg.channel, chat_id=msg.chat_id, content="\n".join(lines),
+                channel=msg.channel,
+                chat_id=msg.chat_id,
+                content="\n".join(lines),
             )
         await self.memory_consolidator.maybe_consolidate_by_tokens(session)
 
@@ -600,13 +650,15 @@ class ShibaBrain:
             history=history,
             current_message=msg.content,
             media=msg.media if msg.media else None,
-            channel=msg.channel, chat_id=msg.chat_id,
+            channel=msg.channel,
+            chat_id=msg.chat_id,
             memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
             available_channels=self._available_channels,
             profile_id=profile_id,
         )
 
         from datetime import datetime as _dt
+
         _user_entry = {"role": "user", "content": msg.content, "timestamp": _dt.now().isoformat()}
         if msg.media:
             _user_entry["metadata"] = {"media": msg.media}
@@ -616,14 +668,21 @@ class ShibaBrain:
 
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:
             meta = {"_progress": True, "_tool_hint": tool_hint, **(msg.metadata or {})}
-            await self.bus.publish_outbound(OutboundMessage(
-                channel=msg.channel, chat_id=msg.chat_id, content=content, metadata=meta,
-            ))
+            await self.bus.publish_outbound(
+                OutboundMessage(
+                    channel=msg.channel,
+                    chat_id=msg.chat_id,
+                    content=content,
+                    metadata=meta,
+                )
+            )
 
         final_content, _, all_msgs = await self._run_agent_loop(
-            initial_messages, on_progress=on_progress or _bus_progress,
+            initial_messages,
+            on_progress=on_progress or _bus_progress,
             on_response_token=on_response_token,
-            channel=msg.channel, chat_id=msg.chat_id,
+            channel=msg.channel,
+            chat_id=msg.chat_id,
             profile_id=profile_id,
         )
 
@@ -640,7 +699,9 @@ class ShibaBrain:
         self._schedule_background(self.memory_consolidator.maybe_proactive_learn(session))
 
         media_list = []
-        media_match = re.search(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content, re.DOTALL)
+        media_match = re.search(
+            r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content, re.DOTALL
+        )
         if media_match:
             try:
                 media_json = json.loads(media_match.group(0))
@@ -652,22 +713,31 @@ class ShibaBrain:
         preview = final_content[:120] + "..." if len(final_content) > 120 else final_content
         logger.debug("Response to {}:{}: {}", msg.channel, msg.sender_id, preview)
         return OutboundMessage(
-            channel=msg.channel, chat_id=msg.chat_id, content=final_content,
+            channel=msg.channel,
+            chat_id=msg.chat_id,
+            content=final_content,
             media=media_list,
             metadata=msg.metadata or {},
         )
 
     def _save_turn(self, session: Session, messages: list[dict], skip: int) -> None:
         from datetime import datetime
+
         for m in messages[skip:]:
             entry = dict(m)
             role, content = entry.get("role"), entry.get("content")
             if role == "assistant" and not content and not entry.get("tool_calls"):
                 continue
-            if role == "tool" and isinstance(content, str) and len(content) > self._TOOL_RESULT_MAX_CHARS:
-                entry["content"] = content[:self._TOOL_RESULT_MAX_CHARS] + "\n... (truncated)"
+            if (
+                role == "tool"
+                and isinstance(content, str)
+                and len(content) > self._TOOL_RESULT_MAX_CHARS
+            ):
+                entry["content"] = content[: self._TOOL_RESULT_MAX_CHARS] + "\n... (truncated)"
             elif role == "user":
-                if isinstance(content, str) and content.startswith(ScentBuilder._RUNTIME_CONTEXT_TAG):
+                if isinstance(content, str) and content.startswith(
+                    ScentBuilder._RUNTIME_CONTEXT_TAG
+                ):
                     parts = content.split("\n\n", 1)
                     if len(parts) > 1 and parts[1].strip():
                         entry["content"] = parts[1]
@@ -676,10 +746,15 @@ class ShibaBrain:
                 if isinstance(content, list):
                     filtered = []
                     for c in content:
-                        if c.get("type") == "text" and isinstance(c.get("text"), str) and c["text"].startswith(ScentBuilder._RUNTIME_CONTEXT_TAG):
+                        if (
+                            c.get("type") == "text"
+                            and isinstance(c.get("text"), str)
+                            and c["text"].startswith(ScentBuilder._RUNTIME_CONTEXT_TAG)
+                        ):
                             continue
-                        if (c.get("type") == "image_url"
-                                and c.get("image_url", {}).get("url", "").startswith("data:image/")):
+                        if c.get("type") == "image_url" and c.get("image_url", {}).get(
+                            "url", ""
+                        ).startswith("data:image/"):
                             path = (c.get("_meta") or {}).get("path", "")
                             placeholder = f"[image: {path}]" if path else "[image]"
                             filtered.append({"type": "text", "text": placeholder})
@@ -706,5 +781,18 @@ class ShibaBrain:
         profile_id: str | None = None,
     ) -> OutboundMessage | None:
         await self._connect_mcp()
-        msg = InboundMessage(channel=channel, sender_id="user", chat_id=chat_id, content=content, media=media, metadata=metadata or {})
-        return await self._process_message(msg, session_key=session_key, on_progress=on_progress, on_response_token=on_response_token, profile_id_override=profile_id)
+        msg = InboundMessage(
+            channel=channel,
+            sender_id="user",
+            chat_id=chat_id,
+            content=content,
+            media=media,
+            metadata=metadata or {},
+        )
+        return await self._process_message(
+            msg,
+            session_key=session_key,
+            on_progress=on_progress,
+            on_response_token=on_response_token,
+            profile_id_override=profile_id,
+        )

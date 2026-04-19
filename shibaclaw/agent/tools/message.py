@@ -54,23 +54,20 @@ class MessageTool(Tool):
             "properties": {
                 "content": {
                     "type": "string",
-                    "description": "The message content to send to the user."
+                    "description": "The message content to send to the user.",
                 },
                 "channel": {
                     "type": "string",
-                    "description": "Optional: target channel (telegram, discord, etc.)"
+                    "description": "Optional: target channel (telegram, discord, etc.)",
                 },
-                "chat_id": {
-                    "type": "string",
-                    "description": "Optional: target chat/user ID"
-                },
+                "chat_id": {"type": "string", "description": "Optional: target chat/user ID"},
                 "media": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Optional: list of absolute file paths to attach/upload (images, audio, documents, etc.)"
-                }
+                    "description": "Optional: list of absolute file paths to attach/upload (images, audio, documents, etc.)",
+                },
             },
-            "required": ["content"]
+            "required": ["content"],
         }
 
     async def execute(
@@ -80,7 +77,7 @@ class MessageTool(Tool):
         chat_id: str | None = None,
         message_id: str | None = None,
         media: list[str] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         target_channel = channel or self._default_channel
         # Auto-resolve chat_id to "auto" if crossing boundaries without specific ID

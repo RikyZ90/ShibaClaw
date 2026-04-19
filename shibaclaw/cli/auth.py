@@ -24,6 +24,7 @@ def _is_oauth_authenticated(spec) -> bool:
             return True
         try:
             from oauth_cli_kit import get_token
+
             token = get_token()
             return bool(token and getattr(token, "access", None))
         except Exception:
@@ -47,6 +48,7 @@ def _oauth_provider_status(spec) -> str:
     if spec.name == "openai_codex":
         try:
             from oauth_cli_kit import get_token
+
             token = get_token()
             if token and getattr(token, "access", None):
                 return "[green]✓ (OAuth authenticated)[/green]"
@@ -59,9 +61,11 @@ def _oauth_provider_status(spec) -> str:
     if spec.name == "github_copilot":
         try:
             from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
+
             async def _test():
                 thinker = GithubCopilotThinker()
                 await thinker.chat([{"role": "user", "content": "hi"}], max_tokens=1)
+
             asyncio.run(_test())
             return "[green]✓ (OAuth authenticated)[/green]"
         except ImportError:
@@ -74,10 +78,12 @@ def _oauth_provider_status(spec) -> str:
 
 _LOGIN_HANDLERS: Dict[str, Callable] = {}
 
+
 def register_login(name: str):
     def decorator(fn):
         _LOGIN_HANDLERS[name] = fn
         return fn
+
     return decorator
 
 
@@ -105,10 +111,12 @@ def provider_login(provider: str):
 def _login_openai_codex() -> None:
     try:
         from oauth_cli_kit import get_token, login_oauth_interactive
+
         token = None
         try:
             token = get_token()
-        except Exception: pass
+        except Exception:
+            pass
 
         if not (token and token.access):
             console.print("[cyan]Starting interactive OAuth login...[/cyan]\n")
@@ -119,7 +127,9 @@ def _login_openai_codex() -> None:
         if not (token and token.access):
             console.print("[red]✗ Authentication failed[/red]")
             raise typer.Exit(1)
-        console.print(f"[green]✓ Authenticated with OpenAI Codex[/green]  [dim]{token.account_id}[/dim]")
+        console.print(
+            f"[green]✓ Authenticated with OpenAI Codex[/green]  [dim]{token.account_id}[/dim]"
+        )
     except ImportError:
         console.print("[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]")
         raise typer.Exit(1)
@@ -129,16 +139,16 @@ def _login_openai_codex() -> None:
 def _login_github_copilot() -> None:
     console.print("[cyan]Starting GitHub Copilot device flow...[/cyan]\n")
 
-    GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
-    GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
-    GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+    github_client_id = "Iv1.b507a08c87ecfe98"
+    github_device_code_url = "https://github.com/login/device/code"
+    github_access_token_url = "https://github.com/login/oauth/access_token"
 
     async def _run_flow():
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                GITHUB_DEVICE_CODE_URL,
+                github_device_code_url,
                 headers={"Accept": "application/json"},
-                json={"client_id": GITHUB_CLIENT_ID, "scope": "read:user"},
+                json={"client_id": github_client_id, "scope": "read:user"},
                 timeout=10,
             )
             resp_json = resp.json()
@@ -163,10 +173,10 @@ def _login_github_copilot() -> None:
             try:
                 async with httpx.AsyncClient() as c:
                     tr = await c.post(
-                        GITHUB_ACCESS_TOKEN_URL,
+                        github_access_token_url,
                         headers={"Accept": "application/json"},
                         json={
-                            "client_id": GITHUB_CLIENT_ID,
+                            "client_id": github_client_id,
                             "device_code": device_code,
                             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                         },
@@ -175,7 +185,8 @@ def _login_github_copilot() -> None:
                     tj = tr.json()
 
                 error = tj.get("error")
-                if error == "authorization_pending": continue
+                if error == "authorization_pending":
+                    continue
                 elif error == "slow_down":
                     await asyncio.sleep(5)
                     continue
@@ -208,7 +219,8 @@ def _login_github_copilot() -> None:
 
     try:
         asyncio.run(_run_flow())
-    except typer.Exit: raise
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]Authentication error: {e}[/red]")
         raise typer.Exit(1)

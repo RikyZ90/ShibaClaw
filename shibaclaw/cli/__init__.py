@@ -1,1 +1,1 @@
-﻿"""CLI module for shibaclaw."""
+"""CLI module for shibaclaw."""

@@ -35,12 +35,7 @@ class Session:
 
     def add_message(self, role: str, content: str, **kwargs: Any) -> None:
         """Add a message to the session."""
-        msg = {
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-            **kwargs
-        }
+        msg = {"role": role, "content": content, "timestamp": datetime.now().isoformat(), **kwargs}
         self.messages.append(msg)
         self.updated_at = datetime.now()
 
@@ -60,7 +55,7 @@ class Session:
                 if tid and str(tid) not in declared:
                     start = i + 1
                     declared.clear()
-                    for prev in messages[start:i + 1]:
+                    for prev in messages[start : i + 1]:
                         if prev.get("role") == "assistant":
                             for tc in prev.get("tool_calls") or []:
                                 if isinstance(tc, dict) and tc.get("id"):
@@ -69,7 +64,7 @@ class Session:
 
     def get_history(self, max_messages: int = 500) -> list[dict[str, Any]]:
         """Return unconsolidated messages for LLM input, aligned to a legal tool-call boundary."""
-        unconsolidated = self.messages[self.last_consolidated:]
+        unconsolidated = self.messages[self.last_consolidated :]
         sliced = unconsolidated[-max_messages:]
 
         # Drop leading non-user messages to avoid starting mid-turn when possible.
@@ -160,7 +155,11 @@ class PackManager:
                     data = json.loads(line)
                     if data.get("_type") == "metadata":
                         metadata = data.get("metadata", {})
-                        created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
+                        created_at = (
+                            datetime.fromisoformat(data["created_at"])
+                            if data.get("created_at")
+                            else None
+                        )
                         last_consolidated = data.get("last_consolidated", 0)
                         last_learned = data.get("last_learned", 0)
                     else:
@@ -172,7 +171,7 @@ class PackManager:
                 created_at=created_at or datetime.now(),
                 metadata=metadata,
                 last_consolidated=last_consolidated,
-                last_learned=last_learned
+                last_learned=last_learned,
             )
         except Exception as e:
             logger.warning("Failed to load session {}: {}", key, e)
@@ -191,7 +190,7 @@ class PackManager:
                     "updated_at": datetime.now().isoformat(),
                     "metadata": session.metadata,
                     "last_consolidated": session.last_consolidated,
-                    "last_learned": session.last_learned
+                    "last_learned": session.last_learned,
                 }
                 f.write(json.dumps(metadata_line, ensure_ascii=False) + "\n")
                 for msg in session.messages:
@@ -217,14 +216,16 @@ class PackManager:
                         if data.get("_type") == "metadata":
                             meta = data.get("metadata", {})
                             key = data.get("key") or path.stem.replace("_", ":", 1)
-                            sessions.append({
-                                "key": key,
-                                "nickname": meta.get("nickname"),
-                                "profile_id": meta.get("profile_id", "default"),
-                                "created_at": data.get("created_at"),
-                                "updated_at": data.get("updated_at"),
-                                "path": str(path)
-                            })
+                            sessions.append(
+                                {
+                                    "key": key,
+                                    "nickname": meta.get("nickname"),
+                                    "profile_id": meta.get("profile_id", "default"),
+                                    "created_at": data.get("created_at"),
+                                    "updated_at": data.get("updated_at"),
+                                    "path": str(path),
+                                }
+                            )
             except Exception:
                 continue
         return sorted(sessions, key=lambda x: x.get("updated_at", ""), reverse=True)

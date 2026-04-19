@@ -134,7 +134,7 @@ class HeartbeatService:
             return settings, content
 
         raw_frontmatter = "\n".join(lines[1:end_idx]).strip()
-        body = "\n".join(lines[end_idx + 1:]).lstrip("\n")
+        body = "\n".join(lines[end_idx + 1 :]).lstrip("\n")
         if not raw_frontmatter:
             self._config_warning_logged = False
             return settings, body
@@ -148,17 +148,22 @@ class HeartbeatService:
             if not isinstance(parsed, dict):
                 raise ValueError("heartbeat config must be a mapping")
             parsed = {
-                key: value for key, value in parsed.items()
+                key: value
+                for key, value in parsed.items()
                 if key in {"session_key", "targets", "profile_id"}
             }
-            settings = HeartbeatConfig.model_validate({
-                **settings.model_dump(),
-                **parsed,
-            })
+            settings = HeartbeatConfig.model_validate(
+                {
+                    **settings.model_dump(),
+                    **parsed,
+                }
+            )
             self._config_warning_logged = False
         except Exception as exc:
             if not self._config_warning_logged:
-                logger.warning("Heartbeat: invalid HEARTBEAT.md frontmatter, using config defaults: {}", exc)
+                logger.warning(
+                    "Heartbeat: invalid HEARTBEAT.md frontmatter, using config defaults: {}", exc
+                )
                 self._config_warning_logged = True
 
         return settings, body
@@ -168,10 +173,10 @@ class HeartbeatService:
         active_match = re.search(r"(?im)^##\s+Active Tasks\s*$", cleaned)
 
         if active_match:
-            relevant = cleaned[active_match.end():]
+            relevant = cleaned[active_match.end() :]
             next_section = re.search(r"(?im)^##\s+", relevant)
             if next_section:
-                relevant = relevant[:next_section.start()]
+                relevant = relevant[: next_section.start()]
         else:
             relevant = cleaned
 
@@ -202,12 +207,18 @@ class HeartbeatService:
 
         response = await self.provider.chat_with_retry(
             messages=[
-                {"role": "system", "content": "You are a heartbeat agent. Call the heartbeat tool to report your decision."},
-                {"role": "user", "content": (
-                    f"Current Time: {current_time_str()}\n\n"
-                    "Review the following HEARTBEAT.md and decide whether there are active tasks.\n\n"
-                    f"{content}"
-                )},
+                {
+                    "role": "system",
+                    "content": "You are a heartbeat agent. Call the heartbeat tool to report your decision.",
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Current Time: {current_time_str()}\n\n"
+                        "Review the following HEARTBEAT.md and decide whether there are active tasks.\n\n"
+                        f"{content}"
+                    ),
+                },
             ],
             tools=_HEARTBEAT_TOOL,
             model=self.model,
@@ -216,9 +227,13 @@ class HeartbeatService:
 
         if response.finish_reason == "error":
             if self.provider._is_transient_error(response.content):
-                logger.warning("Heartbeat: provider rate limited while checking tasks, skipping this cycle")
+                logger.warning(
+                    "Heartbeat: provider rate limited while checking tasks, skipping this cycle"
+                )
             else:
-                logger.warning("Heartbeat: decision request failed: {}", (response.content or "")[:200])
+                logger.warning(
+                    "Heartbeat: decision request failed: {}", (response.content or "")[:200]
+                )
 
         if not response.has_tool_calls:
             logger.warning("Heartbeat: decision request returned no tool call, skipping")
@@ -306,7 +321,10 @@ class HeartbeatService:
 
                 if response:
                     should_notify = await evaluate_response(
-                        response, tasks, self.provider, self.model,
+                        response,
+                        tasks,
+                        self.provider,
+                        self.model,
                     )
                     if should_notify and self.on_notify:
                         logger.info("Heartbeat: completed, delivering response")

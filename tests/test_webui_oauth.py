@@ -36,14 +36,18 @@ class TestOAuthRouter:
             ("openai_codex", "start_codex_oauth"),
         ],
     )
-    async def test_api_oauth_login_dispatches_to_webui_helper(self, monkeypatch, provider, helper_name):
+    async def test_api_oauth_login_dispatches_to_webui_helper(
+        self, monkeypatch, provider, helper_name
+    ):
         import shibaclaw.webui.oauth_github as oauth_helpers
 
         agent_manager.oauth_jobs.clear()
 
         async def fake_helper(job_id, jobs):
             jobs[job_id]["status"] = "done"
-            return SimpleNamespace(body=json.dumps({"provider": provider, "job_id": job_id}).encode("utf-8"))
+            return SimpleNamespace(
+                body=json.dumps({"provider": provider, "job_id": job_id}).encode("utf-8")
+            )
 
         monkeypatch.setattr(oauth_helpers, helper_name, fake_helper)
 
@@ -56,7 +60,9 @@ class TestOAuthRouter:
 
 class TestCodexOAuth:
     @pytest.mark.asyncio
-    async def test_start_codex_oauth_exposes_auth_url_and_accepts_manual_code(self, monkeypatch, tmp_path):
+    async def test_start_codex_oauth_exposes_auth_url_and_accepts_manual_code(
+        self, monkeypatch, tmp_path
+    ):
         import oauth_cli_kit.flow as flow
         import oauth_cli_kit.pkce as pkce
         import oauth_cli_kit.providers as providers
@@ -93,7 +99,9 @@ class TestCodexOAuth:
         monkeypatch.setattr(flow, "_exchange_code_for_token_async", fake_exchange)
         monkeypatch.setattr(pkce, "_create_state", lambda: "state-123")
         monkeypatch.setattr(pkce, "_generate_pkce", lambda: ("verifier-123", "challenge-123"))
-        monkeypatch.setattr(pkce, "_parse_authorization_input", lambda raw: ("auth-code-xyz", "state-123"))
+        monkeypatch.setattr(
+            pkce, "_parse_authorization_input", lambda raw: ("auth-code-xyz", "state-123")
+        )
         monkeypatch.setattr(
             providers,
             "OPENAI_CODEX_PROVIDER",
@@ -106,7 +114,9 @@ class TestCodexOAuth:
                 token_filename="codex.json",
             ),
         )
-        monkeypatch.setattr(server, "_start_local_server", lambda state, on_code: (None, "disabled for test"))
+        monkeypatch.setattr(
+            server, "_start_local_server", lambda state, on_code: (None, "disabled for test")
+        )
         monkeypatch.setattr(storage, "FileTokenStorage", FakeStorage)
         monkeypatch.setattr(oauth_module.os.path, "expanduser", lambda _: str(tmp_path))
 
@@ -118,7 +128,9 @@ class TestCodexOAuth:
         assert payload["auth_url"].startswith("https://auth.openai.test/oauth/authorize?")
         assert jobs["job-1"]["auth_url"] == payload["auth_url"]
 
-        jobs["job-1"]["_code_holder"]["value"] = "http://localhost:1455/auth/callback?code=auth-code-xyz&state=state-123"
+        jobs["job-1"]["_code_holder"]["value"] = (
+            "http://localhost:1455/auth/callback?code=auth-code-xyz&state=state-123"
+        )
         jobs["job-1"]["_code_event"].set()
 
         for _ in range(50):

@@ -21,6 +21,7 @@ from shibaclaw.agent.tools.memory_search import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _write_history(tmp_path: Path, content: str) -> Path:
     mem_dir = tmp_path / "memory"
     mem_dir.mkdir(parents=True, exist_ok=True)
@@ -32,6 +33,7 @@ def _write_history(tmp_path: Path, content: str) -> Path:
 # ---------------------------------------------------------------------------
 # _tokenize
 # ---------------------------------------------------------------------------
+
 
 class TestTokenize:
     def test_basic(self):
@@ -51,6 +53,7 @@ class TestTokenize:
 # ---------------------------------------------------------------------------
 # _parse_entries
 # ---------------------------------------------------------------------------
+
 
 class TestParseEntries:
     def test_standard_entry(self):
@@ -101,6 +104,7 @@ class TestParseEntries:
 # Scoring functions
 # ---------------------------------------------------------------------------
 
+
 class TestRecencyScore:
     def test_now_is_one(self):
         now = datetime.now()
@@ -146,6 +150,7 @@ class TestRelevanceScore:
 # MemorySearchTool (integration)
 # ---------------------------------------------------------------------------
 
+
 class TestMemorySearchTool:
     def test_missing_history(self, tmp_path):
         tool = MemorySearchTool(workspace=tmp_path)
@@ -175,7 +180,7 @@ class TestMemorySearchTool:
             tool.execute(query="python web framework", top_k=2)
         )
         lines = result.strip().split("\n")
-        numbered = [l for l in lines if l and l[0].isdigit()]
+        numbered = [line for line in lines if line and line[0].isdigit()]
         assert len(numbered) == 2
         assert "python" in result.lower()
 
@@ -190,7 +195,7 @@ class TestMemorySearchTool:
         result = asyncio.get_event_loop().run_until_complete(
             tool.execute(query="test entry", top_k=3)
         )
-        numbered = [l for l in result.strip().split("\n") if l and l[0].isdigit()]
+        numbered = [line for line in result.strip().split("\n") if line and line[0].isdigit()]
         assert len(numbered) == 3
 
     def test_schema(self):
@@ -204,14 +209,21 @@ class TestMemorySearchTool:
 # MEMORY.md template layout
 # ---------------------------------------------------------------------------
 
+
 class TestMemoryTemplate:
     def test_section_order(self):
         template_path = (
             Path(__file__).resolve().parent.parent
-            / "shibaclaw" / "templates" / "memory" / "MEMORY.md"
+            / "shibaclaw"
+            / "templates"
+            / "memory"
+            / "MEMORY.md"
         )
         content = template_path.read_text(encoding="utf-8")
-        sections = [m.group(1) for m in __import__("re").finditer(r"^## (.+)$", content, __import__("re").MULTILINE)]
+        sections = [
+            m.group(1)
+            for m in __import__("re").finditer(r"^## (.+)$", content, __import__("re").MULTILINE)
+        ]
         assert sections == ["Environment", "Entities", "Project State", "Dynamic Context"]
 
 
@@ -225,16 +237,20 @@ class TestUserProfileStore:
         asyncio.run(keeper.write_user_profile("# User Profile\n\n- **Name**: Alice\n"))
 
         assert keeper.read_user_profile() == "# User Profile\n\n- **Name**: Alice\n"
-        assert (tmp_path / "USER.md").read_text(encoding="utf-8") == "# User Profile\n\n- **Name**: Alice\n"
+        assert (tmp_path / "USER.md").read_text(
+            encoding="utf-8"
+        ) == "# User Profile\n\n- **Name**: Alice\n"
 
 
 # ---------------------------------------------------------------------------
 # _truncate_to_budget preserves static sections
 # ---------------------------------------------------------------------------
 
+
 class TestTruncationOrder:
     def test_drops_dynamic_first(self):
         from shibaclaw.agent.memory import ScentKeeper
+
         content = textwrap.dedent("""\
             ## Environment
             - Windows laptop with local Ollama

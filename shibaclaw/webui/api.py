@@ -22,17 +22,20 @@ async def api_status(request: Request):
         agent_manager.load_latest_config()
         cfg = agent_manager.config
     from shibaclaw import __version__
+
     gw = await _gateway_request("GET", "/")
     gw_ready = gw is not None and gw.get("status") == "ok"
-    return JSONResponse({
-        "status": "ok" if gw_ready else "gateway_offline",
-        "version": __version__,
-        "agent_configured": gw_ready and gw.get("provider_ready", False),
-        "provider": cfg.agents.defaults.provider if cfg else None,
-        "model": cfg.agents.defaults.model if cfg else None,
-        "workspace": str(cfg.workspace_path) if cfg else None,
-        "gateway": gw_ready,
-    })
+    return JSONResponse(
+        {
+            "status": "ok" if gw_ready else "gateway_offline",
+            "version": __version__,
+            "agent_configured": gw_ready and gw.get("provider_ready", False),
+            "provider": cfg.agents.defaults.provider if cfg else None,
+            "model": cfg.agents.defaults.model if cfg else None,
+            "workspace": str(cfg.workspace_path) if cfg else None,
+            "gateway": gw_ready,
+        }
+    )
 
 
 async def api_context_get(request: Request):
@@ -63,7 +66,9 @@ async def api_context_get(request: Request):
     # ── Real system prompt (identity + bootstrap + memory + skills) ──
     system_prompt, prompt_tokens = _build_real_system_prompt(wp, defaults, profile_id=profile_id)
     total_tokens = prompt_tokens
-    sections.append(f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```")
+    sections.append(
+        f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```"
+    )
 
     # -- Tool definitions token count (gateway-only, estimate 0 locally) --
     tools_tokens = 0
@@ -85,7 +90,25 @@ async def api_context_get(request: Request):
     pct = min(100, round(total_tokens / ctx_window * 100)) if ctx_window > 0 else 0
 
     if request.query_params.get("summary", "").lower() in ("1", "true", "yes"):
-        return JSONResponse({
+        return JSONResponse(
+            {
+                "tokens": {
+                    "system_prompt": prompt_tokens,
+                    "tools": tools_tokens,
+                    "messages": msg_tokens,
+                    "total": total_tokens,
+                    "context_window": ctx_window,
+                    "usage_pct": pct,
+                }
+            }
+        )
+
+    context_md = (
+        "\n\n---\n\n".join(sections) if sections else "_No context files or session data found._"
+    )
+    return JSONResponse(
+        {
+            "context": context_md,
             "tokens": {
                 "system_prompt": prompt_tokens,
                 "tools": tools_tokens,
@@ -93,21 +116,9 @@ async def api_context_get(request: Request):
                 "total": total_tokens,
                 "context_window": ctx_window,
                 "usage_pct": pct,
-            }
-        })
-
-    context_md = "\n\n---\n\n".join(sections) if sections else "_No context files or session data found._"
-    return JSONResponse({
-        "context": context_md,
-        "tokens": {
-            "system_prompt": prompt_tokens,
-            "tools": tools_tokens,
-            "messages": msg_tokens,
-            "total": total_tokens,
-            "context_window": ctx_window,
-            "usage_pct": pct,
-        },
-    })
+            },
+        }
+    )
 
 
 # ── Re-exports (server.py imports everything from here) ──────────────
@@ -165,6 +176,9 @@ async def api_internal_session_notify(request: Request):
     persist = data.get("persist", True)
 
     result = await agent_manager.deliver_background_notification(
-        session_key, content, source=source, persist=persist,
+        session_key,
+        content,
+        source=source,
+        persist=persist,
     )
     return JSONResponse(result)

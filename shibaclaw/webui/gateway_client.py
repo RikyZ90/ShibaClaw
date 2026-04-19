@@ -76,15 +76,24 @@ class GatewayClient:
             uri = f"ws://{host}:{self._port}"
             try:
                 ws = await asyncio.wait_for(
-                    websockets.connect(uri, open_timeout=5),
+                    websockets.connect(
+                        uri,
+                        open_timeout=5,
+                        ping_interval=None,
+                        ping_timeout=None
+                    ),
                     timeout=8,
                 )
                 # Send hello
-                await ws.send(json.dumps({
-                    "type": "hello",
-                    "token": self._token,
-                    "version": _get_version(),
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "hello",
+                            "token": self._token,
+                            "version": _get_version(),
+                        }
+                    )
+                )
                 raw = await asyncio.wait_for(ws.recv(), timeout=5)
                 resp = json.loads(raw)
                 if resp.get("type") != "hello_ok":
@@ -184,19 +193,23 @@ class GatewayClient:
         """Register a handler for gateway push events."""
         self._event_handlers.setdefault(name, []).append(handler)
 
-    async def request(self, action: str, payload: dict | None = None, timeout: float = 30) -> dict | None:
+    async def request(
+        self, action: str, payload: dict | None = None, timeout: float = 30
+    ) -> dict | None:
         """Send a request to the gateway and wait for the response."""
         if not self._connected or not self._ws:
             # Try HTTP fallback
             return await self._http_fallback(action, payload)
 
         request_id = str(uuid.uuid4())[:8]
-        msg = json.dumps({
-            "type": "request",
-            "id": request_id,
-            "action": action,
-            "payload": payload or {},
-        })
+        msg = json.dumps(
+            {
+                "type": "request",
+                "id": request_id,
+                "action": action,
+                "payload": payload or {},
+            }
+        )
 
         fut: asyncio.Future = asyncio.get_event_loop().create_future()
         self._pending[request_id] = fut
@@ -228,12 +241,14 @@ class GatewayClient:
         queue: asyncio.Queue = asyncio.Queue()
         self._stream_queues[request_id] = queue
 
-        msg = json.dumps({
-            "type": "request",
-            "id": request_id,
-            "action": "chat",
-            "payload": payload,
-        })
+        msg = json.dumps(
+            {
+                "type": "request",
+                "id": request_id,
+                "action": "chat",
+                "payload": payload,
+            }
+        )
 
         try:
             await self._ws.send(msg)
@@ -255,7 +270,11 @@ class GatewayClient:
                 elif item.get("type") == "response":
                     if item.get("ok"):
                         p = item.get("payload", {})
-                        yield {"t": "r", "content": p.get("content", ""), "media": p.get("media", [])}
+                        yield {
+                            "t": "r",
+                            "content": p.get("content", ""),
+                            "media": p.get("media", []),
+                        }
                     else:
                         yield {"t": "e", "error": item.get("error", "gateway error")}
                     return
@@ -272,6 +291,7 @@ class GatewayClient:
     async def _http_fallback(self, action: str, payload: dict | None = None) -> dict | None:
         """Fall back to raw HTTP for simple requests."""
         from shibaclaw.webui.utils import _resolve_gateway_hosts
+
         hosts, port = _resolve_gateway_hosts()
         if not hosts:
             return None
@@ -303,6 +323,7 @@ class GatewayClient:
     async def _http_chat_stream_fallback(self, payload: dict) -> AsyncIterator[dict]:
         """Fall back to HTTP NDJSON streaming for chat."""
         from shibaclaw.webui.utils import _resolve_gateway_hosts
+
         hosts, port = _resolve_gateway_hosts()
         if not hosts:
             raise ConnectionError("Gateway not configured")
@@ -312,7 +333,8 @@ class GatewayClient:
         for host in hosts:
             try:
                 reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port), timeout=10,
+                    asyncio.open_connection(host, port),
+                    timeout=10,
                 )
             except Exception:
                 continue
@@ -326,7 +348,8 @@ class GatewayClient:
                         f"Content-Type: application/json\r\n"
                         f"Content-Length: {len(body)}\r\n"
                         f"{auth_hdr}\r\n"
-                    ).encode() + body
+                    ).encode()
+                    + body
                 )
                 await writer.drain()
 
@@ -380,7 +403,8 @@ async def _http_get(hosts: list[str], port: int, path: str, token: str) -> dict 
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=5,
+                asyncio.open_connection(host, port),
+                timeout=5,
             )
             try:
                 writer.write(f"GET {path} HTTP/1.0\r\nHost: gw\r\n{auth_hdr}\r\n".encode())
@@ -392,7 +416,7 @@ async def _http_get(hosts: list[str], port: int, path: str, token: str) -> dict 
             if b"200" in data:
                 body_start = data.find(b"\r\n\r\n")
                 if body_start > 0:
-                    return json.loads(data[body_start + 4:])
+                    return json.loads(data[body_start + 4 :])
         except Exception:
             continue
     return None
@@ -404,7 +428,8 @@ async def _http_post(hosts: list[str], port: int, path: str, body: dict, token: 
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=5,
+                asyncio.open_connection(host, port),
+                timeout=5,
             )
             try:
                 writer.write(
@@ -414,7 +439,8 @@ async def _http_post(hosts: list[str], port: int, path: str, body: dict, token: 
                         f"Content-Type: application/json\r\n"
                         f"Content-Length: {len(payload)}\r\n"
                         f"{auth_hdr}\r\n"
-                    ).encode() + payload
+                    ).encode()
+                    + payload
                 )
                 await writer.drain()
                 data = await asyncio.wait_for(reader.read(65536), timeout=30)
@@ -424,7 +450,7 @@ async def _http_post(hosts: list[str], port: int, path: str, body: dict, token: 
             if b"200" in data:
                 body_start = data.find(b"\r\n\r\n")
                 if body_start > 0:
-                    return json.loads(data[body_start + 4:])
+                    return json.loads(data[body_start + 4 :])
         except Exception:
             continue
     return None
@@ -433,6 +459,7 @@ async def _http_post(hosts: list[str], port: int, path: str, body: dict, token: 
 def _get_version() -> str:
     try:
         from shibaclaw import __version__
+
         return __version__
     except Exception:
         return "0.0.0"

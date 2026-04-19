@@ -1,4 +1,4 @@
-﻿"""Auto-discovery for built-in channel modules and external plugins."""
+"""Auto-discovery for built-in channel modules and external plugins."""
 
 from __future__ import annotations
 

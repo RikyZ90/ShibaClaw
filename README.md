@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.1 Beta!** This release brings a fully documented **[REST API Reference](./docs/API_REFERENCE.md)**, automated CI pipelines, and a leaner foundational structure. Ready for testing! See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.2 Beta!** This patch resolves CI/CD pipeline failures, eliminates WebSocket disconnection (`connection_lost`) during long agent tasks, fixes the thinking panel flash bug, and unblocks the file browser/settings while the agent is running. See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -235,14 +235,15 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.1.1 (Beta)
+## Latest — v0.1.2 (Beta)
 
-- **Official API Documentation**: Full REST API reference is now available in `docs/API_REFERENCE.md`.
-- **CI Pipeline**: Automated testing and linting (pytest + ruff) via GitHub Actions.
-- **API Test Suite**: Proper integration tests for WebUI routers.
-- **Refined Footprint**: Channel-specific SDKs (Telegram, Discord, Slack, etc.) moved to optional extras for a leaner default install.
+- **CI/CD stabilized**: all 88 `ruff` lint errors fixed — workflows pass cleanly on every release.
+- **No more `connection_lost`**: WebSocket ping/pong timeouts disabled at all three layers; long agent tasks no longer drop.
+- **Thinking panel fixed**: flash between chat and thinking panel eliminated; elapsed-time counter no longer freezes.
+- **File browser & settings work while agent runs**: chat handler now runs as a background task so other WS requests aren't blocked.
+- **`_CHAT_TIMEOUT`** raised from 120 s to 1800 s for complex multi-step tasks.
 
-→ [v0.1.1 full changelog](./CHANGELOG.md)
+→ [v0.1.2 full changelog](./CHANGELOG.md)
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 

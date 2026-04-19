@@ -100,13 +100,15 @@ class ProfileManager:
         if self.profiles_dir.exists():
             for d in sorted(self.profiles_dir.iterdir()):
                 if d.is_dir() and d.name not in known_ids and (d / "SOUL.md").exists():
-                    profiles.append({
-                        "id": d.name,
-                        "label": d.name.replace("-", " ").replace("_", " ").title(),
-                        "description": "",
-                        "builtin": False,
-                        "has_soul": True,
-                    })
+                    profiles.append(
+                        {
+                            "id": d.name,
+                            "label": d.name.replace("-", " ").replace("_", " ").title(),
+                            "description": "",
+                            "builtin": False,
+                            "has_soul": True,
+                        }
+                    )
 
         return profiles
 
@@ -180,11 +182,14 @@ class ProfileManager:
         if profile_id == DEFAULT_PROFILE_ID:
             if soul_content is not None:
                 (self.workspace / "SOUL.md").write_text(soul_content, encoding="utf-8")
-            entry = manifest.get(DEFAULT_PROFILE_ID, {
-                "label": "ShibaClaw",
-                "description": "The original joyful Shiba assistant",
-                "builtin": True,
-            })
+            entry = manifest.get(
+                DEFAULT_PROFILE_ID,
+                {
+                    "label": "ShibaClaw",
+                    "description": "The original joyful Shiba assistant",
+                    "builtin": True,
+                },
+            )
             if label is not None:
                 entry["label"] = label
             if description is not None:

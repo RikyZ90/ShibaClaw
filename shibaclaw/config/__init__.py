@@ -1,4 +1,4 @@
-﻿"""Configuration module for shibaclaw."""
+"""Configuration module for shibaclaw."""
 
 from shibaclaw.config.loader import get_config_path, load_config
 from shibaclaw.config.paths import (

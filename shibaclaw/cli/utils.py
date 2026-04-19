@@ -13,6 +13,7 @@ from shibaclaw import __logo__
 
 console = Console()
 
+
 def flush_pending_tty_input() -> None:
     """Drop unread keypresses typed while the model was generating output."""
     try:
@@ -24,6 +25,7 @@ def flush_pending_tty_input() -> None:
 
     try:
         import termios
+
         termios.tcflush(fd, termios.TCIFLUSH)
         return
     except Exception:
@@ -46,6 +48,7 @@ def restore_terminal(saved_attrs) -> None:
         return
     try:
         import termios
+
         termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, saved_attrs)
     except Exception:
         pass
@@ -67,9 +70,14 @@ class ThinkingSpinner:
     """Spinner wrapper with pause support for clean progress output."""
 
     def __init__(self, enabled: bool):
-        self._spinner = console.status(
-            "[dim]shibaclaw is [bold gold1]hunting[/bold gold1] for answers...[/dim]", spinner="dots"
-        ) if enabled else None
+        self._spinner = (
+            console.status(
+                "[dim]shibaclaw is [bold gold1]hunting[/bold gold1] for answers...[/dim]",
+                spinner="dots",
+            )
+            if enabled
+            else None
+        )
         self._active = False
 
     def __enter__(self):

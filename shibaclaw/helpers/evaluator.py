@@ -66,10 +66,12 @@ async def evaluate_response(
         llm_response = await provider.chat_with_retry(
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": (
-                    f"## Original task\n{task_context}\n\n"
-                    f"## Agent response\n{response}"
-                )},
+                {
+                    "role": "user",
+                    "content": (
+                        f"## Original task\n{task_context}\n\n## Agent response\n{response}"
+                    ),
+                },
             ],
             tools=_EVALUATE_TOOL,
             model=model,
@@ -78,7 +80,9 @@ async def evaluate_response(
             log_transient_errors=False,
         )
 
-        if llm_response.finish_reason == "error" and provider._is_transient_error(llm_response.content):
+        if llm_response.finish_reason == "error" and provider._is_transient_error(
+            llm_response.content
+        ):
             logger.info("evaluate_response: provider rate limited, defaulting to notify")
             return True
 

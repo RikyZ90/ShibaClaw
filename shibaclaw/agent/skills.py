@@ -1,4 +1,4 @@
-﻿"""Skills loader for agent capabilities."""
+"""Skills loader for agent capabilities."""
 
 import io
 import json
@@ -43,7 +43,9 @@ class SkillsLoader:
                 if skill_dir.is_dir():
                     skill_file = skill_dir / "SKILL.md"
                     if skill_file.exists():
-                        skills.append({"name": skill_dir.name, "path": str(skill_file), "source": "workspace"})
+                        skills.append(
+                            {"name": skill_dir.name, "path": str(skill_file), "source": "workspace"}
+                        )
 
         # Built-in skills
         if self.builtin_skills and self.builtin_skills.exists():
@@ -51,7 +53,9 @@ class SkillsLoader:
                 if skill_dir.is_dir():
                     skill_file = skill_dir / "SKILL.md"
                     if skill_file.exists() and not any(s["name"] == skill_dir.name for s in skills):
-                        skills.append({"name": skill_dir.name, "path": str(skill_file), "source": "builtin"})
+                        skills.append(
+                            {"name": skill_dir.name, "path": str(skill_file), "source": "builtin"}
+                        )
 
         # Filter by requirements
         if filter_unavailable:
@@ -125,7 +129,7 @@ class SkillsLoader:
             skill_meta = self._get_skill_meta(s["name"])
             available = self._check_requirements(skill_meta)
 
-            lines.append(f"  <skill available=\"{str(available).lower()}\">")
+            lines.append(f'  <skill available="{str(available).lower()}">')
             lines.append(f"    <name>{name}</name>")
             lines.append(f"    <description>{desc}</description>")
             lines.append(f"    <location>{path}</location>")
@@ -165,7 +169,7 @@ class SkillsLoader:
         if content.startswith("---"):
             match = re.match(r"^---\n.*?\n---\n", content, re.DOTALL)
             if match:
-                return content[match.end():].strip()
+                return content[match.end() :].strip()
         return content
 
     def _parse_shibaclaw_metadata(self, raw: str) -> dict:
@@ -279,7 +283,13 @@ class SkillsLoader:
                         skill_dirs.setdefault(skill_name, prefix)
 
             if not skill_dirs:
-                return {"imported": [], "skipped": [], "imported_count": 0, "skipped_count": 0, "error": "No SKILL.md folders found in archive"}
+                return {
+                    "imported": [],
+                    "skipped": [],
+                    "imported_count": 0,
+                    "skipped_count": 0,
+                    "error": "No SKILL.md folders found in archive",
+                }
 
             self.workspace_skills.mkdir(parents=True, exist_ok=True)
 
@@ -313,7 +323,7 @@ class SkillsLoader:
                         if prefix == "":
                             rel = zpath
                         elif zpath.startswith(prefix + "/"):
-                            rel = zpath[len(prefix) + 1:]
+                            rel = zpath[len(prefix) + 1 :]
                         else:
                             continue
                         target_file = dest / rel
@@ -350,6 +360,7 @@ class SkillsLoader:
                 # Try proper YAML parsing first, fall back to simple split
                 try:
                     import yaml
+
                     parsed = yaml.safe_load(raw_yaml)
                     if isinstance(parsed, dict):
                         # Stringify values for backward compatibility
@@ -361,7 +372,7 @@ class SkillsLoader:
                 for line in raw_yaml.split("\n"):
                     if ":" in line:
                         key, value = line.split(":", 1)
-                        metadata[key.strip()] = value.strip().strip('"\'')
+                        metadata[key.strip()] = value.strip().strip("\"'")
                 return metadata
 
         return None

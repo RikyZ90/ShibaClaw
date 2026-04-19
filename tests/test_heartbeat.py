@@ -123,7 +123,9 @@ class TestWebuiHeartbeatDelivery:
         manager = AgentManager()
         manager.config = SimpleNamespace(workspace_path=tmp_path)
 
-        with patch("shibaclaw.webui.ws_handler.deliver_to_browsers", AsyncMock(return_value=1)) as mock_deliver:
+        with patch(
+            "shibaclaw.webui.ws_handler.deliver_to_browsers", AsyncMock(return_value=1)
+        ) as mock_deliver:
             result = await manager.deliver_background_notification(
                 "webui:recent",
                 "Heartbeat completed.",
@@ -148,7 +150,9 @@ class TestWebuiHeartbeatDelivery:
         manager = AgentManager()
         manager.config = SimpleNamespace(workspace_path=tmp_path)
 
-        with patch("shibaclaw.webui.ws_handler.deliver_to_browsers", AsyncMock(return_value=1)) as mock_deliver:
+        with patch(
+            "shibaclaw.webui.ws_handler.deliver_to_browsers", AsyncMock(return_value=1)
+        ) as mock_deliver:
             result = await manager.deliver_background_notification(
                 "webui:recent",
                 "Cron completed.",
@@ -174,6 +178,7 @@ class TestCronOverdueJobFiring:
 
         svc = CronService(tmp_path / "jobs.json", on_job=on_job)
         import time
+
         past_ms = int(time.time() * 1000) - 60_000
         svc.add_job(
             name="overdue",
@@ -197,6 +202,7 @@ class TestCronOverdueJobFiring:
 
         svc = CronService(tmp_path / "jobs.json", on_job=on_job)
         import time
+
         past_ms = int(time.time() * 1000) - 60_000
         job = svc.add_job(
             name="already-run",
@@ -219,6 +225,7 @@ class TestCronOverdueJobFiring:
 
         svc = CronService(tmp_path / "jobs.json", on_job=on_job)
         import time
+
         past_ms = int(time.time() * 1000) - 60_000
         job = svc.add_job(
             name="blank-message",
@@ -261,7 +268,9 @@ class TestHeartbeatService:
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})],
+                tool_calls=[
+                    ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})
+                ],
             )
         )
         service = HeartbeatService(
@@ -300,6 +309,7 @@ class TestHeartbeatService:
             model="test-model",
         )
         import time
+
         now_ms = int(time.time() * 1000)
         service._last_check_ms = now_ms
         service._last_action = "skip"
@@ -392,7 +402,9 @@ class TestHeartbeatService:
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})],
+                tool_calls=[
+                    ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})
+                ],
             )
         )
         service = HeartbeatService(
@@ -422,7 +434,9 @@ class TestHeartbeatService:
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})],
+                tool_calls=[
+                    ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "skip"})
+                ],
             )
         )
         service = HeartbeatService(
@@ -451,14 +465,20 @@ class TestHeartbeatSessionStability:
         """on_execute receives the same session_key across multiple ticks."""
         received_keys = []
 
-        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+        async def fake_execute(
+            tasks, *, session_key="heartbeat:default", profile_id=None, targets=None
+        ):
             received_keys.append(session_key)
             return "done"
 
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"})],
+                tool_calls=[
+                    ToolCallRequest(
+                        id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"}
+                    )
+                ],
             )
         )
 
@@ -484,14 +504,20 @@ class TestHeartbeatSessionStability:
         """on_execute receives the configured profile_id."""
         received_profiles = []
 
-        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+        async def fake_execute(
+            tasks, *, session_key="heartbeat:default", profile_id=None, targets=None
+        ):
             received_profiles.append(profile_id)
             return "done"
 
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"})],
+                tool_calls=[
+                    ToolCallRequest(
+                        id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"}
+                    )
+                ],
             )
         )
 
@@ -512,19 +538,29 @@ class TestHeartbeatSessionStability:
     async def test_tick_uses_frontmatter_overrides(self, tmp_path):
         received = []
 
-        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
-            received.append({
-                "session_key": session_key,
-                "profile_id": profile_id,
-                "targets": targets,
-                "tasks": tasks,
-            })
+        async def fake_execute(
+            tasks, *, session_key="heartbeat:default", profile_id=None, targets=None
+        ):
+            received.append(
+                {
+                    "session_key": session_key,
+                    "profile_id": profile_id,
+                    "targets": targets,
+                    "tasks": tasks,
+                }
+            )
             return "done"
 
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "run file task"})],
+                tool_calls=[
+                    ToolCallRequest(
+                        id="hb-1",
+                        name="heartbeat",
+                        arguments={"action": "run", "tasks": "run file task"},
+                    )
+                ],
             )
         )
 
@@ -551,12 +587,14 @@ class TestHeartbeatSessionStability:
 
         await service._tick()
 
-        assert received == [{
-            "session_key": "heartbeat:file",
-            "profile_id": "planner",
-            "targets": {"webui": "recent"},
-            "tasks": "run file task",
-        }]
+        assert received == [
+            {
+                "session_key": "heartbeat:file",
+                "profile_id": "planner",
+                "targets": {"webui": "recent"},
+                "tasks": "run file task",
+            }
+        ]
 
 
 class TestHeartbeatMultiChannel:
@@ -565,7 +603,9 @@ class TestHeartbeatMultiChannel:
         """on_notify receives the configured targets dict."""
         received_targets = []
 
-        async def fake_execute(tasks, *, session_key="heartbeat:default", profile_id=None, targets=None):
+        async def fake_execute(
+            tasks, *, session_key="heartbeat:default", profile_id=None, targets=None
+        ):
             return "result"
 
         async def fake_notify(response, *, targets=None):
@@ -574,12 +614,15 @@ class TestHeartbeatMultiChannel:
         provider = RecordingProvider(
             LLMResponse(
                 content=None,
-                tool_calls=[ToolCallRequest(id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"})],
+                tool_calls=[
+                    ToolCallRequest(
+                        id="hb-1", name="heartbeat", arguments={"action": "run", "tasks": "test"}
+                    )
+                ],
             )
         )
 
         # Mock evaluate_response to always return True
-        original_eval = None
 
         service = HeartbeatService(
             workspace=tmp_path,
@@ -594,7 +637,12 @@ class TestHeartbeatMultiChannel:
 
         # Patch evaluate_response where it's imported from
         from unittest.mock import AsyncMock, patch
-        with patch("shibaclaw.helpers.evaluator.evaluate_response", new_callable=AsyncMock, return_value=True):
+
+        with patch(
+            "shibaclaw.helpers.evaluator.evaluate_response",
+            new_callable=AsyncMock,
+            return_value=True,
+        ):
             await service._tick()
 
         assert len(received_targets) == 1

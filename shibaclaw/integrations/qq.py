@@ -1,4 +1,4 @@
-﻿"""QQ channel implementation using botpy SDK."""
+"""QQ channel implementation using botpy SDK."""
 
 import asyncio
 from collections import deque
@@ -92,8 +92,8 @@ class QQChannel(BaseChannel):
             return
 
         self._running = True
-        BotClass = _make_bot_class(self)
-        self._client = BotClass()
+        bot_class = _make_bot_class(self)
+        self._client = bot_class()
         logger.info("QQ bot started (C2C & Group supported)")
         await self._run_bot()
 
@@ -169,7 +169,10 @@ class QQChannel(BaseChannel):
                 user_id = data.author.member_openid
                 self._chat_type_cache[chat_id] = "group"
             else:
-                chat_id = str(getattr(data.author, 'id', None) or getattr(data.author, 'user_openid', 'unknown'))
+                chat_id = str(
+                    getattr(data.author, "id", None)
+                    or getattr(data.author, "user_openid", "unknown")
+                )
                 user_id = chat_id
                 self._chat_type_cache[chat_id] = "c2c"
 

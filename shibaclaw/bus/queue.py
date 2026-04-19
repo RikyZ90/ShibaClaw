@@ -1,4 +1,4 @@
-﻿"""Async message queue for decoupled channel-agent communication."""
+"""Async message queue for decoupled channel-agent communication."""
 
 from __future__ import annotations
 
@@ -40,9 +40,7 @@ class MessageBus:
         window = self._inbound_timestamps[sender_id]
         # Evict entries older than 60 s
         cutoff = now - 60.0
-        self._inbound_timestamps[sender_id] = window = [
-            ts for ts in window if ts > cutoff
-        ]
+        self._inbound_timestamps[sender_id] = window = [ts for ts in window if ts > cutoff]
         if len(window) >= self._rate_limit:
             return True
         window.append(now)

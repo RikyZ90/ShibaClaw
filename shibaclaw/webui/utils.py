@@ -21,6 +21,7 @@ def _unique_hosts(*candidates: str) -> list[str]:
             hosts.append(host)
     return hosts
 
+
 def _resolve_gateway_hosts() -> tuple[list[str], int]:
     """Return (hosts, port) for reaching the gateway health server.
 
@@ -46,7 +47,6 @@ def _resolve_gateway_hosts() -> tuple[list[str], int]:
     return hosts, port
 
 
-
 def _deep_merge(base: dict, patch: dict):
     """Deep merge a dictionary patch onto base."""
     for k, v in patch.items():
@@ -70,8 +70,15 @@ def _deep_merge(base: dict, patch: dict):
 def _redact_secrets(obj: Any, keys_to_redact: Optional[Set[str]] = None) -> Any:
     """Recursively redact sensitive fields in a config-like dict."""
     _keys = keys_to_redact or {
-        "api_key", "apiKey", "access_token", "accessToken",
-        "token", "secret", "password", "key", "auth_token"
+        "api_key",
+        "apiKey",
+        "access_token",
+        "accessToken",
+        "token",
+        "secret",
+        "password",
+        "key",
+        "auth_token",
     }
     if isinstance(obj, dict):
         return {
@@ -188,7 +195,9 @@ def _compute_session_tokens(session_id: str, wp: Path, pm, estimate_message_toke
         content = m.get("content", "")
         if isinstance(content, list):
             content = " ".join(
-                p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"
+                p.get("text", "")
+                for p in content
+                if isinstance(p, dict) and p.get("type") == "text"
             )
         preview = (content or "")[:200]
         if len(content or "") > 200:
@@ -233,7 +242,8 @@ async def _gateway_request(method: str, path: str) -> dict | None:
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=5.0,
+                asyncio.open_connection(host, port),
+                timeout=5.0,
             )
             try:
                 writer.write(f"{method} {path} HTTP/1.0\r\nHost: gw\r\n{auth_hdr}\r\n".encode())
@@ -245,7 +255,7 @@ async def _gateway_request(method: str, path: str) -> dict | None:
             if b"200" in data:
                 body_start = data.find(b"\r\n\r\n")
                 if body_start > 0:
-                    return json.loads(data[body_start + 4:])
+                    return json.loads(data[body_start + 4 :])
         except Exception:
             continue
     return None
@@ -282,7 +292,8 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=5.0,
+                asyncio.open_connection(host, port),
+                timeout=5.0,
             )
             try:
                 writer.write(
@@ -293,7 +304,8 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
                         f"Content-Length: {len(payload)}\r\n"
                         f"{auth_hdr}"
                         f"\r\n"
-                    ).encode() + payload
+                    ).encode()
+                    + payload
                 )
                 await writer.drain()
                 data = await asyncio.wait_for(reader.read(65536), timeout=30.0)
@@ -303,7 +315,7 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
             if b"200" in data:
                 body_start = data.find(b"\r\n\r\n")
                 if body_start > 0:
-                    return json.loads(data[body_start + 4:])
+                    return json.loads(data[body_start + 4 :])
         except Exception:
             continue
     return None
@@ -335,7 +347,8 @@ async def _gateway_chat_stream(payload: dict):
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=10.0,
+                asyncio.open_connection(host, port),
+                timeout=10.0,
             )
         except Exception as exc:
             last_exc = exc
@@ -351,7 +364,8 @@ async def _gateway_chat_stream(payload: dict):
                     f"Content-Length: {len(body)}\r\n"
                     f"{auth_hdr}"
                     f"\r\n"
-                ).encode() + body
+                ).encode()
+                + body
             )
             await writer.drain()
 

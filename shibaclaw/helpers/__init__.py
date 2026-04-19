@@ -1,4 +1,4 @@
-﻿"""Utility functions for shibaclaw."""
+"""Utility functions for shibaclaw."""
 
 from shibaclaw.helpers.helpers import ensure_dir
 

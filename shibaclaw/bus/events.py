@@ -1,4 +1,4 @@
-﻿"""Event types for the message bus."""
+"""Event types for the message bus."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -34,5 +34,3 @@ class OutboundMessage:
     reply_to: str | None = None
     media: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-
-

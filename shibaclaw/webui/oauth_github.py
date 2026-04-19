@@ -17,6 +17,7 @@ GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
 GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
+
 async def start_github_oauth(job_id: str, jobs: dict):
     """Trigger GitHub device flow and poll for token in background."""
     try:
@@ -36,7 +37,10 @@ async def start_github_oauth(job_id: str, jobs: dict):
         expires_in = resp_json.get("expires_in", 900)
 
         if not device_code or not user_code:
-            return JSONResponse({"error": "GitHub did not return a device code", "details": resp_json}, status_code=502)
+            return JSONResponse(
+                {"error": "GitHub did not return a device code", "details": resp_json},
+                status_code=502,
+            )
 
         jobs[job_id]["logs"].append(f"Go to: {verification_uri}")
         jobs[job_id]["logs"].append(f"Enter code: {user_code}")
@@ -44,13 +48,16 @@ async def start_github_oauth(job_id: str, jobs: dict):
 
         asyncio.create_task(_poll_github_token(job_id, jobs, device_code, interval, expires_in))
 
-        return JSONResponse({
-            "job_id": job_id,
-            "user_code": user_code,
-            "verification_uri": verification_uri,
-        })
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "user_code": user_code,
+                "verification_uri": verification_uri,
+            }
+        )
     except Exception as e:
         return JSONResponse({"error": f"Failed to contact GitHub: {e}"}, status_code=502)
+
 
 async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
     max_attempts = expires_in // interval
@@ -71,7 +78,8 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                 tj = tr.json()
 
             error = tj.get("error")
-            if error == "authorization_pending": continue
+            if error == "authorization_pending":
+                continue
             elif error == "slow_down":
                 await asyncio.sleep(5)
                 continue
@@ -92,10 +100,13 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                 # Attempt gateway restart (use same host resolution as api.py)
                 try:
                     from .agent_manager import agent_manager
+
                     if agent_manager.config and agent_manager.config.gateway:
                         gw = agent_manager.config.gateway
                         gw_port = gw.port
-                        gateway_hostname = os.environ.get("SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway")
+                        gateway_hostname = os.environ.get(
+                            "SHIBACLAW_GATEWAY_HOST", "shibaclaw-gateway"
+                        )
                         if gw.host in ("0.0.0.0", "::", ""):
                             targets = ["127.0.0.1", gateway_hostname]
                         else:
@@ -103,13 +114,17 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                         auth = get_auth_token()
                         for h in targets:
                             try:
-                                req = urllib.request.Request(f"http://{h}:{gw_port}/restart", method="POST", data=b"")
-                                if auth: req.add_header("Authorization", f"Bearer {auth}")
+                                req = urllib.request.Request(
+                                    f"http://{h}:{gw_port}/restart", method="POST", data=b""
+                                )
+                                if auth:
+                                    req.add_header("Authorization", f"Bearer {auth}")
                                 urllib.request.urlopen(req, timeout=2)
                                 break
                             except Exception:
                                 continue
-                except Exception: pass
+                except Exception:
+                    pass
 
                 jobs[job_id]["status"] = "done"
                 jobs[job_id]["logs"].append("✅ Authenticated with GitHub Copilot!")
@@ -127,6 +142,7 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
 # ---------------------------------------------------------------------------
 # OpenAI Codex OAuth — uses oauth-cli-kit's device flow via WebUI code input
 # ---------------------------------------------------------------------------
+
 
 async def start_codex_oauth(job_id: str, jobs: dict):
     try:
@@ -224,12 +240,15 @@ async def start_codex_oauth(job_id: str, jobs: dict):
                 os.makedirs(cred_dir, exist_ok=True)
                 cred_path = os.path.join(cred_dir, "credentials.json")
                 with open(cred_path, "w") as f:
-                    json.dump({
-                        "access": token.access,
-                        "refresh": getattr(token, "refresh", ""),
-                        "expires": getattr(token, "expires", 0),
-                        "account_id": getattr(token, "account_id", "unknown"),
-                    }, f)
+                    json.dump(
+                        {
+                            "access": token.access,
+                            "refresh": getattr(token, "refresh", ""),
+                            "expires": getattr(token, "expires", 0),
+                            "account_id": getattr(token, "account_id", "unknown"),
+                        },
+                        f,
+                    )
 
                 jobs[job_id]["status"] = "done"
                 account = getattr(token, "account_id", "unknown")
@@ -248,9 +267,11 @@ async def start_codex_oauth(job_id: str, jobs: dict):
 
     asyncio.create_task(_run_flow())
 
-    return JSONResponse({
-        "job_id": job_id,
-        "provider": "openai_codex",
-        "status": "awaiting_code",
-        "auth_url": auth_url,
-    })
+    return JSONResponse(
+        {
+            "job_id": job_id,
+            "provider": "openai_codex",
+            "status": "awaiting_code",
+            "auth_url": auth_url,
+        }
+    )

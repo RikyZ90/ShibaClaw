@@ -11,9 +11,9 @@ from shibaclaw.agent.tools.base import Tool
 
 _ENTRY_RE = re.compile(
     r"^\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\]"  # timestamp
-    r"(?:\s*\[([^\]]*)\])?"                        # tags  (optional)
-    r"(?:\s*\[★(\d)\])?"                           # importance (optional)
-    r"\s*(.*)",                                     # body
+    r"(?:\s*\[([^\]]*)\])?"  # tags  (optional)
+    r"(?:\s*\[★(\d)\])?"  # importance (optional)
+    r"\s*(.*)",  # body
     re.DOTALL,
 )
 
@@ -41,13 +41,15 @@ def _parse_entries(raw: str) -> list[dict[str, Any]]:
             continue
         m = _ENTRY_RE.match(block)
         if not m:
-            entries.append({
-                "ts": None,
-                "tags": [],
-                "importance": 1,
-                "body": block,
-                "raw": block,
-            })
+            entries.append(
+                {
+                    "ts": None,
+                    "tags": [],
+                    "importance": 1,
+                    "body": block,
+                    "raw": block,
+                }
+            )
             continue
         ts_str, tags_str, imp_str, body = m.groups()
         try:
@@ -56,13 +58,15 @@ def _parse_entries(raw: str) -> list[dict[str, Any]]:
             ts = None
         tags = re.findall(r"#([\w-]+)", tags_str or "")
         importance = int(imp_str) if imp_str else 1
-        entries.append({
-            "ts": ts,
-            "tags": tags,
-            "importance": max(1, min(5, importance)),
-            "body": body.strip(),
-            "raw": block,
-        })
+        entries.append(
+            {
+                "ts": ts,
+                "tags": tags,
+                "importance": max(1, min(5, importance)),
+                "body": body.strip(),
+                "raw": block,
+            }
+        )
     return entries
 
 
@@ -77,7 +81,9 @@ def _importance_score(importance: int) -> float:
     return importance / 5.0
 
 
-def _relevance_score(query_tokens: list[str], entry_tokens: list[str], idf: dict[str, float]) -> float:
+def _relevance_score(
+    query_tokens: list[str], entry_tokens: list[str], idf: dict[str, float]
+) -> float:
     if not query_tokens or not entry_tokens:
         return 0.0
     entry_counter = Counter(entry_tokens)
@@ -175,7 +181,7 @@ class MemorySearchTool(Tool):
             results.append((total, entry))
 
         results.sort(key=lambda x: x[0], reverse=True)
-        top = results[:min(top_k, 20)]
+        top = results[: min(top_k, 20)]
 
         if not top:
             return "No matching entries found."

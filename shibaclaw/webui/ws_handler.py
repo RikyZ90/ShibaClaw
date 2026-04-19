@@ -36,11 +36,13 @@ def _build_attachments(media_paths: list[str]) -> list[Dict[str, str]]:
     for m_path in media_paths:
         p = Path(m_path)
         res = mimetypes.guess_type(m_path)
-        atts.append({
-            "name": p.name,
-            "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
-            "type": res[0] or "application/octet-stream"
-        })
+        atts.append(
+            {
+                "name": p.name,
+                "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
+                "type": res[0] or "application/octet-stream",
+            }
+        )
     return atts
 
 
@@ -100,6 +102,7 @@ async def ws_endpoint(websocket: WebSocket):
     profile_id = "default"
     try:
         from shibaclaw.brain.manager import PackManager
+
         if agent_manager.config:
             pm = PackManager(agent_manager.config.workspace_path)
             sess = pm.get_or_create(session_id)
@@ -107,12 +110,15 @@ async def ws_endpoint(websocket: WebSocket):
     except Exception:
         pass
 
-    await _emit_to_ws(websocket, {
-        "type": "connected",
-        "session_id": session_id,
-        "profile_id": profile_id,
-        "message": "🐕 ShibaClaw WebUI connected!",
-    })
+    await _emit_to_ws(
+        websocket,
+        {
+            "type": "connected",
+            "session_id": session_id,
+            "profile_id": profile_id,
+            "message": "🐕 ShibaClaw WebUI connected!",
+        },
+    )
 
     await _emit_session_status(websocket, session_id)
 
@@ -158,20 +164,26 @@ async def _emit_session_status(ws: WebSocket, session_key: str):
     """Send processing status for a session."""
     ps = processing_state.get(session_key)
     if ps and ps.get("processing"):
-        await _emit_to_ws(ws, {
-            "type": "session_status",
-            "session_key": session_key,
-            "processing": True,
-            "msg_id": ps.get("msg_id", ""),
-            "events": ps.get("events", []),
-            "started_at": ps.get("started_at", 0),
-        })
+        await _emit_to_ws(
+            ws,
+            {
+                "type": "session_status",
+                "session_key": session_key,
+                "processing": True,
+                "msg_id": ps.get("msg_id", ""),
+                "events": ps.get("events", []),
+                "started_at": ps.get("started_at", 0),
+            },
+        )
     else:
-        await _emit_to_ws(ws, {
-            "type": "session_status",
-            "session_key": session_key,
-            "processing": False,
-        })
+        await _emit_to_ws(
+            ws,
+            {
+                "type": "session_status",
+                "session_key": session_key,
+                "processing": False,
+            },
+        )
 
 
 async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
@@ -183,7 +195,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
         return
 
     content = data.get("content", "").strip()
-    session = sessions.setdefault(ws_id, {"session_key": f"webui:{ws_id[:8]}", "processing": False, "queue": []})
+    session = sessions.setdefault(
+        ws_id, {"session_key": f"webui:{ws_id[:8]}", "processing": False, "queue": []}
+    )
     session_key = session["session_key"]
 
     media_paths = []
@@ -192,7 +206,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
         url = att.get("url", "")
         if att.get("type", "").startswith("image/"):
             try:
-                p_str = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("path", [None])[0]
+                p_str = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("path", [None])[
+                    0
+                ]
                 if p_str:
                     media_paths.append(p_str)
             except Exception:
@@ -210,12 +226,31 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
     if session.get("processing"):
         session.setdefault("queue", []).append(msg)
-        await _emit_to_session(session_key, {"type": "message_ack", "id": msg["id"], "content": content, "session_key": session_key})
-        await _emit_to_session(session_key, {"type": "message_queued", "id": msg["id"], "position": len(session["queue"]), "session_key": session_key})
+        await _emit_to_session(
+            session_key,
+            {
+                "type": "message_ack",
+                "id": msg["id"],
+                "content": content,
+                "session_key": session_key,
+            },
+        )
+        await _emit_to_session(
+            session_key,
+            {
+                "type": "message_queued",
+                "id": msg["id"],
+                "position": len(session["queue"]),
+                "session_key": session_key,
+            },
+        )
         return
 
     session["processing"] = True
-    await _emit_to_session(session_key, {"type": "message_ack", "id": msg["id"], "content": content, "session_key": session_key})
+    await _emit_to_session(
+        session_key,
+        {"type": "message_ack", "id": msg["id"], "content": content, "session_key": session_key},
+    )
     # Emit session status to update UI about processing state
     await _emit_session_status_all(session_key)
 
@@ -239,6 +274,7 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
             try:
                 from shibaclaw.brain.manager import PackManager
+
                 pm = PackManager(agent_manager.config.workspace_path)
                 sess = pm.get_or_create(session_key)
                 pid = sess.metadata.get("profile_id")
@@ -253,25 +289,36 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
             async for event in gateway_client.chat_stream(payload):
                 if event.get("t") == "p":
                     event_type = "tool" if event.get("h") else "thinking"
-                    evt = {"type": event_type, "id": message["id"], "content": event.get("c", ""), "tool_hint": event.get("h", False)}
-                    ps = processing_state.get(session_key)
-                    if ps:
-                        ps["events"].append(evt)
-                    await _emit_to_session(session_key, {
+                    evt = {
                         "type": event_type,
                         "id": message["id"],
                         "content": event.get("c", ""),
                         "tool_hint": event.get("h", False),
-                        "session_key": session_key,
-                    })
+                    }
+                    ps = processing_state.get(session_key)
+                    if ps:
+                        ps["events"].append(evt)
+                    await _emit_to_session(
+                        session_key,
+                        {
+                            "type": event_type,
+                            "id": message["id"],
+                            "content": event.get("c", ""),
+                            "tool_hint": event.get("h", False),
+                            "session_key": session_key,
+                        },
+                    )
                 elif event.get("t") == "rt":
                     response_content += event.get("c", "")
-                    await _emit_to_session(session_key, {
-                        "type": "response_chunk",
-                        "id": message["id"],
-                        "content": event.get("c", ""),
-                        "session_key": session_key,
-                    })
+                    await _emit_to_session(
+                        session_key,
+                        {
+                            "type": "response_chunk",
+                            "id": message["id"],
+                            "content": event.get("c", ""),
+                            "session_key": session_key,
+                        },
+                    )
                 elif event.get("t") == "r":
                     response_content = event.get("content", "")
                     response_media = event.get("media", [])
@@ -282,17 +329,22 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
             try:
                 from shibaclaw.brain.manager import PackManager
+
                 pm = PackManager(agent_manager.config.workspace_path)
                 sess = pm.get_or_create(session_key)
                 if sess and sess.messages:
                     for m_idx in range(len(sess.messages) - 1, -1, -1):
                         if sess.messages[m_idx].get("role") == "user":
-                            sess.messages[m_idx].setdefault("metadata", {})["attachments"] = message.get("attachments", [])
+                            sess.messages[m_idx].setdefault("metadata", {})["attachments"] = (
+                                message.get("attachments", [])
+                            )
                             break
                     for m_idx in range(len(sess.messages) - 1, -1, -1):
                         if sess.messages[m_idx].get("role") == "assistant":
                             if final_atts:
-                                sess.messages[m_idx].setdefault("metadata", {})["attachments"] = final_atts
+                                sess.messages[m_idx].setdefault("metadata", {})["attachments"] = (
+                                    final_atts
+                                )
                             pm.save(sess)
                             break
             except Exception:
@@ -304,19 +356,24 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 # processing state.  Only skip if nothing was streamed either.
                 pass
 
-            await _emit_to_session(session_key, {
-                "type": "response",
-                "id": message["id"],
-                "content": response_content,
-                "attachments": final_atts,
-                "session_key": session_key,
-            })
+            await _emit_to_session(
+                session_key,
+                {
+                    "type": "response",
+                    "id": message["id"],
+                    "content": response_content,
+                    "attachments": final_atts,
+                    "session_key": session_key,
+                },
+            )
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
             logger.exception("WebUI processing error")
-            await _emit_to_session(session_key, {"type": "error", "message": f"Error: {e}", "session_key": session_key})
+            await _emit_to_session(
+                session_key, {"type": "error", "message": f"Error: {e}", "session_key": session_key}
+            )
         finally:
             q = session.get("queue") or []
             if q:
@@ -349,17 +406,20 @@ async def _handle_stop(ws_id: str):
     session["processing"] = False
     sk = session.get("session_key", "")
     processing_state.pop(sk, None)
-    await _emit_to_session(sk, {
-        "type": "response",
-        "id": "stop",
-        "content": "🐕 Halted the hunt.",
-        "session_key": sk,
-    })
+    await _emit_to_session(
+        sk,
+        {
+            "type": "response",
+            "id": "stop",
+            "content": "🐕 Halted the hunt.",
+            "session_key": sk,
+        },
+    )
 
 
 async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):
     """Handle new_session request."""
-    old_session = sessions.get(ws_id)
+    sessions.get(ws_id)
     new_key = f"webui:{uuid.uuid4().hex[:8]}"
     if ws_id in sessions:
         sessions[ws_id]["session_key"] = new_key
@@ -367,6 +427,7 @@ async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):
     profile_id = (data or {}).get("profile_id", "default")
     try:
         from shibaclaw.brain.manager import PackManager
+
         if agent_manager.config:
             pm = PackManager(agent_manager.config.workspace_path)
             sess = pm.get_or_create(new_key)
@@ -375,12 +436,15 @@ async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):
     except Exception:
         pass
 
-    await _emit_to_ws(ws, {
-        "type": "session_reset",
-        "session_id": new_key,
-        "profile_id": profile_id,
-        "message": "New session started.",
-    })
+    await _emit_to_ws(
+        ws,
+        {
+            "type": "session_reset",
+            "session_id": new_key,
+            "profile_id": profile_id,
+            "message": "New session started.",
+        },
+    )
 
 
 async def _handle_switch_session(ws_id: str, ws: WebSocket, data: dict):
@@ -401,12 +465,16 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
     request_id = data.get("id", str(uuid.uuid4())[:8])
     config = agent_manager.config
     if not config:
-        await _emit_to_ws(ws, {"type": "transcribe_result", "id": request_id, "error": "Agent not configured"})
+        await _emit_to_ws(
+            ws, {"type": "transcribe_result", "id": request_id, "error": "Agent not configured"}
+        )
         return
 
     raw = data.get("audio")
     if not raw:
-        await _emit_to_ws(ws, {"type": "transcribe_result", "id": request_id, "error": "No audio provided"})
+        await _emit_to_ws(
+            ws, {"type": "transcribe_result", "id": request_id, "error": "No audio provided"}
+        )
         return
 
     try:
@@ -434,7 +502,9 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
             response_format="text",
         )
 
-        await _emit_to_ws(ws, {"type": "transcribe_result", "id": request_id, "text": str(res).strip()})
+        await _emit_to_ws(
+            ws, {"type": "transcribe_result", "id": request_id, "text": str(res).strip()}
+        )
     except Exception as e:
         logger.exception("Audio transcription failed")
         await _emit_to_ws(ws, {"type": "transcribe_result", "id": request_id, "error": str(e)})
@@ -442,7 +512,10 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
 
 # ── Public API for agent_manager / gateway events ────────────
 
-async def deliver_to_browsers(session_key: str, content: str, *, source: str = "background", msg_type: str = "response") -> int:
+
+async def deliver_to_browsers(
+    session_key: str, content: str, *, source: str = "background", msg_type: str = "response"
+) -> int:
     """Deliver a background notification to matching browser WebSocket clients.
 
     Args:

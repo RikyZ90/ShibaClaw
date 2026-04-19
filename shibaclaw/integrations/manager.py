@@ -140,15 +140,15 @@ class ChannelManager:
 
         while True:
             try:
-                msg = await asyncio.wait_for(
-                    self.bus.consume_outbound(),
-                    timeout=1.0
-                )
+                msg = await asyncio.wait_for(self.bus.consume_outbound(), timeout=1.0)
 
                 if msg.metadata.get("_progress"):
                     if msg.metadata.get("_tool_hint") and not self.config.channels.send_tool_hints:
                         continue
-                    if not msg.metadata.get("_tool_hint") and not self.config.channels.send_progress:
+                    if (
+                        not msg.metadata.get("_tool_hint")
+                        and not self.config.channels.send_progress
+                    ):
                         continue
 
                 channel = self.channels.get(msg.channel)
@@ -162,13 +162,17 @@ class ChannelManager:
                         origin_chat_id = msg.metadata.get("origin_chat_id")
                         if origin_channel and origin_chat_id and origin_channel != msg.channel:
                             try:
-                                await self.bus.publish_outbound(OutboundMessage(
-                                    channel=origin_channel,
-                                    chat_id=origin_chat_id,
-                                    content=f"[Delivery failed to {msg.channel}:{msg.chat_id}: {e}]",
-                                ))
+                                await self.bus.publish_outbound(
+                                    OutboundMessage(
+                                        channel=origin_channel,
+                                        chat_id=origin_chat_id,
+                                        content=f"[Delivery failed to {msg.channel}:{msg.chat_id}: {e}]",
+                                    )
+                                )
                             except Exception as e2:
-                                logger.error("Failed to notify origin channel {}: {}", origin_channel, e2)
+                                logger.error(
+                                    "Failed to notify origin channel {}: {}", origin_channel, e2
+                                )
                 else:
                     logger.warning("Unknown channel: {}", msg.channel)
 
@@ -184,10 +188,7 @@ class ChannelManager:
     def get_status(self) -> dict[str, Any]:
         """Get status of all channels."""
         return {
-            name: {
-                "enabled": True,
-                "running": channel.is_running
-            }
+            name: {"enabled": True, "running": channel.is_running}
             for name, channel in self.channels.items()
         }
 

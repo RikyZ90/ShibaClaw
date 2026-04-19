@@ -29,7 +29,7 @@ async def api_upload(request: Request):
         upload_dir = agent_manager.config.workspace_path / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        auth_token = get_auth_token() or ""
+        get_auth_token() or ""
         results = []
         for f in files:
             filename = f.filename
@@ -47,10 +47,12 @@ async def api_upload(request: Request):
 
             content = await f.read()
             target_path.write_bytes(content)
-            results.append({
-                "filename": target_path.name,
-                "url": f"/api/file-get?path={urllib.parse.quote(str(target_path.absolute()))}"
-            })
+            results.append(
+                {
+                    "filename": target_path.name,
+                    "url": f"/api/file-get?path={urllib.parse.quote(str(target_path.absolute()))}",
+                }
+            )
 
         return JSONResponse({"status": "success", "files": results})
     except Exception as e:
@@ -143,7 +145,7 @@ async def api_fs_explore(request: Request):
                         "path": Path(entry.path).relative_to(workspace).as_posix(),
                         "is_dir": entry.is_dir(),
                         "size": entry.stat().st_size if not entry.is_dir() else None,
-                        "mtime": entry.stat().st_mtime
+                        "mtime": entry.stat().st_mtime,
                     }
                     items.append(info)
                 except (PermissionError, OSError):
@@ -151,10 +153,14 @@ async def api_fs_explore(request: Request):
 
         items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
 
-        return JSONResponse({
-            "current_path": str(target_path.absolute()),
-            "parent_path": str(target_path.parent.absolute()) if target_path.parent != target_path else None,
-            "items": items
-        })
+        return JSONResponse(
+            {
+                "current_path": str(target_path.absolute()),
+                "parent_path": str(target_path.parent.absolute())
+                if target_path.parent != target_path
+                else None,
+                "items": items,
+            }
+        )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)

@@ -41,7 +41,7 @@ async def api_gateway_health(request: Request):
                 body_start = data.find(b"\r\n\r\n")
                 if body_start > 0:
                     try:
-                        info = json.loads(data[body_start + 4:])
+                        info = json.loads(data[body_start + 4 :])
                         return JSONResponse({"reachable": True, **info})
                     except Exception:
                         pass
