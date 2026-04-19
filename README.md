@@ -15,7 +15,7 @@
 
 ---
 
-🎉 **Welcome to ShibaClaw v0.1.0 Beta!** This release brings a fully documented **REST API Reference**, automated CI pipelines, and a leaner foundational structure. Ready for testing! See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.0 Beta!** This release brings a fully documented **REST API Reference**, automated CI pipelines, and a leaner foundational structure. Ready for testing! See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
