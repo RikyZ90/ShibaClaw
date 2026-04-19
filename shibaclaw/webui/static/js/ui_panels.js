@@ -1384,14 +1384,22 @@ function populateSettings(cfg) {
     const mcpServers = cfg.tools?.mcpServers || {};
     const mcpList = $("mcp-servers-list");
     mcpList.innerHTML = "";
-    if (Object.keys(mcpServers).length === 1 && Object.keys(mcpServers)[0] === "mcp") {
+    const entries = Object.entries(mcpServers);
+
+    if (entries.length === 1 && entries[0][0] === "mcp") {
         const note = document.createElement("div");
         note.className = "settings-note";
         note.innerHTML = "<b>Nota:</b> Questo è un esempio di server MCP. Modifica direttamente questo blocco per configurare il tuo server personalizzato.";
         mcpList.appendChild(note);
     }
-    for (const [name, sc] of Object.entries(mcpServers)) {
+    for (const [name, sc] of entries) {
         mcpList.appendChild(buildMcpServerCard(name, sc));
+    }
+
+    if (entries.length === 0) {
+        const card = buildMcpServerCard("", { args: [], enabled_tools: ["*"], tool_timeout: 30 });
+        card.classList.add("open");
+        mcpList.appendChild(card);
     }
 }
 
