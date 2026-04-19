@@ -182,6 +182,7 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
 
     try:
         import importlib
+
         from pydantic import BaseModel
         mod = importlib.import_module(f"shibaclaw.integrations.{chosen}")
         from shibaclaw.integrations.registry import discover_all as _da
@@ -273,8 +274,8 @@ def _onboard_plugins(config_path: Path) -> None:
 
 def _try_restart_gateway(config) -> None:
     """If the gateway is running, POST /restart to reload config."""
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     host = config.gateway.host or "127.0.0.1"
     port = config.gateway.port or 19999

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-import httpx
 import os
 import urllib.parse
 import urllib.request
+
+import httpx
 from starlette.responses import JSONResponse
+
 from .auth import get_auth_token
 
 GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
@@ -67,7 +69,7 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                     timeout=10,
                 )
                 tj = tr.json()
-            
+
             error = tj.get("error")
             if error == "authorization_pending": continue
             elif error == "slow_down":

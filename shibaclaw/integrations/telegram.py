@@ -52,11 +52,11 @@ from telegram.request import HTTPXRequest
 
 from shibaclaw.bus.events import OutboundMessage
 from shibaclaw.bus.queue import MessageBus
-from shibaclaw.integrations.base import BaseChannel
 from shibaclaw.config.paths import get_media_dir
 from shibaclaw.config.schema import Base
-from shibaclaw.security.network import validate_url_target
 from shibaclaw.helpers.helpers import split_message
+from shibaclaw.integrations.base import BaseChannel
+from shibaclaw.security.network import validate_url_target
 
 TELEGRAM_MAX_MESSAGE_LEN = 4000  # Telegram message character limit
 TELEGRAM_REPLY_CONTEXT_MAX_LEN = TELEGRAM_MAX_MESSAGE_LEN  # Max length for reply context in user message

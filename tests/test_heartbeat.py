@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -12,18 +13,10 @@ from shibaclaw.cli.gateway import (
 )
 from shibaclaw.cron.service import CronService
 from shibaclaw.cron.types import CronJob, CronJobState, CronPayload, CronSchedule
-from shibaclaw.helpers.evaluator import evaluate_response
 from shibaclaw.heartbeat.service import HeartbeatService
+from shibaclaw.helpers.evaluator import evaluate_response
 from shibaclaw.thinkers.base import LLMResponse, ToolCallRequest
 from shibaclaw.webui.agent_manager import AgentManager
-
-
-class FakeSocketIO:
-    def __init__(self):
-        self.calls = []
-
-    async def emit(self, event, payload, room=None):
-        self.calls.append((event, payload, room))
 
 
 class RecordingProvider:
@@ -130,27 +123,17 @@ class TestWebuiHeartbeatDelivery:
         manager = AgentManager()
         manager.config = SimpleNamespace(workspace_path=tmp_path)
 
-        socket = FakeSocketIO()
-        manager.set_socket_io(
-            socket,
-            {
-                "sid-active": {"session_key": "webui:recent", "processing": False, "queue": []},
-                "sid-other": {"session_key": "webui:other", "processing": False, "queue": []},
-            },
-        )
-
-        result = await manager.deliver_background_notification(
-            "webui:recent",
-            "Heartbeat completed.",
-            source="heartbeat",
-        )
+        with patch("shibaclaw.webui.ws_handler.deliver_to_browsers", AsyncMock(return_value=1)) as mock_deliver:
+            result = await manager.deliver_background_notification(
+                "webui:recent",
+                "Heartbeat completed.",
+                source="heartbeat",
+            )
 
         assert result == {"delivered": True, "matched_sessions": 1}
-        assert len(socket.calls) == 1
-        event, payload, room = socket.calls[0]
-        assert event == "agent_response"
-        assert room == "sid-active"
-        assert payload["content"] == "Heartbeat completed."
+        mock_deliver.assert_called_once_with(
+            "webui:recent", "Heartbeat completed.", source="heartbeat", msg_type="response"
+        )
 
         session = PackManager(tmp_path).get_or_create("webui:recent")
         assert session.messages[-1]["role"] == "assistant"
@@ -165,23 +148,18 @@ class TestWebuiHeartbeatDelivery:
         manager = AgentManager()
         manager.config = SimpleNamespace(workspace_path=tmp_path)
 
-        socket = FakeSocketIO()
-        manager.set_socket_io(
-            socket,
-            {
-                "sid-active": {"session_key": "webui:recent", "processing": False, "queue": []},
-            },
-        )
-
-        result = await manager.deliver_background_notification(
-            "webui:recent",
-            "Cron completed.",
-            source="cron",
-            persist=False,
-        )
+        with patch("shibaclaw.webui.ws_handler.deliver_to_browsers", AsyncMock(return_value=1)) as mock_deliver:
+            result = await manager.deliver_background_notification(
+                "webui:recent",
+                "Cron completed.",
+                source="cron",
+                persist=False,
+            )
 
         assert result == {"delivered": True, "matched_sessions": 1}
-        assert len(socket.calls) == 1
+        mock_deliver.assert_called_once_with(
+            "webui:recent", "Cron completed.", source="cron", msg_type="response"
+        )
         assert PackManager(tmp_path)._get_session_path("webui:recent").exists() is False
 
 
@@ -601,7 +579,6 @@ class TestHeartbeatMultiChannel:
         )
 
         # Mock evaluate_response to always return True
-        import shibaclaw.heartbeat.service as hb_module
         original_eval = None
 
         service = HeartbeatService(

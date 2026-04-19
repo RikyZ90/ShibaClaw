@@ -10,8 +10,8 @@ import json_repair
 from loguru import logger
 from openai import AsyncOpenAI
 
-from shibaclaw.thinkers.base import Thinker, LLMResponse, ToolCallRequest
-from shibaclaw.thinkers.registry import find_by_model, find_gateway, ProviderSpec
+from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
+from shibaclaw.thinkers.registry import ProviderSpec, find_by_model, find_gateway
 
 _ALNUM = string.ascii_letters + string.digits
 
@@ -38,27 +38,27 @@ class OpenAIThinker(Thinker):
     ):
         super().__init__(api_key, api_base)
         self.default_model = default_model
-        
+
         # Detect gateway or specific config if present
         self._gateway = find_gateway(provider_name, api_key, api_base)
-        
+
         # Determine actual key and base URL
         resolved_key = self._resolve_api_key(api_key, self._gateway, default_model)
         resolved_base = api_base or (self._gateway.default_api_base if self._gateway else None)
-        
+
         # Stable session affinity for custom backends
         default_headers = {
             "x-session-affinity": uuid.uuid4().hex,
             **(extra_headers or {}),
         }
-        
+
         if self._gateway and self._gateway.is_gateway:
             # Some gateways like OpenRouter recommend sending a referrer
             default_headers.setdefault("HTTP-Referer", "https://github.com/RikyZ90/ShibaClaw")
             default_headers.setdefault("X-Title", "ShibaClaw")
-            
+
         logger.debug(f"OpenAIThinker init: api_key={'SET' if api_key else 'UNSET'} resolved_key={'SET' if resolved_key else 'UNSET'} base_url={resolved_base}")
-            
+
         self._client = AsyncOpenAI(
             api_key=resolved_key or "no-key",
             base_url=resolved_base,
@@ -69,11 +69,11 @@ class OpenAIThinker(Thinker):
         """Resolve the API key from kwargs or environment variables."""
         if api_key:
             return api_key
-        
+
         s = spec or find_by_model(model)
         if s and s.env_key:
             return os.environ.get(s.env_key)
-        
+
         return None
 
     def _resolve_model(self, model: str) -> str:
@@ -83,14 +83,14 @@ class OpenAIThinker(Thinker):
         if self._gateway and self._gateway.strip_model_prefix:
             if "/" in model:
                 model = model.split("/")[-1]
-                
+
         # For non-gateway standard usage (e.g. hitting OpenAI directly)
         elif not self._gateway:
             spec = find_by_model(model)
             if spec and "/" in model and model.startswith(f"{spec.name}/"):
                 # Strip prefix if it exists to pass bare model name to OpenAI
                 model = model.split("/", 1)[1]
-                
+
         return model
 
     def _apply_model_overrides(self, model: str, kwargs: dict[str, Any]) -> None:
@@ -115,22 +115,22 @@ class OpenAIThinker(Thinker):
     ) -> LLMResponse:
         original_model = model or self.default_model
         resolved_model = self._resolve_model(original_model)
-        
+
         # Use openai native schema for messages
         sanitized_messages = self._sanitize_empty_content(messages)
-        
+
         kwargs: dict[str, Any] = {
             "model": resolved_model,
             "messages": sanitized_messages,
             "max_tokens": max(1, max_tokens),
             "temperature": temperature,
         }
-        
+
         self._apply_model_overrides(original_model, kwargs)
-        
+
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
-            
+
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = tool_choice or "auto"
@@ -147,10 +147,10 @@ class OpenAIThinker(Thinker):
     def _parse_response(self, response: Any) -> LLMResponse:
         if not response.choices:
             return LLMResponse(content="Error: API returned empty choices.", finish_reason="error")
-            
+
         choice = response.choices[0]
         msg = choice.message
-        
+
         tool_calls = []
         if getattr(msg, "tool_calls", None):
             for tc in msg.tool_calls:
@@ -160,13 +160,13 @@ class OpenAIThinker(Thinker):
                         args = json_repair.loads(args)
                     except Exception:
                         args = {"raw": args}
-                
+
                 tool_calls.append(ToolCallRequest(
                     id=tc.id or _short_tool_id(),
                     name=tc.function.name,
                     arguments=args,
                 ))
-                
+
         u = getattr(response, "usage", None)
         usage = {
             "prompt_tokens": u.prompt_tokens if u else 0,

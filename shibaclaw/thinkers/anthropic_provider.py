@@ -3,11 +3,9 @@
 import os
 from typing import Any
 
-from loguru import logger
 from anthropic import AsyncAnthropic
 
-from shibaclaw.thinkers.base import Thinker, LLMResponse, ToolCallRequest
-from shibaclaw.thinkers.registry import find_by_model
+from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
 
 
 class AnthropicThinker(Thinker):
@@ -25,9 +23,9 @@ class AnthropicThinker(Thinker):
     ):
         super().__init__(api_key, api_base)
         self.default_model = default_model
-        
+
         resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        
+
         self._client = AsyncAnthropic(
             api_key=resolved_key or "no-key",
             base_url=api_base or None,
@@ -38,11 +36,11 @@ class AnthropicThinker(Thinker):
         """Convert standard messages to Anthropic's format and extract system prompt."""
         system_prompt = ""
         anthropic_messages = []
-        
+
         for idx, msg in enumerate(messages):
             role = msg.get("role")
             content = msg.get("content")
-            
+
             if role == "system":
                 # Anthropic handles system prompt at the top level
                 if isinstance(content, str):
@@ -53,7 +51,7 @@ class AnthropicThinker(Thinker):
                             system_prompt += blk.get("text", "") + "\n\n"
                         elif isinstance(blk, str):
                             system_prompt += blk + "\n\n"
-                            
+
             elif role == "user":
                 if isinstance(content, str):
                     anthropic_messages.append({"role": "user", "content": [{"type": "text", "text": content}]})
@@ -68,7 +66,6 @@ class AnthropicThinker(Thinker):
                                 url = blk.get("image_url", {}).get("url", "")
                                 if url.startswith("data:image"):
                                     # Assuming standard base64 data uri format
-                                    import base64
                                     meta, b64 = url.split(",", 1)
                                     mime = meta.split(":")[1].split(";")[0]
                                     new_content.append({
@@ -80,12 +77,12 @@ class AnthropicThinker(Thinker):
                         elif isinstance(blk, str):
                             new_content.append({"type": "text", "text": blk})
                     anthropic_messages.append({"role": "user", "content": new_content})
-                    
+
             elif role == "assistant":
                 new_content = []
                 if isinstance(content, str) and content:
                     new_content.append({"type": "text", "text": content})
-                    
+
                 tool_calls = msg.get("tool_calls", [])
                 for tc in tool_calls:
                     new_content.append({
@@ -96,7 +93,7 @@ class AnthropicThinker(Thinker):
                     })
                 if new_content:
                     anthropic_messages.append({"role": "assistant", "content": new_content})
-                    
+
             elif role == "tool":
                 result = str(content) if not isinstance(content, str) else content
                 anthropic_messages.append({
@@ -107,7 +104,7 @@ class AnthropicThinker(Thinker):
                         "content": result
                     }]
                 })
-        
+
         return system_prompt.strip(), anthropic_messages
 
     def _convert_tools(self, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -133,23 +130,23 @@ class AnthropicThinker(Thinker):
         reasoning_effort: str | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> LLMResponse:
-        
+
         model = model or self.default_model
         system_prompt, anthropic_messages = self._convert_messages(messages)
-        
+
         kwargs: dict[str, Any] = {
             "model": model,
             "max_tokens": max(1, max_tokens),
             "messages": anthropic_messages,
             "temperature": temperature,
         }
-        
+
         if system_prompt:
             kwargs["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
-            
+
         if tools:
             kwargs["tools"] = self._convert_tools(tools)
-            
+
         try:
             response = await self._client.messages.create(**kwargs)
             return self._parse_response(response)
@@ -160,7 +157,7 @@ class AnthropicThinker(Thinker):
         content_text = ""
         tool_calls = []
         thinking_blocks = []
-        
+
         for blk in response.content:
             if blk.type == "text":
                 content_text += blk.text
@@ -172,7 +169,7 @@ class AnthropicThinker(Thinker):
                 ))
             elif blk.type == "thinking":
                 thinking_blocks.append({"type": "thinking", "text": blk.thinking})
-                
+
         u = getattr(response, "usage", None)
         usage_data = {}
         if u:
@@ -181,7 +178,7 @@ class AnthropicThinker(Thinker):
                 "completion_tokens": getattr(u, "output_tokens", 0),
                 "total_tokens": getattr(u, "input_tokens", 0) + getattr(u, "output_tokens", 0)
             }
-            
+
         return LLMResponse(
             content=content_text or None,
             tool_calls=tool_calls,

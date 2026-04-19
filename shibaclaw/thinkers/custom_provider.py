@@ -8,7 +8,7 @@ from typing import Any
 import json_repair
 from openai import AsyncOpenAI
 
-from shibaclaw.thinkers.base import Thinker, LLMResponse, ToolCallRequest
+from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
 
 
 class CustomThinker(Thinker):

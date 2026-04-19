@@ -5,12 +5,12 @@ from collections import deque
 from typing import TYPE_CHECKING, Any, Literal
 
 from loguru import logger
+from pydantic import Field
 
 from shibaclaw.bus.events import OutboundMessage
 from shibaclaw.bus.queue import MessageBus
-from shibaclaw.integrations.base import BaseChannel
 from shibaclaw.config.schema import Base
-from pydantic import Field
+from shibaclaw.integrations.base import BaseChannel
 
 try:
     import botpy

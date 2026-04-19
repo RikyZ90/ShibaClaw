@@ -11,8 +11,7 @@ import asyncio
 import json
 import os
 import uuid
-import time
-from typing import Any, AsyncIterator, Callable, Awaitable
+from typing import AsyncIterator, Callable
 
 import websockets
 from loguru import logger
@@ -272,7 +271,7 @@ class GatewayClient:
 
     async def _http_fallback(self, action: str, payload: dict | None = None) -> dict | None:
         """Fall back to raw HTTP for simple requests."""
-        from shibaclaw.webui.utils import _resolve_gateway_hosts, _LOCAL_HOSTS
+        from shibaclaw.webui.utils import _resolve_gateway_hosts
         hosts, port = _resolve_gateway_hosts()
         if not hosts:
             return None

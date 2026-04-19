@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import typer
-from pathlib import Path
 from typing import Optional
+
+import typer
 from rich.table import Table
 
 from shibaclaw import __logo__, __version__
-from .utils import console, setup_shiba_logging
+
 from .base import _load_runtime_config, _make_provider
+from .utils import console, setup_shiba_logging
 
 app = typer.Typer(
     name="shibaclaw",
@@ -79,11 +80,13 @@ def web(
     """Start the ShibaClaw WebUI in the browser."""
     import os
     import socket
-    import sys
     import subprocess
+    import sys
     import time
-    from .base import _load_runtime_config, _make_provider
-    from shibaclaw.webui.server import run_server, get_auth_token
+
+    from shibaclaw.webui.server import get_auth_token, run_server
+
+    from .base import _load_runtime_config
 
     setup_shiba_logging()
     cfg = _load_runtime_config(config, workspace)
@@ -122,7 +125,7 @@ def web(
                     break
             except OSError:
                 time.sleep(0.1)
-    
+
     token = get_auth_token()
     console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     console.print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
@@ -162,8 +165,9 @@ def agent(
 def status():
     """Show shibaclaw status."""
     from shibaclaw.config.loader import get_config_path, load_config
-    from .auth import _oauth_provider_status
     from shibaclaw.thinkers.registry import PROVIDERS
+
+    from .auth import _oauth_provider_status
 
     cfg_path, cfg = get_config_path(), load_config()
     console.print(f"{__logo__} [bold]shibaclaw Status[/bold]\n")
@@ -191,8 +195,8 @@ app.add_typer(channels_app, name="channels")
 @channels_app.command("status")
 def channels_status():
     """Show channel status."""
-    from shibaclaw.integrations.registry import discover_all
     from shibaclaw.config.loader import load_config
+    from shibaclaw.integrations.registry import discover_all
     cfg = load_config()
     table = Table(title="Channel Status")
     table.add_column("Channel", style="cyan")

@@ -11,18 +11,18 @@ import asyncio
 import base64
 import io
 import json
-import time
-import uuid
-import urllib.parse
 import mimetypes
+import time
+import urllib.parse
+import uuid
 from pathlib import Path
 from typing import Any, Dict
 
-from starlette.websockets import WebSocket, WebSocketDisconnect
 from loguru import logger
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from .auth import _auth_enabled, verify_token_value
 from .agent_manager import agent_manager
+from .auth import _auth_enabled, verify_token_value
 from .gateway_client import gateway_client
 
 # ── Shared state ─────────────────────────────────────────────
@@ -462,7 +462,7 @@ async def deliver_to_browsers(session_key: str, content: str, *, source: str = "
         "session_key": session_key,
     }
     delivered = 0
-    
+
     # If session_key is empty, broadcast to all connected clients
     if session_key == "":
         for ws in _ws_clients.values():

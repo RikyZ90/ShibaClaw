@@ -39,10 +39,10 @@ except ImportError as e:
 
 from shibaclaw.bus.events import OutboundMessage
 from shibaclaw.bus.queue import MessageBus
-from shibaclaw.integrations.base import BaseChannel
 from shibaclaw.config.paths import get_data_dir, get_media_dir
 from shibaclaw.config.schema import Base
 from shibaclaw.helpers.helpers import safe_filename
+from shibaclaw.integrations.base import BaseChannel
 
 TYPING_NOTICE_TIMEOUT_MS = 30_000
 # Must stay below TYPING_NOTICE_TIMEOUT_MS so the indicator doesn't expire mid-processing.

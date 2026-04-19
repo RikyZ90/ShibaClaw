@@ -5,18 +5,18 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
-import time
-import uuid
-import urllib.parse
 import mimetypes
+import time
+import urllib.parse
+import uuid
 from pathlib import Path
 from typing import Any, Dict
 
 import socketio
 from loguru import logger
 
-from .auth import _auth_enabled, verify_token_value
 from .agent_manager import agent_manager
+from .auth import _auth_enabled, verify_token_value
 from .utils import _gateway_chat_stream
 
 processing_state: Dict[str, Dict[str, Any]] = {}

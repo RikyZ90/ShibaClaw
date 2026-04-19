@@ -1,16 +1,13 @@
 """Github Copilot provider."""
 
-import asyncio
-import json
 import os
 import time
 from typing import Any
 
 import httpx
-from loguru import logger
 
-from shibaclaw.thinkers.openai_provider import OpenAIThinker
 from shibaclaw.thinkers.base import LLMResponse
+from shibaclaw.thinkers.openai_provider import OpenAIThinker
 
 
 class GithubCopilotThinker(OpenAIThinker):
@@ -33,11 +30,11 @@ class GithubCopilotThinker(OpenAIThinker):
             "OpenAI-Intent": "conversation-panel",
             "User-Agent": "GithubCopilot/1.139.0",
         }
-        
+
         # We start with empty key, will refresh dynamically in chat()
         super().__init__(
-            api_key="dummy", 
-            api_base="https://api.githubcopilot.com", 
+            api_key="dummy",
+            api_base="https://api.githubcopilot.com",
             default_model=default_model,
             extra_headers=self._extra_headers,
         )
@@ -51,13 +48,13 @@ class GithubCopilotThinker(OpenAIThinker):
         # Load access token
         home = os.path.expanduser("~")
         token_path = os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token")
-        
+
         if not os.path.exists(token_path):
             raise ValueError(
                 "GitHub Copilot not authenticated. "
                 "Run `docker exec -it shibaclaw-gateway shibaclaw auth provider github_copilot` or use the WebUI to login."
             )
-            
+
         with open(token_path, "r", encoding="utf-8") as f:
             access_token = f.read().strip()
 
@@ -72,20 +69,20 @@ class GithubCopilotThinker(OpenAIThinker):
                     "Editor-Plugin-Version": "copilot-chat/0.11.1",
                 }
             )
-            
+
             if resp.status_code != 200:
                 raise RuntimeError(f"Failed to refresh Copilot token: {resp.status_code} - {resp.text}")
-                
+
             data = resp.json()
             self._cached_token = data.get("token")
-            
+
             # The token usually includes expires_at in data, or roughly 30 minutes.
             expires_at = data.get("expires_at")
             if expires_at:
                 self._token_expires_at = float(expires_at)
             else:
                 self._token_expires_at = now + 25 * 60
-                
+
             return self._cached_token or ""
 
     async def chat(

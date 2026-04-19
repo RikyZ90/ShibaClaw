@@ -1,20 +1,9 @@
 from __future__ import annotations
-import os
-import uuid
-import json
-import asyncio
-import urllib.parse
-import mimetypes
-from pathlib import Path
-from typing import Any, Dict, List, Set, Optional
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse, FileResponse
-from loguru import logger
+from starlette.responses import JSONResponse
 
-from shibaclaw.webui.agent_manager import agent_manager
 from shibaclaw.webui.auth import _auth_enabled, verify_token_value
-from shibaclaw.brain.manager import PackManager
 
 
 async def api_auth_verify(request: Request):

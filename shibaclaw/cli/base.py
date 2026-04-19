@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
+
 import typer
-from .utils import console
+
 from shibaclaw.config.schema import Config
+
+from .utils import console
+
 
 def _load_runtime_config(config: Optional[str] = None, workspace: Optional[str] = None) -> Config:
     """Load config and optionally override the active workspace."""
@@ -34,7 +38,8 @@ def _make_provider(config: Config, exit_on_error: bool = True):
     from shibaclaw.thinkers.azure_openai_provider import AzureOpenAIThinker
     from shibaclaw.thinkers.base import GenerationSettings
     from shibaclaw.thinkers.openai_codex_provider import OpenAICodexThinker
-    from shibaclaw.thinkers.registry import find_by_name, PROVIDERS
+    from shibaclaw.thinkers.registry import PROVIDERS, find_by_name
+
     from .auth import _is_oauth_authenticated
 
     model = config.agents.defaults.model
@@ -91,7 +96,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
                 console.print(f"[yellow]🐾 Current model [bold]{model}[/bold] is not configured.[/yellow]")
                 if exit_on_error: sys.exit(0)
                 return None
-                
+
         if spec and spec.name == "anthropic":
             from shibaclaw.thinkers.anthropic_provider import AnthropicThinker
             provider = AnthropicThinker(

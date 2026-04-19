@@ -3,8 +3,8 @@ shibaclaw - An autonomous AI agent framework designed for loyalty and intelligen
 Guided by the spirit of the Shiba, built for the modern age.
 """
 
-from importlib.metadata import version, PackageNotFoundError
 import re
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     _raw = version("shibaclaw")

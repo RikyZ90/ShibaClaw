@@ -16,8 +16,8 @@ from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
 from shibaclaw.bus.events import InboundMessage
 from shibaclaw.bus.queue import MessageBus
 from shibaclaw.config.schema import ExecToolConfig
-from shibaclaw.thinkers.base import Thinker
 from shibaclaw.helpers.helpers import build_assistant_message
+from shibaclaw.thinkers.base import Thinker
 
 
 class SubagentManager:
@@ -133,7 +133,7 @@ class SubagentManager:
             ))
             tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
             tools.register(WebFetchTool(proxy=self.web_proxy))
-            
+
             system_prompt = self._build_subagent_prompt()
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": system_prompt},
@@ -230,7 +230,7 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
 
         await self.bus.publish_inbound(msg)
         logger.debug("Subagent [{}] announced result to {}:{}", task_id, origin['channel'], origin['chat_id'])
-    
+
     def _build_subagent_prompt(self) -> str:
         """Build a focused system prompt for the subagent."""
         from shibaclaw.agent.context import ScentBuilder

@@ -1,20 +1,13 @@
 from __future__ import annotations
-import os
-import uuid
-import json
+
 import asyncio
-import urllib.parse
-import mimetypes
-from pathlib import Path
-from typing import Any, Dict, List, Set, Optional
+import os
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse, FileResponse
-from loguru import logger
+from starlette.responses import JSONResponse
 
-from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
 from shibaclaw.brain.manager import PackManager
+from shibaclaw.webui.agent_manager import agent_manager
 
 
 async def api_sessions_list(request: Request):
@@ -47,7 +40,7 @@ async def api_sessions_patch(request: Request):
     data = await request.json()
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
-    
+
     if "nickname" in data:
         session.metadata["nickname"] = data["nickname"]
     if "profile_id" in data:
@@ -64,7 +57,7 @@ async def api_sessions_delete(request: Request):
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
     pm = PackManager(agent_manager.config.workspace_path)
-    
+
     path = pm._get_session_path(session_id)
     if path.exists():
         os.remove(path)

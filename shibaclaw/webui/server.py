@@ -2,42 +2,67 @@
 
 from __future__ import annotations
 
-import asyncio
 import argparse
+import asyncio
 import os
-import uvicorn
 from pathlib import Path
 from typing import Any
+
+import uvicorn
+from loguru import logger
 from starlette.applications import Starlette
 from starlette.responses import FileResponse
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
-from loguru import logger
 
-from .auth import (
-    AuthMiddleware, 
-    get_auth_token, 
-    _auth_enabled, 
-    mask_token, 
-    get_cors_origins
-)
 from .agent_manager import agent_manager
-from .ws_handler import ws_endpoint
-from .gateway_client import gateway_client
 from .api import (
-    api_auth_verify, api_auth_status, api_status,
-    api_settings_get, api_settings_post,
-    api_sessions_list, api_sessions_get, api_sessions_patch, api_sessions_delete, api_sessions_archive,
-    api_context_get, api_gateway_health, api_gateway_restart,
-    api_cron_list, api_cron_trigger, api_heartbeat_status, api_heartbeat_trigger,
-    api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code,
-    api_upload, api_file_get, api_file_save, api_fs_explore,
-    api_update_check, api_update_manifest, api_update_apply, api_restart_server,
-    api_onboard_providers, api_onboard_templates, api_onboard_submit,
-    api_skills_list, api_skills_pin, api_skills_delete, api_skills_import,
-    api_profiles_list, api_profiles_get, api_profiles_create, api_profiles_update, api_profiles_delete,
+    api_auth_status,
+    api_auth_verify,
+    api_context_get,
+    api_cron_list,
+    api_cron_trigger,
+    api_file_get,
+    api_file_save,
+    api_fs_explore,
+    api_gateway_health,
+    api_gateway_restart,
+    api_heartbeat_status,
+    api_heartbeat_trigger,
     api_internal_session_notify,
+    api_oauth_code,
+    api_oauth_job,
+    api_oauth_login,
+    api_oauth_providers,
+    api_onboard_providers,
+    api_onboard_submit,
+    api_onboard_templates,
+    api_profiles_create,
+    api_profiles_delete,
+    api_profiles_get,
+    api_profiles_list,
+    api_profiles_update,
+    api_restart_server,
+    api_sessions_archive,
+    api_sessions_delete,
+    api_sessions_get,
+    api_sessions_list,
+    api_sessions_patch,
+    api_settings_get,
+    api_settings_post,
+    api_skills_delete,
+    api_skills_import,
+    api_skills_list,
+    api_skills_pin,
+    api_status,
+    api_update_apply,
+    api_update_check,
+    api_update_manifest,
+    api_upload,
 )
+from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
+from .gateway_client import gateway_client
+from .ws_handler import ws_endpoint
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -131,7 +156,7 @@ async def _sync_skills_on_startup() -> None:
     """Sync built-in skills and profiles to workspace on startup."""
     try:
         await asyncio.sleep(1)
-        from shibaclaw.helpers.helpers import sync_skills, sync_profiles
+        from shibaclaw.helpers.helpers import sync_profiles, sync_skills
         cfg = agent_manager.config
         if cfg:
             sync_skills(cfg.workspace_path)

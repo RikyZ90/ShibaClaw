@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from shibaclaw.agent.profiles import ProfileManager
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.agent.profiles import ProfileManager, DEFAULT_PROFILE_ID
 
 
 def _get_pm() -> ProfileManager | None:

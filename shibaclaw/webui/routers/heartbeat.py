@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse

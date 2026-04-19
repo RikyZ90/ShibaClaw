@@ -17,9 +17,9 @@ from loguru import logger
 
 from shibaclaw.agent.context import ScentBuilder
 from shibaclaw.agent.memory import PackMemory, ScentKeeper
+from shibaclaw.agent.skills import BUILTIN_SKILLS_DIR
 from shibaclaw.agent.subagent import SubagentManager
 from shibaclaw.agent.tools.cron import CronTool
-from shibaclaw.agent.skills import BUILTIN_SKILLS_DIR
 from shibaclaw.agent.tools.filesystem import EditFileTool, ListDirTool, ReadFileTool, WriteFileTool
 from shibaclaw.agent.tools.memory_search import MemorySearchTool
 from shibaclaw.agent.tools.message import MessageTool
@@ -27,14 +27,13 @@ from shibaclaw.agent.tools.registry import SkillVault
 from shibaclaw.agent.tools.shell import ExecTool
 from shibaclaw.agent.tools.spawn import SpawnTool
 from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
+from shibaclaw.brain.manager import PackManager, Session
 from shibaclaw.bus.events import InboundMessage, OutboundMessage
 from shibaclaw.bus.queue import MessageBus
 from shibaclaw.thinkers.base import Thinker
-from shibaclaw.brain.manager import Session, PackManager
 
 if TYPE_CHECKING:
-    from shibaclaw.config.schema import ChannelsConfig, ExecToolConfig, WebSearchConfig
-    from shibaclaw.cron.service import CronService
+    from shibaclaw.config.schema import ExecToolConfig, WebSearchConfig
 
 
 class ShibaBrain:

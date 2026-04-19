@@ -261,8 +261,8 @@ def sync_profiles(workspace: Path) -> list[str]:
     - Copies each built-in profile's SOUL.md only if it doesn't already
       exist (user customizations are preserved).
     """
-    from importlib.resources import files as pkg_files
     import json as _json
+    from importlib.resources import files as pkg_files
 
     try:
         tpl = pkg_files("shibaclaw") / "templates" / "profiles"

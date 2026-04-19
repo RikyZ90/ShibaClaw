@@ -41,10 +41,10 @@ class BaseChannel(ABC):
         """Transcribe an audio file using the configured STT provider. Returns empty string on failure."""
         if not self.audio_config:
             return ""
-            
+
         try:
             from openai import AsyncOpenAI
-            
+
             path = Path(file_path)
             if not path.exists():
                 logger.error("Audio file not found: {}", file_path)
@@ -64,7 +64,7 @@ class BaseChannel(ABC):
                 client_kwargs["base_url"] = base_url
 
             client = AsyncOpenAI(**client_kwargs)
-            
+
             with open(path, "rb") as audio_file:
                 res = await client.audio.transcriptions.create(
                     model=self.audio_config.model or "whisper-large-v3-turbo",

@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-import os
-import sys
-import time
 import asyncio
+import os
+from typing import Callable, Dict
+
 import httpx
 import typer
-from pathlib import Path
-from typing import Any, Dict, Optional, Callable
+
 from shibaclaw import __logo__
+
 from .utils import console
+
 
 def _is_oauth_authenticated(spec) -> bool:
     """Return True if the OAuth provider is already authenticated."""
@@ -108,7 +109,7 @@ def _login_openai_codex() -> None:
         try:
             token = get_token()
         except Exception: pass
-        
+
         if not (token and token.access):
             console.print("[cyan]Starting interactive OAuth login...[/cyan]\n")
             token = login_oauth_interactive(
@@ -172,7 +173,7 @@ def _login_github_copilot() -> None:
                         timeout=10,
                     )
                     tj = tr.json()
-                
+
                 error = tj.get("error")
                 if error == "authorization_pending": continue
                 elif error == "slow_down":

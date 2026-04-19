@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from loguru import logger
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from loguru import logger
 
-from shibaclaw.webui.agent_manager import agent_manager
 from shibaclaw.agent.skills import SkillsLoader
+from shibaclaw.webui.agent_manager import agent_manager
 
 
 def _get_loader() -> SkillsLoader:

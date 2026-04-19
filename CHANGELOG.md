@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.0] - 2026-04-19
+
+### Added
+- **Official API Documentation**: Full REST API reference is now available in `docs/API_REFERENCE.md`.
+- **CI Pipeline**: Automated testing and linting (pytest + ruff) via GitHub Actions.
+- **API Test Suite**: Proper integration tests for WebUI routers via Starlette TestClient.
+
+### Changed
+- **Beta Milestone**: Promoted project status from Alpha to Beta (`Development Status :: 4 - Beta`).
+- **Refined Footprint**: Channel-specific SDKs (Telegram, Slack, DingTalk, Feishu, QQ, WeCom, Matrix) have been moved to optional extras for a leaner default install.
+- **Dependencies**: Added upper bound on the `openai` dependency to prevent unexpected breaking changes from v3.0.0+.
+
 ## [0.0.40] - 2026-04-19
 
 ### Added

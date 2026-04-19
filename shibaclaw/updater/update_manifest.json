@@ -1,37 +1,32 @@
 {
-  "version": "0.0.40",
-  "release_notes": "### Memory compaction notifications · WebSocket broadcast · Critical JS fix\n\n- **Memory compaction WebUI notification** — After auto-compaction, the backend broadcasts a `memory_compacted` event to all connected WebUI clients. The context viewer auto-refreshes when open.\n- **WebSocket broadcast support** — `deliver_to_browsers()` now accepts an empty `session_key` to broadcast to all clients, with a configurable `msg_type` parameter.\n- **Session status emission** — The WebSocket handler emits `session_status` immediately when a message starts processing.\n- **Fix: WebUI stuck on \"Connecting...\"** — A JavaScript syntax error in `ui_panels.js` (mismatched bracket) prevented `startApp()` from being defined, blocking WebSocket initialization entirely.",
-  "upgrade_notes": "Update to v0.0.40. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`).",
+  "version": "0.1.0",
+  "release_notes": "### ShibaClaw v0.1.0 Beta Release! 🎉\n\nWelcome to the first official Beta milestone!\n- **Official API Documentation**: Full REST API reference is now available.\n- **CI Pipeline**: Added automated testing and linting (pytest + ruff).\n- **API Test Suite**: Proper integration tests for WebUI routers.\n- **Refined Footprint**: Channel-specific dependencies (Telegram, Discord, Slack, etc.) have been moved to optional extras for a leaner default install.",
+  "upgrade_notes": "Update to v0.1.0. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`). For specific channels, you may now need to install optional dependencies (e.g., `pip install shibaclaw[telegram]`).",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Version bumped to 0.0.40."
+      "note": "Version bumped to 0.1.0, classifier changed to Beta, heavy deps moved to extras."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.0.40 entry."
+      "note": "Added v0.1.0 milestone entry."
     },
     {
-      "path": "shibaclaw/agent/memory.py",
+      "path": ".github/workflows/ci.yml",
       "overwrite": true,
-      "note": "Added memory_compacted notification broadcast after auto-compaction."
+      "note": "Added CI workflow for automated testing."
     },
     {
-      "path": "shibaclaw/webui/agent_manager.py",
+      "path": "tests/test_api_routers.py",
       "overwrite": true,
-      "note": "Support empty session_key for broadcast and custom msg_type in deliver_background_notification."
+      "note": "Added API smoke tests."
     },
     {
-      "path": "shibaclaw/webui/ws_handler.py",
+      "path": "docs/API_REFERENCE.md",
       "overwrite": true,
-      "note": "Broadcast support in deliver_to_browsers; session status emission on message processing start."
-    },
-    {
-      "path": "shibaclaw/webui/static/js/ui_panels.js",
-      "overwrite": true,
-      "note": "Fixed critical syntax error (mismatched bracket) that prevented WebSocket initialization; added memory_compacted event listener."
+      "note": "Added complete REST API documentation."
     }
   ]
 }

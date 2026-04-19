@@ -1,21 +1,12 @@
 from __future__ import annotations
-import os
-import uuid
-import json
-import asyncio
-import urllib.parse
-import mimetypes
-from pathlib import Path
-from typing import Any, Dict, List, Set, Optional
 
-from starlette.requests import Request
-from starlette.responses import JSONResponse, FileResponse
+import asyncio
+
 from loguru import logger
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
-from shibaclaw.brain.manager import PackManager
-
 from shibaclaw.webui.utils import _deep_merge, _redact_secrets
 
 

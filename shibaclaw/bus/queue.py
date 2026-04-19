@@ -5,9 +5,9 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict
-from typing import Optional
 
 from loguru import logger
+
 from shibaclaw.bus.events import InboundMessage, OutboundMessage
 
 

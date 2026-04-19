@@ -1,22 +1,17 @@
 from __future__ import annotations
-import os
-import uuid
-import json
-import asyncio
-from typing import Any, Dict, List, Set, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from loguru import logger
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
 
 
 async def api_onboard_providers(request: Request):
     """Return provider list with detection status for the onboard wizard."""
     from shibaclaw.cli.onboard import (
-        _ONBOARD_PROVIDERS, _detect_env_keys, _detect_oauth,
+        _ONBOARD_PROVIDERS,
+        _detect_env_keys,
+        _detect_oauth,
     )
 
     if not agent_manager.config:
@@ -123,7 +118,7 @@ async def api_onboard_submit(request: Request):
     cfg.agents.defaults.provider = provider_name
 
     # Save config
-    from shibaclaw.config.loader import save_config, get_config_path
+    from shibaclaw.config.loader import get_config_path, save_config
     config_path = get_config_path()
     save_config(cfg, config_path)
 
@@ -160,7 +155,7 @@ async def api_onboard_submit(request: Request):
         if not hist_dest.exists():
             hist_dest.write_text("", encoding="utf-8")
 
-    from shibaclaw.helpers.helpers import sync_skills, sync_profiles
+    from shibaclaw.helpers.helpers import sync_profiles, sync_skills
     sync_skills(wp)
     sync_profiles(wp)
 

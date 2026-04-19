@@ -29,7 +29,7 @@ class _BoundedBuffer:
             take = half - len(self.head)
             self.head.extend(data[:take])
             data = data[take:]
-        
+
         if data:
             self.tail.extend(data)
             if len(self.tail) > half:
@@ -38,7 +38,7 @@ class _BoundedBuffer:
     def decode(self) -> str:
         if self.total_written <= self.max_size:
             return (self.head + self.tail).decode("utf-8", errors="replace")
-        
+
         omitted = self.total_written - self.max_size
         return (
             self.head.decode("utf-8", errors="replace")

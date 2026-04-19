@@ -1,24 +1,24 @@
 ﻿"""Discord channel implementation using Discord Gateway websocket."""
 
 import asyncio
-from dataclasses import dataclass
 import json
-from pathlib import Path
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
-from pydantic import Field
 import websockets
 from loguru import logger
+from pydantic import Field
 
 from shibaclaw.bus.events import OutboundMessage
 from shibaclaw.bus.queue import MessageBus
-from shibaclaw.integrations.base import BaseChannel
 from shibaclaw.config.paths import get_media_dir
 from shibaclaw.config.schema import Base
 from shibaclaw.helpers.helpers import split_message
+from shibaclaw.integrations.base import BaseChannel
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
 MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024  # 20MB

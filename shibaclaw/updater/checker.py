@@ -1,11 +1,12 @@
 """Check GitHub releases for a newer version."""
 
 from __future__ import annotations
+
 import json
 import re
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 

@@ -1,17 +1,9 @@
 from __future__ import annotations
-import os
-import uuid
-import json
-import asyncio
-from typing import Any, Dict, List, Set, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from loguru import logger
 
-from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
-from shibaclaw.webui.utils import _gateway_request, _gateway_post
+from shibaclaw.webui.utils import _gateway_post, _gateway_request
 
 
 async def api_cron_list(request: Request):

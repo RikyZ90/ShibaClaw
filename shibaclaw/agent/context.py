@@ -2,16 +2,14 @@
 
 import base64
 import mimetypes
-import secrets
 import platform
+import secrets
 from pathlib import Path
 from typing import Any
 
-from shibaclaw.helpers.helpers import current_time_str
-
 from shibaclaw.agent.memory import ScentKeeper
 from shibaclaw.agent.skills import SkillsLoader
-from shibaclaw.helpers.helpers import build_assistant_message, detect_image_mime
+from shibaclaw.helpers.helpers import build_assistant_message, current_time_str, detect_image_mime
 
 
 class ScentBuilder:
@@ -333,7 +331,7 @@ Root: {workspace_path}
         # to close the secure block prematurely. We escape it by adding a backslash.
         closing_tag = f"</{tag}>"
         sanitized = result.replace(closing_tag, f"<\\/{tag}>")
-        
+
         safe_result = f"<{tag} name=\"{tool_name}\">\n{sanitized}\n</{tag}>"
         messages.append({"role": "tool", "tool_call_id": tool_call_id, "name": tool_name, "content": safe_result})
         return messages

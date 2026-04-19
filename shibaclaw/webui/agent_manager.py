@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Dict
-
-from loguru import logger
+from typing import Any, Dict, Optional
 
 
 class AgentManager:
@@ -27,7 +25,7 @@ class AgentManager:
         """Persist and deliver a background notification to matching browser sessions."""
         if not content:
             return {"delivered": False, "matched_sessions": 0}
-        
+
         # For broadcasting (empty session_key), we don't persist to any specific session
         if persist and session_key:
             if not self.config:

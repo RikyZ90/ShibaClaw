@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+import hmac
 import os
 import secrets
-import hmac
 from pathlib import Path
+
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from loguru import logger
 
 AUTH_TOKEN_DIR = Path.home() / ".shibaclaw"
 AUTH_TOKEN_FILE = AUTH_TOKEN_DIR / "auth_token"

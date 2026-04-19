@@ -11,11 +11,16 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from loguru import logger
 
-from shibaclaw.helpers.helpers import ensure_dir, estimate_message_tokens, estimate_prompt_tokens, estimate_prompt_tokens_chain
+from shibaclaw.helpers.helpers import (
+    ensure_dir,
+    estimate_message_tokens,
+    estimate_prompt_tokens,
+    estimate_prompt_tokens_chain,
+)
 
 if TYPE_CHECKING:
+    from shibaclaw.brain.manager import PackManager, Session
     from shibaclaw.thinkers.base import Thinker
-    from shibaclaw.brain.manager import Session, PackManager
 
 
 _SAVE_MEMORY_TOOL = [

@@ -4,21 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import sys
 import time
-import logging
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Optional
-from rich.panel import Panel
-from loguru import logger
-from shibaclaw import __logo__, __version__
-from .utils import console
-from shibaclaw.helpers.logging import setup_shiba_logging
 
 import websockets
+from loguru import logger
+from rich.panel import Panel
+
+from shibaclaw import __logo__, __version__
+from shibaclaw.helpers.logging import setup_shiba_logging
+
+from .utils import console
 
 
 @dataclass(frozen=True)
@@ -215,16 +216,17 @@ async def gateway_command(
     config_path: Optional[str] = None,
 ):
     """Start the shibaclaw gateway."""
-    from .commands import _load_runtime_config, _make_provider
     from shibaclaw.agent.loop import ShibaBrain
+    from shibaclaw.brain.manager import PackManager
     from shibaclaw.bus.queue import MessageBus
-    from shibaclaw.integrations.manager import ChannelManager
     from shibaclaw.config.paths import get_cron_dir
     from shibaclaw.cron.service import CronService
     from shibaclaw.heartbeat.service import HeartbeatService
-    from shibaclaw.brain.manager import PackManager
+    from shibaclaw.helpers.helpers import sync_profiles, sync_skills
+    from shibaclaw.integrations.manager import ChannelManager
     from shibaclaw.webui.server import get_auth_token
-    from shibaclaw.helpers.helpers import sync_skills, sync_profiles
+
+    from .commands import _load_runtime_config, _make_provider
 
     setup_shiba_logging(level="DEBUG" if verbose else "INFO")
     if verbose:

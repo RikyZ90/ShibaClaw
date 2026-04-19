@@ -1,21 +1,17 @@
 from __future__ import annotations
-import os
-import uuid
-import json
-import asyncio
-import urllib.parse
-import mimetypes
-from pathlib import Path
-from typing import Any, Dict, List, Set, Optional
 
-from starlette.requests import Request
-from starlette.responses import JSONResponse, FileResponse
+import mimetypes
+import os
+import urllib.parse
+import uuid
+from pathlib import Path
+
 from loguru import logger
+from starlette.requests import Request
+from starlette.responses import FileResponse, JSONResponse
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
-from shibaclaw.brain.manager import PackManager
-
+from shibaclaw.webui.auth import get_auth_token
 from shibaclaw.webui.utils import _resolve_workspace_path
 
 
@@ -23,16 +19,16 @@ async def api_upload(request: Request):
     """Handle multi-file uploads into the workspace."""
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
-    
+
     try:
         form = await request.form()
         files = form.getlist("file")
         if not files:
             return JSONResponse({"error": "No files uploaded"}, status_code=400)
-        
+
         upload_dir = agent_manager.config.workspace_path / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
-        
+
         auth_token = get_auth_token() or ""
         results = []
         for f in files:
@@ -40,7 +36,7 @@ async def api_upload(request: Request):
             safe_name = "".join([c for c in filename if c.isalnum() or c in "._- "]).strip()
             if not safe_name:
                 safe_name = f"upload_{uuid.uuid4().hex[:8]}"
-            
+
             target_path = upload_dir / safe_name
             counter = 1
             while target_path.exists():
@@ -48,14 +44,14 @@ async def api_upload(request: Request):
                 suffix = Path(safe_name).suffix
                 target_path = upload_dir / f"{name_stem}_{counter}{suffix}"
                 counter += 1
-            
+
             content = await f.read()
             target_path.write_bytes(content)
             results.append({
                 "filename": target_path.name,
                 "url": f"/api/file-get?path={urllib.parse.quote(str(target_path.absolute()))}"
             })
-        
+
         return JSONResponse({"status": "success", "files": results})
     except Exception as e:
         logger.exception("Upload failed")
@@ -136,7 +132,7 @@ async def api_fs_explore(request: Request):
 
     if not target_path.exists() or not target_path.is_dir():
         return JSONResponse({"error": "Directory not found"}, status_code=404)
-    
+
     try:
         items = []
         with os.scandir(target_path) as it:
@@ -152,9 +148,9 @@ async def api_fs_explore(request: Request):
                     items.append(info)
                 except (PermissionError, OSError):
                     continue
-        
+
         items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-        
+
         return JSONResponse({
             "current_path": str(target_path.absolute()),
             "parent_path": str(target_path.parent.absolute()) if target_path.parent != target_path else None,

@@ -2,37 +2,16 @@
 
 from __future__ import annotations
 
-import os
-import uuid
-import json
-import asyncio
-import mimetypes
-import urllib.parse
-from pathlib import Path
-from typing import Any, Dict, List, Set, Optional
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from shibaclaw.brain.manager import PackManager
 
-from starlette.requests import Request
-from starlette.responses import JSONResponse, FileResponse
-from loguru import logger
-
-from .auth import get_auth_token, _auth_enabled
 from .agent_manager import agent_manager
 from .utils import (
     _build_real_system_prompt,
     _compute_session_tokens,
-    _deep_merge,
-    _redact_secrets,
-    _redact_one,
-    _resolve_gateway_hosts,
-    _resolve_workspace_path,
     _gateway_request,
-    _gateway_post,
-    _LOCAL_HOSTS,
-    _workspace_context_cache,
-    _session_context_cache,
-    _system_prompt_cache,
 )
 
 
@@ -72,7 +51,7 @@ async def api_context_get(request: Request):
     defaults = agent_manager.config.agents.defaults
     sections = []
 
-    from shibaclaw.helpers.helpers import estimate_message_tokens, estimate_prompt_tokens
+    from shibaclaw.helpers.helpers import estimate_message_tokens
 
     # Resolve profile_id from session metadata
     profile_id = None
@@ -132,18 +111,49 @@ async def api_context_get(request: Request):
 
 
 # ── Re-exports (server.py imports everything from here) ──────────────
-from .routers.auth import api_auth_verify, api_auth_status  # noqa: E402, F401
-from .routers.sessions import api_sessions_list, api_sessions_get, api_sessions_patch, api_sessions_delete, api_sessions_archive  # noqa: E402, F401
-from .routers.settings import api_settings_get, api_settings_post  # noqa: E402, F401
-from .routers.fs import api_upload, api_file_get, api_file_save, api_fs_explore  # noqa: E402, F401
+from .routers.auth import api_auth_status, api_auth_verify  # noqa: E402, F401
+from .routers.cron import api_cron_list, api_cron_trigger  # noqa: E402, F401
+from .routers.fs import api_file_get, api_file_save, api_fs_explore, api_upload  # noqa: E402, F401
 from .routers.gateway import api_gateway_health, api_gateway_restart  # noqa: E402, F401
 from .routers.heartbeat import api_heartbeat_status, api_heartbeat_trigger  # noqa: E402, F401
-from .routers.oauth import api_oauth_providers, api_oauth_login, api_oauth_job, api_oauth_code  # noqa: E402, F401
-from .routers.cron import api_cron_list, api_cron_trigger  # noqa: E402, F401
-from .routers.system import api_update_check, api_update_manifest, api_update_apply, api_restart_server  # noqa: E402, F401
-from .routers.onboard import api_onboard_providers, api_onboard_templates, api_onboard_submit  # noqa: E402, F401
-from .routers.skills import api_skills_list, api_skills_pin, api_skills_delete, api_skills_import  # noqa: E402, F401
-from .routers.profiles import api_profiles_list, api_profiles_get, api_profiles_create, api_profiles_update, api_profiles_delete  # noqa: E402, F401
+from .routers.oauth import (  # noqa: E402, F401
+    api_oauth_code,
+    api_oauth_job,
+    api_oauth_login,
+    api_oauth_providers,
+)
+from .routers.onboard import (  # noqa: E402, F401
+    api_onboard_providers,
+    api_onboard_submit,
+    api_onboard_templates,
+)
+from .routers.profiles import (  # noqa: E402, F401
+    api_profiles_create,
+    api_profiles_delete,
+    api_profiles_get,
+    api_profiles_list,
+    api_profiles_update,
+)
+from .routers.sessions import (  # noqa: E402, F401
+    api_sessions_archive,
+    api_sessions_delete,
+    api_sessions_get,
+    api_sessions_list,
+    api_sessions_patch,
+)
+from .routers.settings import api_settings_get, api_settings_post  # noqa: E402, F401
+from .routers.skills import (  # noqa: E402, F401
+    api_skills_delete,
+    api_skills_import,
+    api_skills_list,
+    api_skills_pin,
+)
+from .routers.system import (  # noqa: E402, F401
+    api_restart_server,
+    api_update_apply,
+    api_update_check,
+    api_update_manifest,
+)
 
 
 async def api_internal_session_notify(request: Request):

@@ -131,7 +131,7 @@ class PackManager:
     def _load(self, key: str) -> Session | None:
         """Load a session from disk."""
         path = self._get_session_path(key)
-        
+
         # Check for legacy migration
         if not path.exists():
             legacy_path = self.legacy_sessions_dir / f"{safe_filename(key)}.jsonl"

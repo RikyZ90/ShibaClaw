@@ -5,7 +5,7 @@ from __future__ import annotations
 from importlib import import_module
 from typing import TYPE_CHECKING
 
-from shibaclaw.thinkers.base import Thinker, LLMResponse
+from shibaclaw.thinkers.base import LLMResponse, Thinker
 
 __all__ = ["Thinker", "LLMResponse", "OpenAIThinker", "AnthropicThinker", "GithubCopilotThinker", "OpenAICodexThinker", "AzureOpenAIThinker"]
 
@@ -18,11 +18,11 @@ _LAZY_IMPORTS = {
 }
 
 if TYPE_CHECKING:
-    from shibaclaw.thinkers.azure_openai_provider import AzureOpenAIThinker
-    from shibaclaw.thinkers.openai_provider import OpenAIThinker
     from shibaclaw.thinkers.anthropic_provider import AnthropicThinker
+    from shibaclaw.thinkers.azure_openai_provider import AzureOpenAIThinker
     from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
     from shibaclaw.thinkers.openai_codex_provider import OpenAICodexThinker
+    from shibaclaw.thinkers.openai_provider import OpenAIThinker
 
 
 def __getattr__(name: str):

@@ -5,8 +5,8 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
-from urllib.parse import urlparse
 from typing import Sequence
+from urllib.parse import urlparse
 
 _BLOCKED_NETWORKS: Sequence[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
     ipaddress.ip_network("0.0.0.0/8"),

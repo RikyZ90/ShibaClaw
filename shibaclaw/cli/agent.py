@@ -14,13 +14,17 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.patch_stdout import patch_stdout
 from rich.markdown import Markdown
 from rich.text import Text
+
 from shibaclaw import __logo__
-from shibaclaw.helpers.logging import setup_shiba_logging
 
 from .utils import (
-    console, flush_pending_tty_input, restore_terminal, 
-    render_interactive_ansi, ThinkingSpinner, 
-    print_cli_progress_line, print_agent_response
+    ThinkingSpinner,
+    console,
+    flush_pending_tty_input,
+    print_agent_response,
+    print_cli_progress_line,
+    render_interactive_ansi,
+    restore_terminal,
 )
 
 _PROMPT_SESSION: Optional[PromptSession] = None
@@ -65,7 +69,7 @@ async def _print_interactive_line(text: str) -> None:
         icon = "[🐾]"
         if "search" in text.lower() or "find" in text.lower(): icon = "[🔍]"
         elif "tool" in text.lower() or "exec" in text.lower(): icon = "[🛠️]"
-            
+
         ansi = render_interactive_ansi(
             lambda c: c.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
         )
@@ -97,6 +101,7 @@ def agent_command(
 ):
     """Interact with the agent directly."""
     from loguru import logger
+
     from shibaclaw.agent.loop import ShibaBrain
     from shibaclaw.bus.queue import MessageBus
     from shibaclaw.config.paths import get_cron_dir
@@ -152,7 +157,7 @@ def agent_command(
     else:
         _init_prompt_session()
         console.print(f"{__logo__} Interactive mode (type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n")
-        
+
         cli_channel, cli_chat_id = session_id.split(":", 1) if ":" in session_id else ("cli", session_id)
 
         def _handle_signal(signum, frame):

@@ -15,7 +15,6 @@ import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 from loguru import logger
 
@@ -189,7 +188,7 @@ async def _audit_pip(
     # Extract package specs from command (everything after 'pip install' that isn't a flag)
     # Use finditer to support multiline commands or chained commands
     packages: list[str] = []
-    
+
     for match in re.finditer(r"\bpip3?\s+install\s+([^&;\n]+)", command, re.IGNORECASE):
         raw_args = match.group(1).strip()
         tokens = raw_args.split()
@@ -206,7 +205,7 @@ async def _audit_pip(
                     skip_next = True
                 continue
             packages.append(token)
-            
+
     if not packages and "pip install" not in command.lower():
         result.summary = "Could not parse pip install command"
         result.confidence = "low"
@@ -316,7 +315,7 @@ async def _audit_npm(
     # so npm audit wouldn't pick up entirely new dependencies until after real installation.
     # Additionally, if the user sends multiline shell scripts containing `npm run dev`,
     # executing them during the audit phase causes hanging and timeout blocks.
-    
+
     # Run npm audit --json on the current project
     audit_cmd = ["npm", "audit", "--json"]
     returncode, stdout, stderr = await _run_subprocess(

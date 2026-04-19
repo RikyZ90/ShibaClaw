@@ -1,18 +1,15 @@
 from __future__ import annotations
+
+import asyncio
 import os
 import sys
-import uuid
-import json
-import asyncio
 import urllib.parse
-from typing import Any, Dict, List, Set, Optional
 
+from loguru import logger
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from loguru import logger
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token, _auth_enabled
 
 
 async def api_update_check(request: Request):

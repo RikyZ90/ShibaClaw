@@ -8,8 +8,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
-from loguru import logger
 import yaml
+from loguru import logger
 
 from shibaclaw.config.schema import HeartbeatConfig
 

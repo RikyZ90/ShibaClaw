@@ -1,14 +1,15 @@
 """Terminal and IO utilities for the ShibaClaw CLI."""
 
 import os
-import sys
 import select
+import sys
 from contextlib import contextmanager, nullcontext
+
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.text import Text
+
 from shibaclaw import __logo__
-from shibaclaw.helpers.logging import setup_shiba_logging
 
 console = Console()
 
@@ -104,7 +105,7 @@ def print_cli_progress_line(text: str, thinking: ThinkingSpinner | None) -> None
         icon = "[🛠️]"
     elif "done" in text.lower() or "finish" in text.lower():
         icon = "[✅]"
-    
+
     with thinking.pause() if thinking else nullcontext():
         console.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
 
