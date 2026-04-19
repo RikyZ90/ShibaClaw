@@ -1,17 +1,17 @@
 {
-  "version": "0.1.0",
-  "release_notes": "### ShibaClaw v0.1.0 Beta Release! 🎉\n\nWelcome to the first official Beta milestone!\n- **Official API Documentation**: Full REST API reference is now available.\n- **CI Pipeline**: Added automated testing and linting (pytest + ruff).\n- **API Test Suite**: Proper integration tests for WebUI routers.\n- **Refined Footprint**: Channel-specific dependencies (Telegram, Discord, Slack, etc.) have been moved to optional extras for a leaner default install.",
-  "upgrade_notes": "Update to v0.1.0. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`). For specific channels, you may now need to install optional dependencies (e.g., `pip install shibaclaw[telegram]`).",
+  "version": "0.1.1",
+  "release_notes": "### ShibaClaw v0.1.1 Beta Release! 🎉\n\n- **CLI Hotfix**: Resolved a critical startup crash caused by a missing logging import.\n\n*(Includes all v0.1.0 additions: REST API documentation, leaner dependencies, and automated CI tests).* ",
+  "upgrade_notes": "Update to v0.1.1. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild containers (`docker compose up -d --build`). For specific channels, you may now need to install optional dependencies (e.g., `pip install shibaclaw[telegram]`).",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Version bumped to 0.1.0, classifier changed to Beta, heavy deps moved to extras."
+      "note": "Version bumped to 0.1.1, classifier changed to Beta, heavy deps moved to extras."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.1.0 milestone entry."
+      "note": "Added v0.1.1 hotfix entry."
     },
     {
       "path": ".github/workflows/ci.yml",
