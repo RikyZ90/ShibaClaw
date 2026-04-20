@@ -250,15 +250,17 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## Latest — v0.1.2 (Beta)
+## [0.1.3] - 2026-04-19
 
-- **CI/CD stabilized**: all 88 `ruff` lint errors fixed — workflows pass cleanly on every release.
-- **No more `connection_lost`**: WebSocket ping/pong timeouts disabled at all three layers; long agent tasks no longer drop.
-- **Thinking panel fixed**: flash between chat and thinking panel eliminated; elapsed-time counter no longer freezes.
-- **File browser & settings work while agent runs**: chat handler now runs as a background task so other WS requests aren't blocked.
-- **`_CHAT_TIMEOUT`** raised from 120 s to 1800 s for complex multi-step tasks.
+### Added
+- **Native OpenAI SDK Support**: Added `OpenAIThinker` to replace the generic compatibility wrapper, providing direct integration with the OpenAI Python SDK and supporting provider-specific tool call metadata preservation.
+- **Advanced Configuration Loader**: Implemented a robust configuration system with automatic state migration and streamlined plugin onboarding.
 
-→ [v0.1.2 full changelog](./CHANGELOG.md)
+### Fixed
+- **MCP WebUI Visibility**: Resolved an issue affecting the display of MCP servers in the WebUI.
+- **Gemini Streaming Tool Signatures**: Fixed an issue where Gemini streaming was dropping or malforming tool signatures. *(Thanks @shirik for the PR!)*
+
+→ [v0.1.3 full changelog](./CHANGELOG.md)
 
 → Full history in [CHANGELOG.md](./CHANGELOG.md)
 
