@@ -182,6 +182,21 @@ Ollama (`http://localhost:11434`) · vLLM · any OpenAI-compatible endpoint.
 
 ---
 
+## 🔌 MCP Ecosystem
+
+ShibaClaw is fully compatible with the **Model Context Protocol (MCP)**, transforming the agent from a standalone tool into a plug-and-play AI hub. 
+
+Instead of relying solely on built-in skills, ShibaClaw can connect to any MCP-compliant server, instantly granting your agent access to a vast universe of external data sources and professional tools without modifying a single line of core code.
+
+**Why this matters:**
+- **Instant Extensibility**: Plug in community-made MCP servers for Google Drive, Slack, GitHub, PostgreSQL, and more.
+- **Standardized Tooling**: Leverage a universal protocol for AI-to-tool communication, ensuring stability and interoperability.
+- **Decoupled Architecture**: Keep your agent lean while scaling its capabilities through a distributed network of MCP servers.
+
+*Configure your MCP servers directly in the **Settings** panel to start expanding ShibaClaw's horizons.*
+
+---
+
 ## Architecture
 
 <p align="center">
@@ -267,9 +282,18 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) — PRs welcome.
 
 Channels are extensible via Python entry points (`shibaclaw.integrations`). Skill creation is documented in [`docs/CHANNEL_PLUGIN_GUIDE.md`](./docs/CHANNEL_PLUGIN_GUIDE.md) and the built-in `skill-creator` skill.
 
+
+
 ---
 
-## Credits
+### 🌟 Support ShibaClaw
+
+If you find this project useful or if it helps you build a more secure and powerful AI workflow, please consider giving it a **Star**! 
+
+Your support helps ShibaClaw grow, reach more developers, and stay updated with the latest AI advancements. Thank you for being part of the journey! ❤️
+
+
+---
 
 Inspired by [NanoBot](https://github.com/HKUDS/nanobot) by HKUDS — MIT License.
 
