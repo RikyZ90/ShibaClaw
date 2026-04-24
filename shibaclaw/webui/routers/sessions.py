@@ -25,7 +25,7 @@ async def api_sessions_get(request: Request):
     session_id = request.path_params["session_id"]
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
-    
+
     # Dynamically build attachments for assistant messages
     for m in session.messages:
         if m.get("role") == "assistant" and "metadata" in m and "media" in m["metadata"]:
