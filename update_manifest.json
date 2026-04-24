@@ -1,5 +1,5 @@
 {
-    "version": "0.1.3",
-    "release_notes": "Implemented native OpenAI SDK support via `OpenAIThinker` for maximum multi-provider compatibility. Added new robust configuration loader with automatic migration. Fixed MCP WebUI visibility and Gemini streaming tool signatures. Thanks to @shirik for the PR!",
+    "version": "0.1.5",
+    "release_notes": "Fixed Telegram and other optional channels not starting in Docker due to missing dependencies. Improved memory consolidation stability and channel status reporting.",
     "changes": []
 }

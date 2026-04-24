@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.5] - 2026-04-24
+
+### Fixed
+- **Telegram (and other optional channels) not starting in Docker** — The `Dockerfile` installed only the base package (`uv pip install .`), silently skipping the `[telegram]` optional extra. The bot appeared configured but never loaded — no polling, no messages. Fixed by installing `.[telegram]` so `python-telegram-bot` is always present in the image. Channels relying on other optional extras (e.g. `[slack]`) should be added to the Dockerfile extra list similarly.
+
 ## [0.1.4] - 2026-04-24
 
 ### Fixed

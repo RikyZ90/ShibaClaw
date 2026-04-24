@@ -270,7 +270,7 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 "chat_id": session_key,
                 "media": message.get("media"),
                 "metadata": {
-                    "session_key": session_key, 
+                    "session_key": session_key,
                     "message_id": message["id"],
                     "attachments": message.get("attachments", []),
                 },
