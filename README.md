@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.4!** This patch fixes a crash in memory consolidation (`AttributeError: 'list' object has no attribute 'strip'`), makes channel status show channels with missing dependencies, and adds `SHIBACLAW_DEBUG` env var for easy debug logging. See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.5!** This patch fixes an issue where Telegram and other optional channels would not start in Docker. It also resolves a crash in memory consolidation and adds a `SHIBACLAW_DEBUG` env var. See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -249,6 +249,11 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 ```
 
 ---
+
+## [0.1.5] - 2026-04-24
+
+### Fixed
+- **Telegram not starting in Docker** — The Docker image now correctly installs the `[telegram]` optional dependency, resolving an issue where the bot was configured but failed to start polling.
 
 ## [0.1.4] - 2026-04-24
 
