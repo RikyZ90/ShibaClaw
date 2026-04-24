@@ -17,12 +17,14 @@ class MessageTool(Tool):
         default_chat_id: str = "",
         default_message_id: str | None = None,
         workspace: Path | None = None,
+        router: Any | None = None,
     ):
         self._send_callback = send_callback
         self._default_channel = default_channel
         self._default_chat_id = default_chat_id
         self._default_message_id = default_message_id
         self._workspace = workspace
+        self._router = router
         self._sent_in_turn: bool = False
 
     def set_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
@@ -115,6 +117,11 @@ class MessageTool(Tool):
             await self._send_callback(msg)
             if target_channel == self._default_channel and target_chat_id == self._default_chat_id:
                 self._sent_in_turn = True
+            elif self._router and self._default_channel and self._default_chat_id:
+                origin_key = f"{self._default_channel}:{self._default_chat_id}"
+                target_key = f"{target_channel}:{target_chat_id}"
+                self._router.link(target_key, origin_key, ttl_seconds=600)
+                
             media_info = f" with {len(resolved_media)} attachments" if resolved_media else ""
             return f"Message dispatched to {target_channel} (chat_id: {target_chat_id}){media_info}"
         except Exception as e:

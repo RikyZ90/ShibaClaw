@@ -65,6 +65,7 @@ class ShibaBrain:
         memory_max_prompt_tokens: int = 2000,
         memory_compact_threshold_tokens: int = 1600,
         consolidation_model: str | None = None,
+        session_router: Any | None = None,
     ):
         self.bus = bus
         self.channels_config = channels_config
@@ -78,6 +79,7 @@ class ShibaBrain:
         self.exec_config = exec_config or ExecToolConfig()
         self.cron_service = cron_service
         self.restrict_to_workspace = restrict_to_workspace
+        self.session_router = session_router
 
         self.context = ScentBuilder(workspace)
         self.sessions = session_manager or PackManager(workspace)
@@ -165,7 +167,11 @@ class ShibaBrain:
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
         self.tools.register(MemorySearchTool(workspace=self.workspace))
         self.tools.register(
-            MessageTool(send_callback=self.bus.publish_outbound, workspace=self.workspace)
+            MessageTool(
+                send_callback=self.bus.publish_outbound, 
+                workspace=self.workspace,
+                router=self.session_router,
+            )
         )
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
@@ -594,6 +600,11 @@ class ShibaBrain:
 
         preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
         key = session_key or msg.session_key
+        
+        if self.session_router:
+            if resolved_key := self.session_router.resolve(key):
+                logger.info("Cross-session route: {} -> {}", key, resolved_key)
+                key = resolved_key
         logger.debug(
             "Processing inbound message from {}:{} for session {}: {}",
             msg.channel,
@@ -660,8 +671,13 @@ class ShibaBrain:
         from datetime import datetime as _dt
 
         _user_entry = {"role": "user", "content": msg.content, "timestamp": _dt.now().isoformat()}
+        metadata = {}
         if msg.media:
-            _user_entry["metadata"] = {"media": msg.media}
+            metadata["media"] = msg.media
+        if msg.metadata and "attachments" in msg.metadata:
+            metadata["attachments"] = msg.metadata["attachments"]
+        if metadata:
+            _user_entry["metadata"] = metadata
         session.messages.append(_user_entry)
         self.sessions.save(session)
         _pre_saved_count = 1
@@ -728,6 +744,20 @@ class ShibaBrain:
             role, content = entry.get("role"), entry.get("content")
             if role == "assistant" and not content and not entry.get("tool_calls"):
                 continue
+            
+            if role == "assistant" and isinstance(content, str):
+                media_match = re.search(
+                    r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', content, re.DOTALL
+                )
+                if media_match:
+                    try:
+                        media_json = json.loads(media_match.group(0))
+                        entry.setdefault("metadata", {})["media"] = media_json.get("media", [])
+                        entry["content"] = content.replace(media_match.group(0), "").strip()
+                        content = entry["content"]
+                    except Exception:
+                        pass
+
             if (
                 role == "tool"
                 and isinstance(content, str)

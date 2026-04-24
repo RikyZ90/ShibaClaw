@@ -9,7 +9,7 @@ RUN uv pip install --system --no-cache -r pyproject.toml
 COPY . .
 
 RUN if [ -d "ShibaClaw" ]; then mv ShibaClaw shibaclaw; fi
-RUN uv pip install --system --reinstall --no-cache .
+RUN uv pip install --system --reinstall --no-cache ".[telegram]"
 RUN uv pip install --system pip-audit
 
 
