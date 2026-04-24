@@ -168,7 +168,7 @@ class ShibaBrain:
         self.tools.register(MemorySearchTool(workspace=self.workspace))
         self.tools.register(
             MessageTool(
-                send_callback=self.bus.publish_outbound, 
+                send_callback=self.bus.publish_outbound,
                 workspace=self.workspace,
                 router=self.session_router,
             )
@@ -600,7 +600,7 @@ class ShibaBrain:
 
         preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
         key = session_key or msg.session_key
-        
+
         if self.session_router:
             if resolved_key := self.session_router.resolve(key):
                 logger.info("Cross-session route: {} -> {}", key, resolved_key)
