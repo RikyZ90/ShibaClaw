@@ -205,12 +205,26 @@ class ScentKeeper:
         return truncated + "\n\n[MEMORY TRUNCATED — search HISTORY.md for older context]"
 
     @staticmethod
+    def _normalize_content(raw: Any) -> str:
+        if isinstance(raw, str):
+            return raw
+        if isinstance(raw, list):
+            parts = []
+            for item in raw:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    parts.append(item.get("text", ""))
+            return "\n".join(parts)
+        return str(raw) if raw else ""
+
+    @staticmethod
     def _format_messages(messages: list[dict]) -> str:
         lines = []
         for message in messages:
             role = message.get("role", "unknown").upper()
             ts = message.get("timestamp", "?")[:16]
-            content = message.get("content") or ""
+            content = ScentKeeper._normalize_content(message.get("content"))
             if role == "ASSISTANT" and message.get("tool_calls"):
                 calls = [
                     tc.get("function", {}).get("name", "unknown") for tc in message["tool_calls"]

@@ -226,13 +226,17 @@ app.add_typer(channels_app, name="channels")
 def channels_status():
     """Show channel status."""
     from shibaclaw.config.loader import load_config
-    from shibaclaw.integrations.registry import discover_all
+    from shibaclaw.integrations.registry import discover_all, discover_channel_names
 
     cfg = load_config()
+    discovered = discover_all()
+    all_module_names = set(discover_channel_names())
     table = Table(title="Channel Status")
     table.add_column("Channel", style="cyan")
     table.add_column("Enabled", style="green")
-    for name, cls in sorted(discover_all().items()):
+    shown: set[str] = set()
+    for name, cls in sorted(discovered.items()):
+        shown.add(name)
         enabled = False
         section = getattr(cfg.channels, name, None)
         if isinstance(section, dict):
@@ -240,6 +244,16 @@ def channels_status():
         elif section:
             enabled = getattr(section, "enabled", False)
         table.add_row(cls.display_name, "[green]✓[/green]" if enabled else "[dim]✗[/dim]")
+    for name in sorted(all_module_names - shown):
+        section = getattr(cfg.channels, name, None)
+        enabled = False
+        if isinstance(section, dict):
+            enabled = section.get("enabled", False)
+        elif section:
+            enabled = getattr(section, "enabled", False)
+        label = name.capitalize()
+        status = "[yellow]! missing dep[/yellow]" if enabled else "[dim]✗ missing dep[/dim]"
+        table.add_row(label, status)
     console.print(table)
 
 

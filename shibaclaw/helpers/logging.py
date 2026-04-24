@@ -1,8 +1,13 @@
 """Custom logging configuration for ShibaClaw."""
 
+import os
 import sys
 
 from loguru import logger
+
+
+def _is_debug_env() -> bool:
+    return os.environ.get("SHIBACLAW_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
 
 def setup_shiba_logging(level: str = "INFO", show_path: bool = False):
@@ -12,6 +17,10 @@ def setup_shiba_logging(level: str = "INFO", show_path: bool = False):
     Format example:
     [08:00:00] INFO    System | Gateway started
     """
+    if _is_debug_env():
+        level = "DEBUG"
+        show_path = True
+
     logger.remove()
 
     fmt = (

@@ -2,6 +2,7 @@ x-common-env: &common-env
   TZ: Europe/Rome
   OR_SITE_URL: https://github.com/RikyZ90/ShibaClaw
   OR_APP_NAME: ShibaClaw
+  # SHIBACLAW_DEBUG: "true"  # Uncomment to enable debug logging
   
 x-common-config: &common-config
   build:

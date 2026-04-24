@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.4] - 2026-04-24
+
+### Fixed
+- **`AttributeError: 'list' object has no attribute 'strip'`** — Memory consolidation crashed during `maybe_proactive_learn()` when messages contained multi-part content (OpenAI-style `[{"type": "text", "text": "..."}]` format). Added `_normalize_content()` to `ScentKeeper._format_messages()` to handle `str`, `list`, and `None` content uniformly. *(Thanks [@itskun](https://github.com/itskun) for the report! — [#18](https://github.com/RikyZ90/ShibaClaw/issues/18))*
+- **Channel Status missing configured channels** — `shibaclaw channels status` silently omitted any channel whose optional dependency was not installed (e.g. Telegram without `python-telegram-bot`). Channels with unresolvable imports now appear in the table with a `! missing dep` indicator, making misconfigured setups immediately visible.
+
+### Added
+- **`SHIBACLAW_DEBUG` env var** — Set `SHIBACLAW_DEBUG=true` (or `1`/`yes`/`on`) to force `DEBUG` log level with full backtraces and source-file annotations, without needing the `--verbose` flag. Useful for Docker deployments. The variable is documented in `docker-compose.yml` as a commented-out example.
+
 ## [0.1.3] - 2026-04-19
 
 ### Added

@@ -60,8 +60,8 @@ def discover_all() -> dict[str, type[BaseChannel]]:
     for modname in discover_channel_names():
         try:
             builtin[modname] = load_channel_class(modname)
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug("Channel '{}' not loadable: {}", modname, e)
 
     external = discover_plugins()
     shadowed = set(external) & set(builtin)
