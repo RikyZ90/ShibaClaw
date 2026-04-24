@@ -269,7 +269,11 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 "channel": "webui",
                 "chat_id": session_key,
                 "media": message.get("media"),
-                "metadata": {"session_key": session_key, "message_id": message["id"]},
+                "metadata": {
+                    "session_key": session_key, 
+                    "message_id": message["id"],
+                    "attachments": message.get("attachments", []),
+                },
             }
 
             try:
@@ -327,28 +331,6 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
             final_atts = _build_attachments(response_media)
 
-            try:
-                from shibaclaw.brain.manager import PackManager
-
-                pm = PackManager(agent_manager.config.workspace_path)
-                sess = pm.get_or_create(session_key)
-                if sess and sess.messages:
-                    for m_idx in range(len(sess.messages) - 1, -1, -1):
-                        if sess.messages[m_idx].get("role") == "user":
-                            sess.messages[m_idx].setdefault("metadata", {})["attachments"] = (
-                                message.get("attachments", [])
-                            )
-                            break
-                    for m_idx in range(len(sess.messages) - 1, -1, -1):
-                        if sess.messages[m_idx].get("role") == "assistant":
-                            if final_atts:
-                                sess.messages[m_idx].setdefault("metadata", {})["attachments"] = (
-                                    final_atts
-                                )
-                            pm.save(sess)
-                            break
-            except Exception:
-                pass
 
             if not response_content and not final_atts:
                 # Even when content is empty, we must send a response event

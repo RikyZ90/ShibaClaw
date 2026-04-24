@@ -263,6 +263,9 @@ async def gateway_command(
 
     session_manager = PackManager(config.workspace_path)
     cron = CronService(get_cron_dir() / "jobs.json")
+    
+    from shibaclaw.brain.routing import SessionRouter
+    session_router = SessionRouter()
 
     agent = ShibaBrain(
         bus=bus,
@@ -282,6 +285,7 @@ async def gateway_command(
         learning_interval=config.agents.defaults.learning_interval,
         memory_max_prompt_tokens=config.agents.defaults.memory_max_prompt_tokens,
         memory_compact_threshold_tokens=config.agents.defaults.memory_compact_threshold_tokens,
+        session_router=session_router,
     )
 
     channels = ChannelManager(config, bus)
