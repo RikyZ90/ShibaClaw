@@ -263,7 +263,7 @@ async def gateway_command(
 
     session_manager = PackManager(config.workspace_path)
     cron = CronService(get_cron_dir() / "jobs.json")
-    
+
     from shibaclaw.brain.routing import SessionRouter
     session_router = SessionRouter()
 

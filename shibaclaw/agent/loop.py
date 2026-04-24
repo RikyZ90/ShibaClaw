@@ -744,7 +744,7 @@ class ShibaBrain:
             role, content = entry.get("role"), entry.get("content")
             if role == "assistant" and not content and not entry.get("tool_calls"):
                 continue
-            
+
             if role == "assistant" and isinstance(content, str):
                 media_match = re.search(
                     r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', content, re.DOTALL

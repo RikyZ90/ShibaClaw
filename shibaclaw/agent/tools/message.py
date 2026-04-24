@@ -121,7 +121,7 @@ class MessageTool(Tool):
                 origin_key = f"{self._default_channel}:{self._default_chat_id}"
                 target_key = f"{target_channel}:{target_chat_id}"
                 self._router.link(target_key, origin_key, ttl_seconds=600)
-                
+
             media_info = f" with {len(resolved_media)} attachments" if resolved_media else ""
             return f"Message dispatched to {target_channel} (chat_id: {target_chat_id}){media_info}"
         except Exception as e:
