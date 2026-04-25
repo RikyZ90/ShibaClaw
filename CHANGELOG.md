@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.7] - 2026-04-25
+
+### Added
+- **Reasoning Effort Fallback** — Implemented an automatic fallback mechanism for the `reasoning_effort` parameter. If a model does not support this parameter, the system now automatically retries the request without it instead of returning a 400 error.
+- **WebUI Real-time Updates** — Enabled real-time message pushing via WebSockets for background tasks. Responses to subagent tasks are now delivered instantly to active WebUI sessions without requiring a page refresh.
+
+### Changed
+- **Subagent UI Privacy** — Subagent task summaries and technical logs are now hidden by default in the WebUI chat history. Users only see the final natural language response from the main agent, keeping the conversation clean while preserving the technical data in the session metadata.
+- **Native Browser Integration Cleanup** — Temporarily removed the Native Browser (CDP) tools and settings to streamline the configuration process while the feature undergoes further refinement.
+- **Lazy Session Creation** — Improved WebUI session management by preventing the immediate creation of empty session files on disk when clicking "New Session". Session files are now lazily generated only upon the first message, with `profile_id` cached in memory until persistence.
+- **Smart Session Titling** — Enhanced the automatic session titling logic to prepend the source channel name (e.g., `Telegram_` or `webui_`) to the generated title based on the first message, providing better organization in the history list.
+
+### Fixed
+- **WebUI Context Reporting** — Fixed an issue where the WebUI token usage count didn't update after `autocompact` and could exceed 100%. The system now correctly calculates token usage based only on active (unconsolidated) messages and invalidates the context cache immediately when compaction occurs.
+- **Gateway Attribute Error** — Resolved an `AttributeError: 'ToolsConfig' object has no attribute 'browser'` that caused gateway crashes after the browser configuration was removed. Fixed the initialization sequence in both `gateway.py` and `agent.py`.
+- **WebUI Onboard 500 Error** — Fixed a `SyntaxError: Unexpected token 'I', "Internal S"...` error at the end of the onboarding wizard. This was caused by an `AttributeError` from a call to the deprecated `ensure_agent()` method in the onboard router.
+- **Settings Router Cleanup** — Removed stale references and updated comments regarding the deprecated `ensure_agent()` method in the settings router.
+
+
 ## [0.1.6] - 2026-04-25
 
 ### Added

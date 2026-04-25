@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.6!** This major update overhauls the WebUI architecture with a native WebSocket handler and modular API routers. See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.7!** This update introduces reasoning effort fallback, real-time WebSocket updates for background tasks, and enhanced WebUI. See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -274,6 +274,15 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 ```
 
 ---
+
+## [0.1.7] - 2026-04-25
+
+### Added
+- **Reasoning Effort Fallback** — Automatic retry if a model doesn't support reasoning parameters.
+- **Real-time WebUI Updates** — Instant background task results via WebSockets.
+
+### Changed
+- **Privacy & UX** — Hidden subagent logs by default and lazy session creation to reduce disk I/O.
 
 ## [0.1.6] - 2026-04-25
 

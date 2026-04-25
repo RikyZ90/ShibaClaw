@@ -1,6 +1,5 @@
 {
-    "version": "0.1.6",
-    "release_notes": "Major WebUI architecture overhaul: transitioned to native WebSocket transport, implemented modular API routers (onboard, settings, sessions), and enhanced gateway communication utilities.",
+    "version": "0.1.7",
+    "release_notes": "Implemented reasoning effort fallback, real-time WebSocket updates for background tasks, and significant UI/UX refinements including subagent and lazy session creation.",
     "changes": []
 }
-
