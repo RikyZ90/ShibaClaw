@@ -199,6 +199,12 @@ Ollama (`http://localhost:11434`) · vLLM · any OpenAI-compatible endpoint.
 | GitHub Copilot | Device flow, auto token refresh | `shibaclaw provider login github-copilot` or WebUI Settings |
 | OpenAI Codex | PKCE browser flow | `shibaclaw provider login openai-codex` or WebUI Settings |
 
+### 💡 Pro Tip: Cost-Effective & Premium Models
+
+ShibaClaw performs exceptionally well even without expensive API usage:
+- **Free/Open Models:** We highly recommend using **OpenRouter** to access powerful free models like `nvidia/llama-3.1-nemotron-70b-instruct:free` or `google/gemma-2-9b-it:free`.
+- **Unlimited Premium:** If you use the **GitHub Copilot** OAuth integration, you gain access to premium models like `raptor` (`oswe-vscode-prime`) at **zero additional cost**, effectively giving you unlimited requests.
+
 ---
 
 ## 🔌 MCP Ecosystem
