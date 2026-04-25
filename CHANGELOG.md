@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.2.0] - 2026-04-25
+## [0.1.6] - 2026-04-25
 
 ### Added
 - **API Modularization & Routers** — Refactored the WebUI backend into dedicated API routers (`onboard`, `settings`, `sessions`, `gateway`, etc.), improving code organization and enabling easier extension of WebUI capabilities.

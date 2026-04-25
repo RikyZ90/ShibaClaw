@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.2.0!** This major update overhauls the WebUI architecture with a native WebSocket handler and modular API routers. See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.6!** This major update overhauls the WebUI architecture with a native WebSocket handler and modular API routers. See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -275,7 +275,7 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## [0.2.0] - 2026-04-25
+## [0.1.6] - 2026-04-25
 
 ### Added
 - **API Modularization** — Refactored WebUI backend into focused routers for onboarding, settings, and sessions.
