@@ -202,7 +202,7 @@ Ollama (`http://localhost:11434`) · vLLM · any OpenAI-compatible endpoint.
 ### 💡 Pro Tip: Cost-Effective & Premium Models
 
 ShibaClaw performs exceptionally well even without expensive API usage:
-- **Free/Open Models:** We highly recommend using **OpenRouter** to access powerful free models like `nvidia/llama-3.1-nemotron-70b-instruct:free` or `google/gemma-2-9b-it:free`.
+- **Free/Open Models:** We highly recommend using **OpenRouter** to access powerful free models like `nvidia/nemotron-3-super-120b-a12b:free` or `gemma-4-31b-it:free`.
 - **Unlimited Premium:** If you use the **GitHub Copilot** OAuth integration, you gain access to premium models like `raptor` (`oswe-vscode-prime`) at **zero additional cost**, effectively giving you unlimited requests.
 
 ---
