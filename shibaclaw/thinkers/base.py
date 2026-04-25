@@ -300,6 +300,10 @@ class Thinker(ABC):
                 return response
 
             if not self._is_transient_error(response.content):
+                err = (response.content or "").lower()
+                if kw.get("reasoning_effort") and ("reasoning_effort" in err or "unsupported parameter" in err):
+                    kw["reasoning_effort"] = None
+                    continue
                 stripped = self._strip_image_content(messages)
                 if stripped is not None:
                     logger.warning("Non-transient LLM error with image content, retrying without images")
@@ -360,6 +364,10 @@ class Thinker(ABC):
                 return response
 
             if not self._is_transient_error(response.content):
+                err = (response.content or "").lower()
+                if kw.get("reasoning_effort") and ("reasoning_effort" in err or "unsupported parameter" in err):
+                    kw["reasoning_effort"] = None
+                    continue
                 return response
 
             logger.warning(
