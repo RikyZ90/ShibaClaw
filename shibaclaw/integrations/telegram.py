@@ -25,12 +25,16 @@ from shibaclaw.integrations.base import BaseChannel
 from shibaclaw.security.network import validate_url_target
 
 _PTB_LOGGERS = (
+    "telegram",
+    "telegram.ext",
     "telegram._bot",
     "telegram._update",
     "telegram._telegramobject",
     "telegram.ext._application",
+    "telegram.ext.Application",
     "telegram.ext._extbot",
     "telegram.ext._updater",
+    "telegram.ext.Updater",
     "telegram.ext._utils",
 )
 _PREVIOUS_LEVELS: dict[str, int] = {}

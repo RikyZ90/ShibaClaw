@@ -245,18 +245,25 @@ class Config(BaseSettings):
             kw = kw.lower()
             return kw in model_lower or kw.replace("-", "_") in model_normalized
 
-        # Explicit provider prefix wins — prevents `github-copilot/...codex` matching openai_codex.
-        for spec in PROVIDERS:
+        def _get_valid_provider(spec: "ProviderSpec") -> ProviderConfig | None:
             p = getattr(self.providers, spec.name, None)
-            if p and model_prefix and normalized_prefix == spec.name:
-                if spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec):
-                    return p, spec.name
+            if p and (spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec)):
+                return p
+            return None
+
+        # Explicit provider prefix wins — prevents `github-copilot/...codex` matching openai_codex.
+        if model_prefix:
+            for spec in PROVIDERS:
+                if normalized_prefix == spec.name:
+                    p = _get_valid_provider(spec)
+                    if p:
+                        return p, spec.name
 
         # Match by keyword (order follows PROVIDERS registry)
         for spec in PROVIDERS:
-            p = getattr(self.providers, spec.name, None)
-            if p and any(_kw_matches(kw) for kw in spec.keywords):
-                if spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec):
+            if any(_kw_matches(kw) for kw in spec.keywords):
+                p = _get_valid_provider(spec)
+                if p:
                     return p, spec.name
 
         # Fallback: configured local providers can route models without
