@@ -22,7 +22,7 @@
 ShibaClaw is a **security-first AI agent** for your terminal and browser.
 Security isn't glue code — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
 
-**22 providers · 11 chat channels · built-in WebUI · long-term memory · cron · heartbeat · skills · MCP**
+**22 providers · 11 chat channels · built-in WebUI · 3-level proactive memory · cron · heartbeat · skills · MCP**
 
 ---
 
@@ -53,6 +53,16 @@ Prefer the CLI? `shibaclaw onboard` runs the same guided setup from the terminal
 ## Security, Built In
 
 Defenses that are normally scattered across app glue or external proxies — in ShibaClaw they ship in the core, on by default.
+
+### 🛡️ Prompt-Injection Wrapping (Tool Sandboxing)
+Instead of simply feeding raw tool outputs back to the LLM, ShibaClaw wraps every tool result in a dynamically generated XML-like boundary with a randomized nonce (e.g., `<tool_output_a1b2c3d4>`). 
+**Why this matters:** Attackers often try to prematurely close tags or inject fake system instructions inside tool outputs (like web page content). By using a randomized boundary generated per-iteration, the agent can reliably differentiate between actual system instructions and injected payloads. Furthermore, any attempt to inject the specific closing tag inside the content is automatically sanitized and escaped, ensuring the sandbox remains airtight and the original system prompt takes precedence.
+
+### 🔍 Install-Time Package Autoscan
+Before executing any `pip`, `npm`, or `apt` install command, ShibaClaw intercepts the action and parses the dependencies. It runs tools like `pip-audit` or `npm audit --json` to scan for known vulnerabilities against CVE databases before applying any changes.
+**Why this matters:** It shifts security entirely to the left. Instead of blindly blocking package managers or relying on post-install scans, it evaluates the exact dependency tree *before* execution. If a package contains critical/high CVEs, or if suspicious flags (like `--allow-unauthenticated` for `apt`) are detected, the installation is blocked. This allows the AI to autonomously build software without turning the host into a liability.
+
+### Security Layers Overview
 
 | Layer | What it does |
 |---|---|
@@ -105,11 +115,20 @@ Create your own profiles interactively — the agent walks you through defining 
 
 ## Features
 
-### Memory & Workflow
+### 🧠 Advanced 3-Level Memory System
 
-- **Three-level memory** — `USER.md` (personal profile), `MEMORY.md` (operational facts), `HISTORY.md` (timestamped session archive with TF-IDF + recency search)
-- **Proactive learning** — every N messages the agent silently consolidates new learnings into memory, without interrupting the conversation
-- **Focused background delegation** — the `spawn` tool can offload a specific task and report back into the same session when done
+ShibaClaw's memory isn't just a rolling chat buffer; it's a structured, proactive system designed for long-term operational continuity.
+
+- **`USER.md` (Identity & Preferences):** Stores durable personal facts, communication styles, and language preferences. The agent reads this to know *who* you are.
+- **`MEMORY.md` (Operational State):** The agent's working knowledge. It tracks environment details, recurring entities, and project state.
+- **`HISTORY.md` (Session Archive):** An append-only, searchable ledger of past sessions with timestamped, tagged summaries.
+
+**Why this matters:**
+Instead of bloating the system prompt with thousands of messages, ShibaClaw features a **Proactive Learning loop**. Every N messages, a background LLM process silently extracts new durable facts and updates `USER.md` and `MEMORY.md`, without interrupting the conversation. When `MEMORY.md` grows too large, an auto-compaction routine summarizes and deduplicates the context, prioritizing recent state while keeping token usage within strict budgets. When the agent needs older context, it can autonomously search `HISTORY.md` using TF-IDF and recency scoring. This separation of concerns ensures the agent stays hyper-aware of the current project without ever hitting token limits or losing focus.
+
+### Workflow & Reasoning
+
+- **Focused background delegation** — the `spawn` tool can offload a specific task and report back into the main session when done
 - **Advanced reasoning** — supports extended thinking (Anthropic), reasoning effort (OpenAI o-series), and DeepSeek-R1 chains
 
 ### Tools
