@@ -48,7 +48,7 @@ async def api_settings_post(request: Request):
 
         save_config(new_cfg)
         agent_manager.config = new_cfg
-        # Rebuild provider so ensure_agent() picks up new API keys immediately
+        # Rebuild provider so the new configuration is applied immediately
         try:
             from shibaclaw.cli.commands import _make_provider
 

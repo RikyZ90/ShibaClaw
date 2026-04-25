@@ -174,6 +174,5 @@ async def api_onboard_submit(request: Request):
     # without depending on the in-memory object, which may be stale.
     await agent_manager.reset_agent()
     agent_manager.load_latest_config()
-    await agent_manager.ensure_agent()
 
     return JSONResponse({"status": "ok"})
