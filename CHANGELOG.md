@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0] - 2026-04-25
+
+### Added
+- **API Modularization & Routers** — Refactored the WebUI backend into dedicated API routers (`onboard`, `settings`, `sessions`, `gateway`, etc.), improving code organization and enabling easier extension of WebUI capabilities.
+- **WebUI Communication Utilities** — Implemented specialized utilities for managing system prompts and session-aware gateway communication.
+
+### Changed
+- **Native WebSocket Transport** — Fully transitioned from Socket.IO to a custom, native WebSocket implementation. This change reduces dependency overhead and provides a more direct, robust communication channel between the WebUI and the agent gateway.
+
 ## [0.1.5] - 2026-04-24
 
 ### Fixed

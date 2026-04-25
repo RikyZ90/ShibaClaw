@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.5!** This patch fixes an issue where Telegram and other optional channels would not start in Docker. It also resolves a crash in memory consolidation and adds a `SHIBACLAW_DEBUG` env var. See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.2.0!** This major update overhauls the WebUI architecture with a native WebSocket handler and modular API routers. See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -250,10 +250,13 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## [0.1.5] - 2026-04-24
+## [0.2.0] - 2026-04-25
 
-### Fixed
-- **Telegram not starting in Docker** — The Docker image now correctly installs the `[telegram]` optional dependency, resolving an issue where the bot was configured but failed to start polling.
+### Added
+- **API Modularization** — Refactored WebUI backend into focused routers for onboarding, settings, and sessions.
+- **Native WebSocket Transport** — Replaced Socket.IO with a lightweight, native WebSocket handler for real-time communication.
+
+## [0.1.5] - 2026-04-24
 
 ## [0.1.4] - 2026-04-24
 

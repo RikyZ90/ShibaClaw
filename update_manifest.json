@@ -1,5 +1,6 @@
 {
-    "version": "0.1.5",
-    "release_notes": "Fixed Telegram and other optional channels not starting in Docker due to missing dependencies. Improved memory consolidation stability and channel status reporting.",
+    "version": "0.2.0",
+    "release_notes": "Major WebUI architecture overhaul: transitioned to native WebSocket transport, implemented modular API routers (onboard, settings, sessions), and enhanced gateway communication utilities.",
     "changes": []
 }
+
