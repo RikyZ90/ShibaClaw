@@ -81,7 +81,7 @@ async def api_context_get(request: Request):
         msg_tokens, msg_lines = _compute_session_tokens(session_id, wp, pm, estimate_message_tokens)
         if msg_lines:
             sections.append(
-                f"## 💬 Session Messages ({len(pm.get_or_create(session_id).messages)} messages)\n\n"
+                f"## 💬 Session Messages ({len(msg_lines)} messages)\n\n"
                 + "\n".join(msg_lines)
             )
     total_tokens += msg_tokens

@@ -179,10 +179,14 @@ def _compute_session_tokens(session_id: str, wp: Path, pm, estimate_message_toke
     """Compute and cache message tokens for a session."""
     cache = _session_context_cache.get(session_id, {})
     session = pm.get_or_create(session_id)
-    msgs = session.messages
+    msgs = session.messages[session.last_consolidated :]
     msg_count = len(msgs)
 
-    if cache.get("msg_count") == msg_count and cache.get("workspace_path") == str(wp):
+    if (
+        cache.get("msg_count") == msg_count
+        and cache.get("last_consolidated") == session.last_consolidated
+        and cache.get("workspace_path") == str(wp)
+    ):
         return cache["msg_tokens"], cache["msg_lines"]
 
     msg_tokens = 0
@@ -209,6 +213,7 @@ def _compute_session_tokens(session_id: str, wp: Path, pm, estimate_message_toke
 
     _session_context_cache[session_id] = {
         "msg_count": msg_count,
+        "last_consolidated": session.last_consolidated,
         "msg_tokens": msg_tokens,
         "msg_lines": msg_lines,
         "workspace_path": str(wp),
