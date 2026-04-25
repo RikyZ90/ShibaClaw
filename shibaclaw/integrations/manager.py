@@ -174,7 +174,18 @@ class ChannelManager:
                                     "Failed to notify origin channel {}: {}", origin_channel, e2
                                 )
                 else:
-                    logger.warning("Unknown channel: {}", msg.channel)
+                    if msg.channel == "webui":
+                        try:
+                            from shibaclaw.webui.agent_manager import agent_manager
+                            await agent_manager.deliver_background_notification(
+                                session_key=f"webui:{msg.chat_id}",
+                                content=msg.content,
+                                persist=False,  # Already saved in session by loop.py
+                            )
+                        except Exception as e:
+                            logger.error("Failed to push to WebUI: {}", e)
+                    elif msg.channel != "system":
+                        logger.warning("Unknown channel: {}", msg.channel)
 
             except asyncio.TimeoutError:
                 continue

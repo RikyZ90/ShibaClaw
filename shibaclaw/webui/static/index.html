@@ -282,6 +282,9 @@
                     <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
                         <span class="material-icons-round">key</span><span>Provider</span>
                     </button>
+                    <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
+                        <span class="material-icons-round">mic</span><span>Voice &amp; Audio</span>
+                    </button>
                     <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
                         <span class="material-icons-round">build</span><span>Tools</span>
                     </button>
@@ -323,11 +326,17 @@
                         <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
                         <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
 
-                        <!-- Audio / Voice section -->
-                        <div class="settings-section-divider">
-                            <span class="material-icons-round">mic</span>
-                            <span>Voice &amp; Audio (STT / TTS)</span>
-                        </div>
+                    </div>
+
+
+                    <!-- Tab: Providers (dynamic collapsible) -->
+                    <div class="settings-panel" id="panel-providers" style="display:none">
+                        <div id="providers-list"></div>
+                    </div>
+
+
+                    <!-- Tab: Audio -->
+                    <div class="settings-panel" id="panel-audio" style="display:none">
                         <div class="field-row field-row-stack">
                             <label>STT Provider URL</label>
                             <p class="settings-note">
@@ -339,21 +348,6 @@
                         <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
                         <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
                         <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
-
-                        <div class="field-row field-row-stack">
-                            <label>Onboarding</label>
-                            <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
-                            <button type="button" class="btn-secondary settings-onboard-btn" onclick="openOnboardFromSettings()">
-                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">rocket_launch</span>
-                                Open onboarding wizard
-                            </button>
-                        </div>
-                    </div>
-
-
-                    <!-- Tab: Providers (dynamic collapsible) -->
-                    <div class="settings-panel" id="panel-providers" style="display:none">
-                        <div id="providers-list"></div>
                     </div>
 
                     <!-- Tab: Tools -->
@@ -458,7 +452,21 @@
 
                     <!-- Tab: Update -->
                     <div class="settings-panel" id="panel-update" style="display:none">
-                        <div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Loading...</div>
+                        <div id="update-status-container">
+                            <div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Loading...</div>
+                        </div>
+                        
+                        <div class="settings-section-divider" style="margin-top: 2rem;">
+                            <span class="material-icons-round">rocket_launch</span>
+                            <span>Setup Wizard</span>
+                        </div>
+                        <div class="field-row field-row-stack">
+                            <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
+                            <button type="button" class="btn-secondary settings-onboard-btn" onclick="openOnboardFromSettings()">
+                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">rocket_launch</span>
+                                Open onboarding wizard
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

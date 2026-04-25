@@ -672,10 +672,10 @@ class ShibaBrain:
 
         _user_entry = {"role": "user", "content": msg.content, "timestamp": _dt.now().isoformat()}
         metadata = {}
+        if msg.metadata:
+            metadata.update(msg.metadata)
         if msg.media:
             metadata["media"] = msg.media
-        if msg.metadata and "attachments" in msg.metadata:
-            metadata["attachments"] = msg.metadata["attachments"]
         if metadata:
             _user_entry["metadata"] = metadata
         session.messages.append(_user_entry)

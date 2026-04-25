@@ -532,6 +532,7 @@ async function loadSession(sessionId) {
             for (const msg of messages) {
                 if (!msg || !msg.role) continue;
                 if (msg.role === "user") {
+                    if (msg.metadata && msg.metadata.hidden) continue;
                     if (!msg.content || msg.content === lastUserContent) continue;
                     lastUserContent = msg.content;
 
@@ -1201,6 +1202,7 @@ function populateSettings(cfg) {
     $("s-tool-execTimeout").value = te.timeout ?? 60;
     $("s-tool-restrict").checked = !!cfg.tools?.restrictToWorkspace;
 
+
     const gw = cfg.gateway || {};
     $("s-gw-host").value = gw.host || "127.0.0.1";
     $("s-gw-port").value = gw.port ?? 19999;
@@ -1724,7 +1726,7 @@ function startApp() {
 let _updateState = { manifestUrl: null };
 
 async function loadUpdatePanel(force = false) {
-    const panel = $("panel-update");
+    const panel = $("update-status-container");
     if (!panel) return;
     panel.innerHTML = `<div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Checking for updates...</div>`;
 

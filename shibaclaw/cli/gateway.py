@@ -908,10 +908,16 @@ async def gateway_command(
             else:
                 console.print("\nShutting down...")
         finally:
-            await agent.close_mcp()
+            try:
+                await agent.close_mcp()
+            except asyncio.CancelledError:
+                pass
             heartbeat.stop()
             agent.stop()
-            await channels.stop_all()
+            try:
+                await channels.stop_all()
+            except asyncio.CancelledError:
+                pass
 
     await run()
 
