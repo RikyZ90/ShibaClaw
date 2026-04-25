@@ -6,7 +6,7 @@ let lastSettingsConfig = null;
 
 
 // ── State ────────────────────────────────────────────────────
-const DEFAULT_AVATAR = "/static/shibaclaw_logo.png";
+const DEFAULT_AVATAR = "/static/shibaclaw_logo.webp";
 
 const state = {
     socket: null,

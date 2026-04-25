@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/shibaclaw_logo_readme.jpg" width="800" alt="ShibaClaw">
+  <img src="assets/shibaclaw_logo_readme.webp" width="800" alt="ShibaClaw">
 </p>
 
 <h1 align="center">ShibaClaw 🐕</h1>
