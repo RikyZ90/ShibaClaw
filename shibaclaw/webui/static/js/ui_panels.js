@@ -347,6 +347,14 @@ async function autoTitleSession() {
         .trim();
     if (title.length > 45) title = title.slice(0, 42) + "...";
 
+    const idx = state.sessionId.indexOf(":");
+    if (idx > 0) {
+        let ch = state.sessionId.substring(0, idx);
+        if (ch.toLowerCase() === "telegram") ch = "Telegram";
+        else if (ch.toLowerCase() === "webui") ch = "webui";
+        title = ch + "_" + title;
+    }
+
     try {
         const res = await authFetch(`/api/sessions/${encodeURIComponent(state.sessionId)}`);
         if (!res.ok) return;

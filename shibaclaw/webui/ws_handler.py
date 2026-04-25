@@ -199,6 +199,7 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
         ws_id, {"session_key": f"webui:{ws_id[:8]}", "processing": False, "queue": []}
     )
     session_key = session["session_key"]
+    cached_profile_id = session.get("profile_id")
 
     media_paths = []
     attachments_data = []
@@ -276,6 +277,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 },
             }
 
+            if cached_profile_id and cached_profile_id != "default":
+                payload["profile_id"] = cached_profile_id
+
             try:
                 from shibaclaw.brain.manager import PackManager
 
@@ -284,6 +288,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 pid = sess.metadata.get("profile_id")
                 if pid:
                     payload["profile_id"] = pid
+                elif cached_profile_id and cached_profile_id != "default":
+                    sess.metadata["profile_id"] = cached_profile_id
+                    pm.save(sess)
             except Exception:
                 pass
 
@@ -407,16 +414,8 @@ async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):
         sessions[ws_id]["session_key"] = new_key
 
     profile_id = (data or {}).get("profile_id", "default")
-    try:
-        from shibaclaw.brain.manager import PackManager
-
-        if agent_manager.config:
-            pm = PackManager(agent_manager.config.workspace_path)
-            sess = pm.get_or_create(new_key)
-            sess.metadata["profile_id"] = profile_id
-            pm.save(sess)
-    except Exception:
-        pass
+    if ws_id in sessions:
+        sessions[ws_id]["profile_id"] = profile_id
 
     await _emit_to_ws(
         ws,

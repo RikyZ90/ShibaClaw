@@ -129,6 +129,7 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
             sid, {"session_key": f"webui:{sid[:8]}", "processing": False, "queue": []}
         )
         session_key = session["session_key"]
+        cached_profile_id = session.get("profile_id")
         sk_room = _room(session_key)
 
         media_paths = []
@@ -198,7 +199,10 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                         "attachments": message.get("attachments", []),
                     },
                 }
-                # Resolve profile_id from session metadata
+                # Resolve profile_id from session metadata or cache
+                if cached_profile_id and cached_profile_id != "default":
+                    payload["profile_id"] = cached_profile_id
+
                 try:
                     from shibaclaw.brain.manager import PackManager
 
@@ -207,6 +211,9 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
                     pid = sess.metadata.get("profile_id")
                     if pid:
                         payload["profile_id"] = pid
+                    elif cached_profile_id and cached_profile_id != "default":
+                        sess.metadata["profile_id"] = cached_profile_id
+                        pm.save(sess)
                 except Exception:
                     pass
 
@@ -305,16 +312,8 @@ def register_socket_handlers(sio: socketio.AsyncServer, sessions: Dict[str, Dict
 
         # Optionally set profile_id on new session
         profile_id = (data or {}).get("profile_id", "default")
-        try:
-            from shibaclaw.brain.manager import PackManager
-
-            if agent_manager.config:
-                pm = PackManager(agent_manager.config.workspace_path)
-                sess = pm.get_or_create(new_key)
-                sess.metadata["profile_id"] = profile_id
-                pm.save(sess)
-        except Exception:
-            pass
+        if sid in sessions:
+            sessions[sid]["profile_id"] = profile_id
 
         await sio.emit(
             "session_reset",
