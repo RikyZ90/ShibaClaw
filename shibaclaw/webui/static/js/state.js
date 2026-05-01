@@ -24,10 +24,16 @@ const state = {
     agentConfigured: false,
     healthTimer: null,
     historyTimer: null,
+    autoTimer: null,
     processGroups: {},   // msgId → { el, startTime, stepCount, collapsed }
     authRequired: false,
     stagedFiles: [],     // { name, url, type, stagedAt }
     currentFsPath: ".",  // current path for file explorer
+    listenersInitialized: false,
+    socketHandlersInitialized: false,
+    fileHandlersInitialized: false,
+    automationInitialized: false,
+    onboardInitialized: false,
 };
 
 let clockTimer = null;

@@ -1,42 +1,67 @@
 {
-  "version": "0.1.4",
-  "release_notes": "### ShibaClaw v0.1.4 🐛\n\n- **Fix**: `AttributeError: 'list' object has no attribute 'strip'` in memory consolidation when messages have multi-part content (e.g. OpenAI vision/tool format). Thanks [@itskun](https://github.com/itskun)!\n- **Fix**: `shibaclaw channels status` now shows ALL channels including those with missing optional dependencies.\n- **New**: `SHIBACLAW_DEBUG=true` env var for enabling full debug logging without `--verbose` flag.",
-  "upgrade_notes": "Update to v0.1.4. Run `pip install --upgrade shibaclaw`. If using Docker, run `docker compose pull && docker compose up -d`.",
+  "version": "0.1.8",
+  "release_notes": "### ShibaClaw v0.1.8 🔒\n\n- **Fix**: Escaped raw HTML in WebUI Markdown rendering and removed unsafe `innerHTML` interpolation for attachment labels, file names, breadcrumbs, and shared dialog messages.\n- **Fix**: Logout and `401` auth-expiry now stop timers, clear the cached auth token, and prevent automatic WebSocket reconnect loops.\n- **Fix**: WebUI startup hooks are now idempotent, avoiding duplicated socket and DOM listeners after repeated login/logout cycles.\n- **Fix**: `memory_search` now rejects `top_k < 1` and its integration tests run cleanly on Python 3.14 with async test functions.",
+  "upgrade_notes": "Update to v0.1.8. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild or redeploy the containers so the updated WebUI assets and package metadata are served together.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Version bumped to 0.1.4."
+      "note": "Version bumped to 0.1.8."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.1.4 changelog entry."
+      "note": "Added the v0.1.8 changelog entry."
     },
     {
-      "path": "shibaclaw/agent/memory.py",
+      "path": "README.md",
       "overwrite": true,
-      "note": "Fixed AttributeError on list content in _format_messages."
+      "note": "Updated the release banner and summary notes for v0.1.8."
     },
     {
-      "path": "shibaclaw/helpers/logging.py",
+      "path": "shibaclaw/agent/tools/memory_search.py",
       "overwrite": true,
-      "note": "Added SHIBACLAW_DEBUG env var support."
+      "note": "Rejects invalid top_k values before scoring history entries."
     },
     {
-      "path": "shibaclaw/integrations/registry.py",
+      "path": "tests/test_memory.py",
       "overwrite": true,
-      "note": "Log import errors instead of silently swallowing them."
+      "note": "Uses async tests compatible with Python 3.14 and covers invalid top_k inputs."
     },
     {
-      "path": "shibaclaw/cli/commands.py",
+      "path": "shibaclaw/webui/static/js/utils.js",
       "overwrite": true,
-      "note": "Channel status now shows channels with missing deps."
+      "note": "Escapes raw HTML in Markdown rendering and centralizes safe DOM helpers."
     },
     {
-      "path": "docker-compose.yml",
+      "path": "shibaclaw/webui/static/js/chat.js",
       "overwrite": true,
-      "note": "Added SHIBACLAW_DEBUG commented example in common env."
+      "note": "Renders attachment links through safe DOM nodes instead of template HTML."
+    },
+    {
+      "path": "shibaclaw/webui/static/js/api_socket.js",
+      "overwrite": true,
+      "note": "Makes socket bootstrap idempotent and reuses safe attachment rendering helpers."
+    },
+    {
+      "path": "shibaclaw/webui/static/js/realtime.js",
+      "overwrite": true,
+      "note": "Stops reconnect loops after logout/auth expiry and rejects pending socket requests on disconnect."
+    },
+    {
+      "path": "shibaclaw/webui/static/js/files.js",
+      "overwrite": true,
+      "note": "Rebuilds breadcrumb, file rows, and staged attachments with safe DOM APIs."
+    },
+    {
+      "path": "shibaclaw/webui/static/js/main.js",
+      "overwrite": true,
+      "note": "Prevents duplicate DOM listeners by making startup listener wiring idempotent."
+    },
+    {
+      "path": "shibaclaw/webui/static/js/ui_panels.js",
+      "overwrite": true,
+      "note": "Makes automation/onboarding setup idempotent and sanitizes shared dialog messaging."
     }
   ]
 }

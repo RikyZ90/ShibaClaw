@@ -148,6 +148,9 @@ class MemorySearchTool(Tool):
         }
 
     async def execute(self, *, query: str, top_k: int = 5, **_: Any) -> str:
+        if top_k < 1:
+            raise ValueError("top_k must be at least 1")
+
         if not self._history_path.exists():
             return "HISTORY.md not found — no history available yet."
 

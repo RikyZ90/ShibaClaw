@@ -1,5 +1,8 @@
 // ── Event Listeners ───────────────────────────────────────────
 function initListeners() {
+    if (state.listenersInitialized) return;
+    state.listenersInitialized = true;
+
     btnSend.addEventListener("click", sendMessage);
 
     chatInput.addEventListener("input", () => {

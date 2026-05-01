@@ -18,7 +18,8 @@ const realtime = (() => {
     let connected = false;
     let sessionId = "";
     let profileId = "default";
-    let pendingAuth = null;
+    let authToken = "";
+    let reconnectEnabled = true;
     const listeners = {};          // event → Set<fn>
     const pendingRequests = {};    // id → {resolve, reject, timer}
     let reconnectDelay = 1000;
@@ -38,9 +39,22 @@ const realtime = (() => {
         }
     }
 
+    function _rejectPendingRequests(message) {
+        for (const [id, pending] of Object.entries(pendingRequests)) {
+            clearTimeout(pending.timer);
+            pending.reject(new Error(message));
+            delete pendingRequests[id];
+        }
+    }
+
     // ── Connection ──────────────────────────────────────────
 
     function connect(token) {
+        if (typeof token === "string") {
+            authToken = token;
+        }
+        reconnectEnabled = true;
+
         if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
 
         const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -50,7 +64,7 @@ const realtime = (() => {
 
         ws.onopen = () => {
             const savedSessionId = localStorage.getItem("shiba_session_id");
-            ws.send(JSON.stringify({ type: "auth", token: token || "", session_id: savedSessionId || "" }));
+            ws.send(JSON.stringify({ type: "auth", token: authToken || "", session_id: savedSessionId || "" }));
         };
 
         ws.onmessage = (ev) => {
@@ -64,25 +78,33 @@ const realtime = (() => {
             connected = false;
             ws = null;
             _stopPing();
+            _rejectPendingRequests(ev.reason || "connection closed");
             if (wasConnected) fire("disconnect", { code: ev.code, reason: ev.reason });
-            _scheduleReconnect(token);
+            _scheduleReconnect();
         };
 
         ws.onerror = () => {}; // onclose will fire after
     }
 
-    function disconnect() {
+    function disconnect(options = {}) {
+        const { clearToken = false } = options;
+        reconnectEnabled = false;
+        if (clearToken) {
+            authToken = "";
+        }
         if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         _stopPing();
+        _rejectPendingRequests("disconnected");
         if (ws) { ws.close(1000); ws = null; }
         connected = false;
     }
 
-    function _scheduleReconnect(token) {
+    function _scheduleReconnect() {
+        if (!reconnectEnabled || reconnectTimer) return;
         if (reconnectTimer) return;
         reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
-            connect(token);
+            connect();
         }, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 1.5, 15000);
     }

@@ -266,13 +266,16 @@ async function loadHeartbeatSection() {
 function initAutomationSections() {
     const cronHeader = $("cron-header");
     const hbHeader = $("heartbeat-header");
-    if (cronHeader) {
-        cronHeader.addEventListener("click", () => _toggleAutoSection("cron", cronHeader));
-        if (_autoCollapsed["cron"]) { cronHeader.classList.add("collapsed"); $("cron-list").classList.add("collapsed"); }
-    }
-    if (hbHeader) {
-        hbHeader.addEventListener("click", () => _toggleAutoSection("heartbeat", hbHeader));
-        if (_autoCollapsed["heartbeat"]) { hbHeader.classList.add("collapsed"); $("heartbeat-list").classList.add("collapsed"); }
+    if (!state.automationInitialized) {
+        if (cronHeader) {
+            cronHeader.addEventListener("click", () => _toggleAutoSection("cron", cronHeader));
+            if (_autoCollapsed["cron"]) { cronHeader.classList.add("collapsed"); $("cron-list").classList.add("collapsed"); }
+        }
+        if (hbHeader) {
+            hbHeader.addEventListener("click", () => _toggleAutoSection("heartbeat", hbHeader));
+            if (_autoCollapsed["heartbeat"]) { hbHeader.classList.add("collapsed"); $("heartbeat-list").classList.add("collapsed"); }
+        }
+        state.automationInitialized = true;
     }
     loadCronSection();
     loadHeartbeatSection();
@@ -373,7 +376,7 @@ async function shibaDialog(type, title, message, { confirmText = "Confirm", dang
         const cancelBtn = document.getElementById("confirm-cancel");
 
         document.getElementById("confirm-title").textContent = title;
-        msgEl.innerHTML = message;
+        msgEl.textContent = message ?? "";
         
         let inputEl = null;
         if (type === "prompt") {
@@ -1678,7 +1681,7 @@ async function attemptLogin(token) {
 function logout() {
     clearStoredToken();
     if (state.socket) {
-        state.socket.disconnect();
+        state.socket.disconnect({ clearToken: true });
         state.socket = null;
     }
     if (state.healthTimer) {
@@ -1689,6 +1692,14 @@ function logout() {
         clearInterval(state.historyTimer);
         state.historyTimer = null;
     }
+    if (state.autoTimer) {
+        clearInterval(state.autoTimer);
+        state.autoTimer = null;
+    }
+    state._initialConnectDone = false;
+    state.processing = false;
+    state.sessionId = null;
+    setStatusIndicator("disconnected");
     const logoutBtn = document.getElementById("btn-logout");
     if (logoutBtn) logoutBtn.hidden = true;
     showLogin();
@@ -1834,6 +1845,9 @@ async function loadUpdatePanel(force = false) {
 const _ob = { step: 1, provider: null, providers: [], templates: { existing: [] } };
 
 function initOnboardWizard() {
+    if (state.onboardInitialized) return;
+    state.onboardInitialized = true;
+
     const eye = document.getElementById("ob-eye-toggle");
     const keyInput = document.getElementById("ob-api-key");
     if (eye && keyInput) {

@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.8] - 2026-05-01
+
+### Changed
+- **WebUI client hardening** — Centralized safe DOM helpers for attachment links, icons, file-browser rows, and breadcrumb rendering so user-controlled labels are inserted via DOM nodes instead of HTML string interpolation.
+
+### Fixed
+- **WebUI XSS surfaces** — Escaped raw HTML in Markdown rendering, stopped interpolating attachment and file names into `innerHTML`, and switched confirm-dialog messages to `textContent` to prevent browser-side script injection from chat content, file names, or UI error strings.
+- **WebUI logout/reconnect lifecycle** — Logging out or hitting a `401` now clears timers, stops automatic WebSocket reconnection, clears the cached auth token, and re-enters the login screen cleanly without background reconnect loops or duplicated startup state.
+- **WebUI repeated bootstrap handlers** — `initSocket`, `initListeners`, file handlers, automation sections, and onboarding setup are now idempotent, preventing duplicated event handlers after login/logout cycles or repeated app startup.
+- **Memory search runtime validation** — `memory_search` now rejects `top_k < 1` with a clear `ValueError` instead of returning misleading empty results or truncated output through negative slicing.
+- **Python 3.14 test compatibility** — Memory search integration tests now run with `pytest-asyncio` coroutines instead of relying on the removed implicit main-thread event loop behavior.
+
 ## [0.1.7] - 2026-04-25
 
 ### Added

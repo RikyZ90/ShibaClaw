@@ -15,7 +15,8 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.7!** This update introduces reasoning effort fallback, real-time WebSocket updates for background tasks, and enhanced WebUI. See the [Changelog](./CHANGELOG.md) for details.
+📢 **Welcome to ShibaClaw v0.1.8!** This update hardens WebUI rendering against XSS, fixes logout/reconnect lifecycle bugs, and tightens memory search validation. 
+See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
@@ -96,6 +97,7 @@ The WebUI is built-in — no separate frontend or Node.js required.
 - **Onboard wizard** — guided first-time setup: pick a provider, enter API key or start OAuth, choose a model
 - **Context viewer** — inspect the full system prompt and token usage breakdown
 - **Gateway monitor** — health check and one-click restart
+- **Hardened rendering** — chat Markdown escapes raw HTML, file names render through safe DOM nodes, and expired auth returns cleanly to login without reconnect loops
 - **Auto-update** — checks GitHub releases every 12h, notifies in the UI and on all active channels
 - **Responsive** — works on desktop and mobile
 
@@ -274,6 +276,12 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 ```
 
 ---
+
+## [0.1.8] - 2026-05-01
+
+### Fixed
+- **WebUI hardening** — Escaped raw HTML in chat Markdown, stopped unsafe HTML interpolation for file and attachment labels, and cleaned up logout / auth-expiry reconnect behavior.
+- **Memory search validation** — `top_k` is now rejected when zero or negative, and the regression is covered by async tests compatible with Python 3.14.
 
 ## [0.1.7] - 2026-04-25
 

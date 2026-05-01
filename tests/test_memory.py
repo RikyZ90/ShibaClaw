@@ -152,18 +152,21 @@ class TestRelevanceScore:
 
 
 class TestMemorySearchTool:
-    def test_missing_history(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_missing_history(self, tmp_path):
         tool = MemorySearchTool(workspace=tmp_path)
-        result = asyncio.get_event_loop().run_until_complete(tool.execute(query="anything"))
+        result = await tool.execute(query="anything")
         assert "not found" in result.lower()
 
-    def test_empty_history(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_empty_history(self, tmp_path):
         _write_history(tmp_path, "")
         tool = MemorySearchTool(workspace=tmp_path)
-        result = asyncio.get_event_loop().run_until_complete(tool.execute(query="anything"))
+        result = await tool.execute(query="anything")
         assert "empty" in result.lower()
 
-    def test_returns_ranked_results(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_returns_ranked_results(self, tmp_path):
         now = datetime.now()
         recent = now.strftime("%Y-%m-%d %H:%M")
         old = (now - timedelta(days=60)).strftime("%Y-%m-%d %H:%M")
@@ -176,15 +179,14 @@ class TestMemorySearchTool:
         """)
         _write_history(tmp_path, content)
         tool = MemorySearchTool(workspace=tmp_path)
-        result = asyncio.get_event_loop().run_until_complete(
-            tool.execute(query="python web framework", top_k=2)
-        )
+        result = await tool.execute(query="python web framework", top_k=2)
         lines = result.strip().split("\n")
         numbered = [line for line in lines if line and line[0].isdigit()]
         assert len(numbered) == 2
         assert "python" in result.lower()
 
-    def test_top_k_limit(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_top_k_limit(self, tmp_path):
         now = datetime.now()
         entries = []
         for i in range(10):
@@ -192,11 +194,18 @@ class TestMemorySearchTool:
             entries.append(f"[{ts}] [#test] [★1] Entry number {i}")
         _write_history(tmp_path, "\n\n".join(entries))
         tool = MemorySearchTool(workspace=tmp_path)
-        result = asyncio.get_event_loop().run_until_complete(
-            tool.execute(query="test entry", top_k=3)
-        )
+        result = await tool.execute(query="test entry", top_k=3)
         numbered = [line for line in result.strip().split("\n") if line and line[0].isdigit()]
         assert len(numbered) == 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("top_k", [0, -1])
+    async def test_invalid_top_k_rejected(self, tmp_path, top_k):
+        _write_history(tmp_path, "[2026-05-01 10:00] [#test] [★1] Entry")
+        tool = MemorySearchTool(workspace=tmp_path)
+
+        with pytest.raises(ValueError, match="top_k must be at least 1"):
+            await tool.execute(query="test", top_k=top_k)
 
     def test_schema(self):
         tool = MemorySearchTool(workspace=Path("."))

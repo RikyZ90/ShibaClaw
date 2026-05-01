@@ -29,22 +29,15 @@ function addUserMessage(content, attachments = []) {
     }
     
     attachments.forEach(file => {
-        if (file.type.startsWith("image/")) {
+        const isImage = typeof file.type === "string" && file.type.startsWith("image/");
+        if (isImage) {
             const img = document.createElement("img");
             img.src = file.url;
             img.onclick = () => window.open(file.url, "_blank");
             bubble.appendChild(img);
         } else {
-            const link = document.createElement("a");
-            link.href = "#";
-            link.className = "file-attachment-link";
-            link.innerHTML = `
-                <span class="material-icons-round">insert_drive_file</span>
-                <span>${file.name}</span>
-            `;
-            link.addEventListener("click", (e) => {
-                e.preventDefault();
-                downloadAttachment(file.url, file.name);
+            const link = buildFileAttachmentLink(file, () => {
+                downloadAttachment(file.url, file.name || "attachment");
             });
             bubble.appendChild(link);
         }
@@ -73,15 +66,7 @@ function addAgentMessage(id, content, attachments = []) {
             img.onclick = () => window.open(file.url, "_blank");
             bubble.appendChild(img);
         } else {
-            const link = document.createElement("a");
-            link.href = "#";
-            link.className = "file-attachment-link";
-            link.innerHTML = `
-                <span class="material-icons-round">insert_drive_file</span>
-                <span>${file.name || "attachment"}</span>
-            `;
-            link.addEventListener("click", (e) => {
-                e.preventDefault();
+            const link = buildFileAttachmentLink(file, () => {
                 downloadAttachment(file.url, file.name || "file");
             });
             bubble.appendChild(link);

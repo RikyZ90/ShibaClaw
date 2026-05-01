@@ -10,15 +10,32 @@ function _discardStreamBubble(msgId) {
     if (state._streamBuffers) delete state._streamBuffers[mid];
 }
 
+function _appendAgentAttachment(container, file) {
+    if (file.type && file.type.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.src = file.url;
+        img.onclick = () => window.open(file.url, "_blank");
+        container.appendChild(img);
+        return;
+    }
+
+    const link = buildFileAttachmentLink(file, () => {
+        downloadAttachment(file.url, file.name || "file");
+    });
+    container.appendChild(link);
+}
+
 // ── WebSocket Connection (via realtime.js adapter) ───────────
 function initSocket() {
-    const token = getStoredToken();
-    
-    // Connect using native WebSocket adapter
-    realtime.connect(token);
-
     // Expose as state.socket for backward compatibility with UI checks
     state.socket = realtime;
+
+    if (state.socketHandlersInitialized) {
+        realtime.connect(getStoredToken());
+        return;
+    }
+
+    state.socketHandlersInitialized = true;
 
     realtime.on("connected", (data) => {
         fetchStatus();
@@ -122,25 +139,7 @@ function initSocket() {
             // Append any attachments
             if (data.attachments && data.attachments.length) {
                 data.attachments.forEach(file => {
-                    if (file.type && file.type.startsWith("image/")) {
-                        const img = document.createElement("img");
-                        img.src = file.url;
-                        img.onclick = () => window.open(file.url, "_blank");
-                        streamBubble.appendChild(img);
-                    } else {
-                        const link = document.createElement("a");
-                        link.href = "#";
-                        link.className = "file-attachment-link";
-                        link.innerHTML = `
-                            <span class="material-icons-round">insert_drive_file</span>
-                            <span>${file.name || "attachment"}</span>
-                        `;
-                        link.addEventListener("click", (e) => {
-                            e.preventDefault();
-                            downloadAttachment(file.url, file.name || "file");
-                        });
-                        streamBubble.appendChild(link);
-                    }
+                    _appendAgentAttachment(streamBubble, file);
                 });
             }
         } else {
@@ -231,6 +230,8 @@ function initSocket() {
             }
         }
     });
+
+    realtime.connect(getStoredToken());
 }
 
 

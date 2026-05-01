@@ -1,5 +1,101 @@
+function _setFsLoading(container) {
+    container.replaceChildren();
+
+    const wrapper = document.createElement("div");
+    wrapper.style.padding = "2rem";
+    wrapper.style.textAlign = "center";
+    wrapper.style.color = "var(--text-muted)";
+    wrapper.appendChild(createMaterialIcon("progress_activity", "material-icons-round spin"));
+    container.appendChild(wrapper);
+}
+
+function _setFsMessage(
+    container,
+    message,
+    { color = "var(--text-muted)", center = false, padding = "2rem" } = {}
+) {
+    container.replaceChildren();
+
+    const wrapper = document.createElement("div");
+    wrapper.style.padding = padding;
+    wrapper.style.color = color;
+    if (center) {
+        wrapper.style.textAlign = "center";
+    }
+    wrapper.textContent = message;
+    container.appendChild(wrapper);
+}
+
+function _appendFsBreadcrumbSeparator(breadcrumb) {
+    const separator = createMaterialIcon("chevron_right");
+    separator.style.fontSize = "12px";
+    breadcrumb.appendChild(separator);
+}
+
+function _appendFsBreadcrumbItem(breadcrumb, label, onClick, { active = false } = {}) {
+    const item = document.createElement("span");
+    item.className = active ? "breadcrumb-item active" : "breadcrumb-item";
+    item.textContent = label;
+    if (typeof onClick === "function") {
+        item.addEventListener("click", onClick);
+    }
+    breadcrumb.appendChild(item);
+}
+
+function _renderFsBreadcrumb(breadcrumb, path, activeLabel = null) {
+    if (!breadcrumb) return;
+
+    breadcrumb.replaceChildren();
+    _appendFsBreadcrumbItem(breadcrumb, "root", () => window.loadFs("."));
+
+    const parts = path.split(/[/\\]/).filter((part) => part && part !== ".");
+    let currentPartPath = "";
+
+    parts.forEach((part, index) => {
+        currentPartPath += (index === 0 ? "" : "/") + part;
+        _appendFsBreadcrumbSeparator(breadcrumb);
+        _appendFsBreadcrumbItem(breadcrumb, part, () => window.loadFs(currentPartPath));
+    });
+
+    if (activeLabel !== null) {
+        _appendFsBreadcrumbSeparator(breadcrumb);
+        _appendFsBreadcrumbItem(breadcrumb, activeLabel, null, { active: true });
+    }
+}
+
+function _createFsRow({ icon, name, size = "", mtime = "", isDir = false, onClick }) {
+    const row = document.createElement("div");
+    row.className = isDir ? "fs-item is-dir" : "fs-item";
+    if (typeof onClick === "function") {
+        row.addEventListener("click", onClick);
+    }
+
+    row.appendChild(createMaterialIcon(icon, "material-icons-round fs-item-icon"));
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "fs-item-name";
+    nameEl.title = name;
+    nameEl.textContent = name;
+    row.appendChild(nameEl);
+
+    const sizeEl = document.createElement("span");
+    sizeEl.className = "fs-item-size";
+    sizeEl.textContent = size;
+    row.appendChild(sizeEl);
+
+    const mtimeEl = document.createElement("span");
+    mtimeEl.className = "fs-item-mtime";
+    mtimeEl.textContent = mtime;
+    row.appendChild(mtimeEl);
+
+    return row;
+}
+
 // ── File Handling ─────────────────────────────────────────────
 function initFileHandlers() {
+    if (state.fileHandlersInitialized) return;
+    state.fileHandlersInitialized = true;
+
     const btnAttach = $("btn-attach");
     const fileInput = $("file-input");
     const dragOverlay = $("drag-overlay");
@@ -81,7 +177,7 @@ function updateStagingUI() {
     const container = $("attachment-staging");
     if (!container) return;
 
-    container.innerHTML = "";
+    container.replaceChildren();
     if (state.stagedFiles.length === 0) {
         container.style.display = "none";
         return;
@@ -91,19 +187,29 @@ function updateStagingUI() {
     state.stagedFiles.forEach((file, idx) => {
         const item = document.createElement("div");
         item.className = "staged-file";
-        
-        let thumb = `<span class="material-icons-round">insert_drive_file</span>`;
-        if (file.type.startsWith("image/")) {
-            thumb = `<img src="${file.url}" class="staged-file-thumb">`;
+
+        const isImage = typeof file.type === "string" && file.type.startsWith("image/");
+        if (isImage) {
+            const thumb = document.createElement("img");
+            thumb.src = file.url;
+            thumb.className = "staged-file-thumb";
+            item.appendChild(thumb);
+        } else {
+            item.appendChild(createMaterialIcon("insert_drive_file"));
         }
 
-        item.innerHTML = `
-            ${thumb}
-            <span class="staged-file-name" title="${file.name}">${file.name}</span>
-            <button class="btn-remove-staged" onclick="removeStagedFile(${idx})">
-                <span class="material-icons-round">close</span>
-            </button>
-        `;
+        const nameEl = document.createElement("span");
+        nameEl.className = "staged-file-name";
+        nameEl.title = file.name;
+        nameEl.textContent = file.name;
+        item.appendChild(nameEl);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "btn-remove-staged";
+        removeBtn.appendChild(createMaterialIcon("close"));
+        removeBtn.addEventListener("click", () => window.removeStagedFile(idx));
+        item.appendChild(removeBtn);
+
         container.appendChild(item);
     });
 }
@@ -121,71 +227,56 @@ window.loadFs = async function(path = ".") {
     if (!list) return;
 
     state.currentFsPath = path;
-    list.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-muted)">
-        <span class="material-icons-round spin">progress_activity</span>
-    </div>`;
+    _setFsLoading(list);
+    _renderFsBreadcrumb(breadcrumb, path);
 
     const parts = path.split(/[/\\]/).filter(p => p && p !== ".");
-    let bcHtml = `<span class="breadcrumb-item" onclick="loadFs('.')">root</span>`;
-    let currentPartPath = "";
-    parts.forEach((p, i) => {
-        currentPartPath += (i === 0 ? "" : "/") + p;
-        bcHtml += ` <span class="material-icons-round" style="font-size:12px">chevron_right</span> `;
-        bcHtml += `<span class="breadcrumb-item" onclick="loadFs('${currentPartPath.replace(/'/g, "\\'")}')">${p}</span>`;
-    });
-    breadcrumb.innerHTML = bcHtml;
 
     try {
         const res = await authFetch(`/api/fs/explore?path=${encodeURIComponent(path)}`);
         const data = await res.json();
 
         if (data.error) {
-            list.innerHTML = `<div style="padding:2rem;color:var(--accent-red)">${data.error}</div>`;
+            _setFsMessage(list, data.error, { color: "var(--accent-red)" });
             return;
         }
 
-        list.innerHTML = "";
+        list.replaceChildren();
         
         if (path !== "." && path !== "/" && parts.length > 0) {
             const parentPath = parts.slice(0, -1).join("/") || ".";
-            const row = document.createElement("div");
-            row.className = "fs-item";
-            row.onclick = () => loadFs(parentPath);
-            row.innerHTML = `
-                <span class="material-icons-round fs-item-icon">folder_open</span>
-                <span class="fs-item-name">..</span>
-                <span></span><span></span>
-            `;
+            const row = _createFsRow({
+                icon: "folder_open",
+                name: "..",
+                onClick: () => window.loadFs(parentPath),
+            });
             list.appendChild(row);
         }
 
         data.items.forEach(f => {
-            const row = document.createElement("div");
-            row.className = `fs-item ${f.is_dir ? "is-dir" : ""}`;
-            
             const icon = f.is_dir ? "folder" : "insert_drive_file";
             const size = f.is_dir ? "" : formatSize(f.size);
             const mtime = new Date(f.mtime * 1000).toLocaleString();
 
-            row.onclick = () => {
-                if (f.is_dir) {
-                    loadFs(f.path);
-                } else {
-                    openFileEditor(f.path, f.name);
-                }
-            };
-
-            row.innerHTML = `
-                <span class="material-icons-round fs-item-icon">${icon}</span>
-                <span class="fs-item-name" title="${f.name}">${f.name}</span>
-                <span class="fs-item-size">${size}</span>
-                <span class="fs-item-mtime">${mtime}</span>
-            `;
+            const row = _createFsRow({
+                icon,
+                name: f.name,
+                size,
+                mtime,
+                isDir: f.is_dir,
+                onClick: () => {
+                    if (f.is_dir) {
+                        window.loadFs(f.path);
+                    } else {
+                        openFileEditor(f.path, f.name);
+                    }
+                },
+            });
             list.appendChild(row);
         });
 
     } catch (e) {
-        list.innerHTML = `<div style="padding:2rem;color:var(--accent-red)">Error loading files</div>`;
+        _setFsMessage(list, "Error loading files", { color: "var(--accent-red)" });
     }
 };
 
@@ -206,21 +297,8 @@ window.openFileEditor = async function(filePath, fileName) {
     const breadcrumb = $("fs-breadcrumb");
     if (!content) return;
 
-    content.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text-muted)">
-        <span class="material-icons-round spin">progress_activity</span>
-    </div>`;
-
-    const parts = state.currentFsPath.split(/[\/\\]/).filter(p => p && p !== ".");
-    let bcHtml = `<span class="breadcrumb-item" onclick="loadFs('.')">root</span>`;
-    let cur = "";
-    parts.forEach((p, i) => {
-        cur += (i === 0 ? "" : "/") + p;
-        const cp = cur;
-        bcHtml += ` <span class="material-icons-round" style="font-size:12px">chevron_right</span> `;
-        bcHtml += `<span class="breadcrumb-item" onclick="loadFs('${cp.replace(/'/g, "\\'")}')">${p}</span>`;
-    });
-    bcHtml += ` <span class="material-icons-round" style="font-size:12px">chevron_right</span> <span class="breadcrumb-item active">${fileName}</span>`;
-    breadcrumb.innerHTML = bcHtml;
+    _setFsLoading(content);
+    _renderFsBreadcrumb(breadcrumb, state.currentFsPath, fileName);
 
     const isText = TEXT_EXTENSIONS.test(fileName);
     if (!isText) {
@@ -235,14 +313,14 @@ window.openFileEditor = async function(filePath, fileName) {
         const res = await authFetch(`/api/file-get?path=${encodeURIComponent(filePath)}&_t=${Date.now()}`);
         if (!res.ok) {
             const err = await res.json().catch(() => ({ error: res.statusText }));
-            content.innerHTML = `<div style="padding:2rem;color:var(--accent-red)">${err.error || "Error loading file"}</div>`;
+            _setFsMessage(content, err.error || "Error loading file", { color: "var(--accent-red)" });
             return;
         }
         const text = await res.text();
 
         content.innerHTML = `
             <div class="file-editor-toolbar">
-                <span class="file-editor-name">${fileName}</span>
+                <span class="file-editor-name" id="file-editor-name"></span>
                 <span id="save-status" class="file-editor-status"></span>
                 <button class="btn-edit-mode" id="btn-refresh-file" title="Reload file from disk">
                     <span class="material-icons-round" style="font-size:15px">refresh</span>
@@ -259,6 +337,8 @@ window.openFileEditor = async function(filePath, fileName) {
             </div>
             <textarea class="file-editor-area" id="file-editor-textarea" spellcheck="false" readonly></textarea>
         `;
+        const fileNameEl = document.getElementById("file-editor-name");
+        if (fileNameEl) fileNameEl.textContent = fileName;
         const ta = document.getElementById("file-editor-textarea");
         const btnEdit = document.getElementById("btn-edit-mode");
         const btnSave = document.getElementById("btn-save-file");
@@ -305,7 +385,7 @@ window.openFileEditor = async function(filePath, fileName) {
         };
         btnSave.onclick = () => saveFile(filePath);
     } catch (e) {
-        content.innerHTML = `<div style="padding:2rem;color:var(--accent-red)">Error: ${e.message}</div>`;
+        _setFsMessage(content, `Error: ${e.message}`, { color: "var(--accent-red)" });
     }
 };
 

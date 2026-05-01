@@ -1,8 +1,53 @@
+// ── Utility Functions ─────────────────────────────────────────
+function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+}
+
+function createMaterialIcon(name, className = "material-icons-round") {
+    const icon = document.createElement("span");
+    icon.className = className;
+    icon.textContent = name;
+    return icon;
+}
+
+function buildFileAttachmentLink(file, onOpen) {
+    const link = document.createElement("a");
+    link.href = "#";
+    link.className = "file-attachment-link";
+    link.title = file?.name || "attachment";
+    link.appendChild(createMaterialIcon("insert_drive_file"));
+
+    const label = document.createElement("span");
+    label.textContent = file?.name || "attachment";
+    link.appendChild(label);
+
+    link.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (typeof onOpen === "function") {
+            onOpen();
+        }
+    });
+
+    return link;
+}
+
+
 // ── Marked.js Configuration ──────────────────────────────────
 if (typeof marked !== "undefined") {
+    const safeMarkedRenderer = new marked.Renderer();
+    safeMarkedRenderer.html = function (token) {
+        if (typeof token === "string") {
+            return escapeHtml(token);
+        }
+        return escapeHtml(token?.text ?? token?.raw ?? "");
+    };
+
     marked.setOptions({
         breaks: true,
         gfm: true,
+        renderer: safeMarkedRenderer,
         highlight: function (code, lang) {
             if (typeof hljs !== "undefined" && lang && hljs.getLanguage(lang)) {
                 try {
@@ -12,14 +57,6 @@ if (typeof marked !== "undefined") {
             return code;
         },
     });
-}
-
-
-// ── Utility Functions ─────────────────────────────────────────
-function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 function truncate(str, maxLen) {
