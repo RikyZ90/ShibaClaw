@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.0] - 2026-05-02
+
+### Added
+- **Cross-provider model catalog** — The WebUI now aggregates models from all configured providers into a single searchable catalog. Chat and settings both consume normalized model entries with canonical IDs and provider labels, so switching models no longer depends on a single provider-scoped dropdown.
+- **Per-session model selection** — Every session can now store and use its own model independently. The chat footer includes a searchable model picker, making it practical to keep different sessions on different providers or reasoning tiers at the same time.
+- **OpenRouter OAuth in the WebUI** — Added a browser PKCE flow for OpenRouter directly in Settings. On successful login, the returned API key is saved into the provider configuration automatically.
+
+### Changed
+- **Dynamic Settings Hot-Reload** — Saving settings in the WebUI no longer restarts the gateway process. The agent, channels, and heartbeat service are updated in-place via a new `POST /reload` endpoint on the gateway. Provider, model, tool configurations, MCP servers (lazy reconnect), and individual channels all hot-swap without interrupting active WebSocket connections or ongoing tasks. A full restart is still triggered automatically only when `gateway.host`, `gateway.port`, or `gateway.ws_port` change.
+- **Model-first routing** — Runtime provider resolution is now driven by the selected model instead of a static global provider assumption. Canonical model IDs such as `openrouter/...` or `anthropic/...` are normalized before dispatch so the gateway reaches the correct backend endpoint.
+- **Settings UX refresh** — The Agent tab is now centered on model choice: default model for new sessions, memory / consolidation model picker, and reusable searchable model menus. The old provider selector was removed from the Agent tab, and OAuth was moved directly below Providers in the settings sidebar.
+- **Provider visibility in model search** — Chat and settings model pickers now show provider labels alongside model names, making mixed catalogs usable even when multiple providers expose similarly named models.
+
+### Fixed
+- **Custom Provider support** — The custom provider now correctly strips the `custom/` prefix before making requests and implements `get_available_models()`, enabling full integration with localized REST endpoints.
+- **URL sanitization for providers** — Automatic stripping of trailing whitespaces and tabs in `api_base` properties, preventing invalid ASCII byte exceptions during chat fetches and model discovery.
+- **Reasoning-only response visibility** — Chat responses consisting solely of reasoning blocks (e.g. some LM Studio or DeepSeek scenarios) without standard content are now safely rendered as Process Group bubbles in the WebUI.
+- **GitHub Copilot model discovery** — Copilot now refreshes its short-lived session token before listing available models, fixing malformed authorization failures during catalog fetches.
+- **Session override provider mismatches** — Session-level model overrides now ignore a forced global provider when the chosen model clearly belongs to another backend, ensuring the gateway actually switches provider at runtime.
+- **WebUI / gateway session desync** — Session caches now reload when the underlying JSONL file changes on disk, preventing stale in-memory metadata from overriding model changes saved by the WebUI.
+- **Model dropdown transparency** — The chat model dropdown and search input now use solid theme-backed colors instead of undefined CSS variables, eliminating transparent or unreadable menus.
+
+
 ## [0.1.8] - 2026-05-01
 
 ### Changed

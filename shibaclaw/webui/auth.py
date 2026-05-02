@@ -65,7 +65,7 @@ def check_token(request: Request) -> bool:
     return verify_token_value(token_candidate)
 
 
-PUBLIC_PATHS = ("/static/", "/api/auth/", "/api/file-get")
+PUBLIC_PATHS = ("/static/", "/api/auth/", "/api/file-get", "/api/oauth/openrouter/callback")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

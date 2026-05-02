@@ -271,6 +271,7 @@ async def gateway_command(
         bus=bus,
         provider=provider,
         workspace=config.workspace_path,
+        config=config,
         model=config.agents.defaults.model,
         max_iterations=config.agents.defaults.max_tool_iterations,
         context_window_tokens=config.agents.defaults.context_window_tokens,
@@ -407,6 +408,44 @@ async def gateway_command(
     console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
     _state = {"restart": False}
+
+    async def _do_reload() -> None:
+        """Hot-reload all components from the saved config file without restarting the process."""
+        nonlocal config, provider
+        try:
+            new_cfg = _load_runtime_config(config_path, workspace)
+        except Exception as e:
+            logger.error("Hot-reload: failed to load config: {}", e)
+            return
+
+        # If network-binding settings changed, fall back to a full restart
+        net_changed = (
+            new_cfg.gateway.host != config.gateway.host
+            or new_cfg.gateway.port != config.gateway.port
+            or new_cfg.gateway.ws_port != config.gateway.ws_port
+        )
+        if net_changed:
+            logger.warning(
+                "Hot-reload: gateway host/port changed — falling back to full restart"
+            )
+            _state["restart"] = True
+            asyncio.get_event_loop().call_later(
+                0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
+            )
+            return
+
+        try:
+            new_provider = _make_provider(new_cfg, exit_on_error=False)
+            config = new_cfg
+            provider = new_provider
+
+            await agent.reconfigure(new_cfg, new_provider)
+            await channels.reconfigure(new_cfg)
+            hb_cfg = new_cfg.gateway.heartbeat
+            await heartbeat.reconfigure(hb_cfg, new_provider, agent.model)
+            logger.info("Hot-reload complete")
+        except Exception as e:
+            logger.error("Hot-reload failed: {}", e)
 
     update_check_interval = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "12")) * 3600
 
@@ -768,6 +807,13 @@ async def gateway_command(
                         asyncio.get_event_loop().call_later(
                             0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
                         )
+                elif "POST" in request_line and "/reload" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        writer.write(_json_response({"status": "reloading"}))
+                        await writer.drain()
+                        asyncio.create_task(_do_reload())
                 elif "GET" in request_line and "/heartbeat/status" in request_line:
                     writer.write(_json_response(heartbeat.status()))
                 elif "POST" in request_line and "/heartbeat/trigger" in request_line:

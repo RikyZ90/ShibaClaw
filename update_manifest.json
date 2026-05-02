@@ -1,6 +1,6 @@
 {
-    "version": "0.1.8",
-    "release_notes": "Hardened the WebUI against XSS, fixed logout/reconnect lifecycle issues, and tightened memory_search validation with Python 3.14-compatible async tests.",
+    "version": "0.2.0",
+    "release_notes": "Added full support for LM Studio / local custom models, fixed broken reasoning-only empty bubbles in WebUI, implemented automatic api_base URL sanitization, and documented Docker networking for local servers.",
     "changes": [
         {
             "path": "CHANGELOG.md",

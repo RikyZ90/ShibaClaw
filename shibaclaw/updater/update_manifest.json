@@ -1,7 +1,7 @@
 {
-  "version": "0.1.8",
-  "release_notes": "### ShibaClaw v0.1.8 🔒\n\n- **Fix**: Escaped raw HTML in WebUI Markdown rendering and removed unsafe `innerHTML` interpolation for attachment labels, file names, breadcrumbs, and shared dialog messages.\n- **Fix**: Logout and `401` auth-expiry now stop timers, clear the cached auth token, and prevent automatic WebSocket reconnect loops.\n- **Fix**: WebUI startup hooks are now idempotent, avoiding duplicated socket and DOM listeners after repeated login/logout cycles.\n- **Fix**: `memory_search` now rejects `top_k < 1` and its integration tests run cleanly on Python 3.14 with async test functions.",
-  "upgrade_notes": "Update to v0.1.8. Run `pip install --upgrade shibaclaw`. If using Docker, rebuild or redeploy the containers so the updated WebUI assets and package metadata are served together.",
+  "version": "0.2.0",
+  "release_notes": "### ShibaClaw v0.2.0 🐾\n\n- **Added**: Local provider support is fully functional via the `custom` provider. Compatible with LM Studio, llama.cpp, and generic local endpoints.\n- **Added**: Cross-provider model catalog and per-session model overrides via WebUI.\n- **Fix**: Re-enabled display updates for reasoning-only generation tasks preventing blank bubbles.\n- **Fix**: Removed obscure `\\t` errors via strict `api_base` endpoint sanitization.\n- **Docs**: README now details `host.docker.internal` requirements for Docker Compose environments hitting host ports.",
+  "upgrade_notes": "Update to v0.2.0. Run `pip install --upgrade shibaclaw` to receive the latest custom provider fixes and WebUI rendering enhancements.",
   "changes": [
     {
       "path": "pyproject.toml",

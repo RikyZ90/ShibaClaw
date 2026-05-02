@@ -66,6 +66,8 @@ Ideal for local development or lightweight environments.
      shibaclaw web --host 127.0.0.1 --port 3000 --with-gateway
      ```
 
+> **OpenRouter OAuth note**: the PKCE callback reuses the same WebUI URL and port, so port `3000` remains the normal WebUI port and does not require a second local server. If your WebUI is published through a reverse proxy or a different public origin, set `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL=https://your-public-webui-host` before starting ShibaClaw.
+
 ---
 
 ## 🦴 Useful Commands

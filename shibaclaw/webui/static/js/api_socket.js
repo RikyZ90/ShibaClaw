@@ -190,6 +190,7 @@ function initSocket() {
         });
         state.processGroups = {};
         state.sessionId = data.session_id;
+        state.activeModelId = "";
         setSessionLabel(data.session_id);
         localStorage.setItem("shiba_session_id", data.session_id);
         chatHistory.innerHTML = "";
@@ -200,6 +201,9 @@ function initSocket() {
         hideTypingBubble();
         hideThinking();
         refreshTokenBadge();
+        if (typeof updateModelSelectorDisplay === "function") {
+            void updateModelSelectorDisplay("");
+        }
     });
 
     realtime.on("session_status", (data) => {

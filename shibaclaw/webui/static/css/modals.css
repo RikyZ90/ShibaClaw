@@ -644,6 +644,88 @@ input[type="number"].form-input {
     line-height: 1.5;
 }
 
+.settings-model-picker {
+    position: relative;
+    width: 100%;
+}
+
+.settings-model-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    cursor: pointer;
+    background: var(--bg-primary);
+}
+
+.settings-model-button .material-icons-round {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.settings-model-button-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    width: 100%;
+}
+
+.settings-model-button-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.settings-model-button-provider {
+    flex-shrink: 0;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    opacity: 0.88;
+}
+
+.settings-model-button-provider-placeholder {
+    color: var(--text-muted);
+}
+
+.settings-model-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-highlight);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 30;
+}
+
+.settings-model-search {
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    background: var(--bg-secondary);
+    box-shadow: none;
+}
+
+.settings-model-search:focus {
+    border-color: var(--border-color);
+    box-shadow: none;
+}
+
+.settings-model-list {
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-elevated);
+}
+
 .settings-onboard-btn {
     display: inline-flex;
     align-items: center;

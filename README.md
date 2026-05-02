@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.1.8!** This update hardens WebUI rendering against XSS, fixes logout/reconnect lifecycle bugs, and tightens memory search validation. 
+📢 **Welcome to ShibaClaw v0.2.0!** This release adds cross-provider model search, true per-session model routing, a redesigned model-first settings flow, and OpenRouter OAuth directly in the WebUI.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
@@ -89,17 +89,33 @@ Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
 
 The WebUI is built-in — no separate frontend or Node.js required.
 
-- **Chat** — multi-session conversations with live streaming of tool calls, thinking blocks, and elapsed time
+- **Chat** — multi-session conversations with live streaming of tool calls, thinking blocks, elapsed time, and per-session model switching from the chat footer
+- **Cross-provider model search** — one searchable picker merges models from all configured providers, shows provider labels, and switches the live runtime provider when you change the session model
 - **Agent Profiles** — switch personas per session (Hacker, Builder, Planner, Reviewer) with dynamic avatars
 - **File browser** — browse, view, and edit workspace files in-browser (sandboxed to workspace)
 - **Voice** — speech-to-text via OpenAI-compatible audio APIs and browser-native TTS
-- **Settings** — configure agent, provider, tools, MCP servers, channels, skills, and OAuth from a single panel
+- **Settings** — configure default session model, memory / consolidation model, providers, tools, MCP servers, channels, skills, and OAuth from a single panel
 - **Onboard wizard** — guided first-time setup: pick a provider, enter API key or start OAuth, choose a model
 - **Context viewer** — inspect the full system prompt and token usage breakdown
 - **Gateway monitor** — health check and one-click restart
+- **OAuth flows** — GitHub Copilot, OpenAI Codex, and OpenRouter can all be configured from the settings modal; OpenRouter stores the returned API key directly into provider settings
 - **Hardened rendering** — chat Markdown escapes raw HTML, file names render through safe DOM nodes, and expired auth returns cleanly to login without reconnect loops
 - **Auto-update** — checks GitHub releases every 12h, notifies in the UI and on all active channels
 - **Responsive** — works on desktop and mobile
+
+### ⚡ Dynamic Model Selection
+
+<p align="center">
+  <img src="assets/model_sel.jpg" width="600" alt="Agent Profile Selector">
+</p>
+
+**Change models per session** — no more single global model, but a flexible choice for every conversation.
+
+- **Multi-Provider Search**: Search through all models from all your configured providers (OpenRouter, GitHub Copilot, Anthropic, etc.) in a single dropdown.
+- **Session-Aware Routing**: Each session remembers its chosen model. You can have a coding session with `Claude 3.5 Sonnet` and a research session with `Gemma 4` simultaneously.
+- **Runtime Switching**: Switch models instantly without restarting the agent; the gateway automatically resolves the correct endpoint based on the selected model.
+- **Dedicated Memory Model**: Configure a separate model and provider specifically for memory consolidation and proactive learning, ensuring high-quality state extraction without affecting your chat budget.
+- **Default-First**: New sessions automatically start with the default model set in settings, ensuring immediate consistency.
 
 ### Agent Profiles
 
@@ -130,6 +146,7 @@ Instead of bloating the system prompt with thousands of messages, ShibaClaw feat
 
 ### Workflow & Reasoning
 
+- **Model-first session routing** — each session stores its own selected model, and ShibaClaw resolves the correct provider backend from that model at runtime
 - **Focused background delegation** — the `spawn` tool can offload a specific task and report back into the main session when done
 - **Advanced reasoning** — supports extended thinking (Anthropic), reasoning effort (OpenAI o-series), and DeepSeek-R1 chains
 
@@ -168,7 +185,7 @@ If you are upgrading from an older release, it is recommended to reset your work
 
 ## Supported Providers
 
-ShibaClaw uses native SDKs (no LiteLLM proxy) and auto-detects the right provider from the model name.
+ShibaClaw uses native SDKs (no LiteLLM proxy) and resolves the active provider from the selected model or canonical provider-prefixed model ID. In the WebUI, all configured provider catalogs are merged into a single searchable list, while each session keeps its own chosen model.
 
 ### API Key
 
@@ -192,14 +209,20 @@ OpenRouter · AiHubMix · SiliconFlow · VolcEngine · BytePlus — auto-detecte
 
 ### Local
 
-Ollama (`http://localhost:11434`) · vLLM · any OpenAI-compatible endpoint.
+Ollama (`http://localhost:11434`) · LM Studio · llama.cpp · vLLM · any OpenAI-compatible endpoint(`http://localhost:1234/v1`)
+
+> **Note for Docker users:** If you run ShibaClaw via Docker Compose, `localhost` points inside the container itself. To connect to a local server running on your host machine (like LM Studio or Ollama on Windows/Mac), use:
+> `http://host.docker.internal:1234/v1` (or `11434` for Ollama). On native Linux, use `http://172.17.0.1:port`.
 
 ### OAuth
 
 | Provider | Flow | Setup |
 |----------|------|-------|
+| OpenRouter | PKCE browser flow, stores returned API key in provider config | WebUI Settings |
 | GitHub Copilot | Device flow, auto token refresh | `shibaclaw provider login github-copilot` or WebUI Settings |
 | OpenAI Codex | PKCE browser flow | `shibaclaw provider login openai-codex` or WebUI Settings |
+
+For OpenRouter, the callback reuses the current WebUI URL and port by default, so `http://localhost:3000` is not a dedicated OAuth-only port. If you expose the WebUI behind a reverse proxy or need a different public callback origin, set `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL=https://your-public-webui-host` before starting the server.
 
 ### 💡 Pro Tip: Cost-Effective & Premium Models
 
@@ -277,37 +300,18 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## [0.1.8] - 2026-05-01
-
-### Fixed
-- **WebUI hardening** — Escaped raw HTML in chat Markdown, stopped unsafe HTML interpolation for file and attachment labels, and cleaned up logout / auth-expiry reconnect behavior.
-- **Memory search validation** — `top_k` is now rejected when zero or negative, and the regression is covered by async tests compatible with Python 3.14.
-
-## [0.1.7] - 2026-04-25
+## [0.2.0] - 2026-05-02
 
 ### Added
-- **Reasoning Effort Fallback** — Automatic retry if a model doesn't support reasoning parameters.
-- **Real-time WebUI Updates** — Instant background task results via WebSockets.
+- **Cross-provider model search** — Chat and settings now aggregate models from every configured provider into one searchable catalog with provider labels.
+- **OpenRouter OAuth in WebUI** — Settings can launch a browser PKCE flow and save the returned OpenRouter API key automatically.
 
 ### Changed
-- **Privacy & UX** — Hidden subagent logs by default and lazy session creation to reduce disk I/O.
-
-## [0.1.6] - 2026-04-25
-
-### Added
-- **API Modularization** — Refactored WebUI backend into focused routers for onboarding, settings, and sessions.
-- **Native WebSocket Transport** — Replaced Socket.IO with a lightweight, native WebSocket handler for real-time communication.
-
-## [0.1.5] - 2026-04-24
-
-## [0.1.4] - 2026-04-24
+- **Per-session model routing** — Each session now keeps its own model, and the gateway resolves the correct provider backend from that choice at runtime.
+- **Model-first settings UX** — The Agent tab now focuses on default model and memory / consolidation model pickers instead of a static provider selector.
 
 ### Fixed
-- **`AttributeError: 'list' object has no attribute 'strip'`** in memory consolidation for multi-part message content. *(Thanks [@itskun](https://github.com/itskun)! — [#18](https://github.com/RikyZ90/ShibaClaw/issues/18))*
-- **`shibaclaw channels status`** now shows channels with missing optional dependencies instead of silently hiding them.
-
-### Added
-- **`SHIBACLAW_DEBUG=true`** env var to enable debug logging without `--verbose`.
+- **Model switching correctness** — Session metadata changes now stay in sync between WebUI and gateway, GitHub Copilot model discovery refreshes credentials correctly, and the model dropdown no longer renders with transparent backgrounds.
 
 → [Full changelog](./CHANGELOG.md)
 

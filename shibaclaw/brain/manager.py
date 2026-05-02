@@ -105,6 +105,15 @@ class PackManager:
         self.sessions_dir = ensure_dir(self.workspace / "sessions")
         self.legacy_sessions_dir = get_legacy_sessions_dir()
         self._cache: dict[str, Session] = {}
+        self._cache_mtime_ns: dict[str, int | None] = {}
+
+    def _get_session_mtime_ns(self, key: str) -> int | None:
+        """Return the current mtime for a session file, if it exists."""
+        path = self._get_session_path(key)
+        try:
+            return path.stat().st_mtime_ns
+        except FileNotFoundError:
+            return None
 
     def _get_session_path(self, key: str) -> Path:
         """Get the file path for a session."""
@@ -114,13 +123,26 @@ class PackManager:
     def get_or_create(self, key: str) -> Session:
         """Get an existing session or create a new one."""
         if key in self._cache:
-            return self._cache[key]
+            cached_mtime = self._cache_mtime_ns.get(key)
+            current_mtime = self._get_session_mtime_ns(key)
+            if current_mtime == cached_mtime:
+                return self._cache[key]
+
+            session = self._load(key)
+            if session is not None:
+                self._cache[key] = session
+                self._cache_mtime_ns[key] = current_mtime
+                return session
+
+            self._cache.pop(key, None)
+            self._cache_mtime_ns.pop(key, None)
 
         session = self._load(key)
         if session is None:
             session = Session(key=key)
 
         self._cache[key] = session
+        self._cache_mtime_ns[key] = self._get_session_mtime_ns(key)
         return session
 
     def _load(self, key: str) -> Session | None:
@@ -197,12 +219,14 @@ class PackManager:
                     f.write(json.dumps(msg, ensure_ascii=False) + "\n")
 
             self._cache[session.key] = session
+            self._cache_mtime_ns[session.key] = self._get_session_mtime_ns(session.key)
         except Exception:
             logger.exception("Failed to save session {}", session.key)
 
     def invalidate(self, key: str) -> None:
         """Remove a session from the in-memory cache."""
         self._cache.pop(key, None)
+        self._cache_mtime_ns.pop(key, None)
 
     def list_sessions(self) -> list[dict[str, Any]]:
         """List all sessions with metadata."""

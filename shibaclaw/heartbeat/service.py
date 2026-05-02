@@ -58,7 +58,7 @@ class HeartbeatService:
     def __init__(
         self,
         workspace: Path,
-        provider: Thinker,
+        provider: Thinker | None,
         model: str,
         on_execute: Callable[..., Coroutine[Any, Any, str]] | None = None,
         on_notify: Callable[..., Coroutine[Any, Any, None]] | None = None,
@@ -87,6 +87,27 @@ class HeartbeatService:
         self._last_action: str | None = None
         self._last_run_ms: int | None = None
         self._last_error: str | None = None
+
+    async def reconfigure(self, hb_cfg: Any, new_provider: Any, model: str) -> None:
+        """Hot-reload heartbeat configuration without restarting the gateway process."""
+        self.provider = new_provider
+        self.model = model
+        self.session_key = hb_cfg.session_key
+        self.targets = hb_cfg.targets or {}
+        self.profile_id = hb_cfg.profile_id
+
+        schedule_changed = (
+            hb_cfg.interval_s != self.interval_s or hb_cfg.enabled != self.enabled
+        )
+        if schedule_changed:
+            self.stop()
+            self.interval_s = hb_cfg.interval_s
+            self.enabled = hb_cfg.enabled
+            if self.enabled:
+                await self.start()
+            else:
+                logger.info("Heartbeat disabled via reconfigure")
+        logger.info("HeartbeatService reconfigured (enabled={}, interval={}s)", self.enabled, self.interval_s)
 
     @property
     def heartbeat_file(self) -> Path:

@@ -104,6 +104,16 @@ class Thinker(ABC):
         self.generation: GenerationSettings = GenerationSettings()
 
     @staticmethod
+    def _strip_provider_prefix(model: str | None, provider_name: str | None) -> str | None:
+        """Strip an explicit leading provider prefix from a model identifier."""
+        if not model or not provider_name or "/" not in model:
+            return model
+        prefix, rest = model.split("/", 1)
+        if prefix.lower().replace("-", "_") == provider_name.lower().replace("-", "_"):
+            return rest
+        return model
+
+    @staticmethod
     def _sanitize_empty_content(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Sanitize message content: fix empty blocks, strip internal _meta fields."""
         result: list[dict[str, Any]] = []
@@ -192,6 +202,14 @@ class Thinker(ABC):
             LLMResponse with content and/or tool calls.
         """
         pass
+
+    async def get_available_models(self) -> list[dict[str, str]]:
+        """Fetch available models from the provider.
+        
+        Returns:
+            list[dict[str, str]]: A list of models, each dict containing at least an 'id' key.
+        """
+        return []
 
     async def chat_streaming(
         self,

@@ -131,6 +131,7 @@ from .routers.oauth import (  # noqa: E402, F401
     api_oauth_code,
     api_oauth_job,
     api_oauth_login,
+    api_oauth_openrouter_callback,
     api_oauth_providers,
 )
 from .routers.onboard import (  # noqa: E402, F401
@@ -152,7 +153,7 @@ from .routers.sessions import (  # noqa: E402, F401
     api_sessions_list,
     api_sessions_patch,
 )
-from .routers.settings import api_settings_get, api_settings_post  # noqa: E402, F401
+from .routers.settings import api_settings_get, api_settings_post, api_models_get  # noqa: E402, F401
 from .routers.skills import (  # noqa: E402, F401
     api_skills_delete,
     api_skills_import,

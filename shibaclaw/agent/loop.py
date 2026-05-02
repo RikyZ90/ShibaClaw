@@ -11,7 +11,7 @@ import time
 import weakref
 from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
 from loguru import logger
 
@@ -47,18 +47,19 @@ class ShibaBrain:
     def __init__(
         self,
         bus: MessageBus,
-        provider: Thinker,
+        provider: Thinker | None,
         workspace: Path,
+        config: Any | None = None,
         model: str | None = None,
         max_iterations: int = 10,
         context_window_tokens: int = 4000,
-        web_search_config: dict[str, Any] | None = None,
+        web_search_config: WebSearchConfig | None = None,
         web_proxy: str | None = None,
-        exec_config: dict[str, Any] | None = None,
+        exec_config: ExecToolConfig | None = None,
         cron_service: Any | None = None,
         restrict_to_workspace: bool = True,
         session_manager: PackManager | None = None,
-        mcp_servers: dict[str, dict] | None = None,
+        mcp_servers: dict[str, Any] | None = None,
         channels_config: Any | None = None,
         learning_enabled: bool = True,
         learning_interval: int = 10,
@@ -71,6 +72,7 @@ class ShibaBrain:
         self.channels_config = channels_config
         self.provider = provider
         self.workspace = workspace
+        self.config = config
         self.model = model or (provider.get_default_model() if provider else "unknown")
         self.max_iterations = max_iterations
         self.context_window_tokens = context_window_tokens
@@ -105,9 +107,10 @@ class ShibaBrain:
         self._session_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
             weakref.WeakValueDictionary()
         )
+        self._provider_cache: dict[str, Thinker] = {}
         self.memory_consolidator = PackMemory(
             workspace=workspace,
-            provider=provider,
+            provider=cast(Thinker, provider),
             model=self.model,
             sessions=self.sessions,
             context_window_tokens=context_window_tokens,
@@ -139,6 +142,100 @@ class ShibaBrain:
             if enabled:
                 names.append(name)
         return names
+
+    async def reconfigure(self, new_cfg: Any, new_provider: Any) -> None:
+        """Hot-reload agent configuration without restarting the gateway process.
+
+        Updates provider, model, and all tool/config references in-place.
+        MCP connections are closed and will reconnect lazily on next use if servers changed.
+        """
+        self.provider = new_provider
+        self.config = new_cfg
+        self.model = new_cfg.agents.defaults.model or (
+            new_provider.get_default_model() if new_provider else self.model
+        )
+        self.max_iterations = new_cfg.agents.defaults.max_tool_iterations
+        self.context_window_tokens = new_cfg.agents.defaults.context_window_tokens
+        self.restrict_to_workspace = new_cfg.tools.restrict_to_workspace
+        self.web_proxy = new_cfg.tools.web.proxy
+        self.web_search_config = new_cfg.tools.web.search
+        self.exec_config = new_cfg.tools.exec
+        self.channels_config = new_cfg.channels
+        self._available_channels = self._extract_enabled_channels()
+        self._provider_cache.clear()
+
+        # Re-register tools so changes to exec/web/restrict settings take effect
+        self.tools = SkillVault()
+        self._register_default_tools()
+
+        # MCP: if servers changed, drop connections and explicitly reconnect
+        new_mcp = new_cfg.tools.mcp_servers or {}
+        if new_mcp != self._mcp_servers:
+            try:
+                await self.close_mcp()
+            except Exception:
+                pass
+            self._mcp_servers = new_mcp
+            self._mcp_connected = False
+            self._mcp_connecting = False
+            
+            # Eagerly reconnect to verify configuration and show logs immediately
+            self._schedule_background(self._connect_mcp())
+
+        # Update memory consolidator provider/model
+        self.memory_consolidator.provider = new_provider
+        self.memory_consolidator.model = self.model
+        self.memory_consolidator.learning_enabled = new_cfg.agents.defaults.learning_enabled
+        self.memory_consolidator.learning_interval = new_cfg.agents.defaults.learning_interval
+
+        # Update subagent manager
+        self.subagents.reconfigure(new_cfg, new_provider)
+
+        logger.info("ShibaBrain reconfigured (model={})", self.model)
+
+    def _resolve_provider_for_model(self, model: str | None) -> Thinker | None:
+        """Return the provider instance that should serve the requested model."""
+        if not self.config:
+            return self.provider
+
+        requested_model = model or self.model
+        if requested_model == self.model:
+            return self.provider
+
+        try:
+            temp_cfg = self.config.model_copy(deep=True)
+            temp_cfg.agents.defaults.provider = "auto"
+            requested_provider_name = temp_cfg.get_provider_name(requested_model)
+        except Exception:
+            return self.provider
+
+        if not requested_provider_name:
+            return self.provider
+
+        cached_provider = self._provider_cache.get(requested_provider_name)
+        if cached_provider:
+            return cached_provider
+
+        try:
+            from shibaclaw.cli.base import _make_provider
+
+            temp_cfg = self.config.model_copy(deep=True)
+            temp_cfg.agents.defaults.provider = "auto"
+            temp_cfg.agents.defaults.model = requested_model
+            resolved_provider = _make_provider(temp_cfg, exit_on_error=False)
+        except Exception as exc:
+            logger.error(
+                "Failed to build provider {} for model {}: {}",
+                requested_provider_name,
+                requested_model,
+                exc,
+            )
+            return self.provider
+
+        if resolved_provider:
+            self._provider_cache[requested_provider_name] = resolved_provider
+            return resolved_provider
+        return self.provider
 
     def _register_default_tools(self) -> None:
         """Register the default set of tools."""
@@ -253,6 +350,7 @@ class ShibaBrain:
         chat_id: str | None = None,
         skill_names: list[str] | None = None,
         profile_id: str | None = None,
+        model: str | None = None,
     ) -> tuple[str | None, list[str], list[dict]]:
         """Run the agent iteration loop.
 
@@ -272,6 +370,11 @@ class ShibaBrain:
             memory_max_prompt_tokens=self.memory_consolidator.memory_max_prompt_tokens,
             profile_id=profile_id,
         )
+        active_model = model or self.model
+        active_provider = self._resolve_provider_for_model(active_model)
+
+        if not active_provider:
+            return "No provider is configured for the selected model.", tools_used, messages
 
         # Tool definitions don't change mid-loop; compute once.
         tool_defs = self.tools.get_definitions()
@@ -300,11 +403,11 @@ class ShibaBrain:
                 "content": static_prompt + "\n\n---\n\n" + live_block,
             }
 
-            response = await self.provider.chat_with_retry_streaming(
+            response = await active_provider.chat_with_retry_streaming(
                 messages=messages,
                 on_token=on_response_token,
                 tools=tool_defs,
-                model=self.model,
+                model=active_model,
             )
 
             if response.has_tool_calls:
@@ -700,6 +803,7 @@ class ShibaBrain:
             channel=msg.channel,
             chat_id=msg.chat_id,
             profile_id=profile_id,
+            model=session.metadata.get("model") or None,
         )
 
         if final_content is None:

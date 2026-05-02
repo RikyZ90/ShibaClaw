@@ -25,7 +25,7 @@ class SubagentManager:
 
     def __init__(
         self,
-        provider: Thinker,
+        provider: Thinker | None,
         workspace: Path,
         bus: MessageBus,
         model: str | None = None,
@@ -46,6 +46,19 @@ class SubagentManager:
         self.restrict_to_workspace = restrict_to_workspace
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
         self._session_tasks: dict[str, set[str]] = {}  # session_key -> {task_id, ...}
+
+    def reconfigure(self, new_cfg: "Any", new_provider: "Any") -> None:
+        """Update provider and tool configuration in-place."""
+        from shibaclaw.config.schema import ExecToolConfig, WebSearchConfig
+
+        self.provider = new_provider
+        self.model = new_cfg.agents.defaults.model or (
+            new_provider.get_default_model() if new_provider else self.model
+        )
+        self.web_search_config = new_cfg.tools.web.search or WebSearchConfig()
+        self.web_proxy = new_cfg.tools.web.proxy
+        self.exec_config = new_cfg.tools.exec or ExecToolConfig()
+        self.restrict_to_workspace = new_cfg.tools.restrict_to_workspace
 
     async def spawn(
         self,

@@ -28,6 +28,8 @@ class ChannelManager:
         self.bus = bus
         self.channels: dict[str, BaseChannel] = {}
         self._dispatch_task: asyncio.Task | None = None
+        self._channel_tasks: dict[str, asyncio.Task] = {}
+        self._stop_event: asyncio.Event | None = None
 
         self._init_channels()
 
@@ -83,19 +85,21 @@ class ChannelManager:
         """Start all channels and the outbound dispatcher."""
         if not self.channels:
             logger.debug("No channels enabled")
+            self._stop_event = asyncio.Event()
+            await self._stop_event.wait()
             return
 
         # Start outbound dispatcher
         self._dispatch_task = asyncio.create_task(self._dispatch_outbound())
 
-        # Start channels
-        tasks = []
+        # Start channels as individually tracked tasks
+        self._stop_event = asyncio.Event()
         for name, channel in self.channels.items():
             logger.debug("Starting {} channel...", name)
-            tasks.append(asyncio.create_task(self._start_channel(name, channel)))
+            self._channel_tasks[name] = asyncio.create_task(self._start_channel(name, channel))
 
-        # Wait for all to complete (they should run forever)
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # Wait until stop() or reconfigure() signals shutdown
+        await self._stop_event.wait()
 
     async def start_channels_only(self) -> None:
         """Start inbound channel polling WITHOUT the outbound dispatcher.
@@ -105,18 +109,116 @@ class ChannelManager:
         """
         if not self.channels:
             logger.debug("No channels enabled")
+            self._stop_event = asyncio.Event()
+            await self._stop_event.wait()
             return
 
-        tasks = []
+        self._stop_event = asyncio.Event()
         for name, channel in self.channels.items():
             logger.debug("Starting {} channel (inbound only)...", name)
-            tasks.append(asyncio.create_task(self._start_channel(name, channel)))
+            self._channel_tasks[name] = asyncio.create_task(self._start_channel(name, channel))
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await self._stop_event.wait()
+
+    async def reconfigure(self, new_cfg: "Config") -> None:
+        """Hot-reload channel configuration without restarting the gateway process.
+
+        Channels whose config is unchanged keep running undisturbed.
+        Channels that are new, removed, or have a changed config are stopped/started as needed.
+        """
+        from shibaclaw.integrations.registry import discover_all
+
+        old_channels_dump = {
+            name: (
+                ch.config.model_dump(mode="json") if hasattr(ch.config, "model_dump") else dict(ch.config)
+            )
+            for name, ch in self.channels.items()
+        }
+
+        new_channels_cfg: dict[str, Any] = {}
+        for name in discover_all():
+            section = getattr(new_cfg.channels, name, None)
+            if section is None:
+                continue
+            enabled = (
+                section.get("enabled", False)
+                if isinstance(section, dict)
+                else getattr(section, "enabled", False)
+            )
+            if enabled:
+                new_channels_cfg[name] = section
+
+        # Determine which channels to stop (removed or config changed)
+        to_stop = []
+        for name in list(self.channels.keys()):
+            if name not in new_channels_cfg:
+                to_stop.append(name)
+            else:
+                new_sec = new_channels_cfg[name]
+                new_dump = (
+                    new_sec.model_dump(mode="json") if hasattr(new_sec, "model_dump") else dict(new_sec)
+                )
+                if new_dump != old_channels_dump.get(name):
+                    to_stop.append(name)
+
+        # Stop removed/changed channels
+        for name in to_stop:
+            task = self._channel_tasks.pop(name, None)
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
+            channel = self.channels.pop(name, None)
+            if channel:
+                try:
+                    await channel.stop()
+                except Exception as e:
+                    logger.error("Error stopping {} during reconfigure: {}", name, e)
+            logger.debug("Reconfigure: stopped channel {}", name)
+
+        # Start new/changed channels
+        all_channel_classes = discover_all()
+        for name, section in new_channels_cfg.items():
+            if name in self.channels:
+                # Already running and unchanged — just update audio/providers refs
+                self.channels[name].audio_config = new_cfg.audio
+                self.channels[name]._providers_config = new_cfg.providers
+                continue
+            cls = all_channel_classes.get(name)
+            if cls is None:
+                continue
+            try:
+                channel = cls(section, self.bus)
+                channel.audio_config = new_cfg.audio
+                channel._providers_config = new_cfg.providers
+                self.channels[name] = channel
+                self._channel_tasks[name] = asyncio.create_task(self._start_channel(name, channel))
+                logger.info("Reconfigure: started channel {}", name)
+            except Exception as e:
+                logger.warning("Reconfigure: {} channel not available: {}", name, e)
+
+        # Update shared config fields
+        self.config = new_cfg
+        logger.info("ChannelManager reconfigured (stopped={}, active={})", to_stop, list(self.channels))
 
     async def stop_all(self) -> None:
         """Stop all channels and the dispatcher."""
         logger.debug("Stopping all channels...")
+
+        # Signal start_all() to return
+        if self._stop_event:
+            self._stop_event.set()
+
+        # Cancel individual channel tasks
+        for name, task in list(self._channel_tasks.items()):
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+        self._channel_tasks.clear()
 
         # Stop dispatcher
         if self._dispatch_task:

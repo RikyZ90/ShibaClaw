@@ -67,11 +67,24 @@ class AgentManager:
             self.provider = None
 
     async def reset_agent(self):
-        """Reload local config and signal gateway to pick up changes."""
+        """Reload local config and signal gateway to pick up changes via full restart."""
         self.load_latest_config()
         from shibaclaw.webui.utils import _gateway_request
 
         await _gateway_request("POST", "/restart")
+
+    async def reload_config(self, new_cfg: Any) -> None:
+        """Apply new config in-memory and signal gateway to hot-reload without restarting."""
+        self.config = new_cfg
+        try:
+            from shibaclaw.cli.commands import _make_provider
+
+            self.provider = _make_provider(new_cfg, exit_on_error=False)
+        except Exception:
+            self.provider = None
+        from shibaclaw.webui.utils import _gateway_request
+
+        await _gateway_request("POST", "/reload")
 
     async def archive_via_gateway(self, snapshot: list[dict]):
         """Send session snapshot to the gateway for memory archival."""

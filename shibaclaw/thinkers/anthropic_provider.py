@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from anthropic import AsyncAnthropic
+from loguru import logger
 
 from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
 
@@ -140,6 +141,14 @@ class AnthropicThinker(Thinker):
                 )
         return anthropic_tools
 
+    async def get_available_models(self) -> list[dict[str, str]]:
+        try:
+            res = await self._client.models.list()
+            return [{"id": m.id, "name": m.display_name or m.id} for m in res.data]
+        except Exception as e:
+            logger.error("Failed to fetch models from Anthropic: {}", e)
+            return []
+
     async def chat(
         self,
         messages: list[dict[str, Any]],
@@ -151,7 +160,7 @@ class AnthropicThinker(Thinker):
         tool_choice: str | dict[str, Any] | None = None,
     ) -> LLMResponse:
 
-        model = model or self.default_model
+        model = self._strip_provider_prefix(model or self.default_model, "anthropic")
         system_prompt, anthropic_messages = self._convert_messages(messages)
 
         kwargs: dict[str, Any] = {
@@ -220,7 +229,7 @@ class AnthropicThinker(Thinker):
         tool_choice: str | dict[str, Any] | None = None,
     ) -> LLMResponse:
         """Stream Anthropic response, calling on_token for each text delta."""
-        model = model or self.default_model
+        model = self._strip_provider_prefix(model or self.default_model, "anthropic")
         system_prompt, anthropic_messages = self._convert_messages(messages)
 
         kwargs: dict[str, Any] = {

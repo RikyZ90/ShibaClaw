@@ -1,21 +1,244 @@
-"""OAuth device flow helpers for the WebUI (GitHub Copilot & OpenAI Codex)."""
+"""OAuth helpers for the WebUI (GitHub Copilot, OpenRouter, and OpenAI Codex)."""
 
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import json
 import os
+import secrets
 import urllib.parse
 import urllib.request
 
 import httpx
-from starlette.responses import JSONResponse
+from starlette.requests import Request
+from starlette.responses import HTMLResponse, JSONResponse
 
 from .auth import get_auth_token
 
 GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
 GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+OPENROUTER_AUTHORIZE_URL = "https://openrouter.ai/auth"
+OPENROUTER_KEY_EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys"
+OPENROUTER_CALLBACK_PATH = "/api/oauth/openrouter/callback"
+OPENROUTER_CALLBACK_BASE_URL_ENV = "SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL"
+OPENROUTER_TIMEOUT_SECONDS = 300
+
+
+def _oauth_result_page(success: bool, message: str) -> str:
+    title = "Login Successful" if success else "Login Failed"
+    accent = "#4ade80" if success else "#f87171"
+    return f"""
+    <html>
+      <body style="background:#0d0d0d;color:#f0f0f0;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+        <div style="max-width:520px;text-align:center;padding:24px;">
+          <h2 style="margin:0 0 12px 0;color:{accent};">{title}</h2>
+          <p style="margin:0;color:#a0a0a0;line-height:1.6;">{message}</p>
+          <script>setTimeout(() => window.close(), 4000)</script>
+        </div>
+      </body>
+    </html>
+    """
+
+
+def _base64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _openrouter_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    headers = {
+        "X-Title": "ShibaClaw",
+        "HTTP-Referer": "https://github.com/RikyZ90/ShibaClaw",
+    }
+    if extra:
+        headers.update(extra)
+    return headers
+
+
+def _resolve_openrouter_callback_base_url(request: Request) -> str:
+    candidate = os.environ.get(OPENROUTER_CALLBACK_BASE_URL_ENV, "").strip()
+    if not candidate:
+        candidate = str(request.base_url)
+
+    parsed = urllib.parse.urlsplit(candidate)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError(
+            f"{OPENROUTER_CALLBACK_BASE_URL_ENV} must be an absolute http(s) URL"
+        )
+
+    hostname = parsed.hostname or ""
+    if hostname in ("127.0.0.1", "::1"):
+        port = f":{parsed.port}" if parsed.port else ""
+        parsed = urllib.parse.urlsplit(f"{parsed.scheme}://localhost{port}{parsed.path}")
+
+    path = parsed.path.rstrip("/")
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+
+def _expire_openrouter_job(job_id: str, jobs: dict) -> None:
+    job = jobs.get(job_id)
+    if not job or job.get("status") != "awaiting_redirect":
+        return
+    job["status"] = "error"
+    job["logs"].append("❌ Timed out waiting for the OpenRouter browser callback")
+    asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+
+
+def _cancel_openrouter_timeout(job: dict) -> None:
+    timeout_handle = job.pop("_openrouter_timeout", None)
+    if timeout_handle is not None:
+        timeout_handle.cancel()
+
+
+async def _exchange_openrouter_code_for_key(code: str, code_verifier: str) -> str:
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        response = await client.post(
+            OPENROUTER_KEY_EXCHANGE_URL,
+            headers=_openrouter_headers({"Content-Type": "application/json"}),
+            json={
+                "code": code,
+                "code_verifier": code_verifier,
+                "code_challenge_method": "S256",
+            },
+        )
+
+    if not response.is_success:
+        body = response.text.strip()
+        raise RuntimeError(
+            f"OpenRouter auth exchange failed ({response.status_code}): {body[:200]}"
+        )
+
+    payload = response.json()
+    api_key = payload.get("key")
+    if not api_key:
+        raise RuntimeError("OpenRouter auth exchange succeeded but returned no API key")
+    return api_key
+
+
+async def _persist_openrouter_api_key(api_key: str) -> None:
+    from shibaclaw.config.loader import save_config
+
+    from .agent_manager import agent_manager
+
+    if not agent_manager.config:
+        agent_manager.load_latest_config()
+    if not agent_manager.config:
+        raise RuntimeError("No config loaded")
+
+    cfg = agent_manager.config.model_copy(deep=True)
+    cfg.providers.openrouter.api_key = api_key
+    save_config(cfg)
+    await agent_manager.reload_config(cfg)
+
+
+async def start_openrouter_oauth(request: Request, job_id: str, jobs: dict):
+    """Start the OpenRouter PKCE OAuth flow using the WebUI server as callback target."""
+    code_verifier = _base64url_encode(secrets.token_bytes(32))
+    code_challenge = _base64url_encode(hashlib.sha256(code_verifier.encode("utf-8")).digest())
+    flow_token = secrets.token_urlsafe(16)
+    callback_base_url = _resolve_openrouter_callback_base_url(request)
+    callback_url = (
+        callback_base_url
+        + f"{OPENROUTER_CALLBACK_PATH}/{urllib.parse.quote(job_id)}/{urllib.parse.quote(flow_token)}"
+    )
+    auth_url = (
+        f"{OPENROUTER_AUTHORIZE_URL}?callback_url={urllib.parse.quote(callback_url, safe='')}&"
+        f"code_challenge={urllib.parse.quote(code_challenge)}&code_challenge_method=S256"
+    )
+
+    jobs[job_id]["status"] = "awaiting_redirect"
+    jobs[job_id]["auth_url"] = auth_url
+    jobs[job_id]["callback_url"] = callback_url
+    jobs[job_id]["_openrouter_verifier"] = code_verifier
+    jobs[job_id]["_openrouter_flow"] = flow_token
+    jobs[job_id]["_openrouter_timeout"] = asyncio.get_event_loop().call_later(
+        OPENROUTER_TIMEOUT_SECONDS, _expire_openrouter_job, job_id, jobs
+    )
+    jobs[job_id]["logs"].append("Open the URL below to sign in with OpenRouter.")
+    jobs[job_id]["logs"].append(auth_url)
+    jobs[job_id]["logs"].append("Waiting for browser callback...")
+
+    return JSONResponse(
+        {
+            "job_id": job_id,
+            "provider": "openrouter",
+            "status": "awaiting_redirect",
+            "auth_url": auth_url,
+            "callback_url": callback_url,
+        }
+    )
+
+
+async def finish_openrouter_oauth(request: Request, jobs: dict):
+    """Handle the OpenRouter browser callback, exchange the code, and save the API key."""
+    job_id = request.path_params.get("job_id", "") or request.query_params.get("job_id", "")
+    flow_token = request.path_params.get("flow_token", "") or request.query_params.get("flow", "")
+    code = request.query_params.get("code", "")
+    error = request.query_params.get("error", "")
+    error_message = request.query_params.get("message", "") or request.query_params.get("error_description", "")
+
+    job = jobs.get(job_id)
+    if not job:
+        return HTMLResponse(
+            _oauth_result_page(False, "This OpenRouter login flow is no longer active."),
+            status_code=404,
+        )
+
+    _cancel_openrouter_timeout(job)
+
+    if flow_token != job.get("_openrouter_flow"):
+        job["status"] = "error"
+        job["logs"].append("❌ OpenRouter callback rejected: flow token mismatch")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return HTMLResponse(
+            _oauth_result_page(False, "The OpenRouter callback did not match the active login flow."),
+            status_code=400,
+        )
+
+    if error:
+        message = error_message or error
+        job["status"] = "error"
+        job["logs"].append(f"❌ OpenRouter authorization error: {message}")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return HTMLResponse(_oauth_result_page(False, message), status_code=400)
+
+    if not code:
+        job["status"] = "error"
+        job["logs"].append("❌ OpenRouter callback missing authorization code")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return HTMLResponse(
+            _oauth_result_page(False, "OpenRouter did not return an authorization code."),
+            status_code=400,
+        )
+
+    code_verifier = job.get("_openrouter_verifier", "")
+    if not code_verifier:
+        job["status"] = "error"
+        job["logs"].append("❌ OpenRouter callback arrived without an active PKCE verifier")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return HTMLResponse(
+            _oauth_result_page(False, "The OpenRouter login flow is missing PKCE state."),
+            status_code=400,
+        )
+
+    try:
+        job["logs"].append("Exchanging authorization code for OpenRouter API key...")
+        api_key = await _exchange_openrouter_code_for_key(code, code_verifier)
+        await _persist_openrouter_api_key(api_key)
+        job["status"] = "done"
+        job["logs"].append("✅ OpenRouter API key saved to config")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return HTMLResponse(
+            _oauth_result_page(True, "OpenRouter was connected successfully. You can close this window and return to ShibaClaw."),
+            status_code=200,
+        )
+    except Exception as exc:
+        job["status"] = "error"
+        job["logs"].append(f"❌ OpenRouter login error: {exc}")
+        asyncio.get_event_loop().call_later(300, lambda: jobs.pop(job_id, None))
+        return HTMLResponse(_oauth_result_page(False, str(exc)), status_code=400)
 
 
 async def start_github_oauth(job_id: str, jobs: dict):

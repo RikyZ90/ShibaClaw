@@ -71,6 +71,7 @@ class OpenAIThinker(Thinker):
     ):
         super().__init__(api_key, api_base)
         self.default_model = default_model
+        self._provider_name = provider_name
 
         # Detect gateway or specific config if present
         self._gateway = find_gateway(provider_name, api_key, api_base)
@@ -111,6 +112,8 @@ class OpenAIThinker(Thinker):
 
     def _resolve_model(self, model: str) -> str:
         """Resolve model name by applying strip prefixes if needed."""
+        model = self._strip_provider_prefix(model, getattr(self, "_provider_name", None))
+
         # For pure OpenAI client, we don't need litellm_prefix logic!
         # Instead, we just need to respect `strip_model_prefix` if the gateway demands bare models.
         if self._gateway and self._gateway.strip_model_prefix:
@@ -135,6 +138,14 @@ class OpenAIThinker(Thinker):
                 if pattern in model_lower:
                     kwargs.update(overrides)
                     return
+
+    async def get_available_models(self) -> list[dict[str, str]]:
+        try:
+            res = await self._client.models.list()
+            return [{"id": m.id, "name": getattr(m, "name", m.id)} for m in res.data]
+        except Exception as e:
+            logger.error("Failed to fetch models from OpenAI/compatible provider: {}", e)
+            return []
 
     async def chat(
         self,

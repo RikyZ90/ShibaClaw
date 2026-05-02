@@ -242,6 +242,22 @@
                     </div>
                     <div class="input-footer">
                         <div class="input-actions">
+                            <!-- Model Selector Dropdown -->
+                            <div class="model-selector-wrapper" id="model-selector-wrapper" style="position: relative;">
+                                <button class="btn-input-action" id="btn-model-select" title="Change active model for session">
+                                    <span class="material-icons-round">auto_awesome</span>
+                                    <span id="active-model-display">Default</span>
+                                    <span class="material-icons-round" style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
+                                </button>
+                                <div class="model-dropdown-menu" id="model-dropdown-menu" style="display: none;">
+                                    <input type="text" id="model-search-input" placeholder="Search models..." autocomplete="off">
+                                    <div class="model-list" id="model-list-container">
+                                        <!-- Models injected here -->
+                                        <div style="padding: 10px; color: var(--text-2); text-align: center; font-size: 0.85rem;">Loading models...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <button class="btn-input-action" id="btn-context" onclick="openModal('context-modal')" title="View context">
                                 <span class="material-icons-round">psychology</span>
                                 <span>Context</span>
@@ -282,6 +298,9 @@
                     <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
                         <span class="material-icons-round">key</span><span>Provider</span>
                     </button>
+                    <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
+                        <span class="material-icons-round">lock_open</span><span>OAuth</span>
+                    </button>
                     <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
                         <span class="material-icons-round">mic</span><span>Voice &amp; Audio</span>
                     </button>
@@ -300,9 +319,6 @@
                     <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
                         <span class="material-icons-round">menu_book</span><span>Skills</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
-                        <span class="material-icons-round">lock_open</span><span>OAuth</span>
-                    </button>
                     <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
                         <span class="material-icons-round">system_update</span><span>Update</span>
                     </button>
@@ -318,8 +334,42 @@
                     <!-- Tab: Agent -->
                     <div class="settings-panel" id="panel-agent">
                         <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
-                        <div class="field-row"><label>Model</label><input type="text" id="s-agent-model" class="form-input" placeholder="e.g. claude-3-5-sonnet" list="model-history-list" autocomplete="off"><datalist id="model-history-list"></datalist></div>
-                        <div class="field-row"><label>Provider</label><select id="s-agent-provider" class="form-input"></select></div>
+                        <div class="field-row field-row-stack">
+                            <label>Default Model For New Sessions</label>
+                            <p class="settings-note">Used when you create a new chat. Provider routing is inferred automatically from the selected model.</p>
+                            <div class="settings-model-picker" id="s-agent-model-picker">
+                                <input type="hidden" id="s-agent-model">
+                                <button type="button" class="form-input settings-model-button" id="s-agent-model-button">
+                                    <span class="settings-model-button-main">
+                                        <span class="settings-model-button-label" id="s-agent-model-display">Select a default model</span>
+                                        <span class="settings-model-button-provider" id="s-agent-model-provider">New sessions</span>
+                                    </span>
+                                    <span class="material-icons-round">arrow_drop_down</span>
+                                </button>
+                                <div class="settings-model-menu" id="s-agent-model-menu" style="display:none">
+                                    <input type="text" id="s-agent-model-search" class="form-input settings-model-search" placeholder="Search models..." autocomplete="off">
+                                    <div class="settings-model-list" id="s-agent-model-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field-row field-row-stack">
+                            <label>Memory / Consolidation Model</label>
+                            <p class="settings-note">Optional. Leave it empty to reuse the default session model for proactive learning and long-term memory consolidation.</p>
+                            <div class="settings-model-picker" id="s-agent-consolidationModel-picker">
+                                <input type="hidden" id="s-agent-consolidationModel">
+                                <button type="button" class="form-input settings-model-button" id="s-agent-consolidationModel-button">
+                                    <span class="settings-model-button-main">
+                                        <span class="settings-model-button-label" id="s-agent-consolidationModel-display">Same as default session model</span>
+                                        <span class="settings-model-button-provider settings-model-button-provider-placeholder" id="s-agent-consolidationModel-provider">Inherits</span>
+                                    </span>
+                                    <span class="material-icons-round">arrow_drop_down</span>
+                                </button>
+                                <div class="settings-model-menu" id="s-agent-consolidationModel-menu" style="display:none">
+                                    <input type="text" id="s-agent-consolidationModel-search" class="form-input settings-model-search" placeholder="Search models..." autocomplete="off">
+                                    <div class="settings-model-list" id="s-agent-consolidationModel-list"></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens" class="form-input" value="8192"></div>
                         <div class="field-row"><label>Context Window Tokens</label><input type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
                         <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
@@ -332,6 +382,14 @@
                     <!-- Tab: Providers (dynamic collapsible) -->
                     <div class="settings-panel" id="panel-providers" style="display:none">
                         <div id="providers-list"></div>
+                    </div>
+
+
+                    <!-- Tab: OAuth Providers -->
+                    <div class="settings-panel" id="panel-oauth" style="display:none">
+                        <div class="oauth-list" id="oauth-list">
+                            <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
+                        </div>
                     </div>
 
 
@@ -440,13 +498,6 @@
                                 </button>
                             </div>
                             <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
-                        </div>
-                    </div>
-
-                    <!-- Tab: OAuth Providers -->
-                    <div class="settings-panel" id="panel-oauth" style="display:none">
-                        <div class="oauth-list" id="oauth-list">
-                            <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
                         </div>
                     </div>
 

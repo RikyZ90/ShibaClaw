@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
     from shibaclaw.thinkers.registry import ProviderSpec
@@ -71,6 +71,23 @@ class ProviderConfig(Base):
     api_key: str = ""
     api_base: str | None = None
     extra_headers: dict[str, str] | None = None  # Custom headers (e.g. APP-Code for AiHubMix)
+
+    @field_validator("api_key", mode="before")
+    @classmethod
+    def _normalize_api_key(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        if value is None:
+            return ""
+        return value
+
+    @field_validator("api_base", mode="before")
+    @classmethod
+    def _normalize_api_base(cls, value: object) -> object:
+        if isinstance(value, str):
+            cleaned = value.strip()
+            return cleaned or None
+        return value
 
 
 class ProvidersConfig(Base):
@@ -326,4 +343,4 @@ class Config(BaseSettings):
                 return spec.default_api_base
         return None
 
-    model_config = ConfigDict(env_prefix="SHIBACLAW_", env_nested_delimiter="__")
+    model_config = SettingsConfigDict(env_prefix="SHIBACLAW_", env_nested_delimiter="__")

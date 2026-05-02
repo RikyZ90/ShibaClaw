@@ -11,6 +11,7 @@ const DEFAULT_AVATAR = "/static/shibaclaw_logo.webp";
 const state = {
     socket: null,
     sessionId: null,
+    activeModelId: "",
     profileId: "default",
     profileAvatar: DEFAULT_AVATAR,
     _initialConnectDone: false,

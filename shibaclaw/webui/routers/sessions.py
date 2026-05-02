@@ -37,6 +37,7 @@ async def api_sessions_get(request: Request):
             "messages": session.messages,
             "nickname": session.metadata.get("nickname"),
             "profile_id": session.metadata.get("profile_id", "default"),
+            "model": session.metadata.get("model", ""),
         }
     )
 
@@ -54,7 +55,9 @@ async def api_sessions_patch(request: Request):
         session.metadata["nickname"] = data["nickname"]
     if "profile_id" in data:
         session.metadata["profile_id"] = data["profile_id"]
-    if "nickname" in data or "profile_id" in data:
+    if "model" in data:
+        session.metadata["model"] = data["model"]
+    if "nickname" in data or "profile_id" in data or "model" in data:
         pm.save(session)
         return JSONResponse(
             {"status": "updated", "profile_id": session.metadata.get("profile_id", "default")}

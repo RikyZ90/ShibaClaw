@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 import json_repair
+from loguru import logger
 from openai import AsyncOpenAI
 
 from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
@@ -28,10 +29,18 @@ class CustomThinker(Thinker):
             **(extra_headers or {}),
         }
         self._client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=api_base,
+            api_key=self.api_key,
+            base_url=self.api_base,
             default_headers=default_headers,
         )
+
+    async def get_available_models(self) -> list[dict[str, str]]:
+        try:
+            res = await self._client.models.list()
+            return [{"id": m.id, "name": getattr(m, "name", m.id)} for m in res.data]
+        except Exception as e:
+            logger.error("Failed to fetch models from custom provider: {}", e)
+            return []
 
     async def chat(
         self,
@@ -43,8 +52,9 @@ class CustomThinker(Thinker):
         reasoning_effort: str | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> LLMResponse:
+        resolved_model = self._strip_provider_prefix(model or self.default_model, "custom") or (model or self.default_model)
         kwargs: dict[str, Any] = {
-            "model": model or self.default_model,
+            "model": resolved_model,
             "messages": self._sanitize_empty_content(messages),
             "max_tokens": max(1, max_tokens),
             "temperature": temperature,

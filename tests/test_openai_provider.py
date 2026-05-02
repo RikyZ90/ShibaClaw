@@ -134,3 +134,26 @@ def test_chat_streaming_preserves_provider_specific_tool_call_fields():
     serialized = response.tool_calls[0].to_openai_tool_call()
     assert serialized["thought_signature"] == "sig-stream"
     assert serialized["function"]["vendor_field"] == "nested-extra"
+
+
+def test_github_copilot_get_available_models_refreshes_session_token():
+    from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
+
+    class FakeModels:
+        async def list(self):
+            return SimpleNamespace(
+                data=[SimpleNamespace(id="gpt-4.1", name="GPT-4.1")],
+            )
+
+    thinker = object.__new__(GithubCopilotThinker)
+    thinker._client = SimpleNamespace(api_key="dummy", models=FakeModels())
+
+    async def fake_get_session_token():
+        return "copilot-session-token"
+
+    thinker._get_session_token = fake_get_session_token
+
+    models = asyncio.run(GithubCopilotThinker.get_available_models(thinker))
+
+    assert thinker._client.api_key == "copilot-session-token"
+    assert models == [{"id": "gpt-4.1", "name": "GPT-4.1"}]

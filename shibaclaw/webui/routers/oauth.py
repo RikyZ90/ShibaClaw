@@ -10,7 +10,11 @@ from shibaclaw.webui.agent_manager import agent_manager
 
 
 async def api_oauth_providers(request: Request):
+    if not agent_manager.config:
+        agent_manager.load_latest_config()
+
     providers = [
+        {"name": "openrouter", "label": "OpenRouter"},
         {"name": "github_copilot", "label": "GitHub Copilot"},
         {"name": "openai_codex", "label": "OpenAI Codex"},
     ]
@@ -18,7 +22,18 @@ async def api_oauth_providers(request: Request):
     for p in providers:
         status, msg = "not_configured", ""
         try:
-            if p["name"] == "openai_codex":
+            if p["name"] == "openrouter":
+                cfg = agent_manager.config
+                has_config_key = bool(cfg and cfg.providers.openrouter.api_key)
+                has_env = bool(os.environ.get("OPENROUTER_API_KEY"))
+                status = "configured" if (has_config_key or has_env) else "not_configured"
+                if has_config_key:
+                    msg = "API key saved in config"
+                elif has_env:
+                    msg = "Using OPENROUTER_API_KEY from environment"
+                else:
+                    msg = "No configured API key"
+            elif p["name"] == "openai_codex":
                 try:
                     from oauth_cli_kit import get_token
 
@@ -55,13 +70,17 @@ async def api_oauth_providers(request: Request):
 async def api_oauth_login(request: Request):
     data = await request.json()
     provider = data.get("provider", "").replace("-", "_")
-    if provider not in ("github_copilot", "openai_codex"):
+    if provider not in ("openrouter", "github_copilot", "openai_codex"):
         return JSONResponse({"error": "Unknown provider"}, status_code=404)
 
     job_id = str(uuid.uuid4())[:8]
     jobs = agent_manager.oauth_jobs
     jobs[job_id] = {"provider": provider, "status": "running", "logs": []}
 
+    if provider == "openrouter":
+        from ..oauth_github import start_openrouter_oauth
+
+        return await start_openrouter_oauth(request, job_id, jobs)
     if provider == "github_copilot":
         from ..oauth_github import start_github_oauth
 
@@ -70,6 +89,12 @@ async def api_oauth_login(request: Request):
         from ..oauth_github import start_codex_oauth
 
         return await start_codex_oauth(job_id, jobs)
+
+
+async def api_oauth_openrouter_callback(request: Request):
+    from ..oauth_github import finish_openrouter_oauth
+
+    return await finish_openrouter_oauth(request, agent_manager.oauth_jobs)
 
 
 async def api_oauth_job(request: Request):

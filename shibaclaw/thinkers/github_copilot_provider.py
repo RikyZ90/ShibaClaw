@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 import httpx
+from loguru import logger
 
 from shibaclaw.thinkers.base import LLMResponse
 from shibaclaw.thinkers.openai_provider import OpenAIThinker
@@ -47,9 +48,13 @@ class GithubCopilotThinker(OpenAIThinker):
 
         # Load access token
         home = os.path.expanduser("~")
-        token_path = os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token")
+        token_paths = [
+            os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token"),
+            os.path.join(home, ".shibaclaw", "github_copilot", "access-token"),
+        ]
 
-        if not os.path.exists(token_path):
+        token_path = next((path for path in token_paths if os.path.exists(path)), None)
+        if not token_path:
             raise ValueError(
                 "GitHub Copilot not authenticated. "
                 "Run `docker exec -it shibaclaw-gateway shibaclaw auth provider github_copilot` or use the WebUI to login."
@@ -86,6 +91,16 @@ class GithubCopilotThinker(OpenAIThinker):
                 self._token_expires_at = now + 25 * 60
 
             return self._cached_token or ""
+
+    async def get_available_models(self) -> list[dict[str, str]]:
+        try:
+            session_token = await self._get_session_token()
+            self._client.api_key = session_token
+        except Exception as e:
+            logger.error("Failed to authenticate GitHub Copilot while fetching models: {}", e)
+            return []
+
+        return await super().get_available_models()
 
     async def chat(
         self,

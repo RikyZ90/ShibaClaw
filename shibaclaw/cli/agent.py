@@ -134,6 +134,7 @@ def agent_command(
         bus=bus,
         provider=provider,
         workspace=config_obj.workspace_path,
+        config=config_obj,
         model=config_obj.agents.defaults.model,
         max_iterations=config_obj.agents.defaults.max_tool_iterations,
         context_window_tokens=config_obj.agents.defaults.context_window_tokens,

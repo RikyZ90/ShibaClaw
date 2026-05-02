@@ -506,13 +506,16 @@ async function loadSession(sessionId) {
         const res = await authFetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
         const data = await res.json();
         console.debug("[SHIBA] loadSession:", sessionId, "messages:", data.messages?.length || 0);
-        
+
         setSessionLabel(data.nickname || sessionId);
         state.profileId = data.profile_id || "default";
         if (typeof window.syncProfileSelection === "function") {
             await window.syncProfileSelection(state.profileId);
         }
-        
+        if (typeof updateModelSelectorDisplay === "function") {
+            updateModelSelectorDisplay(data.model || "");
+        }
+
         chatHistory.innerHTML = "";
         state.messageCount = 0;
         Object.values(state.processGroups).forEach(pg => {
@@ -649,6 +652,10 @@ async function loadSession(sessionId) {
                         group.querySelector(".message-content").appendChild(bubble);
                         if (msg.timestamp) addTimestamp(group, msg.timestamp);
                         chatHistory.appendChild(group);
+                    } else if (!hasContent && !hasTc && turnSteps.length > 0) {
+                        renderProcessGroupFromHistory(turnId, turnSteps);
+                        pgCount++;
+                        turnSteps = [];
                     }
 
                 } else if (msg.role === "tool") {
@@ -929,6 +936,7 @@ async function loadOAuthPanel() {
     const list = document.getElementById("oauth-list");
     if (!list) return;
     const providers = [
+        { name: "openrouter", label: "OpenRouter", icon: "route", desc: "Authenticate in the browser and store the returned OpenRouter API key directly in provider settings.", mode: "browser_redirect", cta: "Open OpenRouter" },
         { name: "github_copilot", label: "GitHub Copilot", icon: "code", desc: "Authenticate via GitHub device flow. Uses native OAuth orchestration." },
         { name: "openai_codex", label: "OpenAI Codex", icon: "psychology", desc: "Authenticate via OAuth CLI kit. Requires oauth-cli-kit package." },
     ];
@@ -965,7 +973,7 @@ async function loadOAuthPanel() {
             const badge = document.getElementById("oauth-badge-" + p.name);
             const logsEl = document.getElementById("oauth-logs-" + p.name);
             btn.disabled = true; btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Contacting...';
-            logsEl.style.display = "block"; logsEl.innerHTML = "Requesting device code...\n";
+            logsEl.style.display = "block"; logsEl.innerHTML = p.name === "openrouter" ? "Preparing OpenRouter login...\n" : "Requesting device code...\n";
             const loginBtnHtml = '<span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login';
             try {
                 const resp = await authFetch("/api/oauth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({provider:p.name}) });
@@ -998,6 +1006,25 @@ async function loadOAuthPanel() {
                         `</div>`;
                 }
 
+                if (jd.auth_url && p.mode === "browser_redirect") {
+                    badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
+                    btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                    logsEl.innerHTML =
+                        `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
+                        `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">OpenRouter will return here automatically when the authorization is complete.</div>` +
+                        `<a href="${jd.auth_url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                          `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
+                        `</a>` +
+                        `<div style="margin-top:12px;font-size:11px;color:var(--text-muted)">If no tab opened automatically, use the button above.</div>` +
+                        `<div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
+                          `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
+                        `</div>` +
+                        `</div>`;
+                    try {
+                        window.open(jd.auth_url, "_blank", "noopener,noreferrer");
+                    } catch { /* ignore popup blockers */ }
+                }
+
                 if (jd.job_id) {
                     const poll = setInterval(async () => {
                         try {
@@ -1010,12 +1037,38 @@ async function loadOAuthPanel() {
                                 badge.textContent = "Configured"; badge.className = "acc-badge on";
                                 btn.disabled = false; btn.innerHTML = loginBtnHtml;
                                 logsEl.innerHTML = `<div style="color:#4ade80;font-weight:600;text-align:center;padding:12px">✅ Authentication successful!</div>`;
+                                if (p.name === "openrouter") {
+                                    try {
+                                        const settingsModal = document.getElementById("settings-modal");
+                                        if (settingsModal && settingsModal.classList.contains("active")) {
+                                            const settingsRes = await authFetch("/api/settings");
+                                            const settingsCfg = await settingsRes.json();
+                                            if (!settingsCfg.error) {
+                                                window._shibaConfig = settingsCfg;
+                                                populateSettings(settingsCfg);
+                                                switchSettingsTab("oauth");
+                                            }
+                                        }
+                                    } catch { /* silent */ }
+                                }
                             } else if (j.job.status === "error") {
                                 clearInterval(poll);
                                 badge.textContent = "Error"; badge.className = "acc-badge off";
                                 btn.disabled = false; btn.innerHTML = loginBtnHtml;
                                 const logs = (j.job.logs || []).join("\n");
                                 logsEl.innerHTML = `<div style="color:#f87171;padding:8px;white-space:pre-wrap">${logs}</div>`;
+                            } else if (j.job.status === "awaiting_redirect" && j.job.auth_url && p.mode === "browser_redirect" && !logsEl.querySelector('.oauth-browser-auth-ui')) {
+                                badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
+                                btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                                logsEl.innerHTML =
+                                    `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
+                                    `<a href="${j.job.auth_url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                                      `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
+                                    `</a>` +
+                                    `<div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
+                                      `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
+                                    `</div>` +
+                                    `</div>`;
                             } else if (j.job.status === "awaiting_code" && j.job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
                                 badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
                                 btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
@@ -1124,27 +1177,10 @@ function providerKeyPlaceholder(name) {
 function populateSettings(cfg) {
     lastSettingsConfig = JSON.parse(JSON.stringify(cfg));
     const d = cfg.agents?.defaults || {};
-    const oauthNames = new Set(["github_copilot", "openai_codex"]);
-    const sel = $("s-agent-provider");
-    sel.innerHTML = "";
-    _addProviderOption(sel, "auto", "Auto");
-    for (const [name, pc] of Object.entries(cfg.providers || {})) {
-        if (oauthNames.has(name)) continue;
-        if (pc.apiKey || pc.apiBase) _addProviderOption(sel, name);
-    }
-    const current = d.provider || "auto";
-    _addProviderOption(sel, current);
-    sel.value = current;
-    _populateOAuthProviders(sel, current);
-
     $("s-agent-model").value = d.model || "";
-    const dl = $("model-history-list");
-    dl.innerHTML = "";
-    for (const m of JSON.parse(localStorage.getItem("shibaclaw_model_history") || "[]")) {
-        const opt = document.createElement("option");
-        opt.value = m;
-        dl.appendChild(opt);
-    }
+    $("s-agent-consolidationModel").value = d.consolidationModel || "";
+    setupSettingsModelPickers();
+    void refreshSettingsModelPickers();
     $("s-agent-temp").value = d.temperature ?? 0.1;
     $("s-agent-maxTokens").value = d.maxTokens ?? 8192;
     $("s-agent-ctxTokens").value = d.contextWindowTokens ?? 65536;
@@ -1486,16 +1522,11 @@ window.removeMcpServer = function(btn) {
 };
 
 window.saveSettings = async function() {
-    const modelVal = $("s-agent-model").value.trim();
-    if (modelVal) {
-        const hist = JSON.parse(localStorage.getItem("shibaclaw_model_history") || "[]");
-        const updated = [modelVal, ...hist.filter(m => m !== modelVal)].slice(0, 10);
-        localStorage.setItem("shibaclaw_model_history", JSON.stringify(updated));
-    }
     const patch = {
         agents: { defaults: {
-            provider: $("s-agent-provider").value,
+            provider: "auto",
             model: $("s-agent-model").value,
+            consolidationModel: $("s-agent-consolidationModel").value || null,
             temperature: parseFloat($("s-agent-temp").value),
             maxTokens: parseInt($("s-agent-maxTokens").value),
             contextWindowTokens: parseInt($("s-agent-ctxTokens").value),
@@ -1545,12 +1576,13 @@ window.saveSettings = async function() {
     document.querySelectorAll(".prov-key").forEach(el => {
         const name = el.dataset.prov;
         if (!patch.providers[name]) patch.providers[name] = {};
-        patch.providers[name].apiKey = el.value;
+        patch.providers[name].apiKey = el.value.trim();
     });
     document.querySelectorAll(".prov-base").forEach(el => {
         const name = el.dataset.prov;
         if (!patch.providers[name]) patch.providers[name] = {};
-        patch.providers[name].apiBase = el.value || null;
+        const value = el.value.trim();
+        patch.providers[name].apiBase = value || null;
     });
 
     document.querySelectorAll(".ch-enabled").forEach(el => {
@@ -1590,9 +1622,26 @@ window.saveSettings = async function() {
         closeModal("settings-modal");
         fetchStatus();
 
-        const ok = await shibaDialog("confirm", "Settings Saved", "Restart gateway to apply changes?", { confirmText: "Restart" });
-        if (ok) {
-            authFetch("/api/gateway-restart", { method: "POST" });
+        if (data.restarted) {
+            shibaDialog("alert", "Restart Required", "Gateway is restarting to apply network changes.", { confirmText: "OK" });
+        } else {
+            // Hot-reloaded successfully without restarting
+            let container = document.getElementById("toast-container");
+            if (!container) {
+                container = document.createElement("div");
+                container.id = "toast-container";
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement("div");
+            toast.className = "toast toast-success";
+            toast.innerHTML = `<span class="toast-icon material-icons-round">check_circle</span> Settings saved & hot-reloaded successfully!`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add("visible"); }, 100);
+            setTimeout(() => { 
+                toast.classList.remove("visible"); 
+                toast.classList.add("hiding");
+                setTimeout(() => toast.remove(), 300); 
+            }, 3000);
         }
     } catch(e) {
         shibaDialog("alert", "Error", "Error saving settings: " + e, { confirmText: "Close", danger: true });
@@ -2113,3 +2162,307 @@ window.obSubmit = async function() {
     }
 };
 
+
+/* ── Model Selector (Chat Window) ────────────────────────────────── */
+let _availableModels = [];
+const SETTINGS_MODEL_PICKERS = [
+    {
+        valueId: "s-agent-model",
+        buttonId: "s-agent-model-button",
+        displayId: "s-agent-model-display",
+        providerId: "s-agent-model-provider",
+        menuId: "s-agent-model-menu",
+        searchId: "s-agent-model-search",
+        listId: "s-agent-model-list",
+        emptyLabel: "Select a default model",
+        emptyProvider: "New sessions",
+        emptyChoiceLabel: null,
+        emptyChoiceProvider: null,
+        allowEmpty: false,
+    },
+    {
+        valueId: "s-agent-consolidationModel",
+        buttonId: "s-agent-consolidationModel-button",
+        displayId: "s-agent-consolidationModel-display",
+        providerId: "s-agent-consolidationModel-provider",
+        menuId: "s-agent-consolidationModel-menu",
+        searchId: "s-agent-consolidationModel-search",
+        listId: "s-agent-consolidationModel-list",
+        emptyLabel: "Same as default session model",
+        emptyProvider: "Inherits",
+        emptyChoiceLabel: "Same as default session model",
+        emptyChoiceProvider: "Inherits",
+        allowEmpty: true,
+    },
+];
+let _settingsModelPickersInitialized = false;
+
+async function fetchModels() {
+    try {
+        const res = await authFetch("/api/models");
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || "Failed to fetch models");
+        }
+        if (Array.isArray(data.errors) && data.errors.length) {
+            console.warn("Some providers failed to return models", data.errors);
+        }
+        return data.models || [];
+    } catch(e) {
+        console.error("Failed to fetch models", e);
+        return [];
+    }
+}
+
+async function ensureAvailableModels(listEl = null) {
+    if (_availableModels.length) {
+        return _availableModels;
+    }
+    if (listEl) {
+        listEl.innerHTML = '<div style="padding: 10px; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">Loading models...</div>';
+    }
+    _availableModels = await fetchModels();
+    return _availableModels;
+}
+
+function filterModelsByQuery(query) {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) {
+        return _availableModels.slice();
+    }
+    return _availableModels.filter(m =>
+        (m.name || "").toLowerCase().includes(q)
+        || (m.raw_id || m.id || "").toLowerCase().includes(q)
+        || (m.provider_label || "").toLowerCase().includes(q)
+        || (m.provider || "").toLowerCase().includes(q)
+    );
+}
+
+function findAvailableModel(modelId) {
+    if (!modelId) {
+        return null;
+    }
+    return _availableModels.find(m => m.id === modelId || m.raw_id === modelId) || null;
+}
+
+function createModelListItem(model, currentModelId, onSelect) {
+    const item = document.createElement("div");
+    item.className = "model-item" + (model.id === currentModelId ? " selected" : "");
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "model-item-name";
+    nameEl.textContent = model.name || model.raw_id || model.id || "";
+
+    const providerEl = document.createElement("span");
+    providerEl.className = "model-item-provider";
+    providerEl.textContent = model.provider_label || model.provider || "";
+
+    item.appendChild(nameEl);
+    item.appendChild(providerEl);
+    item.title = [model.raw_id || model.id || "", model.provider_label || model.provider || ""].filter(Boolean).join(" • ");
+    item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onSelect(model);
+    });
+    return item;
+}
+
+function renderModelList(list, models, currentModelId, onSelect, extraItems = []) {
+    list.innerHTML = "";
+    const allItems = [...extraItems, ...models];
+    if (!allItems.length) {
+        list.innerHTML = '<div style="padding: 10px; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No models found</div>';
+        return;
+    }
+    allItems.forEach(model => list.appendChild(createModelListItem(model, currentModelId, onSelect)));
+}
+
+async function updateModelSelectorDisplay(modelId) {
+    const display = document.getElementById("active-model-display");
+    if (!display) return;
+    let resolvedModelId = modelId;
+    if (!resolvedModelId) {
+        try {
+            const cfgRes = await authFetch("/api/settings");
+            const cfg = await cfgRes.json();
+            resolvedModelId = cfg.agents?.defaults?.model || "";
+        } catch(e) {}
+    }
+
+    state.activeModelId = resolvedModelId || "";
+    
+    await ensureAvailableModels();
+    const match = findAvailableModel(resolvedModelId);
+    display.textContent = match ? (match.name || match.raw_id || match.id) : (resolvedModelId || "Default");
+}
+
+function closeSettingsModelMenus(exceptMenu = null) {
+    SETTINGS_MODEL_PICKERS.forEach(cfg => {
+        const menu = document.getElementById(cfg.menuId);
+        if (menu && menu !== exceptMenu) {
+            menu.style.display = "none";
+        }
+    });
+}
+
+async function updateSettingsModelPickerDisplay(config) {
+    const input = document.getElementById(config.valueId);
+    const display = document.getElementById(config.displayId);
+    const provider = document.getElementById(config.providerId);
+    if (!input || !display || !provider) {
+        return;
+    }
+
+    const value = input.value.trim();
+    if (!value && config.allowEmpty) {
+        display.textContent = config.emptyLabel;
+        provider.textContent = config.emptyProvider;
+        provider.classList.add("settings-model-button-provider-placeholder");
+        return;
+    }
+    if (!value) {
+        display.textContent = config.emptyLabel;
+        provider.textContent = config.emptyProvider;
+        provider.classList.add("settings-model-button-provider-placeholder");
+        return;
+    }
+
+    await ensureAvailableModels();
+    const match = findAvailableModel(value);
+    display.textContent = match ? (match.name || match.raw_id || match.id) : value;
+    provider.textContent = match ? (match.provider_label || match.provider || "") : "Custom";
+    provider.classList.toggle("settings-model-button-provider-placeholder", !match);
+}
+
+async function refreshSettingsModelPickers() {
+    for (const config of SETTINGS_MODEL_PICKERS) {
+        await updateSettingsModelPickerDisplay(config);
+    }
+}
+
+function renderSettingsModelPickerOptions(config) {
+    const list = document.getElementById(config.listId);
+    const search = document.getElementById(config.searchId);
+    const input = document.getElementById(config.valueId);
+    if (!list || !search || !input) {
+        return;
+    }
+
+    const models = filterModelsByQuery(search.value);
+    const extraItems = [];
+    if (config.allowEmpty) {
+        extraItems.push({
+            id: "",
+            raw_id: "",
+            name: config.emptyChoiceLabel,
+            provider_label: config.emptyChoiceProvider,
+            provider: "",
+        });
+    }
+
+    renderModelList(
+        list,
+        models,
+        input.value.trim(),
+        (model) => {
+            input.value = model.id || "";
+            void updateSettingsModelPickerDisplay(config);
+            const menu = document.getElementById(config.menuId);
+            if (menu) {
+                menu.style.display = "none";
+            }
+        },
+        extraItems,
+    );
+}
+
+function setupSettingsModelPickers() {
+    if (_settingsModelPickersInitialized) {
+        return;
+    }
+
+    SETTINGS_MODEL_PICKERS.forEach(config => {
+        const button = document.getElementById(config.buttonId);
+        const menu = document.getElementById(config.menuId);
+        const search = document.getElementById(config.searchId);
+        const list = document.getElementById(config.listId);
+        if (!button || !menu || !search || !list) {
+            return;
+        }
+
+        button.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const isOpen = menu.style.display === "flex";
+            if (isOpen) {
+                menu.style.display = "none";
+                return;
+            }
+
+            closeSettingsModelMenus(menu);
+            menu.style.display = "flex";
+            await ensureAvailableModels(list);
+            search.value = "";
+            renderSettingsModelPickerOptions(config);
+            search.focus();
+        });
+
+        menu.addEventListener("click", (e) => e.stopPropagation());
+        search.addEventListener("input", () => renderSettingsModelPickerOptions(config));
+    });
+
+    document.addEventListener("click", () => closeSettingsModelMenus());
+    _settingsModelPickersInitialized = true;
+}
+
+function setupModelSelector() {
+    const btn = document.getElementById("btn-model-select");
+    const menu = document.getElementById("model-dropdown-menu");
+    const search = document.getElementById("model-search-input");
+    const list = document.getElementById("model-list-container");
+    if (!btn || !menu) return;
+
+    btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const isHidden = menu.style.display === "none";
+        if (isHidden) {
+            menu.style.display = "flex";
+            await ensureAvailableModels(list);
+            renderModels(_availableModels);
+            search.value = "";
+            search.focus();
+        } else {
+            menu.style.display = "none";
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+            menu.style.display = "none";
+        }
+    });
+
+    search.addEventListener("input", () => {
+        const filtered = filterModelsByQuery(search.value);
+        renderModels(filtered);
+    });
+
+    function renderModels(models) {
+        const currentModelId = state.activeModelId || "";
+        renderModelList(list, models, currentModelId, async (model) => {
+            state.activeModelId = model.id;
+            updateModelSelectorDisplay(model.id);
+            menu.style.display = "none";
+            if (state.sessionId) {
+                await authFetch("/api/sessions/" + encodeURIComponent(state.sessionId), {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: model.id })
+                });
+            }
+        });
+    }
+}
+document.addEventListener("DOMContentLoaded", () => {
+    setupSettingsModelPickers();
+    setTimeout(setupModelSelector, 500);
+});
