@@ -4,10 +4,25 @@ All notable changes to this project are documented in this file.
 
 ## [0.2.0] - 2026-05-02
 
+### ⚡ Dynamic Model Selection
+
+<p align="center">
+  <img src="assets/model_sel.jpg" width="600" alt="Agent Profile Selector">
+</p>
+
+**Change models per session** — no more single global model, but a flexible choice for every conversation.
+
+- **Multi-Provider Search**: Search through all models from all your configured providers (OpenRouter, GitHub Copilot, Anthropic, etc.) in a single dropdown.
+- **Session-Aware Routing**: Each session remembers its chosen model. You can have a coding session with `Claude 3.5 Sonnet` and a research session with `Gemma 4` simultaneously.
+- **Runtime Switching**: Switch models instantly without restarting the agent; the gateway automatically resolves the correct endpoint based on the selected model.
+- **Dedicated Memory Model**: Configure a separate model and provider specifically for memory consolidation and proactive learning, ensuring high-quality state extraction without affecting your chat budget.
+- **Default-First**: New sessions automatically start with the default model set in settings, ensuring immediate consistency.
+
 ### Added
 - **Cross-provider model catalog** — The WebUI now aggregates models from all configured providers into a single searchable catalog. Chat and settings both consume normalized model entries with canonical IDs and provider labels, so switching models no longer depends on a single provider-scoped dropdown.
 - **Per-session model selection** — Every session can now store and use its own model independently. The chat footer includes a searchable model picker, making it practical to keep different sessions on different providers or reasoning tiers at the same time.
 - **OpenRouter OAuth in the WebUI** — Added a browser PKCE flow for OpenRouter directly in Settings. On successful login, the returned API key is saved into the provider configuration automatically.
+
 
 ### Changed
 - **Dynamic Settings Hot-Reload** — Saving settings in the WebUI no longer restarts the gateway process. The agent, channels, and heartbeat service are updated in-place via a new `POST /reload` endpoint on the gateway. Provider, model, tool configurations, MCP servers (lazy reconnect), and individual channels all hot-swap without interrupting active WebSocket connections or ongoing tasks. A full restart is still triggered automatically only when `gateway.host`, `gateway.port`, or `gateway.ws_port` change.
