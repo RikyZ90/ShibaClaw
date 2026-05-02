@@ -1,5 +1,5 @@
-from shibaclaw.cli.base import _make_provider
 from shibaclaw.agent.loop import ShibaBrain
+from shibaclaw.cli.base import _make_provider
 from shibaclaw.config.schema import Config
 
 
