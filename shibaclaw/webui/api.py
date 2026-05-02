@@ -153,7 +153,11 @@ from .routers.sessions import (  # noqa: E402, F401
     api_sessions_list,
     api_sessions_patch,
 )
-from .routers.settings import api_settings_get, api_settings_post, api_models_get  # noqa: E402, F401
+from .routers.settings import (  # noqa: E402, F401
+    api_models_get,
+    api_settings_get,
+    api_settings_post,
+)
 from .routers.skills import (  # noqa: E402, F401
     api_skills_delete,
     api_skills_import,
