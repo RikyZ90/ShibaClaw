@@ -33,7 +33,7 @@ Security isn’t an add-on — it's the foundation: CVE auditing at install time
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/docker-compose.yml -o docker-compose.yml
-docker compose up -d          # pulls from Docker Hub automatically
+docker compose up -d     # pulls from Docker Hub
 docker exec -it shibaclaw-gateway shibaclaw print-token
 ```
 
