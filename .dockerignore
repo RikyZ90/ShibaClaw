@@ -26,6 +26,7 @@ uv.lock
 # Local data & research
 .shibaclaw/
 ROADMAP.md
+docker-compose.build.yml
 
 # Node dependencies
 node_modules/

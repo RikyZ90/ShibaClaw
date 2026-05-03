@@ -393,14 +393,13 @@
 /* Compact layout for GitHub footer button */
 .btn-github {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 10px 12px;
+    justify-content: center;
 }
 .btn-github .github-top {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
 }
 .btn-github .github-label {
