@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
   id-token: write
 
 jobs:
@@ -34,13 +33,12 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-  # ── GHCR (Docker) ──────────────────────────────────────────────────────────
+  # ── Docker Hub ──────────────────────────────────────────────────────────────
   docker:
-    name: Push Docker image to GHCR
+    name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -50,18 +48,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract version from tag
         id: meta
         run: |
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -70,8 +66,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ steps.meta.outputs.owner }}/shibaclaw:latest
-            ghcr.io/${{ steps.meta.outputs.owner }}/shibaclaw:${{ steps.meta.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/shibaclaw:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/shibaclaw:${{ steps.meta.outputs.version }}
 
   release:
     name: Create GitHub Release

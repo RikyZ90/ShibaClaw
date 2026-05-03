@@ -5,7 +5,7 @@ x-common-env: &common-env
   # SHIBACLAW_DEBUG: "true"  # Uncomment to enable debug logging
   
 x-common-config: &common-config
-  image: ghcr.io/rikyz90/shibaclaw:latest
+  image: rikyz90/shibaclaw:latest
   deploy:
       resources:
         limits:
