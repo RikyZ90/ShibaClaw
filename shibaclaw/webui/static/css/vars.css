@@ -99,7 +99,8 @@ html, body {
 /* ── App Container ─────────────────────────────────────────── */
 .app-container {
     display: flex;
-    height: 100vh;
+    height: 100vh;   /* fallback browsers without dvh */
+    height: 100dvh;  /* dynamic: esclude toolbar mobile */
     width: 100%;
     overflow: hidden;
 }

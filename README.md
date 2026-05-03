@@ -32,8 +32,8 @@ Security isn't glue code — it's the foundation: CVE auditing at install time, 
 ### Docker
 
 ```bash
-git clone https://github.com/RikyZ90/ShibaClaw.git && cd ShibaClaw
-docker compose up -d --build
+curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/docker-compose.yml -o docker-compose.yml
+docker compose up -d
 docker exec -it shibaclaw-gateway shibaclaw print-token
 ```
 
