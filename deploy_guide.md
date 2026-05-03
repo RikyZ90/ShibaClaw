@@ -10,10 +10,12 @@ This method ensures you have all dependencies ready to go in a contained environ
 - **Gateway (Brain)**: ~256MB RAM minimum.
 - **WebUI (Proxy)**: ~128MB RAM minimum.
 
-1. **Launch**: Run the following command in the project root:
+The image is published automatically to GHCR on every release — no need to clone the repo or build locally.
+
+1. **Launch**: Download the compose file and start the services:
    ```bash
-   git clone https://github.com/RikyZ90/ShibaClaw.git .
-   docker compose up --build        # start gateway + webUI
+   curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/docker-compose.yml -o docker-compose.yml
+   docker compose up -d             # pulls the image and starts gateway + webUI
    ```
 2. **Onboard**: Configure your LLM provider:
    ```bash
@@ -26,6 +28,15 @@ This method ensures you have all dependencies ready to go in a contained environ
    ```
 
 > **To update**: just run `docker compose pull && docker compose up -d` — no rebuild needed.
+
+### 🛠️ Dev / Build from source
+
+Use this if you want to hack on ShibaClaw or test unreleased changes:
+
+```bash
+git clone https://github.com/RikyZ90/ShibaClaw.git && cd ShibaClaw
+docker compose up -d --build       # builds the image locally
+```
 
 ---
 
