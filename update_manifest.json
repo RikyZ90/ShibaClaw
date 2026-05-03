@@ -1,56 +1,26 @@
 {
-    "version": "0.2.0",
-    "release_notes": "Added full support for LM Studio / local custom models, fixed broken reasoning-only empty bubbles in WebUI, implemented automatic api_base URL sanitization, and documented Docker networking for local servers.",
+    "version": "0.2.1",
+    "release_notes": "Dependency alignment and WebUI sidebar polish: fixed version conflicts across Python packages and improved sidebar layout and styling for better visual consistency.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added the v0.1.8 release notes entry."
-        },
-        {
-            "path": "README.md",
-            "overwrite": true,
-            "note": "Updated the release banner and WebUI release summary for v0.1.8."
+            "note": "Added the v0.2.1 release notes entry."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped the package version to 0.1.8."
+            "note": "Bumped the package version to 0.2.1 and aligned dependency versions."
         },
         {
-            "path": "shibaclaw/agent/tools/memory_search.py",
+            "path": "shibaclaw/webui/static/css/style.css",
             "overwrite": true,
-            "note": "Validated top_k at runtime to reject zero or negative values."
-        },
-        {
-            "path": "tests/test_memory.py",
-            "overwrite": true,
-            "note": "Converted memory_search integration coverage to async tests compatible with Python 3.14."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/utils.js",
-            "overwrite": true,
-            "note": "Escaped raw HTML in Markdown rendering and added safe DOM helpers for attachments/icons."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/realtime.js",
-            "overwrite": true,
-            "note": "Stopped reconnect loops after logout or auth expiry and reject pending requests on disconnect."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/api_socket.js",
-            "overwrite": true,
-            "note": "Made socket bootstrap idempotent and reused safe attachment rendering helpers."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/files.js",
-            "overwrite": true,
-            "note": "Rebuilt file browser rows, breadcrumb, and staging UI with safe DOM APIs."
+            "note": "Polished sidebar layout and styling: fixed alignment, overflow, and visual consistency."
         },
         {
             "path": "shibaclaw/webui/static/js/ui_panels.js",
             "overwrite": true,
-            "note": "Made automation/onboarding setup idempotent and sanitized shared dialog messaging."
+            "note": "Improved sidebar navigation panel behavior and theming integration."
         }
     ]
 }

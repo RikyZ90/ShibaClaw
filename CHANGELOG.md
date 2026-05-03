@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.1] - 2026-05-03
+
+### Fixed
+- **Dependencies aligned** — Updated and pinned several Python dependencies to resolve version conflicts and improve installation reliability across environments.
+- **WebUI sidebar polish** — Cleaned up sidebar layout and styling for better visual consistency; fixed minor alignment and overflow issues in the settings and navigation panels.
+
+### Changed
+- **Dependency maintenance** — Bumped `openai`, `httpx`, `pydantic`, and related packages to their latest compatible minor versions to pick up bug fixes and stability improvements.
+
 ## [0.2.0] - 2026-05-02
 
 ### ⚡ Dynamic Model Selection
