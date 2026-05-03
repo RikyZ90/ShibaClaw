@@ -1,6 +1,6 @@
 /* ShibaClaw Modular CSS */
 @import url('css/vars.css');
-@import url('css/sidebar.css');
+@import url('css/sidebar.css?v=6');
 @import url('css/chat.css');
 @import url('css/responsive.css');
 @import url('css/panels.css');
