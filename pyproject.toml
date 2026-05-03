@@ -3,7 +3,7 @@ name = "shibaclaw"
 version = "0.2.1"
 description = "A lightweight personal AI assistant framework"
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "shibaclaw contributors"}
@@ -44,7 +44,7 @@ dependencies = [
     "starlette>=0.45.0,<1.0.0",
     "aiofiles>=24.0.0,<25.0.0",
     "pip-audit>=2.7.0,<3.0.0",
-    "python-multipart>=0.0.26",
+    "python-multipart>=0.0.27",
     "pyyaml>=6.0,<7.0",
 ]
 
