@@ -11,7 +11,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
-from shibaclaw.thinkers.registry import ProviderSpec, find_by_model, find_gateway
+from shibaclaw.thinkers.registry import ProviderSpec, find_by_model, find_by_name, find_gateway
 
 _ALNUM = string.ascii_letters + string.digits
 
@@ -78,7 +78,16 @@ class OpenAIThinker(Thinker):
 
         # Determine actual key and base URL
         resolved_key = self._resolve_api_key(api_key, self._gateway, default_model)
-        resolved_base = api_base or (self._gateway.default_api_base if self._gateway else None)
+
+        # If not a gateway, fallback to the provider's standard base URL (if known)
+        if not self._gateway and provider_name:
+            spec = find_by_name(provider_name)
+        elif not self._gateway:
+            spec = find_by_model(default_model)
+        else:
+            spec = self._gateway
+
+        resolved_base = api_base or (spec.default_api_base if spec else None)
 
         # Stable session affinity for custom backends
         default_headers = {
