@@ -3,7 +3,6 @@
 .docs
 .env
 *.pyc
-dist/
 build/
 *.egg-info/
 *.egg
