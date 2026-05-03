@@ -2,9 +2,13 @@
 # STAGE 1: Builder
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
+# Evita che uv crei un virtualenv nel percorso predefinito, 
+# installa invece i pacchetti nel sistema o in una cartella specifica
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
 WORKDIR /app
 
-# Install build dependencies without upgrade to speed up the build stage
+# Install build dependencies
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -13,27 +17,23 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libolm-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
-
-# Use cache mount for uv to speed up dependency installation
+# Copia solo i file di dipendenze per sfruttare la cache di Docker
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r pyproject.toml
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=README.md,target=README.md \
+    uv sync --no-install-project --no-dev --extra telegram
 
+# Copia il resto del codice e installa il progetto
 COPY . .
-# Fix directory naming if necessary
-RUN if [ -d "ShibaClaw" ]; then mv ShibaClaw shibaclaw; fi
-
-# Install the package and audit tools
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --reinstall --no-cache ".[telegram]" && \
-    uv pip install --system pip-audit
+    uv sync --no-dev --extra telegram
 
 # STAGE 2: Final Image
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# Install runtime dependencies and perform security upgrade
+# Install runtime dependencies
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -41,17 +41,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip to fix known CVEs (e.g., CVE-2026-3219)
-RUN uv pip install --system --upgrade pip
+# Copia l'ambiente virtuale creato da uv dallo stage builder
+COPY --from=builder /app/.venv /app/.venv
 
-# Copy installed packages and application from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app /app
+# Assicura che l'app usi il virtualenv di uv
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Remnant or specific tool path
-ENV PATH="/opt/tools/bin:$PATH"
-
+# Copia l'applicazione e i file necessari
+COPY . .
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
