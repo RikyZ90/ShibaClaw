@@ -5,9 +5,7 @@ x-common-env: &common-env
   # SHIBACLAW_DEBUG: "true"  # Uncomment to enable debug logging
   
 x-common-config: &common-config
-  build:
-    context: .
-    dockerfile: Dockerfile
+  image: ghcr.io/rikyz90/shibaclaw:latest
   deploy:
       resources:
         limits:

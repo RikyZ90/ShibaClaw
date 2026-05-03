@@ -32,6 +32,18 @@
         width: 100%;
         min-height: 44px;
     }
+
+    /* iOS: previene auto-zoom su input < 16px */
+    #chat-input {
+        font-size: 16px;
+    }
+
+    /* Safe area per home bar (iPhone X+) */
+    .chat-input-wrapper,
+    .input-wrapper,
+    .input-area {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
 }
 
 @media (max-width: 480px) {
