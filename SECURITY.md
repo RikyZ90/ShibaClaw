@@ -64,3 +64,10 @@ ShibaClaw implements defense-in-depth across multiple layers:
 ### Rate Limiting
 
 - The `MessageBus` supports optional per-sender rate limiting (`rate_limit_per_minute`). Disabled by default — enable it in config if exposed to untrusted users.
+
+### Container Security
+
+- **Base Image**: Uses `debian:bookworm-slim` via the Astral `uv` image.
+- **Auto-Upgrade**: The `Dockerfile` includes an explicit `apt-get upgrade -y` step during build to ensure the latest security patches for system libraries (like `openssl` and `glibc`) are applied, regardless of the base image's refresh cycle.
+- **Scanner Integration**: Official images are scanned on Docker Hub. High and Critical vulnerabilities in system packages are addressed via build-time upgrades or base image updates.
+
