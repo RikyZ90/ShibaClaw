@@ -4,13 +4,13 @@ Setting up ShibaClaw is as easy as fetching a ball! Choose your preferred method
 
 ---
 
-## 🐋 Option 1: Docker (The Easiest Way)
+### 🐋 Option 1: Docker (Recommended)
 
-This method ensures you have all dependencies ready to go in a contained environment. ShibaClaw uses a **distributed architecture** to keep memory usage low:
+This method ensures you have all dependencies ready to go in a contained environment using the pre-built image. ShibaClaw uses a **distributed architecture** to keep memory usage low:
 - **Gateway (Brain)**: ~256MB RAM minimum.
 - **WebUI (Proxy)**: ~128MB RAM minimum.
 
-The image is published automatically to GHCR on every release — no need to clone the repo or build locally.
+The image is published automatically to Docker Hub on every release — no need to clone the repo or build locally.
 
 1. **Launch**: Download the compose file and start the services:
    ```bash
@@ -29,13 +29,13 @@ The image is published automatically to GHCR on every release — no need to clo
 
 > **To update**: just run `docker compose pull && docker compose up -d` — no rebuild needed.
 
-### 🛠️ Dev / Build from source
+### 🛠️ manual Docker run (No Compose)
 
-Use this if you want to hack on ShibaClaw or test unreleased changes:
+If you prefer to run the image directly:
 
 ```bash
-git clone https://github.com/RikyZ90/ShibaClaw.git && cd ShibaClaw
-docker compose up -d --build       # builds the image locally
+docker pull rikyz90/shibaclaw:latest
+docker run -d --name shibaclaw -p 3000:3000 -v shibaclaw_data:/root/.shibaclaw rikyz90/shibaclaw:latest
 ```
 
 ---
