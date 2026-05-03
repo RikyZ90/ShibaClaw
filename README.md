@@ -20,8 +20,8 @@ See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
-ShibaClaw is a **security-first AI agent** for your terminal, your browser, and across 11 channels.
-Security isn't glue code — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
+ShibaClaw is a **security-first AI agent** for your terminal, your browser and 11 other channels.
+Security isn’t an add-on — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
 
 **22 providers · 11 chat channels · built-in WebUI · 3-level proactive memory · cron · heartbeat · skills · MCP**
 
