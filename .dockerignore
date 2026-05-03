@@ -25,6 +25,7 @@ uv.lock
 
 # Local data & research
 .shibaclaw/
+ROADMAP.md
 
 # Node dependencies
 node_modules/
