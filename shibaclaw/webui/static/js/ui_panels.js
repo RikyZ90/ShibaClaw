@@ -1,12 +1,14 @@
 // ── Channel icons & labels for grouping ─────────────────────
 const CHANNEL_META = {
-    webui:    { icon: "language",        label: "Web UI" },
-    telegram: { icon: "send",            label: "Telegram" },
-    discord:  { icon: "forum",           label: "Discord" },
-    slack:    { icon: "tag",             label: "Slack" },
-    api:      { icon: "api",             label: "API" },
-    cli:      { icon: "terminal",        label: "CLI" },
-    _default: { icon: "chat_bubble",     label: "Other" }
+    webui:     { icon: "language",        label: "Web UI" },
+    telegram:  { icon: "send",            label: "Telegram" },
+    discord:   { icon: "forum",           label: "Discord" },
+    slack:     { icon: "tag",             label: "Slack" },
+    api:       { icon: "api",             label: "API" },
+    cli:       { icon: "terminal",        label: "CLI" },
+    heartbeat: { icon: "favorite",        label: "Heartbeat" },
+    cron:      { icon: "schedule",        label: "Cron" },
+    _default:  { icon: "chat_bubble",     label: "Other" }
 };
 const RECENT_COUNT = 4;
 
@@ -21,6 +23,137 @@ function _channelInfo(ch) {
     return CHANNEL_META[ch] || { icon: CHANNEL_META._default.icon, label: ch.charAt(0).toUpperCase() + ch.slice(1) };
 }
 
+function _sessionKeyTail(key) {
+    const rawKey = key || "";
+    const idx = rawKey.indexOf(":");
+    return idx >= 0 ? rawKey.substring(idx + 1) : rawKey;
+}
+
+function _escapeRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function _cleanSessionTitle(name, sessionKey) {
+    const rawName = (name || "").trim();
+    const rawKey = (sessionKey || "").trim();
+    const fallback = _sessionKeyTail(rawKey).trim();
+
+    if (!rawName) return fallback;
+    if (!rawKey.includes(":")) return rawName;
+
+    const channel = _extractChannel(rawKey);
+    const channelLabel = _channelInfo(channel).label;
+    const prefixes = Array.from(new Set([
+        channel,
+        channelLabel,
+        channelLabel.replace(/\s+/g, "")
+    ].filter(Boolean)));
+
+    let cleaned = rawName;
+    prefixes.forEach((prefix) => {
+        cleaned = cleaned.replace(new RegExp(`^${_escapeRegExp(prefix)}(?:_|:)\\s*`, "i"), "");
+    });
+    cleaned = cleaned.trim();
+
+    return cleaned || fallback || rawName;
+}
+
+function _getSessionChannelLabel(sessionKey) {
+    const rawKey = (sessionKey || "").trim();
+    if (!rawKey.includes(":")) return "";
+    return _channelInfo(_extractChannel(rawKey)).label;
+}
+
+function _appendHistoryAttachment(container, file) {
+    if (!file) return;
+    if (file.type && file.type.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.src = file.url;
+        img.onclick = () => window.open(file.url, "_blank");
+        container.appendChild(img);
+        return;
+    }
+
+    const link = buildFileAttachmentLink(file, () => {
+        downloadAttachment(file.url, file.name || "attachment");
+    });
+    container.appendChild(link);
+}
+
+function _isCurrentSessionLoad(loadSeq, sessionId) {
+    return state.sessionLoadSeq === loadSeq && state.sessionId === sessionId;
+}
+
+function _clearOAuthPoll(scope) {
+    const polls = state.oauthPolls || (state.oauthPolls = {});
+    if (!polls[scope]) return;
+    clearInterval(polls[scope]);
+    delete polls[scope];
+}
+
+function _clearOAuthPollsByPrefix(prefix) {
+    const polls = state.oauthPolls || {};
+    Object.keys(polls).forEach((scope) => {
+        if (!prefix || scope.startsWith(prefix)) {
+            _clearOAuthPoll(scope);
+        }
+    });
+}
+
+function _clearAllOAuthPolls() {
+    _clearOAuthPollsByPrefix("");
+}
+
+window.clearAllOAuthPolls = _clearAllOAuthPolls;
+
+function _startOAuthJobPoll(scope, jobId, onUpdate) {
+    _clearOAuthPoll(scope);
+    const polls = state.oauthPolls || (state.oauthPolls = {});
+    let inFlight = false;
+    polls[scope] = setInterval(async () => {
+        if (inFlight) return;
+        inFlight = true;
+        try {
+            const r2 = await authFetch("/api/oauth/job/" + jobId);
+            const payload = await r2.json();
+            if (!payload.job) return;
+            if (await onUpdate(payload.job)) {
+                _clearOAuthPoll(scope);
+            }
+        } catch (_) {
+            // Keep polling until the flow finishes or is explicitly cleaned up.
+        } finally {
+            inFlight = false;
+        }
+    }, 2000);
+}
+
+async function _loadContextModalContent() {
+    const contentEl = $("context-content");
+    if (!contentEl) return;
+
+    if (!state.sessionId) {
+        contentEl.innerHTML = "<div class='loader'>No active session</div>";
+        return;
+    }
+
+    const sessionId = state.sessionId;
+    contentEl.innerHTML = `<div class="loader">Loading context...</div>`;
+    try {
+        const res = await authFetch(`/api/context?session_id=${encodeURIComponent(sessionId)}`);
+        const data = await res.json();
+        if (!state.contextModalOpen || state.sessionId !== sessionId) return;
+        const t = data.tokens || {};
+        const tokenCard = buildTokenCard(t);
+        contentEl.innerHTML = tokenCard + renderMarkdown(data.context);
+        enhanceCodeBlocks(contentEl);
+        updateTokenBadge(t);
+    } catch (e) {
+        if (!state.contextModalOpen || state.sessionId !== sessionId) return;
+        contentEl.innerHTML = "Error loading context.";
+    }
+}
+
 function _buildSessionEl(sess) {
     const el = document.createElement("div");
     el.className = "history-item";
@@ -30,13 +163,23 @@ function _buildSessionEl(sess) {
     const date = new Date(sess.created_at).toLocaleDateString();
     const time = new Date(sess.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     const name = sess.nickname || sess.key;
+    const displayName = _cleanSessionTitle(name, sess.key);
+    const channel = _extractChannel(sess.key);
+    const channelLabel = _channelInfo(channel).label;
     const safeKey = encodeURIComponent(sess.key);
-    const safeName = escapeHtml(name);
+    const safeName = escapeHtml(displayName);
+    const safeChannelLabel = escapeHtml(channelLabel);
+    
+    // Skip empty channels but otherwise render badged tag
+    const channelTag = channelLabel ? `<span class="ob-badge badge-channel-${escapeHtml(channel)} session-channel-tag">${safeChannelLabel}</span>` : "";
 
     el.innerHTML = `
         <div class="session-info">
             <div class="session-name">${safeName}</div>
-            <div class="session-meta">${date} ${time}</div>
+            <div class="session-subline">
+                ${channelTag}
+                <div class="session-meta">${date} ${time}</div>
+            </div>
         </div>
         <div class="session-actions">
             <button class="btn-session-menu">
@@ -59,7 +202,7 @@ function _buildSessionEl(sess) {
     const infoEl = el.querySelector(".session-info");
     infoEl.addEventListener("click", () => selectSession(sess.key, infoEl));
     el.querySelector(".btn-session-menu").addEventListener("click", (e) => toggleSessionMenu(e, e.currentTarget, sess.key));
-    el.querySelector(".rename-action").addEventListener("click", () => renameSessionPrompt(sess.key, name));
+    el.querySelector(".rename-action").addEventListener("click", () => renameSessionPrompt(sess.key, displayName));
     el.querySelector(".archive-action").addEventListener("click", () => archiveSession(sess.key));
     el.querySelector(".delete-action").addEventListener("click", () => deleteSession(sess.key));
 
@@ -350,14 +493,6 @@ async function autoTitleSession() {
         .trim();
     if (title.length > 45) title = title.slice(0, 42) + "...";
 
-    const idx = state.sessionId.indexOf(":");
-    if (idx > 0) {
-        let ch = state.sessionId.substring(0, idx);
-        if (ch.toLowerCase() === "telegram") ch = "Telegram";
-        else if (ch.toLowerCase() === "webui") ch = "webui";
-        title = ch + "_" + title;
-    }
-
     try {
         const res = await authFetch(`/api/sessions/${encodeURIComponent(state.sessionId)}`);
         if (!res.ok) return;
@@ -485,6 +620,8 @@ async function loadSession(sessionId) {
         hideTypingBubble();
         hideThinking();
     }
+    const loadSeq = (state.sessionLoadSeq || 0) + 1;
+    state.sessionLoadSeq = loadSeq;
     state.sessionId = sessionId;
     localStorage.setItem("shiba_session_id", sessionId);
 
@@ -505,13 +642,16 @@ async function loadSession(sessionId) {
     try {
         const res = await authFetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
         const data = await res.json();
+        if (!_isCurrentSessionLoad(loadSeq, sessionId)) return;
         console.debug("[SHIBA] loadSession:", sessionId, "messages:", data.messages?.length || 0);
 
         setSessionLabel(data.nickname || sessionId);
         state.profileId = data.profile_id || "default";
         if (typeof window.syncProfileSelection === "function") {
             await window.syncProfileSelection(state.profileId);
+            if (!_isCurrentSessionLoad(loadSeq, sessionId)) return;
         }
+        if (!_isCurrentSessionLoad(loadSeq, sessionId)) return;
         if (typeof updateModelSelectorDisplay === "function") {
             updateModelSelectorDisplay(data.model || "");
         }
@@ -534,8 +674,10 @@ async function loadSession(sessionId) {
             let pgCount = 0;
 
             let lastUserContent = null;
+            const fragment = document.createDocumentFragment();
 
             for (const msg of messages) {
+                if (!_isCurrentSessionLoad(loadSeq, sessionId)) return;
                 if (!msg || !msg.role) continue;
                 if (msg.role === "user") {
                     if (msg.metadata && msg.metadata.hidden) continue;
@@ -544,12 +686,12 @@ async function loadSession(sessionId) {
 
                     const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
                     if (turnSteps.length > 0 && hasExeSteps) {
-                        renderProcessGroupFromHistory(turnId, turnSteps);
+                        renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                         pgCount++;
                     }
                     turnSteps = [];
                     turnId++;
-                    const group = createMessageGroup("user");
+                    const group = createMessageGroup("user", fragment);
                     const bubble = document.createElement("div");
                     bubble.className = "message-bubble";
                     
@@ -560,30 +702,12 @@ async function loadSession(sessionId) {
 
                     const attachments = msg.metadata?.attachments || [];
                     attachments.forEach(file => {
-                        if (file.type && file.type.startsWith("image/")) {
-                            const img = document.createElement("img");
-                            img.src = file.url;
-                            img.onclick = () => window.open(file.url, "_blank");
-                            bubble.appendChild(img);
-                        } else {
-                            const link = document.createElement("a");
-                            link.href = "#";
-                            link.className = "file-attachment-link";
-                            link.innerHTML = `
-                                <span class="material-icons-round">insert_drive_file</span>
-                                <span>${file.name || "attachment"}</span>
-                            `;
-                            link.addEventListener("click", (e) => {
-                                e.preventDefault();
-                                downloadAttachment(file.url, file.name);
-                            });
-                            bubble.appendChild(link);
-                        }
+                        _appendHistoryAttachment(bubble, file);
                     });
 
                     group.querySelector(".message-content").appendChild(bubble);
                     if (msg.timestamp) addTimestamp(group, msg.timestamp);
-                    chatHistory.appendChild(group);
+                    fragment.appendChild(group);
 
                 } else if (msg.role === "assistant") {
                     const hasTc = msg.tool_calls && msg.tool_calls.length > 0;
@@ -616,11 +740,11 @@ async function loadSession(sessionId) {
                     if (hasContent && !hasTc) {
                         const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
                         if (turnSteps.length > 0 && hasExeSteps) {
-                            renderProcessGroupFromHistory(turnId, turnSteps);
+                            renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                             pgCount++;
                         }
                         turnSteps = [];
-                        const group = createMessageGroup("agent");
+                        const group = createMessageGroup("agent", fragment);
                         const bubble = document.createElement("div");
                         bubble.className = "message-bubble";
                         bubble.innerHTML = renderMarkdown(msg.content);
@@ -628,32 +752,14 @@ async function loadSession(sessionId) {
 
                         const attachments = msg.metadata?.attachments || [];
                         attachments.forEach(file => {
-                            if (file.type && file.type.startsWith("image/")) {
-                                const img = document.createElement("img");
-                                img.src = file.url;
-                                img.onclick = () => window.open(file.url, "_blank");
-                                bubble.appendChild(img);
-                            } else {
-                                const link = document.createElement("a");
-                                link.href = "#";
-                                link.className = "file-attachment-link";
-                                link.innerHTML = `
-                                    <span class="material-icons-round">insert_drive_file</span>
-                                    <span>${file.name || "attachment"}</span>
-                                `;
-                                link.addEventListener("click", (e) => {
-                                    e.preventDefault();
-                                    downloadAttachment(file.url, file.name);
-                                });
-                                bubble.appendChild(link);
-                            }
+                            _appendHistoryAttachment(bubble, file);
                         });
 
                         group.querySelector(".message-content").appendChild(bubble);
                         if (msg.timestamp) addTimestamp(group, msg.timestamp);
-                        chatHistory.appendChild(group);
+                        fragment.appendChild(group);
                     } else if (!hasContent && !hasTc && turnSteps.length > 0) {
-                        renderProcessGroupFromHistory(turnId, turnSteps);
+                        renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                         pgCount++;
                         turnSteps = [];
                     }
@@ -662,9 +768,12 @@ async function loadSession(sessionId) {
                 }
             }
             if (turnSteps.length > 0 && turnSteps.some(s => s.badge === "EXE")) {
-                renderProcessGroupFromHistory(turnId, turnSteps);
+                renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                 pgCount++;
             }
+
+            if (!_isCurrentSessionLoad(loadSeq, sessionId)) return;
+            chatHistory.appendChild(fragment);
 
             console.debug("[SHIBA] loadSession rendered:", pgCount, "process groups,", 
                 chatHistory.querySelectorAll(".process-group").length, "in DOM");
@@ -674,9 +783,11 @@ async function loadSession(sessionId) {
             welcomeScreen.style.display = "";
         }
     } catch(e) {
-        console.debug("[SHIBA] Error loading session:", e);
+        if (_isCurrentSessionLoad(loadSeq, sessionId)) {
+            console.debug("[SHIBA] Error loading session:", e);
+        }
     } finally {
-        if (realtime.connected) {
+        if (realtime.connected && _isCurrentSessionLoad(loadSeq, sessionId)) {
             realtime.emit("switch_session", { session_id: sessionId });
         }
     }
@@ -688,22 +799,8 @@ window.openModal = async function(id) {
     modal.classList.add("active");
     
     if (id === "context-modal") {
-        if (!state.sessionId) {
-            $("context-content").innerHTML = "<div class='loader'>No active session</div>";
-            return;
-        }
-        $("context-content").innerHTML = `<div class="loader">Loading context...</div>`;
-        try {
-            const res = await authFetch(`/api/context?session_id=${encodeURIComponent(state.sessionId)}`);
-            const data = await res.json();
-            const t = data.tokens || {};
-            const tokenCard = buildTokenCard(t);
-            $("context-content").innerHTML = tokenCard + renderMarkdown(data.context);
-            enhanceCodeBlocks($("context-content"));
-            updateTokenBadge(t);
-        } catch(e) {
-            $("context-content").innerHTML = "Error loading context.";
-        }
+        state.contextModalOpen = true;
+        await _loadContextModalContent();
     } else if (id === "settings-modal") {
         $("settings-loading").style.display = "flex";
         document.querySelectorAll(".settings-panel").forEach(p => p.style.display = "none");
@@ -741,7 +838,17 @@ window.openHeartbeatFile = function(event) {
 
 window.closeModal = function(id) {
     const modal = $(id);
-    if (modal) modal.classList.remove("active");
+    if (!modal) return;
+    if (id === "context-modal") {
+        state.contextModalOpen = false;
+    }
+    if (id === "settings-modal") {
+        _clearOAuthPollsByPrefix("settings:");
+    }
+    if (id === "onboard-modal") {
+        _clearOAuthPollsByPrefix("onboard:");
+    }
+    modal.classList.remove("active");
 };
 
 window.openOnboardFromSettings = function() {
@@ -759,6 +866,7 @@ window.switchSettingsTab = function(tab) {
     document.querySelectorAll(".settings-panel").forEach(p => p.style.display = "none");
     const panel = $("panel-" + tab);
     if (panel) panel.style.display = "block";
+    if (tab !== "oauth") _clearOAuthPollsByPrefix("settings:");
     if (tab === "oauth") loadOAuthPanel();
     if (tab === "update") loadUpdatePanel();
     if (tab === "skills") loadSkillsPanel();
@@ -915,16 +1023,11 @@ document.addEventListener("DOMContentLoaded", function() {
         if (e.target && e.target.id === "skills-search") renderSkillsPanel();
     });
 
-    // Initialize context modal open state
-    if (typeof state !== 'undefined' && state) {
-        state.contextModalOpen = false;
-    }
-
     // Set up listener for memory compaction events
     if (typeof realtime !== 'undefined' && realtime) {
         realtime.on("memory_compacted", () => {
             if (state.contextModalOpen && state.sessionId) {
-                loadSession(state.sessionId);
+                _loadContextModalContent();
             }
         });
     }
@@ -935,6 +1038,7 @@ document.addEventListener("DOMContentLoaded", function() {
 async function loadOAuthPanel() {
     const list = document.getElementById("oauth-list");
     if (!list) return;
+    _clearOAuthPollsByPrefix("settings:");
     const providers = [
         { name: "openrouter", label: "OpenRouter", icon: "route", desc: "Authenticate in the browser and store the returned OpenRouter API key directly in provider settings.", mode: "browser_redirect", cta: "Open OpenRouter" },
         { name: "github_copilot", label: "GitHub Copilot", icon: "code", desc: "Authenticate via GitHub device flow. Uses native OAuth orchestration." },
@@ -1026,95 +1130,93 @@ async function loadOAuthPanel() {
                 }
 
                 if (jd.job_id) {
-                    const poll = setInterval(async () => {
-                        try {
-                            const r2 = await authFetch("/api/oauth/job/" + jd.job_id);
-                            const j = await r2.json();
-                            if (!j.job) return;
-
-                            if (j.job.status === "done") {
-                                clearInterval(poll);
-                                badge.textContent = "Configured"; badge.className = "acc-badge on";
-                                btn.disabled = false; btn.innerHTML = loginBtnHtml;
-                                logsEl.innerHTML = `<div style="color:#4ade80;font-weight:600;text-align:center;padding:12px">✅ Authentication successful!</div>`;
-                                if (p.name === "openrouter") {
-                                    try {
-                                        const settingsModal = document.getElementById("settings-modal");
-                                        if (settingsModal && settingsModal.classList.contains("active")) {
-                                            const settingsRes = await authFetch("/api/settings");
-                                            const settingsCfg = await settingsRes.json();
-                                            if (!settingsCfg.error) {
-                                                window._shibaConfig = settingsCfg;
-                                                populateSettings(settingsCfg);
-                                                switchSettingsTab("oauth");
-                                            }
+                    const pollScope = "settings:" + p.name;
+                    _startOAuthJobPoll(pollScope, jd.job_id, async (job) => {
+                        if (job.status === "done") {
+                            badge.textContent = "Configured"; badge.className = "acc-badge on";
+                            btn.disabled = false; btn.innerHTML = loginBtnHtml;
+                            logsEl.innerHTML = `<div style="color:#4ade80;font-weight:600;text-align:center;padding:12px">✅ Authentication successful!</div>`;
+                            if (p.name === "openrouter") {
+                                try {
+                                    const settingsModal = document.getElementById("settings-modal");
+                                    if (settingsModal && settingsModal.classList.contains("active")) {
+                                        const settingsRes = await authFetch("/api/settings");
+                                        const settingsCfg = await settingsRes.json();
+                                        if (!settingsCfg.error) {
+                                            window._shibaConfig = settingsCfg;
+                                            populateSettings(settingsCfg);
+                                            switchSettingsTab("oauth");
                                         }
-                                    } catch { /* silent */ }
-                                }
-                            } else if (j.job.status === "error") {
-                                clearInterval(poll);
-                                badge.textContent = "Error"; badge.className = "acc-badge off";
-                                btn.disabled = false; btn.innerHTML = loginBtnHtml;
-                                const logs = (j.job.logs || []).join("\n");
-                                logsEl.innerHTML = `<div style="color:#f87171;padding:8px;white-space:pre-wrap">${logs}</div>`;
-                            } else if (j.job.status === "awaiting_redirect" && j.job.auth_url && p.mode === "browser_redirect" && !logsEl.querySelector('.oauth-browser-auth-ui')) {
-                                badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
-                                btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
-                                logsEl.innerHTML =
-                                    `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
-                                    `<a href="${j.job.auth_url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
-                                      `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
-                                    `</a>` +
-                                    `<div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
-                                      `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
-                                    `</div>` +
-                                    `</div>`;
-                            } else if (j.job.status === "awaiting_code" && j.job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
-                                badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
-                                btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
-                                const inputId = "codex-input-" + jd.job_id;
-                                const submitId = "codex-submit-" + jd.job_id;
-                                logsEl.innerHTML =
-                                    `<div class="codex-auth-ui" style="text-align:center;padding:12px 0">` +
-                                    `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Click the button below to sign in with OpenAI:</div>` +
-                                    `<a href="${j.job.auth_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
-                                      `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open OpenAI Login` +
-                                    `</a>` +
-                                    `<div style="margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--bg-tertiary);text-align:left;font-size:12px;line-height:1.6;color:var(--text-secondary)">` +
-                                      `<strong style="color:var(--shiba-gold)">📋 After login</strong>, your browser will redirect to a URL like:<br>` +
-                                      `<code style="font-size:11px;color:var(--text-primary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;word-break:break-all">http://localhost:1455/auth/callback?code=<span style="color:var(--shiba-gold);font-weight:700">AUTH_CODE_HERE</span>&amp;state=...</code><br>` +
-                                      `Paste the <strong>entire URL</strong> in the field below — the code will be extracted automatically.` +
-                                    `</div>` +
-                                    `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:center">` +
-                                      `<input id="${inputId}" type="text" class="form-input" placeholder="Paste the full callback URL here..." style="flex:1;max-width:400px;font-size:12px;font-family:'JetBrains Mono',monospace">` +
-                                      `<button id="${submitId}" class="btn-primary btn-sm" style="white-space:nowrap">` +
-                                        `<span class="material-icons-round" style="font-size:14px;vertical-align:middle">send</span> Submit` +
-                                      `</button>` +
-                                    `</div>` +
-                                    `<div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
-                                      `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
-                                    `</div>` +
-                                    `</div>`;
-                                setTimeout(() => {
-                                    const submitBtn = document.getElementById(submitId);
-                                    const inputEl = document.getElementById(inputId);
-                                    if (submitBtn && inputEl) {
-                                        const doSubmit = async () => {
-                                            const code = inputEl.value.trim();
-                                            if (!code) return;
-                                            submitBtn.disabled = true; submitBtn.textContent = "Sending...";
-                                            try {
-                                                await authFetch("/api/oauth/code", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({job_id: jd.job_id, code}) });
-                                                inputEl.value = ""; inputEl.placeholder = "Code submitted, waiting...";
-                                            } catch { submitBtn.disabled = false; submitBtn.textContent = "Submit"; }
-                                        };
-                                        submitBtn.addEventListener("click", doSubmit);
-                                        inputEl.addEventListener("keydown", e => { if (e.key === "Enter") doSubmit(); });
                                     }
-                                }, 50);
+                                } catch { /* silent */ }
                             }
-                        } catch { /* keep polling */ }
-                    }, 2000);
+                            return true;
+                        }
+                        if (job.status === "error") {
+                            badge.textContent = "Error"; badge.className = "acc-badge off";
+                            btn.disabled = false; btn.innerHTML = loginBtnHtml;
+                            const logs = (job.logs || []).join("\n");
+                            logsEl.innerHTML = `<div style="color:#f87171;padding:8px;white-space:pre-wrap">${logs}</div>`;
+                            return true;
+                        }
+                        if (job.status === "awaiting_redirect" && job.auth_url && p.mode === "browser_redirect" && !logsEl.querySelector('.oauth-browser-auth-ui')) {
+                            badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
+                            btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                            logsEl.innerHTML =
+                                `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
+                                `<a href="${job.auth_url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                                  `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
+                                `</a>` +
+                                `<div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
+                                  `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
+                                `</div>` +
+                                `</div>`;
+                        } else if (job.status === "awaiting_code" && job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
+                            badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
+                            btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
+                            const inputId = "codex-input-" + jd.job_id;
+                            const submitId = "codex-submit-" + jd.job_id;
+                            logsEl.innerHTML =
+                                `<div class="codex-auth-ui" style="text-align:center;padding:12px 0">` +
+                                `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Click the button below to sign in with OpenAI:</div>` +
+                                `<a href="${job.auth_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                                  `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open OpenAI Login` +
+                                `</a>` +
+                                `<div style="margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--bg-tertiary);text-align:left;font-size:12px;line-height:1.6;color:var(--text-secondary)">` +
+                                  `<strong style="color:var(--shiba-gold)">📋 After login</strong>, your browser will redirect to a URL like:<br>` +
+                                  `<code style="font-size:11px;color:var(--text-primary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;word-break:break-all">http://localhost:1455/auth/callback?code=<span style="color:var(--shiba-gold);font-weight:700">AUTH_CODE_HERE</span>&amp;state=...</code><br>` +
+                                  `Paste the <strong>entire URL</strong> in the field below — the code will be extracted automatically.` +
+                                `</div>` +
+                                `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:center">` +
+                                  `<input id="${inputId}" type="text" class="form-input" placeholder="Paste the full callback URL here..." style="flex:1;max-width:400px;font-size:12px;font-family:'JetBrains Mono',monospace">` +
+                                  `<button id="${submitId}" class="btn-primary btn-sm" style="white-space:nowrap">` +
+                                    `<span class="material-icons-round" style="font-size:14px;vertical-align:middle">send</span> Submit` +
+                                  `</button>` +
+                                `</div>` +
+                                `<div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
+                                  `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
+                                `</div>` +
+                                `</div>`;
+                            setTimeout(() => {
+                                const submitBtn = document.getElementById(submitId);
+                                const inputEl = document.getElementById(inputId);
+                                if (submitBtn && inputEl) {
+                                    const doSubmit = async () => {
+                                        const code = inputEl.value.trim();
+                                        if (!code) return;
+                                        submitBtn.disabled = true; submitBtn.textContent = "Sending...";
+                                        try {
+                                            await authFetch("/api/oauth/code", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({job_id: jd.job_id, code}) });
+                                            inputEl.value = ""; inputEl.placeholder = "Code submitted, waiting...";
+                                        } catch { submitBtn.disabled = false; submitBtn.textContent = "Submit"; }
+                                    };
+                                    submitBtn.addEventListener("click", doSubmit);
+                                    inputEl.addEventListener("keydown", e => { if (e.key === "Enter") doSubmit(); });
+                                }
+                            }, 50);
+                        }
+                        return false;
+                    });
                 } else if (!jd.user_code) {
                     logsEl.textContent = jd.error || "Unknown response";
                     btn.disabled = false; btn.innerHTML = loginBtnHtml;
@@ -1729,6 +1831,7 @@ async function attemptLogin(token) {
 
 function logout() {
     clearStoredToken();
+    _clearAllOAuthPolls();
     if (state.socket) {
         state.socket.disconnect({ clearToken: true });
         state.socket = null;
@@ -1746,8 +1849,10 @@ function logout() {
         state.autoTimer = null;
     }
     state._initialConnectDone = false;
+    state.contextModalOpen = false;
     state.processing = false;
     state.sessionId = null;
+    state.sessionLoadSeq++;
     setStatusIndicator("disconnected");
     const logoutBtn = document.getElementById("btn-logout");
     if (logoutBtn) logoutBtn.hidden = true;
@@ -1960,7 +2065,7 @@ function _obRenderGrid() {
         else if (p.status === "configured") badge = '<span class="ob-badge configured">Configured</span>';
         else if (p.status === "oauth_ok") badge = '<span class="ob-badge oauth">OAuth \u2713</span>';
         else if (p.is_local) badge = '<span class="ob-badge local">Local</span>';
-        else if (p.is_oauth) badge = '<span class="ob-badge oauth">OAuth</span>';
+        else if (p.is_oauth || p.name === "openrouter") badge = '<span class="ob-badge oauth">OAuth</span>';
         const icon = ICONS[p.name] || "smart_toy";
         card.innerHTML = `
             <div class="pc-icon"><span class="material-icons-round">${icon}</span></div>
@@ -1998,8 +2103,16 @@ function _obShowStep(n) {
     if (n === 4) _obSetupStep4();
 }
 
+function _obNormalizeModelValue(providerName, modelId) {
+    const raw = (modelId || "").trim();
+    if (!raw || !providerName) return raw;
+    const prefix = `${providerName}/`;
+    return raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
+}
+
 function _obSetupStep2() {
     const p = _ob.provider;
+    _clearOAuthPollsByPrefix("onboard:");
     if (!p) return;
     const keySection = document.getElementById("ob-key-section");
     const oauthSection = document.getElementById("ob-oauth-section");
@@ -2010,22 +2123,52 @@ function _obSetupStep2() {
 
     if (p.is_local) {
         localSection.style.display = "";
-    } else if (p.is_oauth) {
+    } else if (p.is_oauth || p.name === "openrouter") {
         oauthSection.style.display = "";
-        document.getElementById("ob-key-title").textContent = p.label + " \u2014 OAuth";
+        if (p.name === "openrouter") {
+            keySection.style.display = "";
+            document.getElementById("ob-key-title").textContent = p.label + " \u2014 API Key or OAuth";
+            document.getElementById("ob-key-hint").textContent = "You can enter your API key below, or use the browser OAuth login.";
+            if (p.status === "env_detected" || p.status === "configured") {
+                document.getElementById("ob-api-key").placeholder = "Leave blank to keep current key";
+            } else {
+                document.getElementById("ob-api-key").value = "";
+                document.getElementById("ob-api-key").placeholder = providerKeyPlaceholder(p.name);
+            }
+        } else {
+            document.getElementById("ob-key-title").textContent = p.label + " \u2014 OAuth";
+        }
+        
         const btn = document.getElementById("ob-oauth-btn");
         const statusEl = document.getElementById("ob-oauth-status");
         if (p.status === "oauth_ok") {
             statusEl.innerHTML = '<span style="color:#4ade80"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check_circle</span> Already authenticated</span>';
         } else {
             statusEl.innerHTML = "";
+            btn.style.width = "";
+            btn.innerHTML = p.name === "openrouter" ? '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">route</span> Login with OpenRouter' : '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Start OAuth Setup';
             btn.onclick = async () => {
+                btn.style.width = btn.offsetWidth + "px";
                 btn.disabled = true;
                 btn.innerHTML = '<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> Starting...';
                 try {
                     const resp = await authFetch("/api/oauth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({provider:p.name}) });
                     const jd = await resp.json();
-                    if (jd.user_code && jd.verification_uri) {
+                    if (jd.auth_url) {
+                        try {
+                            const newWindow = window.open(jd.auth_url, '_blank', 'width=600,height=800');
+                            if (!newWindow) throw new Error("Popup blocked");
+                            statusEl.innerHTML = '<div style="text-align:center;margin-top:1rem">' +
+                                '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">OpenRouter will return here automatically when the authorization is complete.</div>' +
+                                '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...</div>';
+                        } catch(ex) {
+                            statusEl.innerHTML = `<div style="text-align:center;margin-top:1rem">` +
+                                `<a href="${jd.auth_url}" target="_blank" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">` +
+                                `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Click here if popup is blocked</a>` +
+                                `<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">` +
+                                `<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...</div></div>`;
+                        }
+                    } else if (jd.user_code && jd.verification_uri) {
                         statusEl.innerHTML = '<div style="text-align:center;margin-top:1rem">' +
                             '<a href="' + jd.verification_uri + '" target="_blank" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">' +
                             '<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open GitHub</a>' +
@@ -2035,28 +2178,31 @@ function _obSetupStep2() {
                             '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...</div></div>';
                     }
                     if (jd.job_id) {
-                        const poll = setInterval(async () => {
-                            try {
-                                const r2 = await authFetch("/api/oauth/job/" + jd.job_id);
-                                const j = await r2.json();
-                                if (j.job && j.job.status === "done") {
-                                    clearInterval(poll);
-                                    statusEl.innerHTML = '<span style="color:#4ade80"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check_circle</span> Authenticated!</span>';
-                                    btn.disabled = false;
-                                    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Done';
-                                } else if (j.job && j.job.status === "error") {
-                                    clearInterval(poll);
-                                    statusEl.innerHTML = '<span style="color:#f87171">Authentication failed</span>';
-                                    btn.disabled = false;
-                                    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
+                        const pollScope = "onboard:" + p.name;
+                        _startOAuthJobPoll(pollScope, jd.job_id, async (job) => {
+                            if (job.status === "done") {
+                                statusEl.innerHTML = '<span style="color:#4ade80"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check_circle</span> Authenticated!</span>';
+                                btn.disabled = false;
+                                btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Done';
+                                if (p.name === "openrouter") {
+                                    document.getElementById("ob-api-key").value = "";
+                                    document.getElementById("ob-api-key").placeholder = "Authenticated via OAuth";
                                 }
-                            } catch(ex) {}
-                        }, 2000);
+                                return true;
+                            }
+                            if (job.status === "error") {
+                                statusEl.innerHTML = '<span style="color:#f87171">Authentication failed</span>';
+                                btn.disabled = false;
+                                btn.innerHTML = p.name === "openrouter" ? '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry' : '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
+                                return true;
+                            }
+                            return false;
+                        });
                     }
                 } catch(e) {
                     statusEl.innerHTML = '<span style="color:#f87171">Error: ' + e + '</span>';
                     btn.disabled = false;
-                    btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
+                    btn.innerHTML = p.name === "openrouter" ? '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry' : '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
                 }
             };
         }
@@ -2078,16 +2224,74 @@ function _obSetupStep3() {
     if (!p) return;
     document.getElementById("ob-model-hint").textContent = "Provider: " + p.label + ". Check the provider docs for available models.";
     const modelInput = document.getElementById("ob-model-input");
+    const currentModel = (_ob.currentProvider === p.name) ? _obNormalizeModelValue(p.name, _ob.currentModel) : "";
+    const defaultModel = p.name === "openrouter"
+        ? "google/gemma-4-31b-it:free"
+        : _obNormalizeModelValue(p.name, p.default_model);
     if (!modelInput.value || _ob._lastModelProvider !== p.name) {
         _ob._lastModelProvider = p.name;
-        modelInput.value = (_ob.currentProvider === p.name && _ob.currentModel) ? _ob.currentModel : p.default_model;
+        modelInput.value = currentModel || defaultModel;
     }
+
+    const wrapper = document.getElementById("ob-model-selector-wrapper");
+    const menu = document.getElementById("ob-model-dropdown-menu");
+    const list = document.getElementById("ob-model-list-container");
+
+    // Load models
+    ensureAvailableModels(list).then(() => {
+        _obRenderModelDropdown(modelInput.value);
+    });
+
+    if (wrapper._closeDropdownListener) {
+        document.removeEventListener("click", wrapper._closeDropdownListener);
+    }
+    const closeDropdown = (e) => {
+        if (!wrapper.contains(e.target)) {
+            menu.style.display = "none";
+        }
+    };
+    wrapper._closeDropdownListener = closeDropdown;
+    document.addEventListener("click", closeDropdown);
+    
+    modelInput.onfocus = () => {
+        _obRenderModelDropdown(modelInput.value);
+        menu.style.display = "block";
+    };
+    
+    modelInput.oninput = () => {
+        _obRenderModelDropdown(modelInput.value);
+        menu.style.display = "block";
+    };
+}
+
+function _obRenderModelDropdown(query) {
+    const p = _ob.provider;
+    if (!p) return;
+    const list = document.getElementById("ob-model-list-container");
+    if (!list) return;
+
+    let filtered = filterModelsByQuery(query);
+    filtered = filtered.filter(m => m.provider === p.name);
+
+    const currentModelId = _obNormalizeModelValue(p.name, document.getElementById("ob-model-input").value);
+    const onboardModels = filtered.map(m => ({
+        ...m,
+        id: _obNormalizeModelValue(p.name, m.raw_id || m.id),
+    }));
+
+    renderModelList(list, onboardModels, currentModelId, (m) => {
+        document.getElementById("ob-model-input").value = m.id;
+        document.getElementById("ob-model-dropdown-menu").style.display = "none";
+    });
 }
 
 function _obSetupStep4() {
     const p = _ob.provider;
+    const modelValue = p
+        ? _obNormalizeModelValue(p.name, document.getElementById("ob-model-input").value)
+        : document.getElementById("ob-model-input").value;
     document.getElementById("ob-sum-provider").textContent = p ? p.label : "\u2014";
-    document.getElementById("ob-sum-model").textContent = document.getElementById("ob-model-input").value || "\u2014";
+    document.getElementById("ob-sum-model").textContent = modelValue || "\u2014";
 
     const tplSection = document.getElementById("ob-tpl-section");
     const tplList = document.getElementById("ob-tpl-list");
@@ -2131,6 +2335,9 @@ window.obSubmit = async function() {
     btn.style.width = btn.offsetWidth + "px";
     btn.disabled = true;
     btn.innerHTML = '<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> Saving...';
+    const modelValue = _ob.provider
+        ? _obNormalizeModelValue(_ob.provider.name, document.getElementById("ob-model-input").value)
+        : document.getElementById("ob-model-input").value.trim();
 
     const overwrite = [];
     document.querySelectorAll("#ob-tpl-list input:checked").forEach(cb => overwrite.push(cb.value));
@@ -2142,7 +2349,7 @@ window.obSubmit = async function() {
             body: JSON.stringify({
                 provider: _ob.provider.name,
                 api_key: document.getElementById("ob-api-key").value.trim(),
-                model: document.getElementById("ob-model-input").value.trim(),
+                model: modelValue,
                 overwrite_templates: overwrite,
             })
         });

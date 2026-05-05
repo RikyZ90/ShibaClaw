@@ -890,6 +890,12 @@
     overflow: hidden;
     isolation: isolate;
 }
+#ob-model-dropdown-menu {
+    top: 100%;
+    bottom: auto;
+    margin-top: 8px;
+    margin-bottom: 0;
+}
 #model-search-input {
     width: 100%;
     padding: 10px;

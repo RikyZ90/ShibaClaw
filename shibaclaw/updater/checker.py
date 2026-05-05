@@ -7,15 +7,15 @@ import re
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
 from typing import Any
 
 from shibaclaw import __version__
+from shibaclaw.config.paths import get_app_root
 
 GITHUB_REPO = "RikyZ90/ShibaClaw"
 _API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 _CACHE_TTL = 3600
-_CACHE_FILE = Path.home() / ".shibaclaw" / "update_cache.json"
+_CACHE_FILE = get_app_root() / "update_cache.json"
 
 
 def _load_cache() -> dict:

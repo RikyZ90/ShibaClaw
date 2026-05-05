@@ -24,7 +24,7 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 _ONBOARD_PROVIDERS = [
-    ("openrouter", "OpenRouter", "OPENROUTER_API_KEY", "google/gemma-3-27b-it:free", False, False),
+    ("openrouter", "OpenRouter", "OPENROUTER_API_KEY", "google/gemma-4-31b-it:free", False, False),
     ("anthropic", "Anthropic", "ANTHROPIC_API_KEY", "claude-opus-4-5", False, False),
     ("openai", "OpenAI", "OPENAI_API_KEY", "gpt-4o", False, False),
     ("gemini", "Gemini", "GEMINI_API_KEY", "gemini/gemini-2.0-flash", False, False),
@@ -417,7 +417,7 @@ def onboard_command(
                     or p[0] in oauth_found
                     or _is_already_configured(config, p[0])
                 ),
-                "google/gemma-3-27b-it:free",
+                "google/gemma-4-31b-it:free",
             )
             _rule("Step 3 / 3  —  Model")
             chosen_model = _ask_model(chosen_provider, default_model, "")
@@ -444,7 +444,7 @@ def onboard_command(
 
     # Workspace + template sync (asks before overwriting personalised files)
     console.print()
-    workspace_path = get_workspace_path(config.workspace_path)
+    workspace_path = get_workspace_path(str(config.workspace_path))
     if not workspace_path.exists():
         workspace_path.mkdir(parents=True, exist_ok=True)
         console.print(f"[green]v[/green] Workspace created at [dim]{workspace_path}[/dim]")

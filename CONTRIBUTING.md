@@ -21,6 +21,11 @@ cd ShibaClaw
 pip install -e ".[dev]"
 ```
 
+If you are working on the Matrix integration, install the Matrix extra too:
+```bash
+pip install -e ".[dev,matrix]"
+```
+
 ### Running Tests and Linters
 We use `pytest` for testing and `ruff` for linting.
 ```bash

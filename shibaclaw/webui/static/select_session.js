@@ -23,12 +23,8 @@ window.selectSession = function(sessionId, el) {
     const parent = el && el.closest('.history-item');
     if (parent) parent.classList.add('active');
 
-    // Kick off refreshTokenBadge in background and loadSession
+    // Load the selected session; loadSession refreshes the token badge itself.
     (async () => {
-        try {
-            console.debug('[SHIBA] refreshing token badge for', sessionId);
-            await refreshTokenBadge();
-        } catch(e) { console.debug('[SHIBA] refreshTokenBadge failed', e); }
         try {
             await loadSession(sessionId);
         } catch(e) { console.debug('[SHIBA] loadSession failed', e); }

@@ -5,14 +5,14 @@ from __future__ import annotations
 import hmac
 import os
 import secrets
-from pathlib import Path
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-AUTH_TOKEN_DIR = Path.home() / ".shibaclaw"
-AUTH_TOKEN_FILE = AUTH_TOKEN_DIR / "auth_token"
+from shibaclaw.config.paths import get_app_root
+
+AUTH_TOKEN_FILE = get_app_root() / "auth_token"
 
 
 def _auth_enabled() -> bool:
@@ -28,7 +28,7 @@ def _load_or_generate_token() -> str:
         if saved:
             return saved
     token = secrets.token_hex(16)
-    AUTH_TOKEN_DIR.mkdir(parents=True, exist_ok=True)
+    AUTH_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
     AUTH_TOKEN_FILE.write_text(token)
     try:
         AUTH_TOKEN_FILE.chmod(0o600)
@@ -37,20 +37,46 @@ def _load_or_generate_token() -> str:
     return token
 
 
+def _read_existing_token() -> str:
+    """Read the current auth token from env or disk without generating a new one."""
+    env_token = os.environ.get("SHIBACLAW_AUTH_TOKEN", "").strip()
+    if env_token:
+        return env_token
+    if AUTH_TOKEN_FILE.exists():
+        saved = AUTH_TOKEN_FILE.read_text().strip()
+        if saved:
+            return saved
+    return ""
+
+
 _AUTH_TOKEN: str = _load_or_generate_token() if _auth_enabled() else ""
 
 
-def get_auth_token() -> str | None:
-    if _auth_enabled() and _AUTH_TOKEN:
+def get_auth_token(refresh: bool = False) -> str | None:
+    global _AUTH_TOKEN
+
+    if not _auth_enabled():
+        return None
+
+    if refresh:
+        refreshed = _read_existing_token()
+        if refreshed:
+            _AUTH_TOKEN = refreshed
+
+    if not _AUTH_TOKEN:
+        _AUTH_TOKEN = _load_or_generate_token()
+
+    if _AUTH_TOKEN:
         return _AUTH_TOKEN
     return None
 
 
 def verify_token_value(token_candidate: str | None) -> bool:
-    if not _auth_enabled() or not _AUTH_TOKEN:
+    auth_token = get_auth_token(refresh=True)
+    if not _auth_enabled() or not auth_token:
         return True
     candidate = (token_candidate or "").strip()
-    return bool(candidate) and hmac.compare_digest(candidate, _AUTH_TOKEN)
+    return bool(candidate) and hmac.compare_digest(candidate, auth_token)
 
 
 def mask_token(token: str) -> str:

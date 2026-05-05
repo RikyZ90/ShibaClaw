@@ -55,17 +55,13 @@ class Session:
                 if tid and str(tid) not in declared:
                     start = i + 1
                     declared.clear()
-                    for prev in messages[start : i + 1]:
-                        if prev.get("role") == "assistant":
-                            for tc in prev.get("tool_calls") or []:
-                                if isinstance(tc, dict) and tc.get("id"):
-                                    declared.add(str(tc["id"]))
+
         return start
 
     def get_history(self, max_messages: int = 500) -> list[dict[str, Any]]:
         """Return unconsolidated messages for LLM input, aligned to a legal tool-call boundary."""
         unconsolidated = self.messages[self.last_consolidated :]
-        sliced = unconsolidated[-max_messages:]
+        sliced = unconsolidated if max_messages <= 0 else unconsolidated[-max_messages:]
 
         # Drop leading non-user messages to avoid starting mid-turn when possible.
         for i, message in enumerate(sliced):
@@ -122,9 +118,10 @@ class PackManager:
 
     def get_or_create(self, key: str) -> Session:
         """Get an existing session or create a new one."""
+        current_mtime = self._get_session_mtime_ns(key)
+        
         if key in self._cache:
             cached_mtime = self._cache_mtime_ns.get(key)
-            current_mtime = self._get_session_mtime_ns(key)
             if current_mtime == cached_mtime:
                 return self._cache[key]
 
@@ -142,7 +139,7 @@ class PackManager:
             session = Session(key=key)
 
         self._cache[key] = session
-        self._cache_mtime_ns[key] = self._get_session_mtime_ns(key)
+        self._cache_mtime_ns[key] = current_mtime
         return session
 
     def _load(self, key: str) -> Session | None:

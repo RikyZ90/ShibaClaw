@@ -20,9 +20,14 @@ function handleUnauthorized(message = "Session expired. Please re-enter your tok
         realtime.disconnect({ clearToken: true });
     }
 
+    if (typeof window.clearAllOAuthPolls === "function") {
+        window.clearAllOAuthPolls();
+    }
+
     if (typeof state !== "undefined") {
         state.socket = null;
         state._initialConnectDone = false;
+        state.contextModalOpen = false;
         ["healthTimer", "historyTimer", "autoTimer"].forEach((timerKey) => {
             if (state[timerKey]) {
                 clearInterval(state[timerKey]);

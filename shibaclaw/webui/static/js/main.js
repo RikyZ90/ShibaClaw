@@ -60,7 +60,11 @@ function initListeners() {
     document.querySelectorAll(".modal-backdrop").forEach(bg => {
         bg.addEventListener("click", (e) => {
             if (e.target === bg && bg.dataset.backdropClose !== "false") {
-                bg.classList.remove("active");
+                if (typeof window.closeModal === "function" && bg.id) {
+                    window.closeModal(bg.id);
+                } else {
+                    bg.classList.remove("active");
+                }
             }
         });
     });

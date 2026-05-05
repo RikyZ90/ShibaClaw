@@ -81,6 +81,36 @@ Ideal for local development or lightweight environments.
 
 ---
 
+## 🪟 Option 3: Windows Desktop (.exe / Native Window)
+
+For the native Windows build, ShibaClaw runs as a desktop window with tray integration.
+
+1. **Install desktop build dependencies**:
+   ```powershell
+   pip install -e ".[windows-native,dev]"
+   ```
+   Use **Python 3.12 or 3.13** for the desktop build. `pywebview` is not yet reliably installable on local Python 3.14 environments.
+   For a local non-packaged launch from that Python environment, run:
+   ```powershell
+   shibaclaw desktop
+   ```
+   On Windows, `pip` also creates `shibaclaw-desktop.exe` in the environment `Scripts` directory for direct desktop launch. The plain `shibaclaw.exe` launcher remains the CLI entrypoint and, if opened directly, will just show help and exit.
+2. **Build the portable desktop bundle**:
+   ```powershell
+   python scripts/build_windows.py
+   ```
+3. **Run the packaged app**:
+   ```powershell
+   .\dist\ShibaClaw\ShibaClaw.exe
+   ```
+
+**Expected desktop behavior:**
+- Closing the window with the top-right `X` hides ShibaClaw to the system tray by default.
+- Use `Quit` from the tray menu to fully stop the desktop app and its background services.
+- The default window geometry is vertical-first (`960x1050`), but it can be changed in config under `desktop.window_width` and `desktop.window_height`.
+
+---
+
 ## 🦴 Useful Commands
 
 | Command | Action |

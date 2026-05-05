@@ -216,6 +216,24 @@ class ToolsConfig(Base):
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
 
 
+class DesktopConfig(Base):
+    """Desktop / native-launcher preferences."""
+
+    close_behavior: str = "hide"
+    # 'hide'  — clicking X hides the window (future tray keeps app alive).
+    # 'quit'  — clicking X performs a full clean shutdown.
+
+    start_hidden: bool = False
+    # When True, launch without showing the window (useful with auto-start).
+
+    auto_start_enabled: bool = False
+    # Register ShibaClaw to start automatically at Windows login.
+    # (Not yet implemented; flag reserved for future use.)
+
+    window_width: int = 960
+    window_height: int = 1050
+
+
 class Config(BaseSettings):
     """Root configuration for shibaclaw."""
 
@@ -225,6 +243,7 @@ class Config(BaseSettings):
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
+    desktop: DesktopConfig = Field(default_factory=DesktopConfig)
 
     @property
     def workspace_path(self) -> Path:

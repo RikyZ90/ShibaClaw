@@ -224,6 +224,7 @@ async def notify_webui_session(
 async def gateway_command(
     host: Optional[str] = None,
     port_override: Optional[int] = None,
+    ws_port_override: Optional[int] = None,
     workspace: Optional[str] = None,
     verbose: bool = False,
     config_path: Optional[str] = None,
@@ -247,12 +248,16 @@ async def gateway_command(
 
     config = _load_runtime_config(config_path, workspace)
     port = port_override if port_override is not None else config.gateway.port
+    ws_port = ws_port_override if ws_port_override is not None else config.gateway.ws_port
     host = host if host is not None else (config.gateway.host or "127.0.0.1")
 
     sync_skills(config.workspace_path)
     sync_profiles(config.workspace_path)
 
     auth_token = get_auth_token()
+
+    def _current_auth_token() -> str | None:
+        return get_auth_token(refresh=True)
     bus = MessageBus(rate_limit_per_minute=config.gateway.rate_limit_per_minute)
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
@@ -495,7 +500,8 @@ async def gateway_command(
             if hello.get("type") != "hello":
                 await websocket.close(4001, "Expected hello")
                 return
-            if auth_token and hello.get("token") != auth_token:
+            expected_token = _current_auth_token()
+            if expected_token and hello.get("token") != expected_token:
                 await websocket.send(json.dumps({"type": "error", "error": "unauthorized"}))
                 await websocket.close(4003, "Unauthorized")
                 return
@@ -733,6 +739,50 @@ async def gateway_command(
             except Exception:
                 _ws_clients.discard(ws)
 
+    async def on_cron_job(job) -> str | None:
+        """Execute a cron job: run an agent turn then deliver the response."""
+        from shibaclaw.bus.events import OutboundMessage
+
+        session_key = job.payload.session_key or f"cron:{job.id}"
+
+        async def _noop_progress(*_args, **_kwargs) -> None:
+            return None
+
+        out = await agent.process_direct(
+            job.payload.message,
+            session_key,
+            channel="cron",
+            chat_id=job.id,
+            on_progress=_noop_progress,
+            metadata={"hidden": True},
+        )
+        response = out.content if out else ""
+        if not response:
+            return None
+
+        if job.payload.deliver and job.payload.channel and job.payload.to:
+            await bus.publish_outbound(
+                OutboundMessage(
+                    channel=job.payload.channel,
+                    chat_id=job.payload.to,
+                    content=response,
+                )
+            )
+        elif _ws_clients:
+            await _broadcast_ws_event(
+                "session.notify",
+                {"content": response, "source": "cron", "persist": False},
+                session_key=session_key,
+            )
+        else:
+            await notify_webui_session(
+                session_key, response, auth_token, source="cron", persist=False
+            )
+
+        return response
+
+    cron.on_job = on_cron_job
+
     async def run():
         _start_time = time.time()
         _ws_start_time = _start_time
@@ -744,9 +794,10 @@ async def gateway_command(
                 request_line = data.split(b"\r\n", 1)[0].decode(errors="ignore")
 
                 def _check_auth() -> bool:
-                    if not auth_token:
+                    expected_token = _current_auth_token()
+                    if not expected_token:
                         return True
-                    return f"Authorization: Bearer {auth_token}".encode() in data
+                    return f"Authorization: Bearer {expected_token}".encode() in data
 
                 def _json_response(body: dict, status: int = 200) -> bytes:
                     phrase = (
@@ -933,14 +984,14 @@ async def gateway_command(
 
         health_srv = await asyncio.start_server(_health_handler, host, port)
 
-        ws_port = config.gateway.ws_port
         ws_server = await websockets.serve(
             _ws_handler, host, ws_port, ping_interval=None, ping_timeout=None
         )
         logger.info("🔌 Gateway WebSocket server listening on {}:{}", host, ws_port)
 
         try:
-            await heartbeat.start()
+            # await heartbeat.start()
+            await cron.start()
             await asyncio.gather(
                 agent.run(),
                 channels.start_all(),
@@ -959,6 +1010,7 @@ async def gateway_command(
             except asyncio.CancelledError:
                 pass
             heartbeat.stop()
+            cron.stop()
             agent.stop()
             try:
                 await channels.stop_all()

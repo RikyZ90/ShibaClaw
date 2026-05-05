@@ -81,6 +81,11 @@ mochat = [
 langsmith = [
     "langsmith>=0.1.0",
 ]
+windows-native = [
+    "pywebview>=5.3,<7.0",
+    "pystray>=0.19.5,<1.0.0",
+    "pillow>=11.0.0,<13.0.0",
+]
 all-channels = [
     "shibaclaw[telegram,slack,dingtalk,feishu,qq,wecom,matrix]",
 ]
@@ -89,14 +94,14 @@ dev = [
     "pytest-asyncio>=1.3.0,<2.0.0",
     "httpx[test]>=0.28.0,<1.0.0",
     "ruff>=0.1.0",
-    "matrix-nio[e2e]>=0.25.2",
-    "mistune>=3.0.0,<4.0.0",
-    "nh3>=0.2.17,<1.0.0",
-    "cryptography>=46.0.7",
+    "pyinstaller>=6.14.0,<7.0.0",
 ]
 
 [project.scripts]
 shibaclaw = "shibaclaw.cli.commands:app"
+
+[project.gui-scripts]
+shibaclaw-desktop = "shibaclaw.desktop.__main__:main"
 
 [build-system]
 requires = ["hatchling"]

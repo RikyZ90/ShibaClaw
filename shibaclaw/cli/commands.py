@@ -65,6 +65,7 @@ def gateway(
         None, "--host", "-H", help="Gateway host (default: 127.0.0.1 or from config)"
     ),
     port: Optional[int] = typer.Option(None, "--port", "-p", help="Gateway port"),
+    ws_port: Optional[int] = typer.Option(None, "--ws-port", help="Gateway WebSocket port"),
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
@@ -74,7 +75,12 @@ def gateway(
 
     asyncio.run(
         gateway_command(
-            host=host, port_override=port, workspace=workspace, verbose=verbose, config_path=config
+            host=host,
+            port_override=port,
+            ws_port_override=ws_port,
+            workspace=workspace,
+            verbose=verbose,
+            config_path=config,
         )
     )
 
@@ -96,6 +102,7 @@ def web(
     import sys
     import time
 
+    from shibaclaw.helpers.system import find_free_tcp_port, is_tcp_port_available
     from shibaclaw.webui.server import get_auth_token, run_server
 
     from .base import _load_runtime_config
@@ -104,10 +111,30 @@ def web(
     cfg = _load_runtime_config(config, workspace)
     provider = _make_provider(cfg, exit_on_error=False)
 
+    # Force a single shared auth token before spawning the gateway subprocess.
+    token = get_auth_token()
+    if token:
+        os.environ["SHIBACLAW_AUTH_TOKEN"] = token
+
     gateway_proc = None
     gateway_host = "127.0.0.1"
     gateway_port = cfg.gateway.port
+    gateway_ws_port = cfg.gateway.ws_port
     if with_gateway:
+        if not is_tcp_port_available(gateway_host, gateway_port) or not is_tcp_port_available(
+            gateway_host, gateway_ws_port
+        ):
+            fallback_http = find_free_tcp_port(gateway_host)
+            fallback_ws = find_free_tcp_port(gateway_host, exclude={fallback_http})
+            console.print(
+                "[yellow]Gateway ports busy; using fallback ports "
+                f"{fallback_http}/{fallback_ws} instead of {gateway_port}/{gateway_ws_port}.[/yellow]"
+            )
+            gateway_port = fallback_http
+            gateway_ws_port = fallback_ws
+            cfg.gateway.port = gateway_port
+            cfg.gateway.ws_port = gateway_ws_port
+
         os.environ["SHIBACLAW_GATEWAY_HOST"] = gateway_host
         os.environ["SHIBACLAW_WEBUI_URL"] = f"http://127.0.0.1:{port}"
         cfg.gateway.host = gateway_host
@@ -123,6 +150,8 @@ def web(
             gateway_host,
             "--port",
             str(gateway_port),
+            "--ws-port",
+            str(gateway_ws_port),
         ]
         if workspace:
             gw_cmd.extend(["--workspace", workspace])
@@ -140,7 +169,6 @@ def web(
             except OSError:
                 time.sleep(0.1)
 
-    token = get_auth_token()
     console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     console.print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
     if token:
@@ -163,6 +191,41 @@ def web(
                 gateway_proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 gateway_proc.kill()
+
+
+@app.command()
+def desktop(
+    host: str = typer.Option("127.0.0.1", "--host", "-H", help="WebUI host"),
+    port: int = typer.Option(3000, "--port", "-p", help="WebUI port"),
+    workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
+    config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
+    with_gateway: bool = typer.Option(
+        True, "--with-gateway/--no-gateway", "-g", help="Start the gateway automatically"
+    ),
+    close_policy: Optional[str] = typer.Option(
+        None,
+        "--close-policy",
+        help="Override the configured close behavior: 'hide' or 'quit'",
+    ),
+    no_auth: bool = typer.Option(
+        False,
+        "--no-auth",
+        help="Disable WebUI auth for this desktop launch. On local Windows source runs auth is already disabled by default unless SHIBACLAW_AUTH is set.",
+    ),
+):
+    """Start ShibaClaw in a native desktop window (Windows)."""
+    from shibaclaw.desktop.launcher import run as launcher_run
+
+    setup_shiba_logging()
+    launcher_run(
+        port=port,
+        host=host,
+        config_path=config,
+        workspace=workspace,
+        with_gateway=with_gateway,
+        close_policy=close_policy,
+        disable_auth=no_auth,
+    )
 
 
 @app.command()

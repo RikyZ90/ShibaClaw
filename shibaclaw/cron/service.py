@@ -301,11 +301,30 @@ class CronService:
             if j.enabled and j.state.next_run_at_ms and now >= j.state.next_run_at_ms
         ]
 
-        for job in due_jobs:
-            await self._execute_job(job)
+        if not due_jobs:
+            self._arm_timer()
+            return
 
+        # Pre-compute next run so we can arm the timer immediately
+        for job in due_jobs:
+            if job.schedule.kind == "at":
+                # We do not un-enable it yet to strictly avoid re-firing 
+                # but we disable next_run_at_ms immediately
+                job.state.next_run_at_ms = None
+            else:
+                job.state.next_run_at_ms = _compute_next_run(job.schedule, now)
+        
         self._save_store()
         self._arm_timer()
+
+        # Dispatch jobs in background so they don't block the timer loop
+        for job in due_jobs:
+            asyncio.create_task(self._run_job_bg(job))
+
+    async def _run_job_bg(self, job: CronJob) -> None:
+        """Background wrapper to run job and save its state."""
+        await self._execute_job(job)
+        self._save_store()
 
     async def _execute_job(self, job: CronJob) -> None:
         """Execute a single job."""
@@ -346,13 +365,15 @@ class CronService:
 
         # Handle one-shot jobs
         if job.schedule.kind == "at":
-            if job.delete_after_run:
+            if job.delete_after_run and self._store:
                 self._store.jobs = [j for j in self._store.jobs if j.id != job.id]
             else:
                 job.enabled = False
                 job.state.next_run_at_ms = None
         else:
-            # Compute next run
+            # We already computed next_run_at_ms in _on_timer, but we can recompute
+            # if we want to base it on end_ms instead. For now, keep it on schedule
+            # except in cases where it was forced.
             job.state.next_run_at_ms = _compute_next_run(job.schedule, _now_ms())
 
     # ========== Public API ==========

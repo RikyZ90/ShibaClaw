@@ -11,6 +11,7 @@ const DEFAULT_AVATAR = "/static/shibaclaw_logo.webp";
 const state = {
     socket: null,
     sessionId: null,
+    sessionLoadSeq: 0,
     activeModelId: "",
     profileId: "default",
     profileAvatar: DEFAULT_AVATAR,
@@ -30,6 +31,10 @@ const state = {
     authRequired: false,
     stagedFiles: [],     // { name, url, type, stagedAt }
     currentFsPath: ".",  // current path for file explorer
+    contextModalOpen: false,
+    oauthPolls: {},
+    _streamBuffers: {},
+    _streamRenderFrames: {},
     listenersInitialized: false,
     socketHandlersInitialized: false,
     fileHandlersInitialized: false,
