@@ -617,7 +617,13 @@
                 <div class="ob-panel" id="ob-step-3" style="display:none">
                     <p class="ob-subtitle">Choose your model</p>
                     <p class="ob-hint" id="ob-model-hint" style="margin-bottom:1rem"></p>
-                    <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o" autocomplete="off">
+                    <div class="model-selector-wrapper" id="ob-model-selector-wrapper" style="position: relative;">
+                        <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o" autocomplete="off" style="padding-right: 30px;">
+                        <span class="material-icons-round" style="position: absolute; right: 10px; top: 12px; color: var(--text-muted); pointer-events: none; font-size: 18px;">expand_more</span>
+                        <div class="model-dropdown-menu" id="ob-model-dropdown-menu" style="display: none;">
+                            <div class="model-list" id="ob-model-list-container"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="ob-panel" id="ob-step-4" style="display:none">
                     <div id="ob-tpl-section" style="display:none">

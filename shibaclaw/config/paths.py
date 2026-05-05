@@ -2,14 +2,44 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from shibaclaw.config.loader import get_config_path
 from shibaclaw.helpers.helpers import ensure_dir
 
 
+def get_app_root() -> Path:
+    """Return the stable application root directory (~/.shibaclaw).
+
+    This is the canonical base for all user-level data that must not move
+    when ``--config`` points to a custom location: auth tokens, update cache,
+    bridge install, and CLI history all live here.
+    """
+    return ensure_dir(Path.home() / ".shibaclaw")
+
+
+def get_runtime_root() -> Path:
+    """Return the root directory that contains bundled runtime resources."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parents[2]
+
+
+def get_assets_dir() -> Path:
+    """Return the assets directory for source or frozen execution."""
+    bundled_assets = get_runtime_root() / "assets"
+    if bundled_assets.exists():
+        return bundled_assets
+    return get_app_root() / "assets"
+
+
 def get_data_dir() -> Path:
-    """Return the instance-level runtime data directory."""
+    """Return the instance-level runtime data directory.
+
+    Follows any active config override (``--config``).  Use :func:`get_app_root`
+    when you need the stable ``~/.shibaclaw`` base regardless of overrides.
+    """
     return ensure_dir(get_config_path().parent)
 
 

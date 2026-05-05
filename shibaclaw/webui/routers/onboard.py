@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -169,10 +171,16 @@ async def api_onboard_submit(request: Request):
     sync_skills(wp)
     sync_profiles(wp)
 
-    # Reset agent and reload from freshly saved config on disk.
-    # This ensures the provider is correctly initialised from the new config
-    # without depending on the in-memory object, which may be stale.
-    await agent_manager.reset_agent()
     agent_manager.load_latest_config()
+
+    # Trigger gateway restart in the background so the onboarding UI can finish
+    # immediately instead of waiting on the gateway restart roundtrip.
+    async def _restart_gateway() -> None:
+        try:
+            await agent_manager.reset_agent()
+        except Exception:
+            return
+
+    asyncio.create_task(_restart_gateway())
 
     return JSONResponse({"status": "ok"})

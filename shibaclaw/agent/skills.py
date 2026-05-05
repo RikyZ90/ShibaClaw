@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import platform
 import re
 import shutil
 import zipfile
@@ -174,14 +175,32 @@ class SkillsLoader:
 
     def _parse_shibaclaw_metadata(self, raw: str) -> dict:
         """Parse skill metadata JSON from frontmatter (supports shibaclaw and openclaw keys)."""
+        if isinstance(raw, dict):
+            return raw.get("shibaclaw", raw.get("openclaw", {}))
         try:
             data = json.loads(raw)
             return data.get("shibaclaw", data.get("openclaw", {})) if isinstance(data, dict) else {}
         except (json.JSONDecodeError, TypeError):
+            pass
+        # Fallback: get_skill_metadata stringifies YAML-parsed dicts via str(),
+        # producing Python repr instead of JSON. Use ast.literal_eval to recover.
+        try:
+            import ast
+            data = ast.literal_eval(raw)
+            return data.get("shibaclaw", data.get("openclaw", {})) if isinstance(data, dict) else {}
+        except (ValueError, SyntaxError):
             return {}
 
     def _check_requirements(self, skill_meta: dict) -> bool:
-        """Check if skill requirements are met (bins, env vars)."""
+        """Check if skill requirements are met (bins, env vars, os)."""
+        # OS gating: if skill declares 'os' list, only load on matching platforms
+        allowed_os = skill_meta.get("os")
+        if allowed_os:
+            current_os = platform.system().lower()
+            # Normalise: 'darwin', 'linux', 'windows'
+            if current_os not in [o.lower() for o in allowed_os]:
+                return False
+
         requires = skill_meta.get("requires", {})
         for b in requires.get("bins", []):
             if not shutil.which(b):

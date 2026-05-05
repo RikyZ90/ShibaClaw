@@ -199,16 +199,16 @@ function toggleProcessGroup(msgId) {
     pg.el.classList.toggle("expanded");
 }
 
-function renderProcessGroupFromHistory(turnId, steps) {
+function renderProcessGroupFromHistory(turnId, steps, targetContainer = chatHistory) {
     const id = `hist-${turnId}`;
-    const container = document.createElement("div");
-    container.className = "process-group completed";
-    container.id = `pg-${id}`;
+    const groupEl = document.createElement("div");
+    groupEl.className = "process-group completed";
+    groupEl.id = `pg-${id}`;
 
     const header = document.createElement("div");
     header.className = "process-group-header";
     header.onclick = () => {
-        container.classList.toggle("expanded");
+        groupEl.classList.toggle("expanded");
     };
 
     const lastStep = steps[steps.length - 1];
@@ -228,7 +228,7 @@ function renderProcessGroupFromHistory(turnId, steps) {
             <span class="pg-summary">${summaryParts.join(" · ")}</span>
         </span>
     `;
-    container.appendChild(header);
+    groupEl.appendChild(header);
 
     const stepsContainer = document.createElement("div");
     stepsContainer.className = "pg-content";
@@ -241,11 +241,11 @@ function renderProcessGroupFromHistory(turnId, steps) {
         `;
         stepsContainer.appendChild(row);
     }
-    container.appendChild(stepsContainer);
-    chatHistory.appendChild(container);
+    groupEl.appendChild(stepsContainer);
+    targetContainer.appendChild(groupEl);
 }
 
-function createMessageGroup(type) {
+function createMessageGroup(type, targetContainer = chatHistory) {
     state.messageCount++;
     const group = document.createElement("div");
     group.className = `message-group ${type}`;
@@ -263,9 +263,9 @@ function createMessageGroup(type) {
     }
     group.appendChild(avatar);
 
-    const prev = chatHistory ? chatHistory.lastElementChild : null;
+    const prev = targetContainer ? targetContainer.lastElementChild : null;
     const prevIsProcessGroup = prev && prev.classList.contains("process-group");
-    const prevGroup = prevIsProcessGroup ? chatHistory.children[chatHistory.children.length - 2] : prev;
+    const prevGroup = prevIsProcessGroup ? targetContainer.children[targetContainer.children.length - 2] : prev;
     const sameType = prevGroup && prevGroup.classList.contains("message-group") && prevGroup.classList.contains(type);
     if (!sameType) group.classList.add("show-avatar");
 
@@ -376,7 +376,9 @@ function hideTypingBubble() {
 }
 
 function scrollToBottom() {
-    requestAnimationFrame(() => {
+    if (scrollToBottom._frame) return;
+    scrollToBottom._frame = requestAnimationFrame(() => {
+        scrollToBottom._frame = null;
         chatHistory.scrollTop = chatHistory.scrollHeight;
     });
 }
@@ -397,6 +399,20 @@ function sendMessage() {
     const content = chatInput.value.trim();
     if ((!content && state.stagedFiles.length === 0) || state.processing) return;
 
+    if (!realtime.connected) {
+        addAgentMessage("error", "⚠️ WebSocket disconnected. Wait for reconnect or reload the window.");
+        state.processing = false;
+        updateSendButton();
+        return;
+    }
+
+    if (state.gatewayKnown && !state.gatewayUp) {
+        addAgentMessage("error", "⚠️ Gateway offline or unreachable. Restart the desktop app or the gateway.");
+        state.processing = false;
+        updateSendButton();
+        return;
+    }
+
     state.processing = true;
     updateSendButton();
 
@@ -404,7 +420,7 @@ function sendMessage() {
         const attachments = [...state.stagedFiles];
         addUserMessage(content, attachments);
         
-        realtime.emit("message", { 
+        const sent = realtime.emit("message", {
             content,
             attachments: attachments.map(a => ({
                 name: a.name,
@@ -413,12 +429,17 @@ function sendMessage() {
             }))
         });
 
+        if (!sent) {
+            throw new Error("Realtime connection is not open.");
+        }
+
         chatInput.value = "";
         state.stagedFiles = [];
         updateStagingUI();
         autoResizeInput();
     } catch(e) {
         console.error("Send error:", e);
+        addAgentMessage("error", `⚠️ ${e.message || "Failed to send message."}`);
         state.processing = false;
         updateSendButton();
     }

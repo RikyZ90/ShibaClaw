@@ -1,6 +1,7 @@
 // ── Streaming helpers ────────────────────────────────────────
 function _discardStreamBubble(msgId) {
     const mid = msgId || "stream";
+    _cancelScheduledStreamRender(mid);
     const bubble = document.getElementById("stream-bubble-" + mid);
     if (bubble) {
         const group = bubble.closest(".message-group");
@@ -8,6 +9,34 @@ function _discardStreamBubble(msgId) {
         bubble.remove();
     }
     if (state._streamBuffers) delete state._streamBuffers[mid];
+}
+
+function _cancelScheduledStreamRender(msgId) {
+    const mid = msgId || "stream";
+    const frames = state._streamRenderFrames || {};
+    if (frames[mid]) {
+        cancelAnimationFrame(frames[mid]);
+        delete frames[mid];
+    }
+}
+
+function _scheduleStreamRender(msgId, bubble) {
+    const mid = msgId || "stream";
+    const frames = state._streamRenderFrames || (state._streamRenderFrames = {});
+    if (frames[mid]) return;
+    frames[mid] = requestAnimationFrame(() => {
+        delete frames[mid];
+        const target = (bubble && bubble.isConnected) ? bubble : document.getElementById("stream-bubble-" + mid);
+        if (!target) return;
+        target.innerHTML = renderMarkdown(state._streamBuffers[mid] || "");
+        enhanceCodeBlocks(target);
+        scrollToBottom();
+    });
+}
+
+function _clearAllStreamRenders() {
+    const frames = state._streamRenderFrames || {};
+    Object.keys(frames).forEach((mid) => _cancelScheduledStreamRender(mid));
 }
 
 function _appendAgentAttachment(container, file) {
@@ -60,6 +89,8 @@ function initSocket() {
         statusText.textContent = "Disconnected";
         hideTypingBubble();
         hideThinking();
+        _clearAllStreamRenders();
+        state._streamBuffers = {};
         state.processing = false;
         updateSendButton();
         console.log("WebSocket disconnected.");
@@ -110,10 +141,7 @@ function initSocket() {
             chatHistory.appendChild(group);
         }
 
-        // Render accumulated markdown
-        bubble.innerHTML = renderMarkdown(state._streamBuffers[mid]);
-        enhanceCodeBlocks(bubble);
-        scrollToBottom();
+        _scheduleStreamRender(mid, bubble);
     });
 
     realtime.on("agent_response", (data) => {
@@ -126,6 +154,7 @@ function initSocket() {
         // If streaming already created the bubble, finalize it with the complete content
         const mid = data.id || "stream";
         const streamBubble = document.getElementById("stream-bubble-" + mid);
+        _cancelScheduledStreamRender(mid);
         if (streamBubble) {
             // Clean up stream buffer
             if (state._streamBuffers) delete state._streamBuffers[mid];
@@ -191,6 +220,8 @@ function initSocket() {
         state.processGroups = {};
         state.sessionId = data.session_id;
         state.activeModelId = "";
+        _clearAllStreamRenders();
+        state._streamBuffers = {};
         setSessionLabel(data.session_id);
         localStorage.setItem("shiba_session_id", data.session_id);
         chatHistory.innerHTML = "";

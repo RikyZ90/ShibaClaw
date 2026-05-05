@@ -7,13 +7,17 @@ import json
 import os
 import re
 import sys
+
+_MEDIA_RE = re.compile(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', re.DOTALL)
 import time
 import weakref
+from datetime import datetime
 from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
 from loguru import logger
+from shibaclaw.cli.base import _make_provider
 
 from shibaclaw.agent.context import ScentBuilder
 from shibaclaw.agent.memory import PackMemory, ScentKeeper
@@ -25,6 +29,7 @@ from shibaclaw.agent.tools.memory_search import MemorySearchTool
 from shibaclaw.agent.tools.message import MessageTool
 from shibaclaw.agent.tools.registry import SkillVault
 from shibaclaw.agent.tools.shell import ExecTool
+from shibaclaw.helpers.system import get_os_type
 from shibaclaw.agent.tools.spawn import SpawnTool
 from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
 from shibaclaw.brain.manager import PackManager, Session
@@ -217,7 +222,6 @@ class ShibaBrain:
             return cached_provider
 
         try:
-            from shibaclaw.cli.base import _make_provider
 
             temp_cfg = self.config.model_copy(deep=True)
             temp_cfg.agents.defaults.provider = "auto"
@@ -249,6 +253,8 @@ class ShibaBrain:
         for cls in (WriteFileTool, EditFileTool, ListDirTool):
             self.tools.register(cls(workspace=self.workspace, allowed_dir=allowed_dir))
         if self.exec_config.enable:
+            _os = get_os_type()
+            logger.debug("ExecTool initialised for OS: {}", _os)
             self.tools.register(
                 ExecTool(
                     working_dir=str(self.workspace),
@@ -771,9 +777,8 @@ class ShibaBrain:
             profile_id=profile_id,
         )
 
-        from datetime import datetime as _dt
 
-        _user_entry = {"role": "user", "content": msg.content, "timestamp": _dt.now().isoformat()}
+        _user_entry = {"role": "user", "content": msg.content, "timestamp": datetime.now().isoformat()}
         metadata = {}
         if msg.metadata:
             metadata.update(msg.metadata)
@@ -819,9 +824,7 @@ class ShibaBrain:
         self._schedule_background(self.memory_consolidator.maybe_proactive_learn(session))
 
         media_list = []
-        media_match = re.search(
-            r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', final_content, re.DOTALL
-        )
+        media_match = _MEDIA_RE.search(final_content)
         if media_match:
             try:
                 media_json = json.loads(media_match.group(0))
@@ -841,7 +844,6 @@ class ShibaBrain:
         )
 
     def _save_turn(self, session: Session, messages: list[dict], skip: int) -> None:
-        from datetime import datetime
 
         for m in messages[skip:]:
             entry = dict(m)
@@ -850,9 +852,7 @@ class ShibaBrain:
                 continue
 
             if role == "assistant" and isinstance(content, str):
-                media_match = re.search(
-                    r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', content, re.DOTALL
-                )
+                media_match = _MEDIA_RE.search(content)
                 if media_match:
                     try:
                         media_json = json.loads(media_match.group(0))

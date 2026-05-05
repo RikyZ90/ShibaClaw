@@ -34,14 +34,15 @@ def setup_shiba_logging(level: str = "INFO", show_path: bool = False):
         fmt += " <dim>({name}:{function}:{line})</dim>"
 
     debug_mode = level.upper() == "DEBUG"
-    logger.add(
-        sys.stderr,
-        format=fmt,
-        level=level,
-        colorize=True,
-        backtrace=debug_mode,
-        diagnose=debug_mode,
-    )
+    if sys.stderr is not None:
+        logger.add(
+            sys.stderr,
+            format=fmt,
+            level=level,
+            colorize=True,
+            backtrace=debug_mode,
+            diagnose=debug_mode,
+        )
 
     logger.configure(extra={"component": "System"})
     return logger

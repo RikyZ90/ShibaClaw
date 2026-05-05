@@ -133,18 +133,36 @@ class ScentKeeper:
         self._file_lock = asyncio.Lock()
 
     def read_user_profile(self) -> str:
-        if self.user_file.exists():
-            return self.user_file.read_text(encoding="utf-8")
-        return ""
+        if not self.user_file.exists():
+            return ""
+        try:
+            mtime = self.user_file.stat().st_mtime_ns
+        except FileNotFoundError:
+            return ""
+        if getattr(self, "_user_mtime", 0) == mtime:
+            return self._user_cache
+        content = self.user_file.read_text(encoding="utf-8")
+        self._user_mtime = mtime
+        self._user_cache = content
+        return content
 
     async def write_user_profile(self, content: str) -> None:
         async with self._file_lock:
             self.user_file.write_text(content, encoding="utf-8")
 
     def read_long_term(self) -> str:
-        if self.memory_file.exists():
-            return self.memory_file.read_text(encoding="utf-8")
-        return ""
+        if not self.memory_file.exists():
+            return ""
+        try:
+            mtime = self.memory_file.stat().st_mtime_ns
+        except FileNotFoundError:
+            return ""
+        if getattr(self, "_mem_mtime", 0) == mtime:
+            return self._mem_cache
+        content = self.memory_file.read_text(encoding="utf-8")
+        self._mem_mtime = mtime
+        self._mem_cache = content
+        return content
 
     async def write_long_term(self, content: str) -> None:
         async with self._file_lock:
@@ -220,32 +238,38 @@ class ScentKeeper:
 
     @staticmethod
     def _format_messages(messages: list[dict]) -> str:
-        lines = []
+        import io
+        out = io.StringIO()
         for message in messages:
             role = message.get("role", "unknown").upper()
             ts = message.get("timestamp", "?")[:16]
             content = ScentKeeper._normalize_content(message.get("content"))
+            
+            tool_suffix = ""
             if role == "ASSISTANT" and message.get("tool_calls"):
                 calls = [
                     tc.get("function", {}).get("name", "unknown") for tc in message["tool_calls"]
                 ]
-                if content:
-                    content += "\n"
-                content += f"[Tool Calls: {', '.join(calls)}]"
-            if role == "TOOL" and content:
-                if len(content) > 300:
-                    content = content[:150] + "\n...[TRUNCATED]...\n" + content[-150:]
-            if role in ("USER", "ASSISTANT") and len(content) > 500:
-                content = content[:250] + "\n...[TRUNCATED]...\n" + content[-250:]
-            if not content.strip():
+                tool_suffix = f"[Tool Calls: {', '.join(calls)}]"
+                content = f"{content}\n{tool_suffix}" if content else tool_suffix
+                
+            clen = len(content) if content else 0
+            if role == "TOOL" and clen > 300:
+                content = f"{content[:150]}\n...[TRUNCATED]...\n{content[-150:]}"
+            elif role in ("USER", "ASSISTANT") and clen > 500:
+                content = f"{content[:250]}\n...[TRUNCATED]...\n{content[-250:]}"
+                
+            if not content or not content.strip():
                 continue
+                
             tools = (
                 f" [executed: {', '.join(message['tools_used'])}]"
                 if message.get("tools_used")
                 else ""
             )
-            lines.append(f"[{ts}] {role}{tools}: {content.strip()}")
-        return "\n".join(lines)
+            out.write(f"[{ts}] {role}{tools}: {content.strip()}\n")
+            
+        return out.getvalue().strip()
 
     async def consolidate(
         self,
@@ -581,6 +605,18 @@ class PackMemory:
         return last_boundary
 
     def estimate_session_prompt_tokens(self, session: Session) -> tuple[int, str]:
+        import time
+        now = time.time()
+        
+        if not hasattr(self, '_prompt_tokens_cache'):
+            self._prompt_tokens_cache: dict[str, tuple[int, str, float, int]] = {}
+            
+        cache_key = session.key
+        if cache_key in self._prompt_tokens_cache:
+            est, src, cached_time, msg_len = self._prompt_tokens_cache[cache_key]
+            if msg_len == len(session.messages) and (now - cached_time) < 30.0:
+                return est, src
+
         history = session.get_history(max_messages=0)
         channel, chat_id = session.key.split(":", 1) if ":" in session.key else (None, None)
         probe_messages = self._build_messages(
@@ -590,12 +626,15 @@ class PackMemory:
             chat_id=chat_id,
             memory_max_prompt_tokens=self.memory_max_prompt_tokens,
         )
-        return estimate_prompt_tokens_chain(
+        est, src = estimate_prompt_tokens_chain(
             self.provider,
             self.model,
             probe_messages,
             self._get_tool_definitions(),
         )
+        
+        self._prompt_tokens_cache[cache_key] = (est, src, now, len(session.messages))
+        return est, src
 
     async def archive_snapshot(self, messages: list[dict[str, object]]) -> bool:
         if not messages:

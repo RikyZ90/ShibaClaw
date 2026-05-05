@@ -116,6 +116,8 @@
 .session-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .session-name {
@@ -126,10 +128,93 @@
     text-overflow: ellipsis;
 }
 
+.session-subline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.session-subline .ob-badge {
+    margin-left: 0;
+    font-size: 10px;
+    line-height: 1.2;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+}
+
+/* Channel badge colors */
+.ob-badge.badge-channel-webui {
+    background: rgba(251, 191, 36, 0.15); /* #fbbf24 */
+    color: #fcd34d;
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.3);
+}
+
+.ob-badge.badge-channel-telegram {
+    background: rgba(37, 99, 235, 0.15); /* #2563eb */
+    color: #60a5fa;
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.3);
+}
+
+.ob-badge.badge-channel-discord {
+    background: rgba(30, 58, 138, 0.15); /* #1e3a8a */
+    color: #818cf8;
+    box-shadow: inset 0 0 0 1px rgba(30, 58, 138, 0.3);
+}
+
+.ob-badge.badge-channel-slack {
+    background: rgba(236, 72, 153, 0.15);
+    color: #f472b6;
+    box-shadow: inset 0 0 0 1px rgba(236, 72, 153, 0.3);
+}
+
+.ob-badge.badge-channel-api {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+.ob-badge.badge-channel-cli {
+    background: rgba(168, 162, 158, 0.15);
+    color: #d6d3d1;
+    box-shadow: inset 0 0 0 1px rgba(168, 162, 158, 0.3);
+}
+
+.ob-badge.badge-channel-heartbeat {
+    background: rgba(147, 51, 234, 0.15); /* #9333ea */
+    color: #c084fc;
+    box-shadow: inset 0 0 0 1px rgba(147, 51, 234, 0.3);
+}
+
+.ob-badge.badge-channel-cron {
+    background: rgba(20, 184, 166, 0.15); /* #14b8a6 */
+    color: #5eead4;
+    box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.3);
+}
+
+.ob-badge.badge-channel-_default {
+    background: rgba(168, 85, 247, 0.15);
+    color: #d8b4fe;
+    box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.3);
+}
+
+.session-channel-tag {
+    max-width: 100%;
+}
+
 .session-meta {
     font-size: 10px;
     color: var(--text-muted);
-    margin-top: 2px;
+    margin-top: 0;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.history-item.active .session-subline .ob-badge {
+    opacity: 0.9;
 }
 
 .session-actions {

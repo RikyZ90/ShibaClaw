@@ -5,6 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import socket
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -242,6 +245,117 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
     )
     server = uvicorn.Server(server_config)
     await server.serve()
+
+
+class ServerManager:
+    """Controllable uvicorn wrapper for programmatic start/stop.
+
+    Used by the desktop launcher so the server runs in a background thread
+    while the main thread drives the native window / tray loop.
+
+    Usage::
+
+        mgr = ServerManager(port=3000, config=cfg, provider=provider)
+        mgr.start()
+        if mgr.wait_ready(timeout=10):
+            # server is reachable
+        ...
+        mgr.stop()
+    """
+
+    def __init__(
+        self,
+        port: int = 3000,
+        host: str = "127.0.0.1",
+        config: Any | None = None,
+        provider: Any | None = None,
+    ) -> None:
+        self._port = port
+        self._host = host
+        self._config = config
+        self._provider = provider
+        self._server: uvicorn.Server | None = None
+        self._thread: threading.Thread | None = None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def start(self) -> None:
+        """Spawn the server in a background daemon thread."""
+        if self._thread and self._thread.is_alive():
+            return
+
+        app = create_app(
+            config=self._config,
+            provider=self._provider,
+            port=self._port,
+            host=self._host,
+        )
+
+        cfg = uvicorn.Config(
+            app=app,
+            host=self._host,
+            port=self._port,
+            log_level="warning",
+            access_log=False,
+            ws_ping_interval=None,
+            ws_ping_timeout=None,
+        )
+        self._server = uvicorn.Server(cfg)
+
+        self._thread = threading.Thread(
+            target=self._run_in_thread,
+            name="shibaclaw-webui",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self, timeout: float = 8.0) -> None:
+        """Signal the server to shut down and wait for the thread to finish."""
+        if self._server:
+            self._server.should_exit = True
+        if self._thread:
+            self._thread.join(timeout=timeout)
+
+    def wait_ready(self, timeout: float = 15.0) -> bool:
+        """Poll until the HTTP port is reachable or *timeout* seconds elapse."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection((self._host, self._port), timeout=0.5):
+                    return True
+            except OSError:
+                time.sleep(0.1)
+        return False
+
+    @property
+    def is_running(self) -> bool:
+        return bool(self._thread and self._thread.is_alive())
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self._host}:{self._port}"
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    def _run_in_thread(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._serve_with_startup_tasks())
+        finally:
+            loop.close()
+
+    async def _serve_with_startup_tasks(self) -> None:
+        assert self._server is not None
+        asyncio.create_task(_check_update_on_startup())
+        asyncio.create_task(_sync_skills_on_startup())
+        asyncio.create_task(_ensure_config_on_startup())
+        asyncio.create_task(_start_gateway_client())
+        await self._server.serve()
 
 
 if __name__ == "__main__":

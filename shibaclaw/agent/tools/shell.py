@@ -9,7 +9,17 @@ from typing import Any
 from loguru import logger
 
 from shibaclaw.agent.tools.base import Tool
+from shibaclaw.helpers.system import get_os_type
 from shibaclaw.security.install_audit import AuditResult, audit_install, detect_install_command
+
+# Windows-specific deny patterns (added on top of the shared baseline)
+_WINDOWS_DENY_PATTERNS: list[str] = [
+    r"\bInvoke-Expression\b",           # dynamic code execution
+    r"\biex\b",                          # alias for Invoke-Expression
+    r"\bSet-ExecutionPolicy\b",          # policy bypass
+    r"\bInvoke-WebRequest\b.*\|.*powershell",  # download-and-run
+    r"\bStart-Process\b.*-Verb\s+RunAs",      # UAC elevation
+]
 
 
 class _BoundedBuffer:
@@ -69,7 +79,7 @@ class ExecTool(Tool):
         self.install_audit = install_audit
         self.install_audit_timeout = install_audit_timeout
         self.install_audit_block_severity = install_audit_block_severity
-        self.deny_patterns = deny_patterns or [
+        _base_deny = [
             r"\brm\s+-[rf]{1,2}\b",  # rm -r, rm -rf, rm -fr
             r"\bdel\s+/[fq]\b",  # del /f, del /q
             r"\brmdir\s+/s\b",  # rmdir /s
@@ -92,6 +102,12 @@ class ExecTool(Tool):
             r"\b(curl|wget)\b.*\|\s*(sh|bash|zsh|dash)\b",  # curl/wget pipe to shell
             r"<\([^)]*\)",  # bash process substitution <()
         ]
+        if deny_patterns is not None:
+            self.deny_patterns = deny_patterns
+        elif get_os_type() == "windows":
+            self.deny_patterns = _base_deny + _WINDOWS_DENY_PATTERNS
+        else:
+            self.deny_patterns = _base_deny
         self.allow_patterns = allow_patterns or []
         self.restrict_to_workspace = restrict_to_workspace
         self.path_append = path_append
@@ -108,7 +124,22 @@ class ExecTool(Tool):
 
     @property
     def description(self) -> str:
-        return "Execute a shell command and return its output. Use with caution."
+        os_type = get_os_type()
+        if os_type == "windows":
+            shell_hint = (
+                "Commands run via PowerShell on Windows. "
+                "Use PowerShell syntax (e.g. Get-ChildItem instead of ls, "
+                "$env:VAR instead of $VAR, "
+                "Remove-Item instead of rm)."
+            )
+        elif os_type == "darwin":
+            shell_hint = "Commands run via /bin/sh on macOS."
+        else:
+            shell_hint = "Commands run via /bin/sh on Linux."
+        return (
+            f"Execute a shell command and return its output. "
+            f"{shell_hint} Use with caution."
+        )
 
     @property
     def parameters(self) -> dict[str, Any]:
@@ -165,13 +196,26 @@ class ExecTool(Tool):
             env["PATH"] = env.get("PATH", "") + os.pathsep + self.path_append
 
         try:
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
-            )
+            if get_os_type() == "windows":
+                process = await asyncio.create_subprocess_exec(
+                    "powershell.exe",
+                    "-NonInteractive",
+                    "-NoProfile",
+                    "-Command",
+                    command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            else:
+                process = await asyncio.create_subprocess_shell(
+                    command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
 
             # ── Bounded streaming read ──────────────────────────────
             # Read stdout/stderr incrementally instead of communicate()
