@@ -99,6 +99,25 @@ def test_migrate_config_keeps_empty_mcp_servers_empty():
     assert migrated["tools"]["mcpServers"] == {}
 
 
+def test_migrate_config_updates_legacy_desktop_geometry():
+    migrated = _migrate_config(
+        {
+            "channels": {},
+            "tools": {},
+            "desktop": {
+                "closeBehavior": "hide",
+                "startHidden": False,
+                "autoStartEnabled": False,
+                "windowWidth": 1280,
+                "windowHeight": 800,
+            },
+        }
+    )
+
+    assert migrated["desktop"]["windowWidth"] == 820
+    assert migrated["desktop"]["windowHeight"] == 980
+
+
 @pytest.mark.asyncio
 async def test_api_models_get_aggregates_all_configured_providers(monkeypatch):
     import shibaclaw.cli.auth as auth_module

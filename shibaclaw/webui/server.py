@@ -351,11 +351,18 @@ class ServerManager:
 
     async def _serve_with_startup_tasks(self) -> None:
         assert self._server is not None
-        asyncio.create_task(_check_update_on_startup())
-        asyncio.create_task(_sync_skills_on_startup())
-        asyncio.create_task(_ensure_config_on_startup())
-        asyncio.create_task(_start_gateway_client())
-        await self._server.serve()
+        startup_tasks = [
+            asyncio.create_task(_check_update_on_startup()),
+            asyncio.create_task(_sync_skills_on_startup()),
+            asyncio.create_task(_ensure_config_on_startup()),
+            asyncio.create_task(_start_gateway_client()),
+        ]
+        try:
+            await self._server.serve()
+        finally:
+            for task in startup_tasks:
+                task.cancel()
+            await asyncio.gather(*startup_tasks, return_exceptions=True)
 
 
 if __name__ == "__main__":
