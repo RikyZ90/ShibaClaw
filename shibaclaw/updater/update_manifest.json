@@ -1,67 +1,87 @@
 {
-  "version": "0.2.0",
-  "release_notes": "### ShibaClaw v0.2.0 🐾\n\n- **Added**: Local provider support is fully functional via the `custom` provider. Compatible with LM Studio, llama.cpp, and generic local endpoints.\n- **Added**: Cross-provider model catalog and per-session model overrides via WebUI.\n- **Fix**: Re-enabled display updates for reasoning-only generation tasks preventing blank bubbles.\n- **Fix**: Removed obscure `\\t` errors via strict `api_base` endpoint sanitization.\n- **Docs**: README now details `host.docker.internal` requirements for Docker Compose environments hitting host ports.",
-  "upgrade_notes": "Update to v0.2.0. Run `pip install --upgrade shibaclaw` to receive the latest custom provider fixes and WebUI rendering enhancements.",
+  "version": "0.2.5",
+  "release_notes": "### ShibaClaw v0.2.5 🐾\n\n- **Added**: Native Windows desktop launcher with bundled ShibaClaw.exe, system tray integration, and packaged assets.\n- **Changed**: The desktop launcher now defaults to a smoother local experience by disabling WebUI auth unless you explicitly re-enable it.\n- **Changed**: WebUI session history now cleans channel prefixes from titles and shows dedicated colored channel badges under each session.\n- **Fix**: Windows packaged builds no longer crash on startup when `sys.stderr` is unavailable.\n- **Fix**: Cron jobs now start and stop with the gateway, hide routine internal prompts from chat history, and run in background workers so long tasks no longer freeze timers.",
+  "upgrade_notes": "Update to v0.2.5. Restart any running desktop, web, or gateway process after upgrading so the new Windows launcher, cron lifecycle fixes, and WebUI session metadata changes take effect.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Version bumped to 0.1.8."
+      "note": "Version bumped to 0.2.5 and Windows desktop packaging dependencies were added."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added the v0.1.8 changelog entry."
+      "note": "Added the v0.2.5 release notes covering desktop, cron, and WebUI updates."
     },
     {
       "path": "README.md",
       "overwrite": true,
-      "note": "Updated the release banner and summary notes for v0.1.8."
+      "note": "Documented the native Windows desktop launcher and updated release guidance."
     },
     {
-      "path": "shibaclaw/agent/tools/memory_search.py",
+      "path": "scripts/build_windows.py",
       "overwrite": true,
-      "note": "Rejects invalid top_k values before scoring history entries."
+      "note": "Builds the portable Windows bundle used locally and in GitHub Actions."
     },
     {
-      "path": "tests/test_memory.py",
+      "path": "scripts/generate_icons.py",
       "overwrite": true,
-      "note": "Uses async tests compatible with Python 3.14 and covers invalid top_k inputs."
+      "note": "Generates the icon set bundled into the Windows desktop executable."
     },
     {
-      "path": "shibaclaw/webui/static/js/utils.js",
+      "path": "shibaclaw.spec",
       "overwrite": true,
-      "note": "Escapes raw HTML in Markdown rendering and centralizes safe DOM helpers."
+      "note": "Defines the PyInstaller bundle for the native Windows desktop app."
     },
     {
-      "path": "shibaclaw/webui/static/js/chat.js",
+      "path": "shibaclaw/desktop/__main__.py",
       "overwrite": true,
-      "note": "Renders attachment links through safe DOM nodes instead of template HTML."
+      "note": "Adds the packaged desktop entry point used by ShibaClaw.exe."
     },
     {
-      "path": "shibaclaw/webui/static/js/api_socket.js",
+      "path": "shibaclaw/desktop/launcher.py",
       "overwrite": true,
-      "note": "Makes socket bootstrap idempotent and reuses safe attachment rendering helpers."
+      "note": "Implements the native pywebview launcher, tray boot flow, and window lifecycle."
     },
     {
-      "path": "shibaclaw/webui/static/js/realtime.js",
+      "path": "shibaclaw/desktop/runtime.py",
       "overwrite": true,
-      "note": "Stops reconnect loops after logout/auth expiry and rejects pending socket requests on disconnect."
+      "note": "Manages the embedded gateway and WebUI runtime used by desktop mode."
     },
     {
-      "path": "shibaclaw/webui/static/js/files.js",
+      "path": "shibaclaw/desktop/tray.py",
       "overwrite": true,
-      "note": "Rebuilds breadcrumb, file rows, and staged attachments with safe DOM APIs."
+      "note": "Adds the Windows system tray integration for the native desktop app."
     },
     {
-      "path": "shibaclaw/webui/static/js/main.js",
+      "path": "shibaclaw/helpers/logging.py",
       "overwrite": true,
-      "note": "Prevents duplicate DOM listeners by making startup listener wiring idempotent."
+      "note": "Hardens logging so frozen Windows builds do not crash when stderr is missing."
+    },
+    {
+      "path": "shibaclaw/cli/gateway.py",
+      "overwrite": true,
+      "note": "Wires cron service startup and shutdown into the gateway lifecycle and desktop flow."
+    },
+    {
+      "path": "shibaclaw/cron/service.py",
+      "overwrite": true,
+      "note": "Runs cron jobs through background workers so long tasks no longer block timers."
+    },
+    {
+      "path": "shibaclaw/webui/server.py",
+      "overwrite": true,
+      "note": "Supports the desktop launcher integration and local auth defaults."
     },
     {
       "path": "shibaclaw/webui/static/js/ui_panels.js",
       "overwrite": true,
-      "note": "Makes automation/onboarding setup idempotent and sanitizes shared dialog messaging."
+      "note": "Refreshes session rows with cleaner titles, channel badges, and sidebar polish."
+    },
+    {
+      "path": "shibaclaw/webui/static/select_session.js",
+      "overwrite": true,
+      "note": "Normalizes session titles by stripping channel prefixes before rendering."
     }
   ]
 }
