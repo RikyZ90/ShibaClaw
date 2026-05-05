@@ -25,6 +25,7 @@ uv.lock
 
 # Local data & research
 .shibaclaw/
+scratch/
 ROADMAP.md
 docker-compose.build.yml
 
