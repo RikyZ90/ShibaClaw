@@ -131,9 +131,9 @@ class DesktopController:
 
         def _do_quit() -> None:
             logger.info("Desktop quit requested — shutting down…")
-            self._runtime.stop()
             if self._quit_callback:
                 self._quit_callback()
+            self._runtime.stop()
 
         threading.Thread(target=_do_quit, name="shibaclaw-quit", daemon=True).start()
 

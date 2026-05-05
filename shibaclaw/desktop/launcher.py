@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 import sys
 import threading
-from pathlib import Path
 from typing import Any
 
 from loguru import logger
@@ -25,6 +24,8 @@ from shibaclaw.desktop.controller import DesktopController
 from shibaclaw.desktop.runtime import DesktopRuntime
 from shibaclaw.desktop.tray import TrayIcon
 from shibaclaw.helpers.system import get_os_type, is_running_as_exe
+
+WINDOWS_APP_USER_MODEL_ID = "RikyZ90.ShibaClaw.Desktop"
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -54,6 +55,8 @@ def run(
         logger.warning(
             "Native launcher is intended for Windows; running anyway on {}", sys.platform
         )
+    else:
+        _set_windows_app_user_model_id()
 
     _configure_desktop_auth(disable_auth=disable_auth)
 
@@ -100,7 +103,7 @@ def run(
         width=window_config["width"],
         height=window_config["height"],
         resizable=True,
-        hidden=window_config["hidden"],
+        hidden=True,
         # Frameless title bar is disabled for now; keep native chrome so the
         # window can be moved and resized without extra JS drag handling.
         frameless=False,
@@ -112,13 +115,50 @@ def run(
     # Controller: inject window callbacks
     # ------------------------------------------------------------------
     quit_event = threading.Event()
+    force_exit_armed = threading.Event()
+    shutdown_complete = threading.Event()
+    initial_show_complete = threading.Event()
+
+    def _arm_force_exit(timeout: float = 3.0) -> None:
+        if force_exit_armed.is_set():
+            return
+        force_exit_armed.set()
+
+        def _force_exit_if_needed() -> None:
+            if shutdown_complete.wait(timeout=timeout):
+                return
+            logger.warning(
+                "Desktop shutdown did not finish within {} seconds; forcing process exit",
+                timeout,
+            )
+            os._exit(0)
+
+        threading.Thread(
+            target=_force_exit_if_needed,
+            name="shibaclaw-force-exit",
+            daemon=True,
+        ).start()
 
     def _quit_callback() -> None:
         quit_event.set()
+        _arm_force_exit()
         try:
             window.destroy()
         except Exception:
-            pass
+            logger.debug("window.destroy() failed during quit", exc_info=True)
+
+    def _on_loaded(*_args: Any) -> None:
+        if window_config["start_hidden"] or initial_show_complete.is_set():
+            return
+        initial_show_complete.set()
+        _window_show(window)
+
+    def _on_before_show(*_args: Any) -> None:
+        if get_os_type() != "windows":
+            return
+        icon_path = _get_windows_icon_path()
+        if icon_path:
+            _apply_windows_window_icon(window, icon_path)
 
     controller = DesktopController(
         runtime=runtime,
@@ -138,14 +178,20 @@ def run(
     # ------------------------------------------------------------------
     def _on_closing() -> bool:
         """Return False to intercept (cancel) close, True to allow it."""
+        if quit_event.is_set():
+            return True
+
         if window_config["close_policy"] == "hide":
             _window_hide(window)
             return False  # intercept (cancel) — do not destroy the window
-        else:
-            controller.quit_app()
-            return True  # allow webview to destroy the window naturally
+
+        controller.quit_app()
+        return False
 
     window.events.closing += _on_closing
+    window.events.loaded += _on_loaded
+    if get_os_type() == "windows":
+        window.events.before_show += _on_before_show
 
     # ------------------------------------------------------------------
     # Start the webview event loop (blocks until quit_event or window.destroy)
@@ -153,21 +199,16 @@ def run(
     logger.info("Opening ShibaClaw window")
     try:
         webview.start(
-            debug=_is_debug_mode(),
+            debug=_desktop_debug_enabled(),
             icon=_get_icon_path(),
             # gui='edgechromium'  # optionally force Edge WebView2 on Windows
         )
     finally:
-        # Assicuriamoci che la tray icon venga fermata quando l'app chiude
-        tray.stop()
-
-    # ------------------------------------------------------------------
-    # Cleanup after the window loop exits
-    # ------------------------------------------------------------------
-    if not quit_event.is_set():
-        # Window was destroyed without going through the controller (e.g.
-        # Alt-F4 with close_policy='quit').
-        runtime.stop()
+        try:
+            tray.stop()
+        finally:
+            runtime.stop()
+            shutdown_complete.set()
 
 
 # ---------------------------------------------------------------------------
@@ -188,18 +229,19 @@ def _window_hide(window: Any) -> None:
         logger.debug("window.hide() failed: {}", exc)
 
 
-def _is_debug_mode() -> bool:
-    """Return True when running from source (not a frozen .exe build)."""
-    return not is_running_as_exe()
+def _desktop_debug_enabled() -> bool:
+    """Return True only when desktop debug is explicitly enabled."""
+    value = os.environ.get("SHIBACLAW_DESKTOP_DEBUG", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 def _resolve_window_config(runtime: DesktopRuntime, close_policy: str | None) -> dict[str, Any]:
     """Resolve window geometry and behavior from config with launcher overrides."""
     desktop_cfg = runtime.config.desktop if runtime.config is not None else None
     return {
-        "width": desktop_cfg.window_width if desktop_cfg is not None else 960,
-        "height": desktop_cfg.window_height if desktop_cfg is not None else 1050,
-        "hidden": desktop_cfg.start_hidden if desktop_cfg is not None else False,
+        "width": desktop_cfg.window_width if desktop_cfg is not None else 820,
+        "height": desktop_cfg.window_height if desktop_cfg is not None else 980,
+        "start_hidden": desktop_cfg.start_hidden if desktop_cfg is not None else False,
         "close_policy": close_policy or runtime.close_policy,
     }
 
@@ -209,11 +251,96 @@ def _get_icon_path() -> str | None:
     assets_dir = get_assets_dir()
     candidates = [
         assets_dir / "shibaclaw.ico",
+        assets_dir / "shibaclaw_256.png",
+        assets_dir / "shibaclaw_128.png",
+        assets_dir / "shibaclaw_64.png",
         assets_dir / "shibaclaw_32.png",
     ]
     for path in candidates:
         if path.exists():
             return str(path)
+    return None
+
+
+def _get_windows_icon_path() -> str | None:
+    """Return the .ico asset used for the native Windows window icon."""
+    icon_path = get_assets_dir() / "shibaclaw.ico"
+    if icon_path.exists():
+        return str(icon_path)
+    return None
+
+
+def _set_windows_app_user_model_id() -> None:
+    """Set a stable Windows AppUserModelID for taskbar grouping and icon lookup."""
+    import ctypes
+
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(  # type: ignore[attr-defined]
+            WINDOWS_APP_USER_MODEL_ID
+        )
+    except Exception as exc:
+        logger.debug("Could not set Windows AppUserModelID: {}", exc)
+
+
+def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
+    """Apply small and large icons to the native Windows window handle."""
+    import ctypes
+
+    WM_SETICON = 0x0080
+    ICON_SMALL = 0
+    ICON_BIG = 1
+    IMAGE_ICON = 1
+    LR_LOADFROMFILE = 0x0010
+    SM_CXSMICON = 49
+    SM_CYSMICON = 50
+
+    user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+    hwnd = _resolve_windows_window_handle(window)
+    if not hwnd:
+        logger.debug("Could not resolve a native window handle for the taskbar icon")
+        return
+
+    big_icon = user32.LoadImageW(None, icon_path, IMAGE_ICON, 256, 256, LR_LOADFROMFILE)
+    small_icon = user32.LoadImageW(
+        None,
+        icon_path,
+        IMAGE_ICON,
+        user32.GetSystemMetrics(SM_CXSMICON),
+        user32.GetSystemMetrics(SM_CYSMICON),
+        LR_LOADFROMFILE,
+    )
+
+    if big_icon:
+        user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, big_icon)
+    if small_icon:
+        user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, small_icon)
+
+
+def _resolve_windows_window_handle(window: Any) -> int | None:
+    """Best-effort extraction of the native HWND for a pywebview window."""
+    native = getattr(window, "native", None)
+    if native is not None:
+        for attr_name in ("Handle", "handle"):
+            handle = getattr(native, attr_name, None)
+            if handle is None:
+                continue
+            try:
+                to_int64 = getattr(handle, "ToInt64", None)
+                if callable(to_int64):
+                    value = to_int64()
+                    return value if isinstance(value, int) else int(str(value))
+                return int(handle)
+            except (TypeError, ValueError):
+                continue
+
+    title = getattr(window, "title", None)
+    if title:
+        import ctypes
+
+        hwnd = ctypes.windll.user32.FindWindowW(None, title)  # type: ignore[attr-defined]
+        if hwnd:
+            return int(hwnd)
+
     return None
 
 

@@ -148,8 +148,8 @@ class TestDesktopConfig:
         assert cfg.close_behavior == "hide"
         assert cfg.start_hidden is False
         assert cfg.auto_start_enabled is False
-        assert cfg.window_width == 960
-        assert cfg.window_height == 1050
+        assert cfg.window_width == 820
+        assert cfg.window_height == 980
 
     def test_present_in_root_config(self):
         from shibaclaw.config.schema import Config
@@ -361,9 +361,19 @@ class TestDesktopLauncherAuth:
         assert resolved == {
             "width": 900,
             "height": 1100,
-            "hidden": True,
+            "start_hidden": True,
             "close_policy": "hide",
         }
+
+    def test_desktop_debug_requires_explicit_env(self):
+        from shibaclaw.desktop import launcher
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SHIBACLAW_DESKTOP_DEBUG", None)
+            assert launcher._desktop_debug_enabled() is False
+
+        with mock.patch.dict(os.environ, {"SHIBACLAW_DESKTOP_DEBUG": "true"}, clear=False):
+            assert launcher._desktop_debug_enabled() is True
 
     def test_get_icon_path_uses_assets_dir(self, tmp_path):
         from shibaclaw.desktop import launcher

@@ -107,7 +107,7 @@ For the native Windows build, ShibaClaw runs as a desktop window with tray integ
 **Expected desktop behavior:**
 - Closing the window with the top-right `X` hides ShibaClaw to the system tray by default.
 - Use `Quit` from the tray menu to fully stop the desktop app and its background services.
-- The default window geometry is vertical-first (`960x1050`), but it can be changed in config under `desktop.window_width` and `desktop.window_height`.
+- The default window geometry is vertical-first (`820x980`). Existing installs can still override it through saved config values under `desktop.window_width` and `desktop.window_height`.
 
 ---
 

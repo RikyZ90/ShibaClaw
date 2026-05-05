@@ -42,7 +42,10 @@ If you installed via `pip`:
 shibaclaw desktop
 ```
 
-Or just use the pre-built `ShibaClaw.exe` from the release page!
+Or download the pre-built Windows executable directly from the latest release:
+
+> **[⬇ Download ShibaClaw.exe (latest)](https://github.com/RikyZ90/ShibaClaw/releases/latest/download/ShibaClaw.exe)**  
+> Full release notes → [github.com/RikyZ90/ShibaClaw/releases/latest](https://github.com/RikyZ90/ShibaClaw/releases/latest)
 
 ---
 

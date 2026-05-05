@@ -230,8 +230,8 @@ class DesktopConfig(Base):
     # Register ShibaClaw to start automatically at Windows login.
     # (Not yet implemented; flag reserved for future use.)
 
-    window_width: int = 960
-    window_height: int = 1050
+    window_width: int = 820
+    window_height: int = 980
 
 
 class Config(BaseSettings):
