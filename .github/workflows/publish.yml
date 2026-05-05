@@ -10,15 +10,37 @@ permissions:
   id-token: write
 
 jobs:
+  verify-release-tag:
+    name: Verify Release Tag Target
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tag commit is contained in origin/main
+        run: |
+          git fetch origin main --force
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
+            echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/main." >&2
+            echo "Releases are repository-wide; tag only commits that are already on main." >&2
+            exit 1
+          fi
+
   # ── PyPI ────────────────────────────────────────────────────────────────────
   pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
+    needs: verify-release-tag
     environment: pypi
     permissions:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -37,10 +59,13 @@ jobs:
   docker:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
+    needs: verify-release-tag
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up QEMU (multi-arch emulation)
         uses: docker/setup-qemu-action@v3
@@ -72,11 +97,13 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [pypi, docker, windows-exe]
+    needs: [verify-release-tag, pypi, docker, windows-exe]
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
@@ -97,10 +124,13 @@ jobs:
   windows-exe:
     name: Build Windows .exe
     runs-on: windows-latest
+    needs: verify-release-tag
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -114,6 +144,14 @@ jobs:
 
       - name: Build with PyInstaller
         run: python scripts/build_windows.py
+
+      - name: Smoke-test packaged executable
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "gateway", "--help" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            throw "ShibaClaw.exe gateway --help failed with exit code $($proc.ExitCode)"
+          }
 
       - name: Zip artifact
         shell: pwsh

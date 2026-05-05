@@ -158,7 +158,7 @@ exe = EXE(  # noqa: F821
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=False,       # No console window for the desktop build
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -173,7 +173,7 @@ coll = COLLECT(  # noqa: F821
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name="ShibaClaw",
 )

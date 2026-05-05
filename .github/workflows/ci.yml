@@ -66,3 +66,11 @@ jobs:
           if (-not (Test-Path "dist/ShibaClaw/ShibaClaw.exe")) {
             throw "Missing dist/ShibaClaw/ShibaClaw.exe"
           }
+
+      - name: Smoke-test packaged executable
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "gateway", "--help" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            throw "ShibaClaw.exe gateway --help failed with exit code $($proc.ExitCode)"
+          }
