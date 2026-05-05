@@ -2,15 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [0.2.5] - 2026-05-05
+
+### Added
+- **Native Windows Desktop Launcher** — Added a seamless pywebview-based Windows desktop client (`ShibaClaw.exe`) featuring a system tray icon, window state management, and bundled assets.
 
 ### Changed
+- **Desktop WebUI Authentication** — Disabled authentication by default for the native Desktop launcher to improve the out-of-the-box local experience.
 - **Session titles cleanup in WebUI history** — Sidebar session titles are now normalized by removing channel prefixes (e.g. `webui_`, `telegram_`, `heartbeat:`, `cron:`), keeping names cleaner and easier to scan.
 - **Channel tag under session title** — Each session row now shows its channel as a dedicated tag on the subline (under the title), separate from date/time metadata for improved visual hierarchy.
 - **Channel-aware badge palette** — Session channel tags now use coherent per-channel colors in the sidebar (`Web UI` gold/yellow, `Telegram` blue, `Discord` dark blue, `Heartbeat` dark violet, plus dedicated styles for `Cron`, `Slack`, `API`, and `CLI`).
 - **Sidebar session subline alignment polish** — Refined spacing, pill sizing, and vertical alignment for channel tags and timestamp metadata to improve readability and consistency across active/inactive rows.
 
 ### Fixed
+- **Desktop Windows Startup Crash** — Fixed a `NoneType` exception in `loguru` on Windows packaged builds (`console=False`) where `sys.stderr` is `None`.
+- **Desktop Subprocess Fork Bomb** — Intercepted `gateway` commands in the PyInstaller entry point to prevent infinite recursive UI window spawning during gateway startup.
 - **Cron Jobs Execution** — Fixed a bug where Cron jobs were not correctly wired into the agent lifecycle (Gateway callbacks were missing). The gateway now correctly arms and stops the internal cron loop during startup/shutdown.
 - **Cron Jobs UI Visibility** — Added `hidden` metadata to cron task prompts so that routine reminder requests and task payloads do not clutter the WebUI chat session interface.
 - **Cron Jobs blocking Timers** — Decoupled Cron execution by running tasks via asynchronous background workers. LLM response times will no longer block the main cron timer loop, resolving timeouts and "frozen" UI situations while processing automated tasks.

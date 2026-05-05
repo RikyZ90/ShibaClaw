@@ -137,13 +137,13 @@ def run(
     # Close-button policy
     # ------------------------------------------------------------------
     def _on_closing() -> bool:
-        """Return False to allow close, True to intercept it."""
+        """Return False to intercept (cancel) close, True to allow it."""
         if window_config["close_policy"] == "hide":
             _window_hide(window)
-            return True  # intercept — do not destroy the window
+            return False  # intercept (cancel) — do not destroy the window
         else:
             controller.quit_app()
-            return False  # allow webview to destroy the window naturally
+            return True  # allow webview to destroy the window naturally
 
     window.events.closing += _on_closing
 

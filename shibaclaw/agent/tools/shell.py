@@ -196,6 +196,8 @@ class ExecTool(Tool):
             env["PATH"] = env.get("PATH", "") + os.pathsep + self.path_append
 
         try:
+            import subprocess
+
             if get_os_type() == "windows":
                 process = await asyncio.create_subprocess_exec(
                     "powershell.exe",
@@ -207,6 +209,7 @@ class ExecTool(Tool):
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
                     env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                 )
             else:
                 process = await asyncio.create_subprocess_shell(

@@ -126,6 +126,8 @@ async def execute_command(
     """
     os_type = get_os_type()
 
+    import subprocess
+
     if os_type == "windows":
         # Use powershell.exe so callers get PowerShell semantics
         process = await asyncio.create_subprocess_exec(
@@ -138,6 +140,7 @@ async def execute_command(
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
             env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
     else:
         process = await asyncio.create_subprocess_exec(

@@ -15,15 +15,34 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.2.0!** This release adds cross-provider model search, true per-session model routing, a redesigned model-first settings flow, and OpenRouter OAuth directly in the WebUI.
+📢 **Welcome to ShibaClaw v0.2.5!** This release adds a brand new **Native Windows Desktop App**, cross-provider model search, true per-session model routing, a redesigned model-first settings flow, and OpenRouter OAuth directly in the WebUI.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
 
-ShibaClaw is a **security-first AI agent** for your terminal, your browser and 11 other channels.
+ShibaClaw is a **security-first AI agent** for your terminal, desktop, browser and 11 other channels.
 Security isn’t an add-on — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
 
-**22 providers · 11 chat channels · built-in WebUI · 3-level proactive memory · cron · heartbeat · skills · MCP**
+**Native Windows Desktop App · 22 providers · 11 chat channels · built-in WebUI · 3-level proactive memory · cron · heartbeat · skills · MCP**
+
+---
+
+## Native Desktop App (Windows) 🖥️
+
+ShibaClaw now features a fully integrated **Windows Desktop Launcher** built with `pywebview`. 
+It offers a seamless local experience without the need to manage background terminal windows.
+
+- **System Tray Integration**: Close the window to minimize ShibaClaw silently into the system tray. Right-click the Shiba icon to re-open the UI, access workspace logs, visit the website, or gracefully quit the engine.
+- **Auto-Login**: When using the Desktop Launcher locally, WebUI authentication is bypassed by default for a smoother local-first experience.
+- **Embedded WebUI**: No need to open your own browser; the WebUI runs inside a dedicated native window frame.
+- **Portable & Lightweight**: Packaged as a single standalone folder using PyInstaller to run instantly without requiring Python on the host machine.
+
+If you installed via `pip`:
+```bash
+shibaclaw desktop
+```
+
+Or just use the pre-built `ShibaClaw.exe` from the release page!
 
 ---
 
