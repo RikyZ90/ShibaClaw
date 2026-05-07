@@ -22,7 +22,6 @@ from loguru import logger
 from shibaclaw.config.paths import get_assets_dir
 from shibaclaw.desktop.controller import DesktopController
 from shibaclaw.desktop.runtime import DesktopRuntime
-from shibaclaw.desktop.runtime import DesktopRuntime
 from shibaclaw.desktop.window_state import WindowState, load_window_state, save_window_state
 from shibaclaw.helpers.system import get_os_type, is_running_as_exe
 
