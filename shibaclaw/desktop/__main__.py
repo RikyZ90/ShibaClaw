@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 import io
+import sys
 
 # Force UTF-8 encoding for standard streams to prevent crashes on Windows when printing emojis
 if sys.platform == "win32":

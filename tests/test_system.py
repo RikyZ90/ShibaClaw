@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import sys
 from socket import AF_INET, SOCK_STREAM, socket
 from unittest import mock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # get_os_type
@@ -74,7 +72,6 @@ def test_is_running_in_pip_env_venv(monkeypatch) -> None:
     if hasattr(system.sys, "real_prefix"):
         monkeypatch.delattr(system.sys, "real_prefix")
 
-    from importlib import reload
     # Re-import to pick up monkeypatched values at call time (functions read sys at call time)
     assert system.is_running_in_pip_env() is True
 
@@ -169,6 +166,7 @@ async def test_execute_command_windows_echo() -> None:
 @pytest.mark.asyncio
 async def test_execute_command_timeout() -> None:
     import asyncio
+
     from shibaclaw.helpers.system import execute_command
 
     async def _slow_communicate():

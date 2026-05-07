@@ -322,13 +322,13 @@ def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
     """Apply small and large icons to the native Windows window handle."""
     import ctypes
 
-    WM_SETICON = 0x0080
-    ICON_SMALL = 0
-    ICON_BIG = 1
-    IMAGE_ICON = 1
-    LR_LOADFROMFILE = 0x0010
-    SM_CXSMICON = 49
-    SM_CYSMICON = 50
+    wm_seticon = 0x0080
+    icon_small = 0
+    icon_big = 1
+    image_icon = 1
+    lr_loadfromfile = 0x0010
+    sm_cxsmicon = 49
+    sm_cysmicon = 50
 
     user32 = ctypes.windll.user32  # type: ignore[attr-defined]
     hwnd = _resolve_windows_window_handle(window)
@@ -336,20 +336,20 @@ def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
         logger.debug("Could not resolve a native window handle for the taskbar icon")
         return
 
-    big_icon = user32.LoadImageW(None, icon_path, IMAGE_ICON, 256, 256, LR_LOADFROMFILE)
+    big_icon = user32.LoadImageW(None, icon_path, image_icon, 256, 256, lr_loadfromfile)
     small_icon = user32.LoadImageW(
         None,
         icon_path,
-        IMAGE_ICON,
-        user32.GetSystemMetrics(SM_CXSMICON),
-        user32.GetSystemMetrics(SM_CYSMICON),
-        LR_LOADFROMFILE,
+        image_icon,
+        user32.GetSystemMetrics(sm_cxsmicon),
+        user32.GetSystemMetrics(sm_cysmicon),
+        lr_loadfromfile,
     )
 
     if big_icon:
-        user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, big_icon)
+        user32.SendMessageW(hwnd, wm_seticon, icon_big, big_icon)
     if small_icon:
-        user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, small_icon)
+        user32.SendMessageW(hwnd, wm_seticon, icon_small, small_icon)
 
 
 def _resolve_windows_window_handle(window: Any) -> int | None:

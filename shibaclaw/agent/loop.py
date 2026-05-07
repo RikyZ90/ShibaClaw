@@ -7,17 +7,14 @@ import json
 import os
 import re
 import sys
-
-_MEDIA_RE = re.compile(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', re.DOTALL)
 import time
 import weakref
-from datetime import datetime
 from contextlib import AsyncExitStack
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
 from loguru import logger
-from shibaclaw.cli.base import _make_provider
 
 from shibaclaw.agent.context import ScentBuilder
 from shibaclaw.agent.memory import PackMemory, ScentKeeper
@@ -29,13 +26,15 @@ from shibaclaw.agent.tools.memory_search import MemorySearchTool
 from shibaclaw.agent.tools.message import MessageTool
 from shibaclaw.agent.tools.registry import SkillVault
 from shibaclaw.agent.tools.shell import ExecTool
-from shibaclaw.helpers.system import get_os_type
 from shibaclaw.agent.tools.spawn import SpawnTool
 from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
 from shibaclaw.brain.manager import PackManager, Session
 from shibaclaw.bus.events import InboundMessage, OutboundMessage
 from shibaclaw.bus.queue import MessageBus
+from shibaclaw.helpers.system import get_os_type
 from shibaclaw.thinkers.base import Thinker
+
+_MEDIA_RE = re.compile(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', re.DOTALL)
 
 if TYPE_CHECKING:
     from shibaclaw.config.schema import ExecToolConfig, WebSearchConfig
@@ -222,6 +221,7 @@ class ShibaBrain:
             return cached_provider
 
         try:
+            from shibaclaw.cli.base import _make_provider
 
             temp_cfg = self.config.model_copy(deep=True)
             temp_cfg.agents.defaults.provider = "auto"
@@ -726,6 +726,15 @@ class ShibaBrain:
         if profile_id_override and session.metadata.get("profile_id") != profile_id_override:
             session.metadata["profile_id"] = profile_id_override
             self.sessions.save(session)
+
+        # Normalize model ID if present
+        if model := session.metadata.get("model"):
+            from shibaclaw.helpers.model_ids import canonicalize_model_id
+
+            canonical = canonicalize_model_id(self.config, model)
+            if canonical != model:
+                session.metadata["model"] = canonical
+                self.sessions.save(session)
 
         cmd = msg.content.strip().lower()
         if cmd == "/new":

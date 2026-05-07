@@ -10,6 +10,8 @@ from typing import Any
 
 import tiktoken
 
+from shibaclaw.cli.utils import safe_print
+
 
 def detect_image_mime(data: bytes) -> str | None:
     """Detect image MIME type from magic bytes, ignoring file extension."""
@@ -90,7 +92,6 @@ def _sync_builtin_skills_to_workspace(workspace: Path, silent: bool = False) -> 
     case existing skills are left untouched).
     """
     from shibaclaw.agent.skills import BUILTIN_SKILLS_DIR
-    from shibaclaw.cli.utils import safe_print
 
     workspace_skills_dir = workspace / "skills"
     workspace_skills_dir.mkdir(parents=True, exist_ok=True)

@@ -13,10 +13,10 @@ from rich.prompt import Confirm, Prompt
 from rich.rule import Rule
 from rich.table import Table
 
-from .utils import safe_print
-
 from shibaclaw import __logo__, __version__
 from shibaclaw.cli.auth import _is_oauth_authenticated
+
+from .utils import safe_print
 
 console = Console()
 

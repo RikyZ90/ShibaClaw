@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -29,7 +30,6 @@ async def api_status(request: Request):
     gw_ready = gw is not None and gw.get("status") in ("ok", "idle")
 
     # Check if any OAuth providers are configured
-    from .routers.oauth import api_oauth_providers
     oauth_res = await api_oauth_providers(request)
     oauth_data = json.loads(oauth_res.body)
     oauth_configured = any(p.get("status") == "configured" for p in oauth_data.get("providers", []))

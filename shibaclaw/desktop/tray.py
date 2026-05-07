@@ -6,8 +6,8 @@ import threading
 from typing import TYPE_CHECKING
 
 import pystray
-from PIL import Image
 from loguru import logger
+from PIL import Image
 
 from shibaclaw.config.paths import get_assets_dir
 
