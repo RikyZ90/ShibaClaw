@@ -10,7 +10,7 @@
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped the package version to 0.2.1 and aligned dependency versions."
+            "note": "Bumped the package version to 0.3.0 and aligned dependency versions."
         },
         {
             "path": "shibaclaw/webui/static/css/style.css",
