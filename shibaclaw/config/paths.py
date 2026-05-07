@@ -20,9 +20,16 @@ def get_app_root() -> Path:
 
 
 def get_runtime_root() -> Path:
-    """Return the root directory that contains bundled runtime resources."""
+    """Return the root directory that contains bundled runtime resources.
+
+    Handles PyInstaller frozen environments (both --onefile and --onedir)
+    as well as direct source execution.
+    """
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS)
+        meipass = Path(sys._MEIPASS)
+        # In newer PyInstaller versions, resources might be in an '_internal' subdir
+        internal = meipass / "_internal"
+        return internal if internal.exists() else meipass
     return Path(__file__).resolve().parents[2]
 
 

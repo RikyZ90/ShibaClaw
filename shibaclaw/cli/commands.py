@@ -12,7 +12,7 @@ from shibaclaw import __logo__, __version__
 from shibaclaw.helpers.logging import setup_shiba_logging
 
 from .base import _load_runtime_config, _make_provider
-from .utils import console
+from .utils import safe_print
 
 app = typer.Typer(
     name="shibaclaw",
@@ -24,7 +24,7 @@ app = typer.Typer(
 
 def version_callback(value: bool):
     if value:
-        console.print(f"{__logo__} shibaclaw v{__version__}")
+        safe_print(f"{__logo__} shibaclaw v{__version__}")
         raise typer.Exit()
 
 
@@ -43,9 +43,9 @@ def print_token():
 
     token = get_auth_token()
     if token:
-        console.print(f"[green]🔑 Token: {token}[/green]")
+        safe_print(f"[green]🔑 Token: {token}[/green]")
     else:
-        console.print("[yellow]No token found or authentication disabled.[/yellow]")
+        safe_print("[yellow]No token found or authentication disabled.[/yellow]")
 
 
 @app.command()
@@ -126,7 +126,7 @@ def web(
         ):
             fallback_http = find_free_tcp_port(gateway_host)
             fallback_ws = find_free_tcp_port(gateway_host, exclude={fallback_http})
-            console.print(
+            safe_print(
                 "[yellow]Gateway ports busy; using fallback ports "
                 f"{fallback_http}/{fallback_ws} instead of {gateway_port}/{gateway_ws_port}.[/yellow]"
             )
@@ -138,9 +138,8 @@ def web(
         os.environ["SHIBACLAW_GATEWAY_HOST"] = gateway_host
         os.environ["SHIBACLAW_WEBUI_URL"] = f"http://127.0.0.1:{port}"
         cfg.gateway.host = gateway_host
-
-        console.print("[cyan]➜ Starting Gateway process background...[/cyan]")
-        console.print("[dim]  (Optimized memory: ~128MB UI + ~256MB Gateway)[/dim]")
+        safe_print("[cyan]➜ Starting Gateway process background...[/cyan]")
+        safe_print("[dim]  (Optimized memory: ~128MB UI + ~256MB Gateway)[/dim]")
         gw_cmd = [
             sys.executable,
             "-m",
@@ -169,15 +168,15 @@ def web(
             except OSError:
                 time.sleep(0.1)
 
-    console.print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
-    console.print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
+    safe_print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
+    safe_print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
     if token:
-        console.print(
+        safe_print(
             f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token) - 4)}[/bold]"
         )
     if provider is None:
-        console.print("")
-        console.print(
+        safe_print("")
+        safe_print(
             "  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
         )
 
@@ -185,7 +184,7 @@ def web(
         asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
     finally:
         if gateway_proc:
-            console.print("[yellow]➜ Terminating Gateway process...[/yellow]")
+            safe_print("[yellow]➜ Terminating Gateway process...[/yellow]")
             gateway_proc.terminate()
             try:
                 gateway_proc.wait(timeout=5)
@@ -257,16 +256,15 @@ def status():
     from .auth import _oauth_provider_status
 
     cfg_path, cfg = get_config_path(), load_config()
-    console.print(f"{__logo__} [bold]shibaclaw Status[/bold]\n")
-    console.print(
+    safe_print(f"{__logo__} [bold]shibaclaw Status[/bold]\n")
+    safe_print(
         f"Config: {cfg_path} {'[green]✓[/green]' if cfg_path.exists() else '[red]✗[/red]'}"
     )
-    console.print(
+    safe_print(
         f"Workspace: {cfg.workspace_path} {'[green]✓[/green]' if cfg.workspace_path.exists() else '[red]✗[/red]'}"
     )
-
     if cfg_path.exists():
-        console.print(f"Model: [bold cyan]{cfg.agents.defaults.model}[/bold cyan]")
+        safe_print(f"Model: [bold cyan]{cfg.agents.defaults.model}[/bold cyan]")
         for spec in PROVIDERS:
             p = getattr(cfg.providers, spec.name, None)
             if p:
@@ -278,7 +276,7 @@ def status():
                     )
                 else:
                     status_text = "[green]✓[/green]" if p.api_key else "[dim]not set[/dim]"
-                console.print(f"{spec.label}: {status_text}")
+                safe_print(f"{spec.label}: {status_text}")
 
 
 channels_app = typer.Typer(help="Manage channels")
@@ -317,7 +315,7 @@ def channels_status():
         label = name.capitalize()
         status = "[yellow]! missing dep[/yellow]" if enabled else "[dim]✗ missing dep[/dim]"
         table.add_row(label, status)
-    console.print(table)
+    safe_print(table)
 
 
 provider_app = typer.Typer(help="Manage providers")

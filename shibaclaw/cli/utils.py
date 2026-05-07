@@ -1,9 +1,19 @@
-"""Terminal and IO utilities for the ShibaClaw CLI."""
-
+import io
 import os
 import select
 import sys
 from contextlib import contextmanager, nullcontext
+
+# Hard-force UTF-8 encoding for standard streams as early as possible
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+    try:
+        if sys.stdout is not None:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if sys.stderr is not None:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -11,7 +21,33 @@ from rich.text import Text
 
 from shibaclaw import __logo__
 
-console = Console()
+# Detect Unicode support
+_supports_unicode = False
+try:
+    # Check if the stream encoding is UTF-8 or if we're on Windows (where we force it)
+    encoding = getattr(sys.stderr, "encoding", "") or ""
+    if encoding.lower() in ("utf-8", "utf8", "cp65001") or sys.platform == "win32":
+        _supports_unicode = True
+except Exception:
+    pass
+
+# Initialize rich console
+console = Console(
+    force_terminal=True if os.environ.get("SHIBACLAW_FORCE_TERMINAL") else None,
+)
+
+
+def safe_print(message: str, **kwargs) -> None:
+    """Print a message to the console, removing emojis if Unicode is not supported."""
+    if not _supports_unicode:
+        # Simple regex-free replacement for common ShibaClaw emojis
+        message = message.replace("🐾", ">>").replace("🐕‍🦺", "System").replace("🔍", "[Search]").replace("🛠️", "[Tool]").replace("✅", "[OK]")
+    try:
+        console.print(message, **kwargs)
+    except UnicodeEncodeError:
+        # Final fallback: strip non-ascii characters if it still fails
+        safe_msg = "".join(c if ord(c) < 128 else "?" for c in message)
+        console.print(safe_msg, **kwargs)
 
 
 def flush_pending_tty_input() -> None:
@@ -106,13 +142,13 @@ class ThinkingSpinner:
 
 def print_cli_progress_line(text: str, thinking: ThinkingSpinner | None) -> None:
     """Print a CLI progress line with an icon, pausing the spinner if needed."""
-    icon = "[🐾]"
+    icon = "[🐾]" if _supports_unicode else "[*]"
     if "search" in text.lower() or "find" in text.lower():
-        icon = "[🔍]"
+        icon = "[🔍]" if _supports_unicode else "[S]"
     elif "tool" in text.lower() or "exec" in text.lower():
-        icon = "[🛠️]"
+        icon = "[🛠️]" if _supports_unicode else "[T]"
     elif "done" in text.lower() or "finish" in text.lower():
-        icon = "[✅]"
+        icon = "[✅]" if _supports_unicode else "[OK]"
 
     with thinking.pause() if thinking else nullcontext():
         console.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")

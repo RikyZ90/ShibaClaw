@@ -181,11 +181,14 @@ class DesktopRuntime:
             extra_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
 
         gateway_env = os.environ.copy()
+        gateway_env["SHIBACLAW_SILENT"] = "true"
+        gateway_env["PYTHONIOENCODING"] = "utf-8"
+
         logger.debug("Starting gateway subprocess: {}", gw_cmd)
         self._gateway_proc = subprocess.Popen(gw_cmd, env=gateway_env, **extra_kwargs)
 
-        # Wait up to 8 s for the actual ShibaClaw health endpoint to answer.
-        deadline = time.monotonic() + 8.0
+        # Wait up to 45s for the actual ShibaClaw health endpoint to answer (increased for first-run setup)
+        deadline = time.monotonic() + 45.0
         while time.monotonic() < deadline:
             if self._gateway_proc.poll() is not None:
                 logger.error("Gateway process exited early")
@@ -246,7 +249,7 @@ class DesktopRuntime:
             body = json.loads(payload.split(marker, 1)[1].decode("utf-8", errors="ignore"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             return False
-        return body.get("status") == "ok"
+        return body.get("status") in ("ok", "idle")
 
     def _start_server(self) -> None:
         from shibaclaw.webui.server import ServerManager

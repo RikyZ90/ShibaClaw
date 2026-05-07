@@ -3,6 +3,17 @@
 from __future__ import annotations
 
 import sys
+import io
+
+# Force UTF-8 encoding for standard streams to prevent crashes on Windows when printing emojis
+if sys.platform == "win32":
+    try:
+        if sys.stdout is not None:
+            sys.stdout.reconfigure(encoding="utf-8")
+        if sys.stderr is not None:
+            sys.stderr.reconfigure(encoding="utf-8")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
 
 from shibaclaw.helpers.logging import setup_shiba_logging
 
@@ -18,7 +29,11 @@ def _show_startup_error(message: str) -> None:
         except Exception:
             pass
 
-    print(message, file=sys.stderr)
+    if sys.stderr is not None:
+        try:
+            print(message, file=sys.stderr)
+        except Exception:
+            pass
 
 
 def main() -> None:
