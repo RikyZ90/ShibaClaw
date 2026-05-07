@@ -5,9 +5,16 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
-import pystray
+try:
+    import pystray
+    from PIL import Image
+    HAS_TRAY_DEPS = True
+except ImportError:
+    HAS_TRAY_DEPS = False
+    pystray = None  # type: ignore
+    Image = None  # type: ignore
+
 from loguru import logger
-from PIL import Image
 
 from shibaclaw.config.paths import get_assets_dir
 
