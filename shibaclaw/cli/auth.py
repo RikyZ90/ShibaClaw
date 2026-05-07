@@ -33,10 +33,8 @@ def _is_oauth_authenticated(spec) -> bool:
     if spec.name == "github_copilot":
         token_paths = [
             os.path.join(home, ".shibaclaw", "github_copilot", "access-token"),
-            os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token"),
-            os.path.join(home, ".config", "github-copilot", "hosts.json"),
         ]
-        if os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_COPILOT_TOKEN"):
+        if os.environ.get("GITHUB_COPILOT_TOKEN"):
             return True
         return any(os.path.exists(tp) for tp in token_paths)
 
@@ -59,19 +57,9 @@ def _oauth_provider_status(spec) -> str:
             return "[dim]not authenticated[/dim]"
 
     if spec.name == "github_copilot":
-        try:
-            from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
-
-            async def _test():
-                thinker = GithubCopilotThinker()
-                await thinker.chat([{"role": "user", "content": "hi"}], max_tokens=1)
-
-            asyncio.run(_test())
+        if _is_oauth_authenticated(spec):
             return "[green]✓ (OAuth authenticated)[/green]"
-        except ImportError:
-            return "[dim]missing dependencies[/dim]"
-        except Exception:
-            return "[dim]not authenticated[/dim]"
+        return "[dim]not authenticated[/dim]"
 
     return "[dim]not configured[/dim]"
 
@@ -203,7 +191,7 @@ def _login_github_copilot() -> None:
                 access_token = tj.get("access_token")
                 if access_token:
                     home = os.path.expanduser("~")
-                    token_dir = os.path.join(home, ".config", "shibaclaw", "github_copilot")
+                    token_dir = os.path.join(home, ".shibaclaw", "github_copilot")
                     os.makedirs(token_dir, exist_ok=True)
                     with open(os.path.join(token_dir, "access-token"), "w") as f:
                         f.write(access_token)

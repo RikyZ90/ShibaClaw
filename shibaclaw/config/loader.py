@@ -154,14 +154,4 @@ def _migrate_config(data: dict) -> dict:
     tools["mcpServers"] = mcp_servers
     data["tools"] = tools
 
-    # Migrate the old landscape desktop defaults to the new vertical-first size.
-    desktop = data.get("desktop", {})
-    if isinstance(desktop, dict):
-        width = desktop.get("windowWidth", desktop.get("window_width"))
-        height = desktop.get("windowHeight", desktop.get("window_height"))
-        if (width, height) == (1280, 800):
-            desktop["windowWidth"] = 820
-            desktop["windowHeight"] = 980
-    data["desktop"] = desktop
-
     return data

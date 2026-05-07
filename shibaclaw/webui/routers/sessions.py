@@ -26,10 +26,20 @@ async def api_sessions_get(request: Request):
     pm = PackManager(agent_manager.config.workspace_path)
     session = pm.get_or_create(session_id)
 
+    # Normalize model ID if present
+    if model := session.metadata.get("model"):
+        from shibaclaw.helpers.model_ids import canonicalize_model_id
+
+        canonical = canonicalize_model_id(agent_manager.config, model)
+        if canonical != model:
+            session.metadata["model"] = canonical
+            pm.save(session)
+
     # Dynamically build attachments for assistant messages
     for m in session.messages:
         if m.get("role") == "assistant" and "metadata" in m and "media" in m["metadata"]:
             from shibaclaw.webui.ws_handler import _build_attachments
+
             m.setdefault("metadata", {})["attachments"] = _build_attachments(m["metadata"]["media"])
 
     return JSONResponse(

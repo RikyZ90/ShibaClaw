@@ -140,7 +140,7 @@ async def execute_command(
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
             env=env,
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     else:
         process = await asyncio.create_subprocess_exec(

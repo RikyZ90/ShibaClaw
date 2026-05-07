@@ -16,6 +16,8 @@ from rich.table import Table
 from shibaclaw import __logo__, __version__
 from shibaclaw.cli.auth import _is_oauth_authenticated
 
+from .utils import safe_print
+
 console = Console()
 
 # ---------------------------------------------------------------------------
@@ -379,8 +381,8 @@ def onboard_command(
 
     if has_any_provider and chosen_model:
         _rule("Step 1 / 3  —  LLM Provider")
-        console.print(f"  Current provider: [bold cyan]{chosen_provider}[/bold cyan]")
-        console.print(f"  Current model:    [bold cyan]{chosen_model}[/bold cyan]")
+        safe_print(f"  Current provider: [bold cyan]{chosen_provider}[/bold cyan]")
+        safe_print(f"  Current model:    [bold cyan]{chosen_model}[/bold cyan]")
         change = Confirm.ask("\n  Change provider/model?", default=False)
         if change:
             has_any_provider = False  # force full selection

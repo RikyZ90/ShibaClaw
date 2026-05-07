@@ -293,14 +293,6 @@ function updateQueueIndicator() {
 async function fetchStatus() {
     try {
         const res = await authFetch("/api/status?_t=" + Date.now());
-        let oauthConfigured = false;
-        try {
-            const oauthRes = await authFetch("/api/oauth/providers?_t=" + Date.now());
-            if (oauthRes.ok) {
-                const oauthData = await oauthRes.json();
-                oauthConfigured = (oauthData.providers || []).some(p => p.status === "configured");
-            }
-        } catch {}
         if (res.ok) {
             const data = await res.json();
             state.agentConfigured = data.agent_configured;
@@ -308,7 +300,7 @@ async function fetchStatus() {
             const versionEl = $("sidebar-version");
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;
 
-            const isConfigured = data.agent_configured || oauthConfigured;
+            const isConfigured = (data.agent_configured || data.oauth_configured) && data.model;
             if (isConfigured && realtime.connected) {
                 state.gatewayUp = true;
                 state.gatewayKnown = true;
@@ -318,8 +310,8 @@ async function fetchStatus() {
                 state.onboardModalShown = false;
             } else {
                 setStatusIndicator("not-configured");
-                if (!data.agent_configured && !oauthConfigured && !state.onboardModalShown) {
-                    state.onboardModalShown = true;
+                if (!isConfigured) {
+                    console.log("Triggering onboarding wizard (not fully configured)");
                     openOnboardWizard();
                 }
             }
@@ -384,7 +376,9 @@ function updateUIFromHealthState() {
     }
 
     if (state.gatewayUp) {
-        if (!state.gatewayProviderReady) {
+        if (!state.agentConfigured) {
+            setStatusIndicator("not-configured");
+        } else if (!state.gatewayProviderReady) {
             setStatusIndicator("model-offline");
         } else {
             setStatusIndicator("ready");

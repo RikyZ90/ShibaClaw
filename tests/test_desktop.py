@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import socket
 import sys
 import threading
 import time
@@ -12,7 +11,6 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # helpers.system — new functions
@@ -102,7 +100,6 @@ class TestGetAppRoot:
     def test_creates_directory(self, tmp_path):
         """get_app_root() must ensure the directory exists."""
         fake_home = tmp_path / "fakehome"
-        expected = fake_home / ".shibaclaw"
         with mock.patch("pathlib.Path.home", return_value=fake_home):
             from shibaclaw.config import paths as paths_module
             with mock.patch.object(paths_module, "ensure_dir", wraps=lambda p: (p.mkdir(parents=True, exist_ok=True) or p)):
@@ -116,8 +113,8 @@ class TestGetAppRoot:
 
 class TestAuthTokenPath:
     def test_token_file_under_app_root(self):
-        from shibaclaw.webui.auth import AUTH_TOKEN_FILE
         from shibaclaw.config.paths import get_app_root
+        from shibaclaw.webui.auth import AUTH_TOKEN_FILE
 
         assert AUTH_TOKEN_FILE.parent == get_app_root()
         assert AUTH_TOKEN_FILE.name == "auth_token"
@@ -129,8 +126,8 @@ class TestAuthTokenPath:
 
 class TestCacheFilePath:
     def test_cache_file_under_app_root(self):
-        from shibaclaw.updater.checker import _CACHE_FILE
         from shibaclaw.config.paths import get_app_root
+        from shibaclaw.updater.checker import _CACHE_FILE
 
         assert _CACHE_FILE.parent == get_app_root()
         assert _CACHE_FILE.name == "update_cache.json"
@@ -148,8 +145,8 @@ class TestDesktopConfig:
         assert cfg.close_behavior == "hide"
         assert cfg.start_hidden is False
         assert cfg.auto_start_enabled is False
-        assert cfg.window_width == 820
-        assert cfg.window_height == 980
+        assert cfg.window_width == 920
+        assert cfg.window_height == 1048
 
     def test_present_in_root_config(self):
         from shibaclaw.config.schema import Config
@@ -351,16 +348,24 @@ class TestDesktopLauncherAuth:
 
         runtime = DesktopRuntime()
         runtime.config = Config()
-        runtime.config.desktop.window_width = 900
-        runtime.config.desktop.window_height = 1100
+        runtime.config.desktop.window_width = 920
+        runtime.config.desktop.window_height = 1048
         runtime.config.desktop.start_hidden = True
         runtime.config.desktop.close_behavior = "hide"
 
-        resolved = launcher._resolve_window_config(runtime, close_policy=None)
+        from unittest import mock
+
+        from shibaclaw.desktop.window_state import WindowState
+
+        with mock.patch("shibaclaw.desktop.launcher.load_window_state") as mock_load:
+            mock_load.side_effect = lambda w, h: WindowState(width=w, height=h)
+            resolved = launcher._resolve_window_config(runtime, close_policy=None)
 
         assert resolved == {
-            "width": 900,
-            "height": 1100,
+            "width": 920,
+            "height": 1048,
+            "x": None,
+            "y": None,
             "start_hidden": True,
             "close_policy": "hide",
         }
@@ -420,8 +425,8 @@ class TestDesktopMainEntrypoint:
 
 class TestDesktopController:
     def _make_controller(self):
-        from shibaclaw.desktop.runtime import DesktopRuntime
         from shibaclaw.desktop.controller import DesktopController
+        from shibaclaw.desktop.runtime import DesktopRuntime
 
         rt = DesktopRuntime(port=3000)
         show_calls = []

@@ -11,7 +11,7 @@ import typer
 
 from shibaclaw.config.schema import Config
 
-from .utils import console
+from .utils import safe_print
 
 
 def _load_runtime_config(config: Optional[str] = None, workspace: Optional[str] = None) -> Config:
@@ -22,10 +22,10 @@ def _load_runtime_config(config: Optional[str] = None, workspace: Optional[str] 
     if config:
         config_path = Path(config).expanduser().resolve()
         if not config_path.exists():
-            console.print(f"[red]Error: Config file not found: {config_path}[/red]")
+            safe_print(f"[red]Error: Config file not found: {config_path}[/red]")
             raise typer.Exit(1)
         set_config_path(config_path)
-        console.print(f"[dim]Using config: {config_path}[/dim]")
+        safe_print(f"[dim]Using config: {config_path}[/dim]")
 
     loaded = load_config(config_path)
     if workspace:
@@ -95,11 +95,11 @@ def _make_provider(config: Config, exit_on_error: bool = True):
 
             if not any_ready:
                 if exit_on_error:
-                    console.print("\n🐾 [bold]Please run: shibaclaw onboard[/bold]")
+                    safe_print("\n🐾 [bold]Please run: shibaclaw onboard[/bold]")
                     sys.exit(0)
                 return None
             else:
-                console.print(
+                safe_print(
                     f"[yellow]🐾 Current model [bold]{model}[/bold] is not configured.[/yellow]"
                 )
                 if exit_on_error:

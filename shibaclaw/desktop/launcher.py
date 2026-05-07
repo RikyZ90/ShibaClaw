@@ -22,7 +22,7 @@ from loguru import logger
 from shibaclaw.config.paths import get_assets_dir
 from shibaclaw.desktop.controller import DesktopController
 from shibaclaw.desktop.runtime import DesktopRuntime
-from shibaclaw.desktop.tray import TrayIcon
+from shibaclaw.desktop.window_state import WindowState, load_window_state, save_window_state
 from shibaclaw.helpers.system import get_os_type, is_running_as_exe
 
 WINDOWS_APP_USER_MODEL_ID = "RikyZ90.ShibaClaw.Desktop"
@@ -74,6 +74,7 @@ def run(
     # ------------------------------------------------------------------
     # Boot the runtime
     # ------------------------------------------------------------------
+
     runtime = DesktopRuntime(
         config_path=config_path,
         workspace=workspace,
@@ -102,6 +103,8 @@ def run(
         url=runtime.authed_url,
         width=window_config["width"],
         height=window_config["height"],
+        x=window_config["x"],
+        y=window_config["y"],
         resizable=True,
         hidden=True,
         # Frameless title bar is disabled for now; keep native chrome so the
@@ -170,8 +173,12 @@ def run(
     # ------------------------------------------------------------------
     # Start System Tray
     # ------------------------------------------------------------------
-    tray = TrayIcon(controller)
-    tray.start()
+    from shibaclaw.desktop.tray import HAS_TRAY_DEPS, TrayIcon
+    if HAS_TRAY_DEPS:
+        tray = TrayIcon(controller)
+        tray.start()
+    else:
+        logger.debug("Optional tray dependencies (pystray, PIL) missing; tray icon disabled")
 
     # ------------------------------------------------------------------
     # Close-button policy
@@ -188,8 +195,28 @@ def run(
         controller.quit_app()
         return False
 
+    def _on_resized(width, height):
+        save_window_state(WindowState(
+            width=width,
+            height=height,
+            x=window.x,
+            y=window.y,
+            # maximized=window.maximized # pywebview might not expose this easily on all platforms
+        ))
+
+    def _on_moved(x, y):
+        save_window_state(WindowState(
+            width=window.width,
+            height=window.height,
+            x=x,
+            y=y
+        ))
+
     window.events.closing += _on_closing
     window.events.loaded += _on_loaded
+    window.events.resized += _on_resized
+    window.events.moved += _on_moved
+
     if get_os_type() == "windows":
         window.events.before_show += _on_before_show
 
@@ -236,13 +263,26 @@ def _desktop_debug_enabled() -> bool:
 
 
 def _resolve_window_config(runtime: DesktopRuntime, close_policy: str | None) -> dict[str, Any]:
-    """Resolve window geometry and behavior from config with launcher overrides."""
+    """Resolve window geometry and behavior from state file or config defaults."""
     desktop_cfg = runtime.config.desktop if runtime.config is not None else None
+    
+    # Defaults from schema
+    default_w = 880
+    default_h = 1024
+    if desktop_cfg:
+        default_w = desktop_cfg.window_width
+        default_h = desktop_cfg.window_height
+
+    # Load persisted state, falling back to config defaults
+    state = load_window_state(default_w, default_h)
+
     return {
-        "width": desktop_cfg.window_width if desktop_cfg is not None else 820,
-        "height": desktop_cfg.window_height if desktop_cfg is not None else 980,
+        "width": state.width,
+        "height": state.height,
+        "x": state.x,
+        "y": state.y,
         "start_hidden": desktop_cfg.start_hidden if desktop_cfg is not None else False,
-        "close_policy": close_policy or runtime.close_policy,
+        "close_policy": close_policy or (runtime.config.desktop.close_behavior if runtime.config and runtime.config.desktop else "hide"),
     }
 
 
@@ -286,13 +326,13 @@ def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
     """Apply small and large icons to the native Windows window handle."""
     import ctypes
 
-    WM_SETICON = 0x0080
-    ICON_SMALL = 0
-    ICON_BIG = 1
-    IMAGE_ICON = 1
-    LR_LOADFROMFILE = 0x0010
-    SM_CXSMICON = 49
-    SM_CYSMICON = 50
+    wm_seticon = 0x0080
+    icon_small = 0
+    icon_big = 1
+    image_icon = 1
+    lr_loadfromfile = 0x0010
+    sm_cxsmicon = 49
+    sm_cysmicon = 50
 
     user32 = ctypes.windll.user32  # type: ignore[attr-defined]
     hwnd = _resolve_windows_window_handle(window)
@@ -300,20 +340,20 @@ def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
         logger.debug("Could not resolve a native window handle for the taskbar icon")
         return
 
-    big_icon = user32.LoadImageW(None, icon_path, IMAGE_ICON, 256, 256, LR_LOADFROMFILE)
+    big_icon = user32.LoadImageW(None, icon_path, image_icon, 256, 256, lr_loadfromfile)
     small_icon = user32.LoadImageW(
         None,
         icon_path,
-        IMAGE_ICON,
-        user32.GetSystemMetrics(SM_CXSMICON),
-        user32.GetSystemMetrics(SM_CYSMICON),
-        LR_LOADFROMFILE,
+        image_icon,
+        user32.GetSystemMetrics(sm_cxsmicon),
+        user32.GetSystemMetrics(sm_cysmicon),
+        lr_loadfromfile,
     )
 
     if big_icon:
-        user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, big_icon)
+        user32.SendMessageW(hwnd, wm_seticon, icon_big, big_icon)
     if small_icon:
-        user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, small_icon)
+        user32.SendMessageW(hwnd, wm_seticon, icon_small, small_icon)
 
 
 def _resolve_windows_window_handle(window: Any) -> int | None:

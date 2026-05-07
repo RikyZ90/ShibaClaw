@@ -10,6 +10,8 @@ from typing import Any
 
 import tiktoken
 
+from shibaclaw.cli.utils import safe_print
+
 
 def detect_image_mime(data: bytes) -> str | None:
     """Detect image MIME type from magic bytes, ignoring file extension."""
@@ -119,11 +121,8 @@ def _sync_builtin_skills_to_workspace(workspace: Path, silent: bool = False) -> 
 
     # Existing skills — ask before overwriting
     if existing_skills and not silent:
-        from rich.console import Console
-
-        con = Console()
         names = ", ".join(s.name for s in existing_skills)
-        con.print(f"  [yellow]Skills already present:[/yellow] {names}")
+        safe_print(f"  [yellow]Skills already present:[/yellow] {names}")
         answer = input("  Overwrite with latest built-in versions? [y/N] ").strip().lower()
         if answer in ("y", "yes"):
             for skill_dir in existing_skills:
@@ -132,13 +131,10 @@ def _sync_builtin_skills_to_workspace(workspace: Path, silent: bool = False) -> 
                 shutil.copytree(skill_dir, dst)
                 copied.append(skill_dir.name)
         else:
-            con.print("  [dim]Skipped — existing skills unchanged.[/dim]")
-
-    if copied and not silent:
-        from rich.console import Console
+            safe_print("  [dim]Skipped — existing skills unchanged.[/dim]")
 
         for name in copied:
-            Console().print(f"  [dim]Synced skill {name} to workspace/skills/{name}[/dim]")
+            safe_print(f"  [dim]Synced skill {name} to workspace/skills/{name}[/dim]")
 
     return copied
 
@@ -371,18 +367,14 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
         _write(src, dest)
 
     # Existing templates — ask before overwriting
-    if existing_templates and not silent:
-        from rich.console import Console
-
-        con = Console()
         names = ", ".join(d.name for _, d in existing_templates)
-        con.print(f"  [yellow]Templates already customised:[/yellow] {names}")
+        safe_print(f"  [yellow]Templates already customised:[/yellow] {names}")
         answer = input("  Overwrite with defaults? [y/N] ").strip().lower()
         if answer in ("y", "yes"):
             for src, dest in existing_templates:
                 _write(src, dest)
         else:
-            con.print("  [dim]Skipped — your templates unchanged.[/dim]")
+            safe_print("  [dim]Skipped — your templates unchanged.[/dim]")
 
     (workspace / "skills").mkdir(exist_ok=True)
 
@@ -429,9 +421,6 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
                     dest_dir.mkdir(exist_ok=True)
                     _write(soul_src, soul_dest)
 
-    if added and not silent:
-        from rich.console import Console
-
         for name in added:
-            Console().print(f"  [dim]Created {name}[/dim]")
+            safe_print(f"  [dim]Created {name}[/dim]")
     return added

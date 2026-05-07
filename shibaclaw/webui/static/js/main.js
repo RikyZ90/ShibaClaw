@@ -102,6 +102,15 @@ function initListeners() {
 
 // ── Initialize ────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+    // Extract token from URL if present (desktop launcher)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get("token");
+    if (urlToken) {
+        setStoredToken(urlToken);
+        // Clean up URL to keep it pretty
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // Wire up login form
     const loginBtn = document.getElementById("btn-login");
     const loginInput = document.getElementById("login-token");
