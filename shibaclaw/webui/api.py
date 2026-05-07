@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -24,18 +25,27 @@ async def api_status(request: Request):
     from shibaclaw import __version__
 
     gw = await _gateway_request("GET", "/")
-    gw_ready = gw is not None and gw.get("status") == "ok"
-    return JSONResponse(
-        {
-            "status": "ok" if gw_ready else "gateway_offline",
-            "version": __version__,
-            "agent_configured": gw_ready and gw.get("provider_ready", False),
-            "provider": cfg.agents.defaults.provider if cfg else None,
-            "model": cfg.agents.defaults.model if cfg else None,
-            "workspace": str(cfg.workspace_path) if cfg else None,
-            "gateway": gw_ready,
-        }
-    )
+    print(f"DEBUG: api_status -> gw_resp={gw}")
+    gw_ready = gw is not None and gw.get("status") in ("ok", "idle")
+
+    # Check if any OAuth providers are configured
+    from .routers.oauth import api_oauth_providers
+    oauth_res = await api_oauth_providers(request)
+    oauth_data = json.loads(oauth_res.body)
+    oauth_configured = any(p.get("status") == "configured" for p in oauth_data.get("providers", []))
+
+    resp = {
+        "status": "ok" if gw_ready else "gateway_offline",
+        "version": __version__,
+        "agent_configured": gw_ready and gw.get("provider_ready", False),
+        "oauth_configured": oauth_configured,
+        "provider": cfg.agents.defaults.provider if cfg else None,
+        "model": cfg.agents.defaults.model if cfg else None,
+        "workspace": str(cfg.workspace_path) if cfg else None,
+        "gateway": gw_ready,
+    }
+    print(f"DEBUG: api_status -> final_resp={resp}")
+    return JSONResponse(resp)
 
 
 async def api_context_get(request: Request):
