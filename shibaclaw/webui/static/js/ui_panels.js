@@ -1145,6 +1145,7 @@ async function loadOAuthPanel() {
                                         if (!settingsCfg.error) {
                                             window._shibaConfig = settingsCfg;
                                             populateSettings(settingsCfg);
+                                            _availableModels = []; // Clear model cache
                                             switchSettingsTab("oauth");
                                         }
                                     }
@@ -1722,6 +1723,7 @@ window.saveSettings = async function() {
         const data = await res.json();
         if (!res.ok) throw data.error || "Save failed";
         closeModal("settings-modal");
+        _availableModels = []; // Clear model cache to force refresh
         fetchStatus();
 
         if (data.restarted) {
@@ -2065,7 +2067,7 @@ function _obRenderGrid() {
         else if (p.status === "configured") badge = '<span class="ob-badge configured">Configured</span>';
         else if (p.status === "oauth_ok") badge = '<span class="ob-badge oauth">OAuth \u2713</span>';
         else if (p.is_local) badge = '<span class="ob-badge local">Local</span>';
-        else if (p.is_oauth || p.name === "openrouter") badge = '<span class="ob-badge oauth">OAuth</span>';
+        // Remove the default OAuth badge that was shown even when not authenticated
         const icon = ICONS[p.name] || "smart_toy";
         card.innerHTML = `
             <div class="pc-icon"><span class="material-icons-round">${icon}</span></div>
@@ -2359,6 +2361,7 @@ window.obSubmit = async function() {
         btn.style.width = "";
         closeModal("onboard-modal");
         state.onboardModalShown = false;
+        _availableModels = []; // Clear model cache to force refresh
         fetchStatus();
         loadHistory();
     } catch(e) {

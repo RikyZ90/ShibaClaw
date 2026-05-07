@@ -315,7 +315,7 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
             access_token = tj.get("access_token")
             if access_token:
                 home = os.path.expanduser("~")
-                token_dir = os.path.join(home, ".config", "shibaclaw", "github_copilot")
+                token_dir = os.path.join(home, ".shibaclaw", "github_copilot")
                 os.makedirs(token_dir, exist_ok=True)
                 with open(os.path.join(token_dir, "access-token"), "w") as f:
                     f.write(access_token)

@@ -46,22 +46,26 @@ class GithubCopilotThinker(OpenAIThinker):
         if self._cached_token and now < (self._token_expires_at - 60):
             return self._cached_token
 
-        # Load access token
-        home = os.path.expanduser("~")
-        token_paths = [
-            os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token"),
-            os.path.join(home, ".shibaclaw", "github_copilot", "access-token"),
-        ]
+        # 1. Try environment variables
+        env_token = os.environ.get("GITHUB_COPILOT_TOKEN")
+        if env_token:
+            access_token = env_token.strip()
+        else:
+            # 2. Try cached files
+            home = os.path.expanduser("~")
+            token_paths = [
+                os.path.join(home, ".shibaclaw", "github_copilot", "access-token"),
+            ]
 
-        token_path = next((path for path in token_paths if os.path.exists(path)), None)
-        if not token_path:
-            raise ValueError(
-                "GitHub Copilot not authenticated. "
-                "Run `docker exec -it shibaclaw-gateway shibaclaw auth provider github_copilot` or use the WebUI to login."
-            )
+            token_path = next((path for path in token_paths if os.path.exists(path)), None)
+            if not token_path:
+                raise ValueError(
+                    "GitHub Copilot not authenticated. "
+                    "Run `shibaclaw auth provider github_copilot` or use the WebUI to login."
+                )
 
-        with open(token_path, "r", encoding="utf-8") as f:
-            access_token = f.read().strip()
+            with open(token_path, "r", encoding="utf-8") as f:
+                access_token = f.read().strip()
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(

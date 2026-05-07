@@ -48,18 +48,15 @@ async def api_oauth_providers(request: Request):
             elif p["name"] == "github_copilot":
                 home = os.path.expanduser("~")
                 token_paths = [
-                    os.path.join(home, ".config", "github-copilot", "hosts.json"),
-                    os.path.join(home, ".config", "shibaclaw", "github_copilot", "access-token"),
+                    os.path.join(home, ".shibaclaw", "github_copilot", "access-token"),
                 ]
                 has_cached = any(os.path.exists(tp) for tp in token_paths)
-                has_env = bool(
-                    os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_COPILOT_TOKEN")
-                )
+                has_env = bool(os.environ.get("GITHUB_COPILOT_TOKEN"))
                 status = "configured" if (has_cached or has_env) else "not_configured"
                 msg = (
-                    "Cached credentials found"
+                    "Authenticated"
                     if status == "configured"
-                    else "No cached credentials"
+                    else "No credentials found"
                 )
         except Exception as e:
             status, msg = "error", str(e)

@@ -23,6 +23,7 @@ from shibaclaw.config.paths import get_assets_dir
 from shibaclaw.desktop.controller import DesktopController
 from shibaclaw.desktop.runtime import DesktopRuntime
 from shibaclaw.desktop.tray import TrayIcon
+from shibaclaw.desktop.window_state import WindowState, load_window_state, save_window_state
 from shibaclaw.helpers.system import get_os_type, is_running_as_exe
 
 WINDOWS_APP_USER_MODEL_ID = "RikyZ90.ShibaClaw.Desktop"
@@ -102,6 +103,8 @@ def run(
         url=runtime.authed_url,
         width=window_config["width"],
         height=window_config["height"],
+        x=window_config["x"],
+        y=window_config["y"],
         resizable=True,
         hidden=True,
         # Frameless title bar is disabled for now; keep native chrome so the
@@ -188,8 +191,28 @@ def run(
         controller.quit_app()
         return False
 
+    def _on_resized(width, height):
+        save_window_state(WindowState(
+            width=width,
+            height=height,
+            x=window.x,
+            y=window.y,
+            # maximized=window.maximized # pywebview might not expose this easily on all platforms
+        ))
+
+    def _on_moved(x, y):
+        save_window_state(WindowState(
+            width=window.width,
+            height=window.height,
+            x=x,
+            y=y
+        ))
+
     window.events.closing += _on_closing
     window.events.loaded += _on_loaded
+    window.events.resized += _on_resized
+    window.events.moved += _on_moved
+
     if get_os_type() == "windows":
         window.events.before_show += _on_before_show
 
@@ -236,13 +259,26 @@ def _desktop_debug_enabled() -> bool:
 
 
 def _resolve_window_config(runtime: DesktopRuntime, close_policy: str | None) -> dict[str, Any]:
-    """Resolve window geometry and behavior from config with launcher overrides."""
+    """Resolve window geometry and behavior from state file or config defaults."""
     desktop_cfg = runtime.config.desktop if runtime.config is not None else None
+    
+    # Defaults from schema
+    default_w = 880
+    default_h = 1024
+    if desktop_cfg:
+        default_w = desktop_cfg.window_width
+        default_h = desktop_cfg.window_height
+
+    # Load persisted state, falling back to config defaults
+    state = load_window_state(default_w, default_h)
+
     return {
-        "width": desktop_cfg.window_width if desktop_cfg is not None else 820,
-        "height": desktop_cfg.window_height if desktop_cfg is not None else 980,
+        "width": state.width,
+        "height": state.height,
+        "x": state.x,
+        "y": state.y,
         "start_hidden": desktop_cfg.start_hidden if desktop_cfg is not None else False,
-        "close_policy": close_policy or runtime.close_policy,
+        "close_policy": close_policy or (runtime.config.desktop.close_behavior if runtime.config and runtime.config.desktop else "hide"),
     }
 
 
