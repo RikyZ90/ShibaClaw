@@ -44,7 +44,7 @@ shibaclaw desktop
 
 Or download the pre-built Windows executable directly from the latest release:
 
-> **[⬇ Download ShibaClaw.exe (latest)](https://github.com/RikyZ90/ShibaClaw/releases/latest/download/ShibaClaw.exe)**  
+> **[⬇ Download ShibaClaw.exe (latest)](https://github.com/RikyZ90/ShibaClaw/releases/latest/download/ShibaClaw-windows.zip)**  
 > Full release notes → [github.com/RikyZ90/ShibaClaw/releases/latest](https://github.com/RikyZ90/ShibaClaw/releases/latest)
 
 ---
