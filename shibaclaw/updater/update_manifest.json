@@ -1,7 +1,7 @@
 {
-  "version": "0.2.5",
-  "release_notes": "### ShibaClaw v0.2.5 🐾\n\n- **Added**: Native Windows desktop launcher with bundled ShibaClaw.exe, system tray integration, and packaged assets.\n- **Changed**: The desktop launcher now defaults to a smoother local experience by disabling WebUI auth unless you explicitly re-enable it.\n- **Changed**: WebUI session history now cleans channel prefixes from titles and shows dedicated colored channel badges under each session.\n- **Fix**: Windows packaged builds no longer crash on startup when `sys.stderr` is unavailable.\n- **Fix**: Cron jobs now start and stop with the gateway, hide routine internal prompts from chat history, and run in background workers so long tasks no longer freeze timers.",
-  "upgrade_notes": "Update to v0.2.5. Restart any running desktop, web, or gateway process after upgrading so the new Windows launcher, cron lifecycle fixes, and WebUI session metadata changes take effect.",
+  "version": "0.3.0",
+  "release_notes": "### ShibaClaw v0.3.0 🐾\n\n- **Release Automation**: Added documentation and helpers for managing GitHub releases.",
+  "upgrade_notes": "Update to v0.3.0. Run 'shibaclaw onboard' to ensure all templates are up to date.",
   "changes": [
     {
       "path": "pyproject.toml",

@@ -1,6 +1,6 @@
 {
-    "version": "0.2.1",
-    "release_notes": "Dependency alignment and WebUI sidebar polish: fixed version conflicts across Python packages and improved sidebar layout and styling for better visual consistency.",
+    "version": "0.3.0",
+    "release_notes": "Bumped version to v0.3.0 for release automation updates.",
     "changes": [
         {
             "path": "CHANGELOG.md",

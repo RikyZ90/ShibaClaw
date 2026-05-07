@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0] - 2026-05-07
+
+### Added
+- **Release Automation** — Added documentation and helpers for managing GitHub releases.
+
 ## [0.2.5] - 2026-05-05
 
 ### Added
