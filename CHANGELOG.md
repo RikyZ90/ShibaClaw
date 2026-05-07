@@ -6,10 +6,6 @@ All notable changes to this project are documented in this file.
 
 ### Added
 - **Release Automation** — Added documentation and helpers for managing GitHub releases.
-
-## [0.2.5] - 2026-05-05
-
-### Added
 - **Native Windows Desktop Launcher** — Added a seamless pywebview-based Windows desktop client (`ShibaClaw.exe`) featuring a system tray icon, window state management, and bundled assets.
 
 ### Changed
