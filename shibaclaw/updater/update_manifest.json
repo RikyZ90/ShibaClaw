@@ -3,16 +3,16 @@
   "release_notes": "### ShibaClaw v0.3.0 🐾\n\n- **Release Automation**: Added documentation and helpers for managing GitHub releases.",
   "upgrade_notes": "Update to v0.3.0. Run 'shibaclaw onboard' to ensure all templates are up to date.",
   "changes": [
-    {
-      "path": "pyproject.toml",
-      "overwrite": true,
-      "note": "Version bumped to 0.2.5 and Windows desktop packaging dependencies were added."
-    },
-    {
-      "path": "CHANGELOG.md",
-      "overwrite": true,
-      "note": "Added the v0.2.5 release notes covering desktop, cron, and WebUI updates."
-    },
+        {
+            "path": "pyproject.toml",
+            "overwrite": true,
+            "note": "Bumped the package version to 0.3.0 and aligned dependency versions."
+        },
+        {
+            "path": "CHANGELOG.md",
+            "overwrite": true,
+            "note": "Added the v0.3.0 release notes covering release automation and GitHub release management."
+        },
     {
       "path": "README.md",
       "overwrite": true,
