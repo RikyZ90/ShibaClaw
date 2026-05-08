@@ -145,12 +145,20 @@ jobs:
       - name: Build with PyInstaller
         run: python scripts/build_windows.py
 
-      - name: Smoke-test packaged executable
+      - name: Smoke-test CLI path
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "gateway", "--help" -Wait -PassThru
+          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "gateway", "--help" -Wait -PassThru -NoNewWindow
           if ($proc.ExitCode -ne 0) {
             throw "ShibaClaw.exe gateway --help failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Smoke-test desktop dependencies
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "--verify-desktop" -Wait -PassThru -NoNewWindow
+          if ($proc.ExitCode -ne 0) {
+            throw "Desktop dependency verification failed with exit code $($proc.ExitCode)"
           }
 
       - name: Zip artifact

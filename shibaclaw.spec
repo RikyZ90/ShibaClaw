@@ -12,6 +12,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -57,6 +59,13 @@ datas += collect_data("assets/shibaclaw_*.png", "assets")
 _ico = ROOT / "assets" / "shibaclaw.ico"
 if _ico.exists():
     datas += [(str(_ico), "assets")]
+
+# Third-party runtime assets (WebView2 DLLs, .NET bridge, CLR loader)
+# Explicit collection ensures CI builds bundle these even when
+# pyinstaller-hooks-contrib doesn't pick them up automatically.
+datas += collect_data_files("webview")
+datas += collect_data_files("clr_loader")
+datas += collect_data_files("pythonnet")
 
 # ---------------------------------------------------------------------------
 # Hidden imports that PyInstaller's static analysis misses
@@ -121,6 +130,15 @@ hiddenimports = [
     "readability",
     "lxml",
     "lxml._elementpath",
+    # .NET bridge (pythonnet / clr_loader)
+    "clr_loader",
+    "clr_loader.ffi",
+    "clr_loader.ffi.coreclr",
+    "clr_loader.ffi.mono",
+    "clr_loader.ffi.netfx",
+    "clr_loader.util",
+    "clr_loader.util.find",
+    "clr_loader.util.clr_error",
 ]
 
 # ---------------------------------------------------------------------------
@@ -128,6 +146,9 @@ hiddenimports = [
 # ---------------------------------------------------------------------------
 
 binaries = []
+binaries += collect_dynamic_libs("webview")
+binaries += collect_dynamic_libs("clr_loader")
+binaries += collect_dynamic_libs("pythonnet")
 
 # ---------------------------------------------------------------------------
 # Analysis

@@ -41,12 +41,19 @@ def main() -> None:
     multiprocessing.freeze_support()
 
     # Intercept subprocess calls (e.g. gateway) when bundled by PyInstaller
+    if len(sys.argv) >= 2 and sys.argv[1] == "--verify-desktop":
+        import webview  # noqa: F401
+        import clr_loader  # noqa: F401
+        import pythonnet  # noqa: F401
+        from PIL import Image  # noqa: F401
+        print("desktop-deps-ok")
+        sys.exit(0)
+
     if len(sys.argv) >= 3 and sys.argv[1] == "-m" and sys.argv[2] == "shibaclaw":
         from shibaclaw.cli.commands import app
         sys.argv = [sys.argv[0]] + sys.argv[3:]
         sys.exit(app())
     elif len(sys.argv) >= 2 and sys.argv[1] == "gateway":
-        # Just in case it's called as ShibaClaw.exe gateway
         from shibaclaw.cli.commands import app
         sys.argv = [sys.argv[0]] + sys.argv[1:]
         sys.exit(app())
