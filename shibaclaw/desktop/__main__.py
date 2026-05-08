@@ -42,9 +42,9 @@ def main() -> None:
 
     # Intercept subprocess calls (e.g. gateway) when bundled by PyInstaller
     if len(sys.argv) >= 2 and sys.argv[1] == "--verify-desktop":
-        import webview  # noqa: F401
         import clr_loader  # noqa: F401
         import pythonnet  # noqa: F401
+        import webview  # noqa: F401
         from PIL import Image  # noqa: F401
         print("desktop-deps-ok")
         sys.exit(0)
