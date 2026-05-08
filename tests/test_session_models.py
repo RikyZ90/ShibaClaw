@@ -83,7 +83,13 @@ def test_api_sessions_get_normalizes_legacy_raw_model(tmp_path: Path):
             session.metadata["model"] = "gpt-4.1"
             pm.save(session)
 
-            response = await api_sessions_get(_session_request("webui:test"))
+            from unittest.mock import patch
+
+            with patch(
+                "shibaclaw.helpers.model_ids.configured_provider_names",
+                return_value=["github_copilot"],
+            ):
+                response = await api_sessions_get(_session_request("webui:test"))
             payload = json.loads(response.body)
             reloaded = pm.get_or_create("webui:test")
 
