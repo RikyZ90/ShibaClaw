@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.3] - 2026-05-08
+
+### Fixed
+- Fixed CI build size by ensuring all integration channel dependencies (extras) are installed before packaging.
+- Resolved local versioning discrepancy in PyInstaller bundles by reinstalling the editable package metadata.
+
 ## [0.3.2] - 2026-05-08
 
 ### Fixed

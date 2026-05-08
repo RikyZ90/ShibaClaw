@@ -1,32 +1,22 @@
 {
-  "version": "0.3.2",
-  "release_notes": "### ShibaClaw v0.3.2 🐾\n\n- **Fix**: Bundled native Windows runtime DLLs (pywebview, pythonnet, clr_loader) in GitHub Actions builds. Packaging now includes all required .NET assemblies and WebView2 loaders.\n- **Improvement**: Added a `--verify-desktop` smoke test to the CI pipeline to ensure native dependencies are correctly bundled before release.",
-  "upgrade_notes": "Update to v0.3.2. Fixes the Windows executable startup crash in GitHub-distributed releases.",
+  "version": "0.3.3",
+  "release_notes": "### ShibaClaw v0.3.3 🐾\n\n- **Fix**: Final build fix for GitHub releases. Ensures all integration channels (Telegram, Slack, etc.) are correctly bundled in the Windows executable.\n- **Fix**: Resolved local versioning bug where the build was stuck on v0.2.1.",
+  "upgrade_notes": "Update to v0.3.3. This is the definitive fixed build for Windows.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Bumped the package version to 0.3.2."
+      "note": "Bumped the package version to 0.3.3."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.3.2 release notes."
-    },
-    {
-      "path": "shibaclaw.spec",
-      "overwrite": true,
-      "note": "Added explicit collection of webview, clr_loader, and pythonnet data/binaries."
-    },
-    {
-      "path": "shibaclaw/desktop/__main__.py",
-      "overwrite": true,
-      "note": "Added --verify-desktop flag for CI dependency validation."
+      "note": "Added v0.3.3 release notes."
     },
     {
       "path": ".github/workflows/publish.yml",
       "overwrite": true,
-      "note": "Improved smoke test to verify desktop dependencies."
+      "note": "Fixed CI to install all-channels extras."
     }
   ]
 }
