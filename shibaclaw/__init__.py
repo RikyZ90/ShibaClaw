@@ -1,6 +1,6 @@
 import re
-from pathlib import Path
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 
 def _get_version():
     """Determine the version from pyproject.toml or installed metadata."""
