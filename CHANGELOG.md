@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.4] - 2026-05-08
+
+### Fixed
+- Fixed CI build failure caused by native Matrix E2E dependencies (`python-olm`). Matrix is now included without E2E encryption in the Windows bundle.
+
 ## [0.3.3] - 2026-05-08
 
 ### Fixed

@@ -1,22 +1,17 @@
 {
-  "version": "0.3.3",
-  "release_notes": "### ShibaClaw v0.3.3 🐾\n\n- **Fix**: Final build fix for GitHub releases. Ensures all integration channels (Telegram, Slack, etc.) are correctly bundled in the Windows executable.\n- **Fix**: Resolved local versioning bug where the build was stuck on v0.2.1.",
-  "upgrade_notes": "Update to v0.3.3. This is the definitive fixed build for Windows.",
+  "version": "0.3.4",
+  "release_notes": "### ShibaClaw v0.3.4 🐾\n\n- **Fix**: CI build fix for Matrix. Removed `python-olm` dependency by disabling Matrix E2E encryption in the bundled Windows executable. This allows the CI to finish successfully without requiring a local C++ compiler.",
+  "upgrade_notes": "Update to v0.3.4. Fixes the GitHub Actions build crash.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Bumped the package version to 0.3.3."
+      "note": "Bumped version to 0.3.4 and downgraded matrix-nio."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.3.3 release notes."
-    },
-    {
-      "path": ".github/workflows/publish.yml",
-      "overwrite": true,
-      "note": "Fixed CI to install all-channels extras."
+      "note": "Added v0.3.4 release notes."
     }
   ]
 }

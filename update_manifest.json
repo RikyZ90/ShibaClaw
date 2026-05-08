@@ -1,21 +1,16 @@
 {
-    "version": "0.3.3",
-    "release_notes": "Definitive Windows build fix; complete dependency bundling and local versioning fix.",
+    "version": "0.3.4",
+    "release_notes": "CI build fix: disabled Matrix E2E to bypass python-olm compilation issues.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.3.3 release notes."
+            "note": "Added v0.3.4 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped the package version to 0.3.3."
-        },
-        {
-            "path": ".github/workflows/publish.yml",
-            "overwrite": true,
-            "note": "Fixed CI to install all-channels extras."
+            "note": "Bumped version to 0.3.4 and downgraded matrix-nio."
         }
     ]
 }
