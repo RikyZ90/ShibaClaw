@@ -85,9 +85,15 @@ def test_api_sessions_get_normalizes_legacy_raw_model(tmp_path: Path):
 
             from unittest.mock import patch
 
+            from shibaclaw.thinkers.registry import ProviderSpec
+            mock_spec = ProviderSpec(name="github_copilot", keywords=("github_copilot", "copilot"), env_key="", is_oauth=True)
+
             with patch(
                 "shibaclaw.helpers.model_ids.configured_provider_names",
                 return_value=["github_copilot"],
+            ), patch(
+                "shibaclaw.helpers.model_ids.find_by_name",
+                side_effect=lambda n: mock_spec if n == "github_copilot" else None,
             ):
                 response = await api_sessions_get(_session_request("webui:test"))
             payload = json.loads(response.body)
