@@ -553,7 +553,7 @@ async def gateway_command(
                 {"type": "response", "id": request_id, "ok": True, "payload": data or {}}
             )
 
-        def _err(error: str, code: int = 400):
+        def _err(error: str):
             return json.dumps({"type": "response", "id": request_id, "ok": False, "error": error})
 
         try:
@@ -990,7 +990,6 @@ async def gateway_command(
         logger.info("🔌 Gateway WebSocket server listening on {}:{}", host, ws_port)
 
         try:
-            # await heartbeat.start()
             await cron.start()
             await asyncio.gather(
                 agent.run(),

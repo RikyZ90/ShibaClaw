@@ -31,7 +31,7 @@ class Session:
     updated_at: datetime = field(default_factory=datetime.now)
     metadata: dict[str, Any] = field(default_factory=dict)
     last_consolidated: int = 0  # Number of messages already consolidated into HISTORY.md/MEMORY.md
-    last_learned: int = 0  # Index up to which the agent has "proactively leaned" from.
+    last_learned: int = 0  # Index up to which the agent has "proactively learned" from.
 
     def add_message(self, role: str, content: str, **kwargs: Any) -> None:
         """Add a message to the session."""

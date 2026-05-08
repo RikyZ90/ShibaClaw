@@ -87,17 +87,8 @@ def _ensure_text(value: Any) -> str:
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
-def _normalize_save_memory_args(args: Any) -> dict[str, Any] | None:
+def _normalize_tool_args(args: Any) -> dict[str, Any] | None:
     """Normalize provider tool-call arguments to the expected dict shape."""
-    if isinstance(args, str):
-        args = json.loads(args)
-    if isinstance(args, list):
-        return args[0] if args and isinstance(args[0], dict) else None
-    return args if isinstance(args, dict) else None
-
-
-def _normalize_update_memory_args(args: Any) -> dict[str, Any] | None:
-    """Normalize update_long_term_memory payload."""
     if isinstance(args, str):
         args = json.loads(args)
     if isinstance(args, list):
@@ -332,7 +323,7 @@ class ScentKeeper:
                 )
                 return await self._fail_or_raw_archive(messages)
 
-            args = _normalize_save_memory_args(response.tool_calls[0].arguments)
+            args = _normalize_tool_args(response.tool_calls[0].arguments)
             if args is None:
                 logger.warning("Memory consolidation: unexpected save_memory arguments")
                 return await self._fail_or_raw_archive(messages)
@@ -506,7 +497,7 @@ class ScentKeeper:
                 return False
 
             call = response.tool_calls[0]
-            args = _normalize_update_memory_args(call.arguments)
+            args = _normalize_tool_args(call.arguments)
             if args is None or "memory_update" not in args:
                 return False
 

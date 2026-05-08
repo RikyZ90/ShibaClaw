@@ -46,6 +46,19 @@ def _make_provider(config: Config, exit_on_error: bool = True):
     provider_name = config.get_provider_name(model)
     p = config.get_provider(model)
 
+    if config.agents.defaults.provider == "auto" and "/" not in model and provider_name:
+        _matched_spec = find_by_name(provider_name)
+        _model_lower = model.lower()
+        _is_keyword_match = _matched_spec and any(
+            kw in _model_lower for kw in _matched_spec.keywords
+        )
+        if not _is_keyword_match:
+            for _s in PROVIDERS:
+                if _s.is_oauth and _is_oauth_authenticated(_s):
+                    provider_name = _s.name
+                    p = getattr(config.providers, _s.name, None)
+                    break
+
     if provider_name == "openai_codex" or model.startswith("openai-codex/"):
         provider = OpenAICodexThinker(default_model=model)
     elif provider_name == "custom":

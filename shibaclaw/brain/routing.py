@@ -1,8 +1,9 @@
 """Session routing module for handling cross-session tracking."""
 
+from __future__ import annotations
+
 import time
 from dataclasses import dataclass
-from typing import Dict, Optional
 
 
 @dataclass
@@ -16,14 +17,14 @@ class SessionRouter:
     """Maintains temporary links between sessions for cross-channel routing."""
 
     def __init__(self):
-        self._routes: Dict[str, Route] = {}
+        self._routes: dict[str, Route] = {}
 
     def link(self, target: str, origin: str, ttl_seconds: float = 600.0) -> None:
         """Link a target session key to an origin session key."""
         expires_at = time.time() + ttl_seconds
         self._routes[target] = Route(origin_key=origin, target_key=target, expires_at=expires_at)
 
-    def resolve(self, target: str) -> Optional[str]:
+    def resolve(self, target: str) -> str | None:
         """Resolve a target session key to its origin if a valid link exists."""
         self._cleanup()
         route = self._routes.get(target)

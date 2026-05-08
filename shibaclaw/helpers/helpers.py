@@ -367,6 +367,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
         _write(src, dest)
 
     # Existing templates — ask before overwriting
+    if existing_templates and not silent:
         names = ", ".join(d.name for _, d in existing_templates)
         safe_print(f"  [yellow]Templates already customised:[/yellow] {names}")
         answer = input("  Overwrite with defaults? [y/N] ").strip().lower()

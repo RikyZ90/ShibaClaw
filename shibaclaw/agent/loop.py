@@ -786,7 +786,6 @@ class ShibaBrain:
             profile_id=profile_id,
         )
 
-
         _user_entry = {"role": "user", "content": msg.content, "timestamp": datetime.now().isoformat()}
         metadata = {}
         if msg.metadata:
