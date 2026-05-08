@@ -161,6 +161,10 @@ jobs:
             throw "Desktop dependency verification failed with exit code $($proc.ExitCode)"
           }
 
+      - name: Unblock bundled DLLs
+        shell: pwsh
+        run: Get-ChildItem dist/ShibaClaw -Recurse -Include '*.dll','*.exe' | Unblock-File
+
       - name: Zip artifact
         shell: pwsh
         run: Compress-Archive -Path dist/ShibaClaw -DestinationPath dist/ShibaClaw-windows.zip
