@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.2] - 2026-05-08
+
+### Fixed
+- Bundled native Windows runtime DLLs (pywebview, pythonnet, clr_loader) in GitHub Actions builds.
+- Improved CI smoke testing to verify desktop native dependencies during packaging.
+
 ## [0.3.1] - 2026-05-08
 
 ### Fixed

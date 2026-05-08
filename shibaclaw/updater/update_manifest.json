@@ -1,52 +1,32 @@
 {
-  "version": "0.3.1",
-  "release_notes": "### ShibaClaw v0.3.1 🐾\n\n- **Fix**: OAuth model not recognised at startup — models without a provider prefix (e.g. `oswe-vscode-prime`) now correctly route to authenticated OAuth providers.\n- **Optimisation**: Consolidated duplicate memory helpers, fixed template sync indentation bug, modernised typing, removed dead code.",
-  "upgrade_notes": "Update to v0.3.1. No migration needed — just restart the app.",
+  "version": "0.3.2",
+  "release_notes": "### ShibaClaw v0.3.2 🐾\n\n- **Fix**: Bundled native Windows runtime DLLs (pywebview, pythonnet, clr_loader) in GitHub Actions builds. Packaging now includes all required .NET assemblies and WebView2 loaders.\n- **Improvement**: Added a `--verify-desktop` smoke test to the CI pipeline to ensure native dependencies are correctly bundled before release.",
+  "upgrade_notes": "Update to v0.3.2. Fixes the Windows executable startup crash in GitHub-distributed releases.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Bumped the package version to 0.3.1."
+      "note": "Bumped the package version to 0.3.2."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.3.1 release notes."
+      "note": "Added v0.3.2 release notes."
     },
     {
-      "path": "shibaclaw/cli/base.py",
+      "path": "shibaclaw.spec",
       "overwrite": true,
-      "note": "Fixed OAuth provider fallback when model has no provider prefix."
+      "note": "Added explicit collection of webview, clr_loader, and pythonnet data/binaries."
     },
     {
-      "path": "shibaclaw/agent/memory.py",
+      "path": "shibaclaw/desktop/__main__.py",
       "overwrite": true,
-      "note": "Consolidated duplicate normalisation helpers into _normalize_tool_args."
+      "note": "Added --verify-desktop flag for CI dependency validation."
     },
     {
-      "path": "shibaclaw/helpers/helpers.py",
+      "path": ".github/workflows/publish.yml",
       "overwrite": true,
-      "note": "Fixed indentation bug in sync_workspace_templates overwrite prompt."
-    },
-    {
-      "path": "shibaclaw/brain/routing.py",
-      "overwrite": true,
-      "note": "Modernised typing imports to Python 3.10+ syntax."
-    },
-    {
-      "path": "shibaclaw/brain/manager.py",
-      "overwrite": true,
-      "note": "Fixed docstring typo."
-    },
-    {
-      "path": "shibaclaw/agent/loop.py",
-      "overwrite": true,
-      "note": "Removed stray blank line."
-    },
-    {
-      "path": "shibaclaw/cli/gateway.py",
-      "overwrite": true,
-      "note": "Removed dead code and unused parameter."
+      "note": "Improved smoke test to verify desktop dependencies."
     }
   ]
 }
