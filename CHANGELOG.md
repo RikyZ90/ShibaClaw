@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.1] - 2026-05-08
+
+### Fixed
+- **OAuth model not recognised at startup** — When `provider` is `"auto"` and the saved model has no provider prefix (e.g. `oswe-vscode-prime` instead of `github_copilot/oswe-vscode-prime`), the provider resolver now correctly falls back to an authenticated OAuth provider instead of routing the model to a generic gateway that rejects it. Eliminates the "is not a valid model" error on every cold start.
+
+### Changed
+- **Code cleanup & optimisations** — Consolidated duplicate `_normalize_save_memory_args` / `_normalize_update_memory_args` into a single `_normalize_tool_args` helper; fixed indentation bug in `sync_workspace_templates` that caused redundant overwrite prompts; modernised typing imports in `brain/routing.py`; removed dead code in `cli/gateway.py`.
+
 ## [0.3.0] - 2026-05-07
 
 ### Added

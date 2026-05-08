@@ -1,26 +1,41 @@
 {
-    "version": "0.3.0",
-    "release_notes": "Bumped version to v0.3.0 for release automation updates.",
+    "version": "0.3.1",
+    "release_notes": "Fixed OAuth model validation at startup; code cleanup and optimisations.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added the v0.2.1 release notes entry."
+            "note": "Added v0.3.1 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped the package version to 0.3.0 and aligned dependency versions."
+            "note": "Bumped the package version to 0.3.1."
         },
         {
-            "path": "shibaclaw/webui/static/css/style.css",
+            "path": "shibaclaw/cli/base.py",
             "overwrite": true,
-            "note": "Polished sidebar layout and styling: fixed alignment, overflow, and visual consistency."
+            "note": "Fixed OAuth provider fallback when model has no provider prefix."
         },
         {
-            "path": "shibaclaw/webui/static/js/ui_panels.js",
+            "path": "shibaclaw/agent/memory.py",
             "overwrite": true,
-            "note": "Improved sidebar navigation panel behavior and theming integration."
+            "note": "Consolidated duplicate normalisation helpers into _normalize_tool_args."
+        },
+        {
+            "path": "shibaclaw/helpers/helpers.py",
+            "overwrite": true,
+            "note": "Fixed indentation bug in sync_workspace_templates overwrite prompt."
+        },
+        {
+            "path": "shibaclaw/brain/routing.py",
+            "overwrite": true,
+            "note": "Modernised typing imports to Python 3.10+ syntax."
+        },
+        {
+            "path": "shibaclaw/cli/gateway.py",
+            "overwrite": true,
+            "note": "Removed dead code and unused parameter."
         }
     ]
 }

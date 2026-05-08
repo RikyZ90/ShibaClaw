@@ -1,87 +1,52 @@
 {
-  "version": "0.3.0",
-  "release_notes": "### ShibaClaw v0.3.0 🐾\n\n- **Release Automation**: Added documentation and helpers for managing GitHub releases.",
-  "upgrade_notes": "Update to v0.3.0. Run 'shibaclaw onboard' to ensure all templates are up to date.",
+  "version": "0.3.1",
+  "release_notes": "### ShibaClaw v0.3.1 🐾\n\n- **Fix**: OAuth model not recognised at startup — models without a provider prefix (e.g. `oswe-vscode-prime`) now correctly route to authenticated OAuth providers.\n- **Optimisation**: Consolidated duplicate memory helpers, fixed template sync indentation bug, modernised typing, removed dead code.",
+  "upgrade_notes": "Update to v0.3.1. No migration needed — just restart the app.",
   "changes": [
-        {
-            "path": "pyproject.toml",
-            "overwrite": true,
-            "note": "Bumped the package version to 0.3.0 and aligned dependency versions."
-        },
-        {
-            "path": "CHANGELOG.md",
-            "overwrite": true,
-            "note": "Added the v0.3.0 release notes covering release automation and GitHub release management."
-        },
     {
-      "path": "README.md",
+      "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Documented the native Windows desktop launcher and updated release guidance."
+      "note": "Bumped the package version to 0.3.1."
     },
     {
-      "path": "scripts/build_windows.py",
+      "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Builds the portable Windows bundle used locally and in GitHub Actions."
+      "note": "Added v0.3.1 release notes."
     },
     {
-      "path": "scripts/generate_icons.py",
+      "path": "shibaclaw/cli/base.py",
       "overwrite": true,
-      "note": "Generates the icon set bundled into the Windows desktop executable."
+      "note": "Fixed OAuth provider fallback when model has no provider prefix."
     },
     {
-      "path": "shibaclaw.spec",
+      "path": "shibaclaw/agent/memory.py",
       "overwrite": true,
-      "note": "Defines the PyInstaller bundle for the native Windows desktop app."
+      "note": "Consolidated duplicate normalisation helpers into _normalize_tool_args."
     },
     {
-      "path": "shibaclaw/desktop/__main__.py",
+      "path": "shibaclaw/helpers/helpers.py",
       "overwrite": true,
-      "note": "Adds the packaged desktop entry point used by ShibaClaw.exe."
+      "note": "Fixed indentation bug in sync_workspace_templates overwrite prompt."
     },
     {
-      "path": "shibaclaw/desktop/launcher.py",
+      "path": "shibaclaw/brain/routing.py",
       "overwrite": true,
-      "note": "Implements the native pywebview launcher, tray boot flow, and window lifecycle."
+      "note": "Modernised typing imports to Python 3.10+ syntax."
     },
     {
-      "path": "shibaclaw/desktop/runtime.py",
+      "path": "shibaclaw/brain/manager.py",
       "overwrite": true,
-      "note": "Manages the embedded gateway and WebUI runtime used by desktop mode."
+      "note": "Fixed docstring typo."
     },
     {
-      "path": "shibaclaw/desktop/tray.py",
+      "path": "shibaclaw/agent/loop.py",
       "overwrite": true,
-      "note": "Adds the Windows system tray integration for the native desktop app."
-    },
-    {
-      "path": "shibaclaw/helpers/logging.py",
-      "overwrite": true,
-      "note": "Hardens logging so frozen Windows builds do not crash when stderr is missing."
+      "note": "Removed stray blank line."
     },
     {
       "path": "shibaclaw/cli/gateway.py",
       "overwrite": true,
-      "note": "Wires cron service startup and shutdown into the gateway lifecycle and desktop flow."
-    },
-    {
-      "path": "shibaclaw/cron/service.py",
-      "overwrite": true,
-      "note": "Runs cron jobs through background workers so long tasks no longer block timers."
-    },
-    {
-      "path": "shibaclaw/webui/server.py",
-      "overwrite": true,
-      "note": "Supports the desktop launcher integration and local auth defaults."
-    },
-    {
-      "path": "shibaclaw/webui/static/js/ui_panels.js",
-      "overwrite": true,
-      "note": "Refreshes session rows with cleaner titles, channel badges, and sidebar polish."
-    },
-    {
-      "path": "shibaclaw/webui/static/select_session.js",
-      "overwrite": true,
-      "note": "Normalizes session titles by stripping channel prefixes before rendering."
+      "note": "Removed dead code and unused parameter."
     }
   ]
 }
