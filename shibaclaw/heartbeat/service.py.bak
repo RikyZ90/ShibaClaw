@@ -62,7 +62,7 @@ class HeartbeatService:
         model: str,
         on_execute: Callable[..., Coroutine[Any, Any, str]] | None = None,
         on_notify: Callable[..., Coroutine[Any, Any, None]] | None = None,
-        interval_min: int = 30,
+        interval_s: int = 30 * 60,
         enabled: bool = True,
         session_key: str = "heartbeat:default",
         targets: dict[str, str] | None = None,
@@ -73,7 +73,7 @@ class HeartbeatService:
         self.model = model
         self.on_execute = on_execute
         self.on_notify = on_notify
-        self.interval_min = interval_min
+        self.interval_s = interval_s
         self.enabled = enabled
         self.session_key = session_key
         self.targets = targets or {}
@@ -88,16 +88,6 @@ class HeartbeatService:
         self._last_run_ms: int | None = None
         self._last_error: str | None = None
 
-    @property
-    def interval_s(self) -> int:
-        """Interval in seconds for backward compatibility."""
-        return self.interval_min * 60
-
-    @interval_s.setter
-    def interval_s(self, value: int) -> None:
-        """Set interval in seconds, updating interval_min for backward compatibility."""
-        self.interval_min = value // 60
-
     async def reconfigure(self, hb_cfg: Any, new_provider: Any, model: str) -> None:
         """Hot-reload heartbeat configuration without restarting the gateway process."""
         self.provider = new_provider
@@ -111,8 +101,7 @@ class HeartbeatService:
         )
         if schedule_changed:
             self.stop()
-            self.interval_min = hb_cfg.interval_min if hasattr(hb_cfg, 'interval_min') else (hb_cfg.interval_s // 60 if hasattr(hb_cfg, 'interval_s') else 30)
-            self.interval_s = self.interval_min * 60
+            self.interval_s = hb_cfg.interval_s
             self.enabled = hb_cfg.enabled
             if self.enabled:
                 await self.start()
@@ -135,7 +124,7 @@ class HeartbeatService:
     def _default_settings(self) -> HeartbeatConfig:
         return HeartbeatConfig(
             enabled=self.enabled,
-            interval_min=self.interval_min,
+            interval_s=self.interval_s,
             session_key=self.session_key,
             targets=dict(self.targets),
             profile_id=self.profile_id,
@@ -236,10 +225,6 @@ class HeartbeatService:
         Returns (action, tasks) where action is 'skip' or 'run'.
         """
         from shibaclaw.helpers.helpers import current_time_str
-
-        if not self.provider:
-            logger.warning("Heartbeat: no AI provider is configured")
-            return "skip", ""
 
         response = await self.provider.chat_with_retry(
             messages=[

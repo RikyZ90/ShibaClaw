@@ -379,7 +379,7 @@ async def gateway_command(
         model=agent.model,
         on_execute=on_heartbeat_execute,
         on_notify=on_heartbeat_notify,
-        interval_s=hb_cfg.interval_s,
+        interval_min=hb_cfg.interval_min,
         enabled=hb_cfg.enabled,
         session_key=hb_cfg.session_key,
         targets=hb_cfg.targets,
@@ -398,7 +398,7 @@ async def gateway_command(
             "  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
         )
     c_status = cron.status()
-    hb_info = f"✓ Heartbeat: {hb_cfg.interval_s}s" if hb_cfg.enabled else "Heartbeat: disabled"
+    hb_info = f"✓ Heartbeat: {hb_cfg.interval_min}m" if hb_cfg.enabled else "Heartbeat: disabled"
     status_parts.append(
         f"  [green]✓[/green] Cron: {c_status['jobs']} jobs"
         if c_status["jobs"] > 0
