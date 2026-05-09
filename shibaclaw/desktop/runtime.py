@@ -15,6 +15,7 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from typing import Any
 
@@ -55,6 +56,8 @@ class DesktopRuntime:
 
         self._gateway_proc: subprocess.Popen | None = None
         self._server_mgr: Any | None = None  # ServerManager, imported lazily
+        self._gateway_monitor: threading.Thread | None = None
+        self._stopping = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -75,6 +78,7 @@ class DesktopRuntime:
 
     def stop(self) -> None:
         """Shut down the WebUI server and gateway subprocess cleanly."""
+        self._stopping = True
         self._stop_server()
         self._stop_gateway()
 
@@ -209,6 +213,7 @@ class DesktopRuntime:
                     gateway_port,
                     gateway_ws_port,
                 )
+                self._start_gateway_monitor()
                 return
             time.sleep(0.1)
 
@@ -290,3 +295,29 @@ class DesktopRuntime:
                 proc.kill()
         except OSError:
             pass
+
+    def _start_gateway_monitor(self) -> None:
+        """Start a daemon thread that watches the gateway subprocess.
+
+        If the gateway exits with code 0 (restart requested via WebUI) and we
+        are not in a full shutdown, automatically relaunch it.
+        """
+        def _monitor() -> None:
+            proc = self._gateway_proc
+            if proc is None:
+                return
+            proc.wait()
+            if self._stopping:
+                return
+            exit_code = proc.returncode
+            logger.info("Gateway subprocess exited with code {}", exit_code)
+            if exit_code == 0:
+                logger.info("Gateway requested restart; relaunching…")
+                try:
+                    self._start_gateway()
+                except Exception as exc:
+                    logger.error("Failed to relaunch gateway: {}", exc)
+
+        t = threading.Thread(target=_monitor, name="shibaclaw-gw-monitor", daemon=True)
+        t.start()
+        self._gateway_monitor = t

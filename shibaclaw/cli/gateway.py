@@ -1019,4 +1019,7 @@ async def gateway_command(
     await run()
 
     if _state["restart"]:
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        if os.environ.get("SHIBACLAW_SILENT"):
+            sys.exit(0)
+        else:
+            os.execv(sys.executable, [sys.executable] + sys.argv)

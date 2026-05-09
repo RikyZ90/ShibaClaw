@@ -52,6 +52,8 @@ async def api_update_manifest(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+_ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli", "desktop"})
+
 _restart_callback: "Callable[[], None] | None" = None
 
 
