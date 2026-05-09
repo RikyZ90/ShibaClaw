@@ -35,7 +35,7 @@ const realtime = (() => {
     function off(event, fn) { listeners[event]?.delete(fn); }
     function fire(event, data) {
         for (const fn of (listeners[event] ?? [])) {
-            try { fn(data); } catch(e) { console.error(`[realtime] handler error (${event}):`, e); }
+            try { fn(data); } catch(e) { console.error("[realtime] handler error (", event, "):", e); }
         }
     }
 

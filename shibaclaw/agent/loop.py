@@ -34,7 +34,7 @@ from shibaclaw.bus.queue import MessageBus
 from shibaclaw.helpers.system import get_os_type
 from shibaclaw.thinkers.base import Thinker
 
-_MEDIA_RE = re.compile(r'\{\s*"media"\s*:\s*\[\s*".*?"\s*(?:,\s*".*?"\s*)*\]\s*\}', re.DOTALL)
+_MEDIA_RE = re.compile(r'\{\s*"media"\s*:\s*\[\s*"[^"]*"(?:\s*,\s*"[^"]*")*\s*\]\s*\}')
 
 if TYPE_CHECKING:
     from shibaclaw.config.schema import ExecToolConfig, WebSearchConfig

@@ -1439,7 +1439,7 @@ function populateSettings(cfg) {
                         </div>`;
                 } else {
                     const isPassword = fieldConfig?.type === "password" || key.toLowerCase().includes("password") || key.toLowerCase().includes("secret");
-                    const safeVal = String(valStr).replace(/"/g, '"');
+                    const safeVal = String(valStr).replace(/"/g, '&quot;');
                     inputHtml = `
                         <div class="field-row">
                             <label>${label}</label>
@@ -1495,7 +1495,7 @@ function populateSettings(cfg) {
                     inputType = "password";
                 }
                 
-                const safeVal = String(valStr).replace(/"/g, '"');
+                const safeVal = String(valStr).replace(/"/g, '&quot;');
                 fieldsHtml += `
                     <div class="field-row">
                         <label>${key}</label>

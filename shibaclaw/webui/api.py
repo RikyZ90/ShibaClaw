@@ -26,7 +26,6 @@ async def api_status(request: Request):
     from shibaclaw import __version__
 
     gw = await _gateway_request("GET", "/")
-    print(f"DEBUG: api_status -> gw_resp={gw}")
     gw_ready = gw is not None and gw.get("status") in ("ok", "idle")
 
     # Check if any OAuth providers are configured
@@ -44,7 +43,6 @@ async def api_status(request: Request):
         "workspace": str(cfg.workspace_path) if cfg else None,
         "gateway": gw_ready,
     }
-    print(f"DEBUG: api_status -> final_resp={resp}")
     return JSONResponse(resp)
 
 
