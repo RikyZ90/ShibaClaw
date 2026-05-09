@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 - **UI Quote Escaping** — Fixed a bug in the settings panel (`ui_panels.js`) where double quotes were incorrectly replaced with themselves instead of the proper HTML entity (`&quot;`), potentially breaking input fields.
+- **CI/CD Tests** — Fixed a `TypeError` in heartbeat service tests by passing the correct `interval_min` argument instead of the outdated `interval_s`.
+- **CI/CD Warnings** — Suppressed third-party deprecation warnings (`websockets.legacy` and `uvicorn.protocols.websockets`) in pytest to prevent CI failures.
+- **Linters** — Removed unused imports (`DWORD` from `ctypes.wintypes`, `re`, and `importlib.metadata`) across the codebase to resolve Ruff `F401` violations.
 
 ## [0.3.4] - 2026-05-08
 
