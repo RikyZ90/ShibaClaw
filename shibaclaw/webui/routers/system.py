@@ -57,13 +57,14 @@ def _safe_argv() -> list[str]:
 
     if getattr(sys, "frozen", False):
         safe = [sys.executable]
+        for arg in sys.argv[1:]:
+            if arg.startswith("-") or arg in _ALLOWED_SUBCOMMANDS:
+                safe.append(arg)
+        return safe
+    elif hasattr(sys, "orig_argv"):
+        return sys.orig_argv
     else:
-        safe = [sys.executable, "-m", "shibaclaw"]
-        
-    for arg in sys.argv[1:]:
-        if arg.startswith("-") or arg in _ALLOWED_SUBCOMMANDS:
-            safe.append(arg)
-    return safe
+        return [sys.executable] + sys.argv
 
 
 async def api_update_apply(request: Request):

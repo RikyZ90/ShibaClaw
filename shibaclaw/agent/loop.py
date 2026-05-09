@@ -573,13 +573,14 @@ class ShibaBrain:
         import sys
         if getattr(sys, "frozen", False):
             safe = [sys.executable]
+            for arg in sys.argv[1:]:
+                if arg.startswith("-") or arg in ShibaBrain._ALLOWED_SUBCOMMANDS:
+                    safe.append(arg)
+            return safe
+        elif hasattr(sys, "orig_argv"):
+            return sys.orig_argv
         else:
-            safe = [sys.executable, "-m", "shibaclaw"]
-            
-        for arg in sys.argv[1:]:
-            if arg.startswith("-") or arg in ShibaBrain._ALLOWED_SUBCOMMANDS:
-                safe.append(arg)
-        return safe
+            return [sys.executable] + sys.argv
 
     async def _handle_restart(self, msg: InboundMessage) -> None:
         await self.bus.publish_outbound(
