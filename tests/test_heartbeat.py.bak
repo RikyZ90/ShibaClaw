@@ -249,7 +249,7 @@ class TestHeartbeatService:
             workspace=tmp_path,
             provider=object(),
             model="test-model",
-            interval_min=60,
+            interval_s=3600,
         )
         tick_seen = asyncio.Event()
 
@@ -288,9 +288,9 @@ class TestHeartbeatService:
     def test_status_returns_telemetry(self, tmp_path):
         service = HeartbeatService(
             workspace=tmp_path,
-            provider=None,
+            provider=object(),
             model="test-model",
-            interval_min=30,
+            interval_s=1800,
         )
         s = service.status()
         assert s["enabled"] is True

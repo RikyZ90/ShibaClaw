@@ -136,7 +136,7 @@ class HeartbeatConfig(Base):
     """Heartbeat service configuration."""
 
     enabled: bool = True
-    interval_min: int = 30  # 30 minutes
+    interval_s: int = 30 * 60  # 30 minutes
     session_key: str = "heartbeat:default"  # Stable session key for heartbeat conversations
     targets: dict[str, str] = Field(
         default_factory=dict

@@ -19,15 +19,15 @@
     "description": "Critical eye — finds issues, suggests improvements",
     "builtin": true
   },
+  "admin": {
+    "label": "Admin1",
+    "description": "System administrator — manages infrastructure and operations",
+    "builtin": true
+  },
   "hacker": {
     "label": "Hacker",
     "description": "Security expert — finds vulnerabilities, hardens systems",
     "builtin": true,
     "avatar": "/static/img/profiles/hacker.png"
-  },
-  "admin": {
-    "label": "Admin",
-    "description": "System administrator — manages infrastructure and operations",
-    "builtin": true
   }
 }
