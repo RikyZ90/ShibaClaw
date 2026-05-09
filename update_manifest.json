@@ -1,16 +1,16 @@
 {
     "version": "0.3.5",
-    "release_notes": "Security fixes, linter/test fixes, and desktop UI restart duplication fix.",
+    "release_notes": "Multiple UI fixes Security fixes, linter/test fixes, and desktop UI restart duplication fix.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.3.5 release notes."
+            "note": "Added v0.3.4 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.3.5."
+            "note": "Bumped version to 0.3.4 and downgraded matrix-nio."
         }
     ]
 }
