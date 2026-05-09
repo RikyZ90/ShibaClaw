@@ -3,6 +3,10 @@ from __future__ import annotations
 import asyncio
 import os
 import urllib.parse
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from loguru import logger
 from starlette.requests import Request
@@ -48,11 +52,24 @@ async def api_update_manifest(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-_ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli"})
+_restart_callback: "Callable[[], None] | None" = None
+
+
+def set_restart_callback(fn: "Callable[[], None]") -> None:
+    """Register a callback to be called when the WebUI requests a restart.
+
+    In Desktop mode the callback restarts just the gateway subprocess instead
+    of spawning a new top-level process.
+    """
+    global _restart_callback
+    _restart_callback = fn
 
 
 def _safe_argv() -> list[str]:
-    """Return only trusted argv entries (flags + known subcommands)."""
+    """Return only trusted argv entries (flags + known subcommands).
+
+    Only used when no restart callback is registered (standalone CLI mode).
+    """
     import sys
 
     if getattr(sys, "frozen", False):
@@ -62,9 +79,9 @@ def _safe_argv() -> list[str]:
                 safe.append(arg)
         return safe
     elif hasattr(sys, "orig_argv"):
-        return sys.orig_argv
+        return list(sys.orig_argv)
     else:
-        return [sys.executable] + sys.argv
+        return [sys.executable] + list(sys.argv)
 
 
 async def api_update_apply(request: Request):
@@ -94,15 +111,15 @@ async def api_update_apply(request: Request):
         logger.error("Update apply failed: {}", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
-    # If pip succeeded, schedule a restart so the new version takes effect
     if report.get("pip", {}).get("ok"):
-        safe_argv = _safe_argv()
-
         async def _do_restart():
             await asyncio.sleep(1.0)
-            import subprocess
-            subprocess.Popen(safe_argv)
-            os._exit(0)
+            if _restart_callback is not None:
+                _restart_callback()
+            else:
+                import subprocess
+                subprocess.Popen(_safe_argv())
+                os._exit(0)
 
         asyncio.create_task(_do_restart())
         report["restarting"] = True
@@ -114,13 +131,15 @@ async def api_update_apply(request: Request):
 
 async def api_restart_server(request: Request):
     """Restart the ShibaClaw WebUI server process."""
-    safe_argv = _safe_argv()
-
     async def _do_restart():
         await asyncio.sleep(0.5)
-        import subprocess
-        subprocess.Popen(safe_argv)
-        os._exit(0)
+        if _restart_callback is not None:
+            _restart_callback()
+        else:
+            import subprocess
+            subprocess.Popen(_safe_argv())
+            os._exit(0)
 
     asyncio.create_task(_do_restart())
     return JSONResponse({"status": "restarting"})
+

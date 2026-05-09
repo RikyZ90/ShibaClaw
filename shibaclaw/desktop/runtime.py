@@ -87,6 +87,13 @@ class DesktopRuntime:
         self._start_server()
         return self.wait_ready(timeout=15.0)
 
+    def _restart_gateway(self) -> None:
+        """Stop then restart the gateway subprocess in place."""
+        logger.info("Restarting gateway subprocess…")
+        self._stop_gateway()
+        self._start_gateway()
+        logger.info("Gateway subprocess restarted")
+
     @property
     def base_url(self) -> str:
         return f"http://{self._host}:{self._port}"
@@ -252,6 +259,7 @@ class DesktopRuntime:
 
     def _start_server(self) -> None:
         from shibaclaw.webui.server import ServerManager
+        from shibaclaw.webui.routers.system import set_restart_callback
 
         self._server_mgr = ServerManager(
             port=self._port,
@@ -260,6 +268,7 @@ class DesktopRuntime:
             provider=self.provider,
         )
         self._server_mgr.start()
+        set_restart_callback(self._restart_gateway)
 
     def _stop_server(self) -> None:
         if self._server_mgr is not None:

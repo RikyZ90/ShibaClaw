@@ -99,7 +99,7 @@ class TrayIcon:
 
         self._thread = threading.Thread(target=self._run_icon, daemon=True, name="TrayIconThread")
         self._thread.start()
-        logger.info("Tray Icon avviata in background")
+        logger.info("Process started")
 
     def stop(self) -> None:
         """Stop the tray icon."""
@@ -109,4 +109,4 @@ class TrayIcon:
         if self._thread:
             self._thread.join(timeout=2.0)
             self._thread = None
-        logger.info("Tray Icon fermata")
+        logger.info("Stopped")
