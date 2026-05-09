@@ -55,7 +55,11 @@ def _safe_argv() -> list[str]:
     """Return only trusted argv entries (flags + known subcommands)."""
     import sys
 
-    safe = [sys.executable, "-m", "shibaclaw"]
+    if getattr(sys, "frozen", False):
+        safe = [sys.executable]
+    else:
+        safe = [sys.executable, "-m", "shibaclaw"]
+        
     for arg in sys.argv[1:]:
         if arg.startswith("-") or arg in _ALLOWED_SUBCOMMANDS:
             safe.append(arg)
