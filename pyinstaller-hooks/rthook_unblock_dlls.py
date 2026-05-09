@@ -29,7 +29,7 @@ def _unblock_bundle_dir() -> None:
     # Try to use ctypes to delete the ADS more reliably on Windows
     try:
         import ctypes
-        from ctypes.wintypes import DWORD, LPCWSTR
+        from ctypes.wintypes import LPCWSTR
 
         # Define DeleteFileW for removing ADS
         delete_file = ctypes.windll.kernel32.DeleteFileW
