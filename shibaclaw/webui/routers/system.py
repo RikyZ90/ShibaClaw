@@ -96,7 +96,9 @@ async def api_update_apply(request: Request):
 
         async def _do_restart():
             await asyncio.sleep(1.0)
-            os.execv(sys.executable, safe_argv)
+            import subprocess
+            subprocess.Popen(safe_argv)
+            os._exit(0)
 
         asyncio.create_task(_do_restart())
         report["restarting"] = True
@@ -112,7 +114,9 @@ async def api_restart_server(request: Request):
 
     async def _do_restart():
         await asyncio.sleep(0.5)
-        os.execv(sys.executable, safe_argv)
+        import subprocess
+        subprocess.Popen(safe_argv)
+        os._exit(0)
 
     asyncio.create_task(_do_restart())
     return JSONResponse({"status": "restarting"})

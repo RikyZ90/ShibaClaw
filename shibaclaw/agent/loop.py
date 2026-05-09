@@ -589,7 +589,9 @@ class ShibaBrain:
 
         async def _do_restart():
             await asyncio.sleep(1)
-            os.execv(sys.executable, safe_argv)
+            import subprocess
+            subprocess.Popen(safe_argv)
+            os._exit(0)
 
         self._schedule_background(_do_restart())
 
