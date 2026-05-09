@@ -350,7 +350,7 @@ class TestHeartbeatService:
             workspace=tmp_path,
             provider=object(),
             model="test-model",
-            interval_s=1800,
+            interval_min=30,
             session_key="heartbeat:runtime",
             targets={"telegram": "999"},
             profile_id="builder",
@@ -378,7 +378,7 @@ class TestHeartbeatService:
             provider=object(),
             model="test-model",
             enabled=True,
-            interval_s=1800,
+            interval_min=30,
         )
 
         status = service.status()

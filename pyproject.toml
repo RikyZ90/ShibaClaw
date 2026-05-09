@@ -151,3 +151,7 @@ ignore = ["E501", "I001", "W291", "W293", "D", "ANN"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:websockets.*",
+    "ignore::DeprecationWarning:uvicorn.*",
+]

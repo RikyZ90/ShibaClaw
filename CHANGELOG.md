@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.5] - 2026-05-10
+
+### Security
+- **Format String Vulnerability** — Fixed a potential format string vulnerability in the WebUI realtime client (`realtime.js`) by avoiding template literals in `console.error`.
+- **Clear-text Logging** — Removed debug statements in the WebUI API (`api.py`) that logged sensitive raw HTTP payload data in clear text.
+- **HTML Filtering** — Hardened the HTML tag stripping regex in the web tool (`web.py`) to correctly handle `>` characters inside attribute quotes, preventing tag bypasses.
+- **ReDoS Vulnerability** — Optimized the media parsing regular expression (`loop.py`) to prevent Catastrophic Backtracking (ReDoS) when processing malicious or malformed nested arrays.
+
+### Fixed
+- **UI Quote Escaping** — Fixed a bug in the settings panel (`ui_panels.js`) where double quotes were incorrectly replaced with themselves instead of the proper HTML entity (`&quot;`), potentially breaking input fields.
+
 ## [0.3.4] - 2026-05-08
 
 ### Fixed
