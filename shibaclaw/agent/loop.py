@@ -570,7 +570,12 @@ class ShibaBrain:
     @staticmethod
     def _safe_argv() -> list[str]:
         """Return only trusted argv entries (flags + known subcommands)."""
-        safe = [sys.executable, "-m", "shibaclaw"]
+        import sys
+        if getattr(sys, "frozen", False):
+            safe = [sys.executable]
+        else:
+            safe = [sys.executable, "-m", "shibaclaw"]
+            
         for arg in sys.argv[1:]:
             if arg.startswith("-") or arg in ShibaBrain._ALLOWED_SUBCOMMANDS:
                 safe.append(arg)
