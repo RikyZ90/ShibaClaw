@@ -1,17 +1,17 @@
 {
-  "version": "0.3.4",
-  "release_notes": "### ShibaClaw v0.3.4 🐾\n\n- **Fix**: CI build fix for Matrix. Removed `python-olm` dependency by disabling Matrix E2E encryption in the bundled Windows executable. This allows the CI to finish successfully without requiring a local C++ compiler.",
-  "upgrade_notes": "Update to v0.3.4. Fixes the GitHub Actions build crash.",
+  "version": "0.3.5",
+  "release_notes": "### ShibaClaw v0.3.5 🐾\n\n- **Fix**: Security fixes, linter/test fixes, and desktop UI restart duplication fix.",
+  "upgrade_notes": "Update to v0.3.5. Security fixes and bug fixes.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Bumped version to 0.3.4 and downgraded matrix-nio."
+      "note": "Bumped version to 0.3.5."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.3.4 release notes."
+      "note": "Added v0.3.5 release notes."
     }
   ]
 }

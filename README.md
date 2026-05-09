@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.3.4!** This release adds a brand new **Native Windows Desktop App**, cross-provider model search, true per-session model routing, a redesigned model-first settings flow, and OpenRouter OAuth directly in the WebUI.
+📢 **Welcome to ShibaClaw v0.3.5!** This release adds a brand new **Native Windows Desktop App**, cross-provider model search, true per-session model routing, a redesigned model-first settings flow, and OpenRouter OAuth directly in the WebUI.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---

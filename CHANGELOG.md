@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file.
 - **CI/CD Tests** — Fixed a `TypeError` in heartbeat service tests by passing the correct `interval_min` argument instead of the outdated `interval_s`.
 - **CI/CD Warnings** — Suppressed third-party deprecation warnings (`websockets.legacy` and `uvicorn.protocols.websockets`) in pytest to prevent CI failures.
 - **Linters** — Removed unused imports (`DWORD` from `ctypes.wintypes`, `re`, and `importlib.metadata`) across the codebase to resolve Ruff `F401` violations.
+- **Desktop Restart Duplication** — Replaced `os.execv` with `subprocess.Popen` and `os._exit(0)` to force the PyInstaller process to cleanly terminate its background threads (like `pywebview` and `pystray`) on restart, preventing duplicate tray icons and hung background processes.
 
 ## [0.3.4] - 2026-05-08
 
