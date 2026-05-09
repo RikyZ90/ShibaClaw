@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.3.5] - 2026-05-10
+## [0.3.6] - 2026-05-10
 
 ### Security
 - **Format String Vulnerability** — Fixed a potential format string vulnerability in the WebUI realtime client (`realtime.js`) by avoiding template literals in `console.error`.
