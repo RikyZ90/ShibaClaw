@@ -5,12 +5,12 @@
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.3.4 release notes."
+            "note": "Added v0.3.7 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.3.4 and downgraded matrix-nio."
+            "note": "Bumped version to 0.3.7."
         }
     ]
 }
