@@ -1,6 +1,6 @@
 {
-    "version": "0.3.6",
-    "release_notes": "Multiple UI fixes Security fixes, linter/test fixes, and desktop UI restart duplication fix.",
+    "version": "0.3.7",
+    "release_notes": "Dedicated Heartbeat Settings Tab with model override and dynamic routing. IMPORTANT: It is recommended to manually overwrite HEARTBEAT.md or run 'shibaclaw onboard' to update your local template and avoid silent settings overrides.",
     "changes": [
         {
             "path": "CHANGELOG.md",

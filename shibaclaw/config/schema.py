@@ -137,6 +137,7 @@ class HeartbeatConfig(Base):
 
     enabled: bool = True
     interval_min: int = 30  # 30 minutes
+    model: str | None = None  # Profile model override
     session_key: str = "heartbeat:default"  # Stable session key for heartbeat conversations
     targets: dict[str, str] = Field(
         default_factory=dict

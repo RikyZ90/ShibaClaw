@@ -378,7 +378,7 @@ async function loadHeartbeatSection() {
         badge.textContent = data.last_error ? "error" : (data.running ? "active" : "idle");
 
         let info = `<div class="auto-hb-info">`;
-        info += `<span class="hb-label">Interval:</span> ${data.interval_s}s<br>`;
+        info += `<span class="hb-label">Interval:</span> ${data.interval_min}min<br>`;
         if (data.session_key) info += `<span class="hb-label">Session:</span> ${escapeHtml(data.session_key)}<br>`;
         if (data.profile_id) info += `<span class="hb-label">Profile:</span> ${escapeHtml(data.profile_id)}<br>`;
         if (data.targets && Object.keys(data.targets).length) info += `<span class="hb-label">Targets:</span> ${escapeHtml(Object.entries(data.targets).map(([channel, target]) => `${channel}:${target}`).join(", "))}<br>`;
@@ -824,7 +824,49 @@ window.openModal = async function(id) {
             state.fsOpenTarget = null;
             openFileEditor(target, target.split(/[\\/\\]/).pop());
         }
+    } else if (id === "changelog-modal") {
+        const contentEl = $("changelog-content");
+        contentEl.innerHTML = '<div class="loader">Fetching release notes...</div>';
+        
+        try {
+            let version = $("sidebar-version").textContent.replace("v", "").trim();
+            if (!version || version === "loading...") version = "0.3.6"; // fallback
+
+            let releaseUrl = `https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/v${version}`;
+            let res = await fetch(releaseUrl);
+            
+            if (!res.ok) {
+                // fallback to latest
+                res = await fetch("https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest");
+            }
+            
+            if (res.ok) {
+                const data = await res.json();
+                
+                // Show github button
+                const btn = $("changelog-github-btn");
+                if (btn && data.html_url) {
+                    btn.href = data.html_url;
+                    btn.style.display = "inline-flex";
+                }
+
+                if (data.body) {
+                    contentEl.innerHTML = renderMarkdown(data.body);
+                } else {
+                    contentEl.innerHTML = '<div style="color:var(--text-secondary)">No release notes available.</div>';
+                }
+            } else {
+                throw new Error("Could not fetch release notes.");
+            }
+        } catch (e) {
+            console.error("Changelog fetch error:", e);
+            contentEl.innerHTML = `<div style="color:var(--accent-red);padding:1rem;">Failed to load release notes. Please check your connection or visit <a href="https://github.com/RikyZ90/ShibaClaw/releases" target="_blank" style="color:var(--shiba-gold)">GitHub</a>.</div>`;
+        }
     }
+};
+
+window.openChangelog = function() {
+    openModal("changelog-modal");
 };
 
 window.openHeartbeatFile = function(event) {
@@ -870,6 +912,7 @@ window.switchSettingsTab = function(tab) {
     if (tab === "oauth") loadOAuthPanel();
     if (tab === "update") loadUpdatePanel();
     if (tab === "skills") loadSkillsPanel();
+    if (tab === "heartbeat") loadHeartbeatSettingsPanel();
     try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch(e) {}
 };
 
@@ -1348,11 +1391,46 @@ function populateSettings(cfg) {
     const gw = cfg.gateway || {};
     $("s-gw-host").value = gw.host || "127.0.0.1";
     $("s-gw-port").value = gw.port ?? 19999;
+
     const hb = gw.heartbeat || {};
-    $("s-gw-hbEnabled").checked = hb.enabled !== false;
-    $("s-gw-hbInterval").value = hb.intervalS ?? 1800;
+    $("s-hb-enabled").checked = hb.enabled !== false;
+    $("s-hb-interval").value = hb.intervalMin ?? 30;
+    $("s-hb-profile").value = hb.profileId || "";
 
     const ch = cfg.channels || {};
+
+    const targetChanSelect = $("s-hb-target-channel");
+    if (targetChanSelect) {
+        let html = '<option value="">Auto-detect</option>';
+        html += '<option value="webui">Web UI</option>';
+        
+        for (const [name, cc] of Object.entries(ch)) {
+            if (["sendProgress", "sendToolHints"].includes(name) || typeof cc !== "object") continue;
+            if (cc.enabled === true) {
+                const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+                html += `<option value="${name}">${displayName}</option>`;
+            }
+        }
+        targetChanSelect.innerHTML = html;
+    }
+
+    const targets = Object.keys(hb.targets || {});
+    if (targets.length > 0) {
+        const firstChan = targets[0];
+        if (targetChanSelect && targetChanSelect.querySelector(`option[value="${firstChan}"]`)) {
+            targetChanSelect.value = firstChan;
+        } else if (targetChanSelect) {
+            // Add it if it's currently selected but disabled, so it doesn't just disappear
+            targetChanSelect.innerHTML += `<option value="${firstChan}">${firstChan.charAt(0).toUpperCase() + firstChan.slice(1)} (disabled)</option>`;
+            targetChanSelect.value = firstChan;
+        }
+        $("s-hb-target-id").value = hb.targets[firstChan] || "";
+    } else {
+        if (targetChanSelect) targetChanSelect.value = "";
+        $("s-hb-target-id").value = "";
+    }
+
+
     $("s-ch-sendProgress").checked = ch.sendProgress !== false;
     $("s-ch-sendToolHints").checked = !!ch.sendToolHints;
 
@@ -1660,8 +1738,18 @@ window.saveSettings = async function() {
             host: $("s-gw-host").value,
             port: parseInt($("s-gw-port").value),
             heartbeat: {
-                enabled: $("s-gw-hbEnabled").checked,
-                intervalS: parseInt($("s-gw-hbInterval").value),
+                enabled: $("s-hb-enabled").checked,
+                intervalMin: parseInt($("s-hb-interval").value),
+                model: $("s-hb-model").value || null,
+                profileId: $("s-hb-profile").value || null,
+                targets: (() => {
+                    const chan = $("s-hb-target-channel").value;
+                    const tid = $("s-hb-target-id").value;
+                    if (chan) {
+                        return { [chan]: tid };
+                    }
+                    return {};
+                })()
             }
         },
         channels: {
@@ -2404,6 +2492,20 @@ const SETTINGS_MODEL_PICKERS = [
         emptyChoiceProvider: "Inherits",
         allowEmpty: true,
     },
+    {
+        valueId: "s-hb-model",
+        buttonId: "s-hb-model-button",
+        displayId: "s-hb-model-display",
+        providerId: "s-hb-model-provider",
+        menuId: "s-hb-model-menu",
+        searchId: "s-hb-model-search",
+        listId: "s-hb-model-list",
+        emptyLabel: "Same as default model",
+        emptyProvider: "Inherits",
+        emptyChoiceLabel: "Same as default model",
+        emptyChoiceProvider: "Inherits",
+        allowEmpty: true,
+    },
 ];
 let _settingsModelPickersInitialized = false;
 
@@ -2676,3 +2778,25 @@ document.addEventListener("DOMContentLoaded", () => {
     setupSettingsModelPickers();
     setTimeout(setupModelSelector, 500);
 });
+
+/* ── Heartbeat panel ── */
+async function loadHeartbeatSettingsPanel() {
+    const profileSelect = $("s-hb-profile");
+    if (!profileSelect) return;
+    try {
+        const res = await authFetch("/api/profiles");
+        if (res.ok) {
+            const data = await res.json();
+            const profiles = data.profiles || [];
+            let html = '<option value="">Default (inherit)</option>';
+            for (const p of profiles) {
+                html += `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)}</option>`;
+            }
+            const currentVal = profileSelect.value;
+            profileSelect.innerHTML = html;
+            profileSelect.value = currentVal; // Restore selection after populating
+        }
+    } catch(e) {
+        console.error("loadHeartbeatSettingsPanel profiles fetch failed", e);
+    }
+}

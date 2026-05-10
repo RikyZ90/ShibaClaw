@@ -1,17 +1,17 @@
 {
-  "version": "0.3.6",
-  "release_notes": "### ShibaClaw v0.3.6 🐾\n\n- **Fix**: Security fixes, linter/test fixes, and desktop UI restart duplication fix.",
-  "upgrade_notes": "Update to v0.3.6. Security fixes and bug fixes.",
+  "version": "0.3.7",
+  "release_notes": "### ShibaClaw v0.3.7 🐾\n\n- **New**: Dedicated Heartbeat Settings Tab with model override and dynamic routing.\n- **Important**: Manually overwrite `HEARTBEAT.md` or run `shibaclaw onboard` to update your local template.",
+  "upgrade_notes": "Update to v0.3.7. Heartbeat migration and UI enhancements. It is recommended to manually overwrite HEARTBEAT.md or run 'shibaclaw onboard' to update your local template.",
   "changes": [
     {
       "path": "pyproject.toml",
       "overwrite": true,
-      "note": "Bumped version to 0.3.6."
+      "note": "Bumped version to 0.3.7."
     },
     {
       "path": "CHANGELOG.md",
       "overwrite": true,
-      "note": "Added v0.3.6 release notes."
+      "note": "Added v0.3.7 release notes."
     }
   ]
 }

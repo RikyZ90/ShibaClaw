@@ -7,7 +7,7 @@ All notable changes to this project are documented in this file.
 ### Security
 - **Format String Vulnerability** — Fixed a potential format string vulnerability in the WebUI realtime client (`realtime.js`) by avoiding template literals in `console.error`.
 - **Clear-text Logging** — Removed debug statements in the WebUI API (`api.py`) that logged sensitive raw HTTP payload data in clear text.
-- **HTML Filtering** — Hardened the HTML tag stripping regex in the web tool (`web.py`) to correctly handle `>` characters inside attribute quotes, preventing tag bypasses.
+- **HTML Filtering** — Hardened the HTML tag stripping regex in the web tool (`web.py`) to correctly handle `>` characters inside attribute quotes, preventing tag bypasses, and fixed a CodeQL alert by properly escaping closing tags with trailing whitespace (e.g. `</script >`).
 - **ReDoS Vulnerability** — Optimized the media parsing regular expression (`loop.py`) to prevent Catastrophic Backtracking (ReDoS) when processing malicious or malformed nested arrays.
 
 ### Fixed
@@ -16,6 +16,21 @@ All notable changes to this project are documented in this file.
 - **CI/CD Warnings** — Suppressed third-party deprecation warnings (`websockets.legacy` and `uvicorn.protocols.websockets`) in pytest to prevent CI failures.
 - **Linters** — Removed unused imports (`DWORD` from `ctypes.wintypes`, `re`, and `importlib.metadata`) across the codebase to resolve Ruff `F401` violations.
 - **Desktop Restart Duplication** — Fixed the WebUI restart button spawning duplicate processes and tray icons in Desktop mode. The gateway subprocess now cleanly exits instead of calling `os.execv` when managed by `DesktopRuntime`, and a monitor thread automatically relaunches it. The WebUI server uses a registered callback to restart only the gateway instead of the entire parent process.
+- **Install Audit Cross-Platform** — Fixed pip-audit execution on Windows by replacing the Unix-only `/dev/stdin` pipe with a cross-platform temporary file (`tempfile.NamedTemporaryFile`).
+- **Heartbeat Hot-Reload Crash** — Fixed an `AttributeError` on `interval_s` during heartbeat configuration reloads.
+- **Token Calculation Accuracy** — Removed duplicate variable assignment in `webui/api.py` that caused token estimations to incorrectly overwrite the total prompt token count.
+- **Severity Heuristics Integrity** — Prevented `pip-audit` JSON parser from improperly overriding verified CVE severity scores with keyword-based heuristics when the original severity is known.
+- **WebSocket Keepalive** — Enabled Uvicorn's `ws_ping_interval` and `ws_ping_timeout` to correctly drop dead browser WebSocket connections.
+
+### Changed
+- **Tiktoken Caching** — Implemented a module-level lazy load cache for the `tiktoken` encoding in `helpers.py`, preventing slow repeated encoding initialization on hot paths.
+- **WebUI PackManager Optimization** — Centralized the memory-heavy `PackManager` instantiation into `AgentManager`, ensuring WebUI routes reuse the loaded context instead of re-instantiating it on every single HTTP request.
+- **API Status Optimization** — Refactored `/api/status` to avoid redundant HTTP internal calls and JSON re-parsing when resolving OAuth provider states.
+- **Background Tasks Resilience** — Startup coroutines (update checks, skill sync) in the WebUI server are now actively tracked with done callbacks to catch and log unhandled background exceptions.
+- **Cron Concurrency** — Added an `asyncio.Lock` in `CronService` to prevent simultaneous automated jobs from corrupting `jobs.json` during concurrent state saves.
+- **Heartbeat Interval Unit** — Converted the heartbeat interval from seconds (s) to minutes (min) throughout the system, including the WebUI settings, status display, and internal Pydantic configuration, ensuring consistency with the backend schema.
+- **Dedicated Heartbeat Settings Tab** — Extracted heartbeat configuration into a dedicated tab in the WebUI. Added support for per-service model override, agent profile selection, and dynamic output channel routing based on active integrations.
+- **Heartbeat Template Refactoring** — Removed silent frontmatter overrides from the default `HEARTBEAT.md` template to prioritize WebUI-based configuration while maintaining optional YAML overrides for power users.
 
 ## [0.3.4] - 2026-05-08
 

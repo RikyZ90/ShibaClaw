@@ -376,7 +376,7 @@ async def gateway_command(
     heartbeat = HeartbeatService(
         workspace=config.workspace_path,
         provider=provider,
-        model=agent.model,
+        model=hb_cfg.model or agent.model,
         on_execute=on_heartbeat_execute,
         on_notify=on_heartbeat_notify,
         interval_min=hb_cfg.interval_min,
@@ -447,7 +447,7 @@ async def gateway_command(
             await agent.reconfigure(new_cfg, new_provider)
             await channels.reconfigure(new_cfg)
             hb_cfg = new_cfg.gateway.heartbeat
-            await heartbeat.reconfigure(hb_cfg, new_provider, agent.model)
+            await heartbeat.reconfigure(hb_cfg, new_provider, hb_cfg.model or agent.model)
             logger.info("Hot-reload complete")
         except Exception as e:
             logger.error("Hot-reload failed: {}", e)

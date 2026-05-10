@@ -56,7 +56,7 @@
                     <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="logo-icon">
                     <div class="logo-text">
                         <h1>ShibaClaw</h1>
-                        <span class="version" id="sidebar-version">loading...</span>
+                        <span class="version" id="sidebar-version" onclick="openChangelog()" title="View what's new">loading...</span>
                     </div>
                 </div>
                 <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
@@ -310,6 +310,9 @@
                     <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
                         <span class="material-icons-round">dns</span><span>Gateway</span>
                     </button>
+                    <button class="settings-sidebar-item" data-tab="heartbeat" onclick="switchSettingsTab('heartbeat')">
+                        <span class="material-icons-round">favorite</span><span>Heartbeat</span>
+                    </button>
                     <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
                         <span class="material-icons-round">forum</span><span>Channels</span>
                     </button>
@@ -430,8 +433,51 @@
                     <div class="settings-panel" id="panel-gateway" style="display:none">
                         <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="127.0.0.1"></div>
                         <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input" value="19999"></div>
-                        <div class="field-row"><label>Heartbeat Enabled</label><label class="toggle"><input type="checkbox" id="s-gw-hbEnabled"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Heartbeat Interval (s)</label><input type="number" id="s-gw-hbInterval" class="form-input" value="1800"></div>
+                    </div>
+
+                    <!-- Tab: Heartbeat -->
+                    <div class="settings-panel" id="panel-heartbeat" style="display:none">
+                        <div class="field-row"><label>Enabled</label><label class="toggle"><input type="checkbox" id="s-hb-enabled"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Interval (min)</label><input type="number" id="s-hb-interval" class="form-input" value="30" min="1"></div>
+                        <div class="field-row field-row-stack">
+                            <label>Model</label>
+                            <p class="settings-note">Leave empty to use the default agent model.</p>
+                            <div class="settings-model-picker" id="s-hb-model-picker">
+                                <input type="hidden" id="s-hb-model">
+                                <button type="button" class="form-input settings-model-button" id="s-hb-model-button">
+                                    <span class="settings-model-button-main">
+                                        <span class="settings-model-button-label" id="s-hb-model-display">Same as default model</span>
+                                        <span class="settings-model-button-provider settings-model-button-provider-placeholder" id="s-hb-model-provider">Inherits</span>
+                                    </span>
+                                    <span class="material-icons-round">arrow_drop_down</span>
+                                </button>
+                                <div class="settings-model-menu" id="s-hb-model-menu" style="display:none">
+                                    <input type="text" id="s-hb-model-search" class="form-input settings-model-search" placeholder="Search models..." autocomplete="off">
+                                    <div class="settings-model-list" id="s-hb-model-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field-row field-row-stack">
+                            <label>Agent Profile</label>
+                            <p class="settings-note">Profile persona used during heartbeat execution.</p>
+                            <select id="s-hb-profile" class="form-input">
+                                <option value="">Default (inherit)</option>
+                            </select>
+                        </div>
+                        <div class="field-row field-row-stack">
+                            <label>Output Channel</label>
+                            <p class="settings-note">Where to deliver heartbeat results. Leave empty for Auto-detect.</p>
+                            <div class="hb-target-row" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem">
+                                <select id="s-hb-target-channel" class="form-input">
+                                    <option value="">Auto-detect</option>
+                                    <option value="webui">Web UI</option>
+                                    <option value="telegram">Telegram</option>
+                                    <option value="discord">Discord</option>
+                                    <option value="slack">Slack</option>
+                                </select>
+                                <input type="text" id="s-hb-target-id" class="form-input" placeholder="e.g. recent, or chat ID">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Tab: Channels -->
@@ -537,6 +583,25 @@
             </div>
             <div class="modal-body markdown-body" id="context-content">
                 <div class="loader">Loading context...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div id="changelog-modal" class="modal-backdrop">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">new_releases</span> What's New</h2>
+                <div style="flex:1"></div>
+                <a id="changelog-github-btn" href="#" target="_blank" class="btn-secondary" style="margin-right: 12px; display: none; text-decoration: none;">
+                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">open_in_new</span> GitHub
+                </a>
+                <button class="btn-icon" onclick="closeModal('changelog-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body markdown-body" id="changelog-content">
+                <div class="loader">Fetching release notes...</div>
             </div>
         </div>
     </div>
