@@ -378,7 +378,8 @@ class HeartbeatService:
         return {
             "enabled": self.enabled,
             "running": self._running,
-            "interval_s": self.interval_s,
+            "interval_min": self.interval_min,
+            "model": self.model,
             "heartbeat_file_exists": hb_file.exists(),
             "last_check_ms": self._last_check_ms,
             "last_action": self._last_action,

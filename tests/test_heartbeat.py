@@ -294,7 +294,7 @@ class TestHeartbeatService:
         )
         s = service.status()
         assert s["enabled"] is True
-        assert s["interval_s"] == 1800
+        assert s["interval_min"] == 30
         assert s["heartbeat_file_exists"] is False
         assert s["last_check_ms"] is None
 
@@ -358,7 +358,7 @@ class TestHeartbeatService:
 
         status = service.status()
 
-        assert status["interval_s"] == 1800
+        assert status["interval_min"] == 30
         assert status["session_key"] == "heartbeat:file"
         assert status["profile_id"] == "reviewer"
         assert status["targets"] == {"webui": "recent"}
@@ -384,7 +384,7 @@ class TestHeartbeatService:
         status = service.status()
 
         assert status["enabled"] is True
-        assert status["interval_s"] == 1800
+        assert status["interval_min"] == 30
         assert status["session_key"] == "heartbeat:file"
 
     def test_defaults_for_new_fields(self, tmp_path):

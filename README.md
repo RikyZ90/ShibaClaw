@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.3.6!** This release adds a brand new **Native Windows Desktop App**, cross-provider model search, true per-session model routing, a redesigned model-first settings flow, and OpenRouter OAuth directly in the WebUI.
+📢 **Welcome to ShibaClaw v0.3.7!** This release adds a brand new **Dedicated Heartbeat Settings Tab**, supporting per-service model overrides, agent profile selection, and dynamic channel routing. It also includes the Native Windows Desktop App, cross-provider model search, and OpenRouter OAuth.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
