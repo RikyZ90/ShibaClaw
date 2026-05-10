@@ -107,12 +107,11 @@ class HeartbeatService:
         self.profile_id = hb_cfg.profile_id
 
         schedule_changed = (
-            hb_cfg.interval_s != self.interval_s or hb_cfg.enabled != self.enabled
+            hb_cfg.interval_min != self.interval_min or hb_cfg.enabled != self.enabled
         )
         if schedule_changed:
             self.stop()
-            self.interval_min = hb_cfg.interval_min if hasattr(hb_cfg, 'interval_min') else (hb_cfg.interval_s // 60 if hasattr(hb_cfg, 'interval_s') else 30)
-            self.interval_s = self.interval_min * 60
+            self.interval_min = hb_cfg.interval_min
             self.enabled = hb_cfg.enabled
             if self.enabled:
                 await self.start()

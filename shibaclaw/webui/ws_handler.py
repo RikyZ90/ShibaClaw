@@ -101,10 +101,8 @@ async def ws_endpoint(websocket: WebSocket):
 
     profile_id = "default"
     try:
-        from shibaclaw.brain.manager import PackManager
-
-        if agent_manager.config:
-            pm = PackManager(agent_manager.config.workspace_path)
+        if agent_manager.config and agent_manager.pm:
+            pm = agent_manager.pm
             sess = pm.get_or_create(session_id)
             profile_id = sess.metadata.get("profile_id", "default")
     except Exception:
@@ -281,16 +279,15 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 payload["profile_id"] = cached_profile_id
 
             try:
-                from shibaclaw.brain.manager import PackManager
-
-                pm = PackManager(agent_manager.config.workspace_path)
-                sess = pm.get_or_create(session_key)
-                pid = sess.metadata.get("profile_id")
-                if pid:
-                    payload["profile_id"] = pid
-                elif cached_profile_id and cached_profile_id != "default":
-                    sess.metadata["profile_id"] = cached_profile_id
-                    pm.save(sess)
+                pm = agent_manager.pm
+                if pm:
+                    sess = pm.get_or_create(session_key)
+                    pid = sess.metadata.get("profile_id")
+                    if pid:
+                        payload["profile_id"] = pid
+                    elif cached_profile_id and cached_profile_id != "default":
+                        sess.metadata["profile_id"] = cached_profile_id
+                        pm.save(sess)
             except Exception:
                 pass
 

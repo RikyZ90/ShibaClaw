@@ -12,6 +12,14 @@ class AgentManager:
         self.config: Optional[Any] = None
         self.provider: Optional[Any] = None
         self.oauth_jobs: Dict[str, Dict] = {}
+        self._pack_manager: Optional[Any] = None
+
+    @property
+    def pm(self) -> Any:
+        if not self._pack_manager and self.config:
+            from shibaclaw.brain.manager import PackManager
+            self._pack_manager = PackManager(self.config.workspace_path)
+        return self._pack_manager
 
     async def deliver_background_notification(
         self,
@@ -33,9 +41,9 @@ class AgentManager:
             if not self.config:
                 return {"delivered": False, "matched_sessions": 0}
 
-            from shibaclaw.brain.manager import PackManager
-
-            pm = PackManager(self.config.workspace_path)
+            pm = self.pm
+            if not pm:
+                return {"delivered": False, "matched_sessions": 0}
             session = pm.get_or_create(session_key)
             session.add_message(
                 "assistant",
@@ -58,6 +66,7 @@ class AgentManager:
         from shibaclaw.config.loader import load_config
 
         self.config = load_config()
+        self._pack_manager = None
 
         try:
             from shibaclaw.cli.commands import _make_provider
@@ -76,6 +85,7 @@ class AgentManager:
     async def reload_config(self, new_cfg: Any) -> None:
         """Apply new config in-memory and signal gateway to hot-reload without restarting."""
         self.config = new_cfg
+        self._pack_manager = None
         try:
             from shibaclaw.cli.commands import _make_provider
 

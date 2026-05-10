@@ -90,6 +90,7 @@ class CronService:
         self._last_mtime: float = 0.0
         self._timer_task: asyncio.Task | None = None
         self._running = False
+        self._save_lock = asyncio.Lock()
 
     def _load_store(self) -> CronStore:
         """Load jobs from disk. Reloads automatically if file was modified externally."""
@@ -324,7 +325,8 @@ class CronService:
     async def _run_job_bg(self, job: CronJob) -> None:
         """Background wrapper to run job and save its state."""
         await self._execute_job(job)
-        self._save_store()
+        async with self._save_lock:
+            self._save_store()
 
     async def _execute_job(self, job: CronJob) -> None:
         """Execute a single job."""

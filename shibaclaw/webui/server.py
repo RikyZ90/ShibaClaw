@@ -229,10 +229,19 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
     else:
         logger.warning("WARNING: Authentication is DISABLED")
 
-    asyncio.create_task(_check_update_on_startup())
-    asyncio.create_task(_sync_skills_on_startup())
-    asyncio.create_task(_ensure_config_on_startup())
-    asyncio.create_task(_start_gateway_client())
+    _startup_tasks = [
+        asyncio.create_task(_check_update_on_startup()),
+        asyncio.create_task(_sync_skills_on_startup()),
+        asyncio.create_task(_ensure_config_on_startup()),
+        asyncio.create_task(_start_gateway_client()),
+    ]
+
+    def _log_task_exc(t: asyncio.Task) -> None:
+        if not t.cancelled() and (exc := t.exception()):
+            logger.error("Startup task '{}' failed: {}", t.get_name(), exc)
+
+    for _t in _startup_tasks:
+        _t.add_done_callback(_log_task_exc)
 
     server_config = uvicorn.Config(
         app=app,
@@ -240,8 +249,8 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
         port=port,
         log_level="warning",
         access_log=False,
-        ws_ping_interval=None,
-        ws_ping_timeout=None,
+        ws_ping_interval=60.0,
+        ws_ping_timeout=120.0,
     )
     server = uvicorn.Server(server_config)
     await server.serve()

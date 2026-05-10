@@ -12,6 +12,14 @@ import tiktoken
 
 from shibaclaw.cli.utils import safe_print
 
+_ENC = None
+
+def _get_encoding():
+    global _ENC
+    if _ENC is None:
+        _ENC = tiktoken.get_encoding("cl100k_base")
+    return _ENC
+
 
 def detect_image_mime(data: bytes) -> str | None:
     """Detect image MIME type from magic bytes, ignoring file extension."""
@@ -162,7 +170,7 @@ def estimate_prompt_tokens(
 ) -> int:
     """Estimate prompt tokens with tiktoken."""
     try:
-        enc = tiktoken.get_encoding("cl100k_base")
+        enc = _get_encoding()
         parts: list[str] = []
         for msg in messages:
             role = msg.get("role", "")
@@ -218,7 +226,7 @@ def estimate_message_tokens(message: dict[str, Any]) -> int:
     if not payload:
         return 1
     try:
-        enc = tiktoken.get_encoding("cl100k_base")
+        enc = _get_encoding()
         return max(1, len(enc.encode(payload)))
     except Exception:
         return max(1, len(payload) // 4)
@@ -380,48 +388,9 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
     (workspace / "skills").mkdir(exist_ok=True)
 
     # ── Sync built-in profiles ──────────────────────────────────────
-    profiles_tpl = tpl / "profiles"
-    if profiles_tpl.is_dir():
-        profiles_dest = workspace / "profiles"
-        profiles_dest.mkdir(exist_ok=True)
+    sync_profiles(workspace)
 
-        # Copy manifest (merge built-in entries, don't overwrite user edits)
-        manifest_src = profiles_tpl / "manifest.json"
-        manifest_dest = profiles_dest / "manifest.json"
-        if manifest_src.is_file():
-            import json as _json
-
-            builtin_manifest = _json.loads(manifest_src.read_text(encoding="utf-8"))
-            if manifest_dest.exists():
-                try:
-                    raw = _json.loads(manifest_dest.read_text(encoding="utf-8"))
-                    existing = raw if isinstance(raw, dict) else {}
-                except Exception:
-                    existing = {}
-                for pid, meta in builtin_manifest.items():
-                    if pid not in existing:
-                        existing[pid] = meta
-                    else:
-                        for key, val in meta.items():
-                            if key not in existing[pid]:
-                                existing[pid][key] = val
-                manifest_dest.write_text(
-                    _json.dumps(existing, indent=2, ensure_ascii=False),
-                    encoding="utf-8",
-                )
-            else:
-                _write(manifest_src, manifest_dest)
-
-        # Copy profile directories (only if they don't exist yet)
-        for profile_dir in profiles_tpl.iterdir():
-            if profile_dir.is_dir():
-                dest_dir = profiles_dest / profile_dir.name
-                soul_src = profile_dir / "SOUL.md"
-                soul_dest = dest_dir / "SOUL.md"
-                if soul_src.is_file() and not soul_dest.exists():
-                    dest_dir.mkdir(exist_ok=True)
-                    _write(soul_src, soul_dest)
-
+    if not silent and added:
         for name in added:
             safe_print(f"  [dim]Created {name}[/dim]")
     return added

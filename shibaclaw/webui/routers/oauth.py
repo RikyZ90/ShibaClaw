@@ -9,7 +9,7 @@ from starlette.responses import JSONResponse
 from shibaclaw.webui.agent_manager import agent_manager
 
 
-async def api_oauth_providers(request: Request):
+def get_oauth_providers_status() -> list[dict]:
     if not agent_manager.config:
         agent_manager.load_latest_config()
 
@@ -61,7 +61,10 @@ async def api_oauth_providers(request: Request):
         except Exception as e:
             status, msg = "error", str(e)
         result.append({**p, "status": status, "message": msg})
-    return JSONResponse({"providers": result})
+    return result
+
+async def api_oauth_providers(request: Request):
+    return JSONResponse({"providers": get_oauth_providers_status()})
 
 
 async def api_oauth_login(request: Request):

@@ -234,10 +234,11 @@ class SkillsLoader:
         """Get skills marked as always=true OR present in pinned list, that meet requirements."""
         result = []
         seen: set[str] = set()
-        available = {s["name"] for s in self.list_skills(filter_unavailable=True)}
+        all_skills = self.list_skills(filter_unavailable=True)
+        available = {s["name"] for s in all_skills}
 
         # YAML always: true
-        for s in self.list_skills(filter_unavailable=True):
+        for s in all_skills:
             meta = self.get_skill_metadata(s["name"]) or {}
             skill_meta = self._parse_shibaclaw_metadata(meta.get("metadata", ""))
             if skill_meta.get("always") or meta.get("always"):
@@ -330,8 +331,7 @@ class SkillsLoader:
                     else:
                         skipped.append(skill_name)
                         continue
-                else:
-                    skill_name_final = skill_name  # noqa: F841
+                # If no conflict, we proceed with normal extraction
 
                 if not dry_run:
                     dest.mkdir(parents=True, exist_ok=True)

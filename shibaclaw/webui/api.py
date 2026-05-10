@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from shibaclaw.brain.manager import PackManager
 
 from .agent_manager import agent_manager
 from .utils import (
@@ -29,9 +27,9 @@ async def api_status(request: Request):
     gw_ready = gw is not None and gw.get("status") in ("ok", "idle")
 
     # Check if any OAuth providers are configured
-    oauth_res = await api_oauth_providers(request)
-    oauth_data = json.loads(oauth_res.body)
-    oauth_configured = any(p.get("status") == "configured" for p in oauth_data.get("providers", []))
+    from shibaclaw.webui.routers.oauth import get_oauth_providers_status
+    oauth_providers = get_oauth_providers_status()
+    oauth_configured = any(p.get("status") == "configured" for p in oauth_providers)
 
     resp = {
         "status": "ok" if gw_ready else "gateway_offline",
@@ -66,9 +64,8 @@ async def api_context_get(request: Request):
 
     # Resolve profile_id from session metadata
     profile_id = None
-    if session_id:
-        pm_ctx = PackManager(wp)
-        sess_ctx = pm_ctx.get_or_create(session_id)
+    if session_id and agent_manager.pm:
+        sess_ctx = agent_manager.pm.get_or_create(session_id)
         profile_id = sess_ctx.metadata.get("profile_id") or None
 
     # ── Real system prompt (identity + bootstrap + memory + skills) ──
@@ -80,13 +77,12 @@ async def api_context_get(request: Request):
 
     # -- Tool definitions token count (gateway-only, estimate 0 locally) --
     tools_tokens = 0
-    total_tokens = prompt_tokens
+    total_tokens = prompt_tokens + tools_tokens
 
     # ── Session messages ──
     msg_tokens = 0
-    if session_id:
-        pm = PackManager(wp)
-        msg_tokens, msg_lines = _compute_session_tokens(session_id, wp, pm, estimate_message_tokens)
+    if session_id and agent_manager.pm:
+        msg_tokens, msg_lines = _compute_session_tokens(session_id, wp, agent_manager.pm, estimate_message_tokens)
         if msg_lines:
             sections.append(
                 f"## 💬 Session Messages ({len(msg_lines)} messages)\n\n"

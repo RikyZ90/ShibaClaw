@@ -13,6 +13,7 @@ import asyncio
 import json
 import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -51,16 +52,6 @@ class Severity(str, Enum):
 
     def __gt__(self, other: "Severity") -> bool:
         return self._score() > other._score()
-
-
-# Severity threshold ordering for comparison
-_SEVERITY_ORDER = {
-    Severity.CRITICAL: 4,
-    Severity.HIGH: 3,
-    Severity.MEDIUM: 2,
-    Severity.LOW: 1,
-    Severity.UNKNOWN: 0,
-}
 
 
 @dataclass
@@ -240,9 +231,12 @@ async def _audit_pip(
         )
         return result
 
-    # Pipe the package list via stdin to pip-audit using -r /dev/stdin.
-    # pip-audit treats stdin as a requirements file, so all packages are audited in one pass.
     pkg_list = "\n".join(packages)
+
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as temp_reqs:
+        temp_reqs.write(pkg_list)
+        temp_reqs_path = temp_reqs.name
+
     try:
         process = await asyncio.create_subprocess_exec(
             "pip-audit",
@@ -251,17 +245,18 @@ async def _audit_pip(
             "--desc",
             "--progress-spinner=off",
             "-r",
-            "/dev/stdin",
-            stdin=asyncio.subprocess.PIPE,
+            temp_reqs_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            process.communicate(input=pkg_list.encode()),
+            process.communicate(),
             timeout=timeout,
         )
         stdout = stdout_bytes.decode("utf-8", errors="replace")
-        stderr_bytes.decode("utf-8", errors="replace")
+        stderr = stderr_bytes.decode("utf-8", errors="replace")
+        if stderr.strip():
+            logger.debug("pip-audit stderr: {}", stderr)
     except asyncio.TimeoutError:
         result.warnings.append("pip-audit timed out — allowing install with caution")
         result.confidence = "low"
@@ -277,6 +272,11 @@ async def _audit_pip(
         result.confidence = "low"
         result.summary = "Audit error"
         return result
+    finally:
+        try:
+            os.unlink(temp_reqs_path)
+        except OSError:
+            pass
 
     # Parse pip-audit JSON output
     vulns = _parse_pip_audit_json(stdout)
@@ -317,16 +317,17 @@ def _parse_pip_audit_json(output: str) -> list[Vulnerability]:
                     description=vuln.get("description", "")[:200],
                 )
             )
-            # Try to get proper severity from description or details
-            desc_lower = vuln.get("description", "").lower()
-            if any(word in desc_lower for word in ("critical", "remote code execution", "rce")):
-                vulns[-1].severity = Severity.CRITICAL
-            elif any(word in desc_lower for word in ("high", "arbitrary", "injection", "overflow")):
-                vulns[-1].severity = Severity.HIGH
-            elif any(word in desc_lower for word in ("medium", "moderate", "denial of service")):
-                vulns[-1].severity = Severity.MEDIUM
-            elif any(word in desc_lower for word in ("low", "minor", "informational")):
-                vulns[-1].severity = Severity.LOW
+            # Try to get proper severity from description or details if unknown
+            if vulns[-1].severity == Severity.UNKNOWN:
+                desc_lower = vuln.get("description", "").lower()
+                if any(word in desc_lower for word in ("critical", "remote code execution", "rce")):
+                    vulns[-1].severity = Severity.CRITICAL
+                elif any(word in desc_lower for word in ("high", "arbitrary", "injection", "overflow")):
+                    vulns[-1].severity = Severity.HIGH
+                elif any(word in desc_lower for word in ("medium", "moderate", "denial of service")):
+                    vulns[-1].severity = Severity.MEDIUM
+                elif any(word in desc_lower for word in ("low", "minor", "informational")):
+                    vulns[-1].severity = Severity.LOW
     return vulns
 
 
@@ -458,7 +459,7 @@ def _classify_vulnerabilities(
     Returns (allowed, summary).
     """
     blocked_vulns = [
-        v for v in vulns if _SEVERITY_ORDER.get(v.severity, 0) >= _SEVERITY_ORDER.get(threshold, 0)
+        v for v in vulns if v.severity >= threshold
     ]
 
     if blocked_vulns:

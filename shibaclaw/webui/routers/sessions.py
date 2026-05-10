@@ -6,7 +6,6 @@ import os
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from shibaclaw.brain.manager import PackManager
 from shibaclaw.webui.agent_manager import agent_manager
 
 
@@ -14,7 +13,9 @@ async def api_sessions_list(request: Request):
     """List all saved sessions."""
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
-    pm = PackManager(agent_manager.config.workspace_path)
+    pm = agent_manager.pm
+    if not pm:
+        return JSONResponse({"error": "Agent manager not ready"}, status_code=500)
     return JSONResponse({"sessions": pm.list_sessions()})
 
 
@@ -23,7 +24,9 @@ async def api_sessions_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
-    pm = PackManager(agent_manager.config.workspace_path)
+    pm = agent_manager.pm
+    if not pm:
+        return JSONResponse({"error": "Agent manager not ready"}, status_code=500)
     session = pm.get_or_create(session_id)
 
     # Normalize model ID if present
@@ -58,7 +61,9 @@ async def api_sessions_patch(request: Request):
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
     data = await request.json()
-    pm = PackManager(agent_manager.config.workspace_path)
+    pm = agent_manager.pm
+    if not pm:
+        return JSONResponse({"error": "Agent manager not ready"}, status_code=500)
     session = pm.get_or_create(session_id)
 
     if "nickname" in data:
@@ -80,7 +85,9 @@ async def api_sessions_delete(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     session_id = request.path_params["session_id"]
-    pm = PackManager(agent_manager.config.workspace_path)
+    pm = agent_manager.pm
+    if not pm:
+        return JSONResponse({"error": "Agent manager not ready"}, status_code=500)
 
     path = pm._get_session_path(session_id)
     if path.exists():
@@ -96,7 +103,9 @@ async def api_sessions_archive(request: Request):
         return JSONResponse({"error": "No config"}, status_code=400)
 
     session_id = request.path_params["session_id"]
-    pm = PackManager(agent_manager.config.workspace_path)
+    pm = agent_manager.pm
+    if not pm:
+        return JSONResponse({"error": "Agent manager not ready"}, status_code=500)
     session = pm.get_or_create(session_id)
 
     snapshot = list(session.messages[session.last_consolidated :])
