@@ -23,7 +23,30 @@ See the [Changelog](./CHANGELOG.md) for details.
 ShibaClaw is a **security-first AI agent** for your terminal, desktop, browser and 11 other channels.
 Security isn’t an add-on — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
 
-**Native Windows Desktop App · 22 providers · 11 chat channels · built-in WebUI · 3-level proactive memory · cron · heartbeat · skills · MCP**
+---
+
+## Why ShibaClaw? Simply Works. 🐕
+
+> **Have you ever spent hours fixing your AI agent instead of actually using it?**
+> ShibaClaw is built around one idea: your agent should just work — securely, reliably, and without babysitting.
+
+Built on three pillars: **Simplicity · Security · Privacy**
+
+### What makes ShibaClaw different
+
+| Feature | ShibaClaw | OpenClaw | ZeroClaw | Nanobot | Hermes Agent |
+|---|---|---|---|---|---|
+| Security-first by design — not a plugin | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Native Windows Desktop App (no WSL2 needed) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| 3-level structured memory | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Per-session model selection + cross-provider search | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Dedicated memory consolidation model (separate budget) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Shell hardening with 20+ deny-pattern guards | ✅ | ❌ | ❌ | ❌ | ❌ |
+| SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+**Also ships with:** 22 providers · 11 chat channels · built-in WebUI · cron · heartbeat · MCP · 8 skills · Agent Profiles
 
 ---
 
