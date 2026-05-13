@@ -353,6 +353,23 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 },
             )
 
+            # Create notification for other sessions/browser tabs
+            if response_content:
+                try:
+                    from shibaclaw.helpers.notification_manager import notification_manager
+                    notif = notification_manager.create_notification(
+                        message=response_content[:200],
+                        kind="agent_response",
+                        source="agent_response",
+                        session_key=session_key,
+                        title="Agent response ready",
+                        action={"kind": "session", "label": "Open session", "target": session_key},
+                        dedupe_key=f"agent-response:{session_key}:{message['id']}",
+                    )
+                    await broadcast_notification(notif)
+                except Exception:
+                    pass
+
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -492,7 +509,12 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
 
 
 async def deliver_to_browsers(
-    session_key: str, content: str, *, source: str = "background", msg_type: str = "response"
+    session_key: str,
+    content: str,
+    *,
+    source: str = "background",
+    msg_type: str = "response",
+    metadata: dict | None = None,
 ) -> int:
     """Deliver a background notification to matching browser WebSocket clients.
 
@@ -511,7 +533,10 @@ async def deliver_to_browsers(
         "content": content,
         "attachments": [],
         "session_key": session_key,
+        "source": source,
     }
+    if metadata is not None:
+        payload["metadata"] = metadata
     delivered = 0
 
     # If session_key is empty, broadcast to all connected clients
@@ -534,4 +559,25 @@ async def deliver_to_browsers(
                     delivered += 1
                 except Exception:
                     pass
+    return delivered
+
+
+async def broadcast_notification(notification: dict[str, Any]) -> int:
+    """Broadcast a notification-center event to all connected browser clients."""
+    payload = {
+        "type": "notification",
+        "id": notification.get("id", str(uuid.uuid4())[:8]),
+        "content": notification.get("message", ""),
+        "session_key": notification.get("session_key", ""),
+        "source": notification.get("source", "notification"),
+        "metadata": notification,
+    }
+
+    delivered = 0
+    for ws in list(_ws_clients.values()):
+        try:
+            await ws.send_text(json.dumps(payload))
+            delivered += 1
+        except Exception:
+            pass
     return delivered

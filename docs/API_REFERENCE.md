@@ -998,7 +998,7 @@ Apply the onboarding wizard: saves config, syncs workspace templates, and resets
 
 ### `GET /api/update/check`
 
-Check GitHub for the latest ShibaClaw release.
+Check the appropriate update source for the current installation method.
 
 **Query params**
 
@@ -1010,12 +1010,37 @@ Check GitHub for the latest ShibaClaw release.
 
 ```json
 {
+  "install_method": "pip",
   "update_available": true,
   "current": "0.1.0",
   "latest": "0.2.0",
-  "release_url": "https://github.com/..."
+  "display_current": "0.1.0",
+  "display_latest": "0.2.0",
+  "action_kind": "automatic",
+  "action_label": "Update now",
+  "action_command": "pip install --upgrade shibaclaw",
+  "action_url": "https://github.com/...",
+  "release_url": "https://github.com/...",
+  "download_url": null,
+  "manifest_url": "https://github.com/.../update_manifest.json",
+  "summary": "Version 0.2.0 is available on PyPI.",
+  "notes": [],
+  "notification": {
+    "category": "update",
+    "title": "ShibaClaw update available",
+    "body": "Version 0.2.0 is available on PyPI.",
+    "action_label": "Update now",
+    "action_command": "pip install --upgrade shibaclaw",
+    "action_url": "https://github.com/...",
+    "text": "🆕 *ShibaClaw update available*\n0.1.0 → 0.2.0\nSuggested: pip install --upgrade shibaclaw"
+  },
+  "checked_at": 1710000000,
+  "stale": false,
+  "error": null
 }
 ```
+
+`install_method` is one of `pip`, `docker`, `exe`, or `source`. Even when `update_available` is `false`, manual-install methods can still return `action_*`, `summary`, and `notes` so the WebUI can render method-specific guidance. For `source`, official repository checkouts compare the local version against the latest GitHub release manifest version and return release-oriented guidance rather than inspecting `origin/main`.
 
 ---
 
@@ -1033,12 +1058,17 @@ Fetch the update manifest from a GitHub URL.
 
 ```json
 {
-  "manifest": { ... },
-  "personal_files": ["IDENTITY.md", "memory/MEMORY.md"]
+  "manifest": { "version": "0.2.0", "changes": [] },
+  "personal_files": [
+    {
+      "path": "USER.md",
+      "note": "Customized identity template"
+    }
+  ]
 }
 ```
 
-The `personal_files` list contains workspace files that will be backed up before applying the update.
+The `personal_files` list contains workspace files that will be backed up before applying a pip update.
 
 | Status | Body | Cause |
 |---|---|---|
@@ -1048,25 +1078,52 @@ The `personal_files` list contains workspace files that will be backed up before
 
 ### `POST /api/update/apply`
 
-Apply a ShibaClaw update using a previously fetched manifest. Backs up personal files, runs `pip install --upgrade`, and restarts the server.
+Apply a ShibaClaw update using a normalized update payload. For `pip` installs this runs the upgrade, optionally backs up personal files from the manifest, and restarts the server. For `docker`, `exe`, and `source`, it returns manual-action guidance without mutating the local install. For `source`, the suggested manual action is release-oriented, for example `git fetch --tags && git checkout vX.Y.Z && pip install -e .`.
 
 **Request body**
 
 ```json
 {
-  "manifest": { ... }
+  "update": {
+    "install_method": "pip",
+    "latest": "0.2.0",
+    "action_kind": "automatic",
+    "action_label": "Update now",
+    "action_command": "pip install --upgrade shibaclaw"
+  },
+  "manifest": { "version": "0.2.0", "changes": [] }
 }
 ```
+
+Legacy manifest-only requests are still accepted for backward compatibility.
 
 **Response**
 
 ```json
 {
-  "pip": { "ok": true, "output": "..." },
-  "backed_up": ["IDENTITY.md"],
+  "install_method": "pip",
+  "version": "0.2.0",
+  "requires_manual_action": false,
+  "action_kind": "automatic",
+  "action_label": "Update now",
+  "action_command": "pip install --upgrade shibaclaw",
+  "action_url": "https://github.com/...",
+  "message": "Updated ShibaClaw to 0.2.0.",
+  "backup": {
+    "moved": [
+      {
+        "from": "C:/Users/example/.shibaclaw/workspace/USER.md",
+        "to": "C:/Users/example/.shibaclaw/workspace/_old/2026-05-13_0.2.0/USER.md"
+      }
+    ],
+    "skipped": []
+  },
+  "pip": { "ok": true, "output": "...", "command": "python -m pip install --upgrade shibaclaw==0.2.0" },
   "restarting": true
 }
 ```
+
+Manual methods return the same top-level structure with `requires_manual_action: true`, `pip: null`, and `restarting: false`.
 
 ---
 
@@ -1097,14 +1154,20 @@ Receive a background notification from the gateway and broadcast it to connected
   "session_key": "abc123",
   "content": "Task completed.",
   "source": "background",
-  "persist": true
+  "persist": true,
+  "msg_type": "response",
+  "metadata": {
+    "category": "update",
+    "title": "ShibaClaw update available",
+    "action_command": "pip install --upgrade shibaclaw"
+  }
 }
 ```
 
 **Response**
 
 ```json
-{ "status": "delivered" }
+{ "delivered": true, "matched_sessions": 1 }
 ```
 
 ---
@@ -1168,6 +1231,8 @@ All messages are JSON objects with a `type` field.
 | `done` | Turn complete |
 | `error` | An error occurred: `{ "type": "error", "message": "..." }` |
 | `notification` | Background notification delivered to the session |
+
+Background notifications may include `source` and `metadata` fields. Update notifications use `metadata.category = "update"` plus optional `title`, `body`, `action_command`, and `action_url` fields.
 
 ---
 

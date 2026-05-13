@@ -1,6 +1,29 @@
 # Changelog
 
 All notable changes to this project are documented in this file.
+## [0.3.8] - 2026-05-13
+
+### Added
+- **WebUI Notification Center (WIP)** — Scaffolded the notification center UI: bell icon with unread badge, dropdown list, deep-link to related session, and clear-all action. **⚠️ This feature is still under active development and not fully stable:** some edge cases (e.g. sessions with no WebUI target configured, multiple open tabs) may not receive notifications reliably. These will be addressed in upcoming releases.
+  - In-memory `NotificationManager` backend with per-session deduplication and persistence.
+  - REST endpoints at `/api/v1/notifications` (GET, POST, DELETE, mark-read).
+  - Real-time broadcast via WebSocket (`type: notification`) to all connected browser clients.
+  - Notifications for: heartbeat completed, cron job completed, agent response (on a session/tab not currently in focus), and update available.
+  - Event source prioritization: `source` field now takes precedence over generic `msg_type` when classifying notification `kind`.
+- **Windows GPU Compositing Fix** — Added `--disable-gpu-compositing` flag via `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` on Windows builds to eliminate screen flickering caused by Edge WebView2 async GPU compositing during heavy DOM updates (e.g. streaming responses). Explicitly set `gui="edgechromium"` to prevent fallback to the legacy `mshtml` engine.
+- **Update Check Realtime** — The update-available notification is now broadcast in real-time via WebSocket to all connected browser clients at the time of the version check (previously it was only stored).
+
+### Fixed
+- **Notification Pipeline** — Fixed an early-return in `deliver_background_notification` that aborted notification creation when `PackManager` failed during persistence. Persistence is now wrapped in `try/except` so the notification is always created and broadcast.
+- **Heartbeat With No WebUI Target** — When no WebUI session was present on disk, `select_heartbeat_target` returned `cli:direct` and no notification reached the WebUI. A system broadcast is now always sent to the WebUI regardless.
+- **Cron With External Channel** — Cron jobs configured with `deliver=True` on an external channel (e.g. Telegram) never notified the Notification Center. They now always send a WebUI broadcast as well.
+- **`_on_session_notify` With Empty Session Key** — The condition `if sk and content` was discarding system-level broadcasts where `session_key` is empty. Changed to `if content`.
+- **Agent Responses on Other Tabs** — Agent responses were only emitted to the current session's WebSocket. A server-side notification is now created and broadcast after every response; the JS suppresses the badge only when the user is focused on that exact session tab.
+- **Empty Heartbeat/Cron LLM Response** — When the LLM returns no text (e.g. tool-call-only turn), a fallback message (`"Heartbeat task completed."` / `"Cron job executed successfully."`) is now generated so the notification is always triggered.
+
+### Security
+- **Protobuf Vulnerabilities** — Resolved 8 vulnerabilities (High/Moderate) in `protobufjs` and `@protobufjs/utf8` within the WhatsApp bridge by upgrading the package override to `v7.5.8`. Addresses code injection, prototype pollution, and multiple Denial of Service (DoS) vectors.
+
 
 ## [0.3.7] - 2026-05-10
 

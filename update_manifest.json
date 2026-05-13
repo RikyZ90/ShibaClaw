@@ -1,16 +1,56 @@
 {
-    "version": "0.3.7",
-    "release_notes": "Dedicated Heartbeat Settings Tab with model override and dynamic routing. IMPORTANT: It is recommended to manually overwrite HEARTBEAT.md or run 'shibaclaw onboard' to update your local template and avoid silent settings overrides.",
+    "version": "0.3.8",
+    "release_notes": "WebUI Notification Center (WIP), Windows GPU compositing flicker fix, 6 notification pipeline bug fixes, and protobufjs security update.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.3.7 release notes."
+            "note": "Added v0.3.8 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.3.7."
+            "note": "Bumped version to 0.3.8."
+        },
+        {
+            "path": "shibaclaw/webui/agent_manager.py",
+            "overwrite": true,
+            "note": "Fixed early-return on PackManager failure in deliver_background_notification."
+        },
+        {
+            "path": "shibaclaw/webui/server.py",
+            "overwrite": true,
+            "note": "Fixed _on_session_notify empty session_key condition; update check now broadcasts notification."
+        },
+        {
+            "path": "shibaclaw/webui/ws_handler.py",
+            "overwrite": true,
+            "note": "Agent responses now create and broadcast a notification after each reply."
+        },
+        {
+            "path": "shibaclaw/cli/gateway.py",
+            "overwrite": true,
+            "note": "Heartbeat always broadcasts to WebUI; cron notifies WebUI even on external delivery; empty LLM response fallback text."
+        },
+        {
+            "path": "shibaclaw/webui/static/js/notification-center.js",
+            "overwrite": true,
+            "note": "Filter agent_response badge when user is focused on the same session tab."
+        },
+        {
+            "path": "shibaclaw/desktop/launcher.py",
+            "overwrite": true,
+            "note": "Added --disable-gpu-compositing flag and explicit edgechromium gui to fix Windows screen flickering."
+        },
+        {
+            "path": "bridge/package.json",
+            "overwrite": true,
+            "note": "Updated protobufjs override to v7.5.8."
+        },
+        {
+            "path": "bridge/package-lock.json",
+            "overwrite": true,
+            "note": "Updated lockfile with security patches."
         }
     ]
 }

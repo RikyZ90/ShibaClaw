@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -11,7 +12,9 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
 
     <!-- Google Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -29,6 +32,7 @@
     <script src="/static/vendor/highlight.min.js"></script>
 
 </head>
+
 <body>
     <!-- Login Screen (shown when auth is required) -->
     <div class="login-overlay" id="login-overlay" style="display:none">
@@ -37,7 +41,8 @@
             <h1 class="login-title">ShibaClaw</h1>
             <p class="login-subtitle">Enter your access token to continue</p>
             <div class="login-input-group">
-                <input type="password" id="login-token" class="login-input" placeholder="Paste access token..." autocomplete="off" spellcheck="false">
+                <input type="password" id="login-token" class="login-input" placeholder="Paste access token..."
+                    autocomplete="off" spellcheck="false">
                 <button id="btn-login" class="login-btn">
                     <span class="material-icons-round" style="font-size:18px;vertical-align:middle">login</span>
                     Connect
@@ -56,7 +61,8 @@
                     <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="logo-icon">
                     <div class="logo-text">
                         <h1>ShibaClaw</h1>
-                        <span class="version" id="sidebar-version" onclick="openChangelog()" title="View what's new">loading...</span>
+                        <span class="version" id="sidebar-version" onclick="openChangelog()"
+                            title="View what's new">loading...</span>
                     </div>
                 </div>
                 <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
@@ -128,12 +134,16 @@
 
             <div class="sidebar-footer">
                 <div class="footer-actions">
-                    <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" rel="noopener noreferrer" class="btn-command btn-github" title="GitHub" aria-label="GitHub">
+                    <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" rel="noopener noreferrer"
+                        class="btn-command btn-github" title="GitHub" aria-label="GitHub">
                         <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor">
-                            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                            </path>
                         </svg>
                     </a>
-                    <button class="btn-command btn-logout btn-icon-only" id="btn-logout" type="button" title="Logout" aria-label="Logout from ShibaClaw" hidden>
+                    <button class="btn-command btn-logout btn-icon-only" id="btn-logout" type="button" title="Logout"
+                        aria-label="Logout from ShibaClaw" hidden>
                         <span class="material-icons-round" aria-hidden="true">logout</span>
                     </button>
                 </div>
@@ -162,6 +172,30 @@
                         <div class="profile-dropdown" id="profile-dropdown"></div>
                     </div>
                 </div>
+                <div class="notification-center" id="notification-center">
+                    <button class="notification-bell" id="notification-bell" title="Notifications"
+                        aria-label="Notifications">
+                        <span class="material-icons-round">notifications</span>
+                        <span class="notification-badge" id="notification-badge" hidden>0</span>
+                    </button>
+                    <div class="notification-dropdown" id="notification-dropdown" aria-hidden="true">
+                        <div class="notification-dropdown-header">
+                            <div>
+                                <div class="notification-dropdown-title">Notifications</div>
+                                <div class="notification-dropdown-subtitle" id="notification-subtitle">Loading...</div>
+                            </div>
+                            <div class="notification-dropdown-actions">
+                                <button type="button" class="notification-action-btn" id="notification-mark-all">Mark
+                                    all read</button>
+                                <button type="button" class="notification-action-btn"
+                                    id="notification-clear-all">Clear</button>
+                            </div>
+                        </div>
+                        <div class="notification-list" id="notification-list">
+                            <div class="notification-empty">Loading notifications...</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="width-toggle-wrapper">
                     <button class="btn-width-toggle" id="btn-width-toggle" title="Adjust chat width">
                         <span class="material-icons-round">view_column</span>
@@ -184,19 +218,23 @@
                     <h2 class="welcome-title">Welcome to <span class="gradient-text">ShibaClaw</span></h2>
                     <p class="welcome-subtitle">A powerful AI agent that learns, acts, and secures your workflow.</p>
                     <div class="welcome-hints">
-                        <button class="hint-card" data-hint="Help me set up my personal info. Ask me one question at a time and build a clean profile I can refine later.">
+                        <button class="hint-card"
+                            data-hint="Help me set up my personal info. Ask me one question at a time and build a clean profile I can refine later.">
                             <span class="material-icons-round">manage_accounts</span>
                             <span>Set up my profile</span>
                         </button>
-                        <button class="hint-card" data-hint="Help me start a new project. Ask what I want to build, then propose the stack, structure, and first files.">
+                        <button class="hint-card"
+                            data-hint="Help me start a new project. Ask what I want to build, then propose the stack, structure, and first files.">
                             <span class="material-icons-round">rocket_launch</span>
                             <span>New project setup</span>
                         </button>
-                        <button class="hint-card" data-hint="Help me schedule something. Ask what needs to happen, when it should run, and whether it should repeat.">
+                        <button class="hint-card"
+                            data-hint="Help me schedule something. Ask what needs to happen, when it should run, and whether it should repeat.">
                             <span class="material-icons-round">event_repeat</span>
                             <span>Schedule a task</span>
                         </button>
-                        <button class="hint-card" data-hint="Analyze this workspace and give me a clear map of the project, key files, entry points, and what matters first.">
+                        <button class="hint-card"
+                            data-hint="Analyze this workspace and give me a clear map of the project, key files, entry points, and what matters first.">
                             <span class="material-icons-round">travel_explore</span>
                             <span>Explore this repo</span>
                         </button>
@@ -227,12 +265,8 @@
                             <span class="material-icons-round">attach_file</span>
                         </button>
                         <input type="file" id="file-input" multiple style="display:none">
-                        <textarea
-                            id="chat-input"
-                            placeholder="Send a message to ShibaClaw..."
-                            rows="1"
-                            autofocus
-                        ></textarea>
+                        <textarea id="chat-input" placeholder="Send a message to ShibaClaw..." rows="1"
+                            autofocus></textarea>
                         <button class="btn-send" id="btn-send" disabled>
                             <span class="material-icons-round">send</span>
                         </button>
@@ -241,21 +275,27 @@
                         <div class="input-actions">
                             <!-- Model Selector Dropdown -->
                             <div class="model-selector-wrapper" id="model-selector-wrapper" style="position: relative;">
-                                <button class="btn-input-action" id="btn-model-select" title="Change active model for session">
+                                <button class="btn-input-action" id="btn-model-select"
+                                    title="Change active model for session">
                                     <span class="material-icons-round">auto_awesome</span>
                                     <span id="active-model-display">Default</span>
-                                    <span class="material-icons-round" style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
+                                    <span class="material-icons-round"
+                                        style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
                                 </button>
                                 <div class="model-dropdown-menu" id="model-dropdown-menu" style="display: none;">
-                                    <input type="text" id="model-search-input" placeholder="Search models..." autocomplete="off">
+                                    <input type="text" id="model-search-input" placeholder="Search models..."
+                                        autocomplete="off">
                                     <div class="model-list" id="model-list-container">
                                         <!-- Models injected here -->
-                                        <div style="padding: 10px; color: var(--text-2); text-align: center; font-size: 0.85rem;">Loading models...</div>
+                                        <div
+                                            style="padding: 10px; color: var(--text-2); text-align: center; font-size: 0.85rem;">
+                                            Loading models...</div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <button class="btn-input-action" id="btn-context" onclick="openModal('context-modal')" title="View context">
+
+                            <button class="btn-input-action" id="btn-context" onclick="openModal('context-modal')"
+                                title="View context">
                                 <span class="material-icons-round">psychology</span>
                                 <span>Context</span>
                             </button>
@@ -263,7 +303,8 @@
                                 <span class="material-icons-round">stop_circle</span>
                                 <span>Stop</span>
                             </button>
-                            <div class="token-badge" id="token-badge" title="Click to view full context" onclick="openModal('context-modal')">
+                            <div class="token-badge" id="token-badge" title="Click to view full context"
+                                onclick="openModal('context-modal')">
                                 <span class="material-icons-round">data_usage</span>
                                 <span class="token-badge-text" id="token-badge-text">-- / --</span>
                             </div>
@@ -276,7 +317,7 @@
     </div>
 
     <!-- ── Modals ────────────────────────────────────────────── -->
-    
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-backdrop">
         <div class="modal modal-settings">
@@ -333,48 +374,68 @@
 
                     <!-- Tab: Agent -->
                     <div class="settings-panel" id="panel-agent">
-                        <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
+                        <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace"
+                                class="form-input" placeholder="~/.shibaclaw/workspace"></div>
                         <div class="field-row field-row-stack">
                             <label>Default Model For New Sessions</label>
-                            <p class="settings-note">Used when you create a new chat. Provider routing is inferred automatically from the selected model.</p>
+                            <p class="settings-note">Used when you create a new chat. Provider routing is inferred
+                                automatically from the selected model.</p>
                             <div class="settings-model-picker" id="s-agent-model-picker">
                                 <input type="hidden" id="s-agent-model">
-                                <button type="button" class="form-input settings-model-button" id="s-agent-model-button">
+                                <button type="button" class="form-input settings-model-button"
+                                    id="s-agent-model-button">
                                     <span class="settings-model-button-main">
-                                        <span class="settings-model-button-label" id="s-agent-model-display">Select a default model</span>
-                                        <span class="settings-model-button-provider" id="s-agent-model-provider">New sessions</span>
+                                        <span class="settings-model-button-label" id="s-agent-model-display">Select a
+                                            default model</span>
+                                        <span class="settings-model-button-provider" id="s-agent-model-provider">New
+                                            sessions</span>
                                     </span>
                                     <span class="material-icons-round">arrow_drop_down</span>
                                 </button>
                                 <div class="settings-model-menu" id="s-agent-model-menu" style="display:none">
-                                    <input type="text" id="s-agent-model-search" class="form-input settings-model-search" placeholder="Search models..." autocomplete="off">
+                                    <input type="text" id="s-agent-model-search"
+                                        class="form-input settings-model-search" placeholder="Search models..."
+                                        autocomplete="off">
                                     <div class="settings-model-list" id="s-agent-model-list"></div>
                                 </div>
                             </div>
                         </div>
                         <div class="field-row field-row-stack">
                             <label>Memory / Consolidation Model</label>
-                            <p class="settings-note">Optional. Leave it empty to reuse the default session model for proactive learning and long-term memory consolidation.</p>
+                            <p class="settings-note">Optional. Leave it empty to reuse the default session model for
+                                proactive learning and long-term memory consolidation.</p>
                             <div class="settings-model-picker" id="s-agent-consolidationModel-picker">
                                 <input type="hidden" id="s-agent-consolidationModel">
-                                <button type="button" class="form-input settings-model-button" id="s-agent-consolidationModel-button">
+                                <button type="button" class="form-input settings-model-button"
+                                    id="s-agent-consolidationModel-button">
                                     <span class="settings-model-button-main">
-                                        <span class="settings-model-button-label" id="s-agent-consolidationModel-display">Same as default session model</span>
-                                        <span class="settings-model-button-provider settings-model-button-provider-placeholder" id="s-agent-consolidationModel-provider">Inherits</span>
+                                        <span class="settings-model-button-label"
+                                            id="s-agent-consolidationModel-display">Same as default session model</span>
+                                        <span
+                                            class="settings-model-button-provider settings-model-button-provider-placeholder"
+                                            id="s-agent-consolidationModel-provider">Inherits</span>
                                     </span>
                                     <span class="material-icons-round">arrow_drop_down</span>
                                 </button>
-                                <div class="settings-model-menu" id="s-agent-consolidationModel-menu" style="display:none">
-                                    <input type="text" id="s-agent-consolidationModel-search" class="form-input settings-model-search" placeholder="Search models..." autocomplete="off">
+                                <div class="settings-model-menu" id="s-agent-consolidationModel-menu"
+                                    style="display:none">
+                                    <input type="text" id="s-agent-consolidationModel-search"
+                                        class="form-input settings-model-search" placeholder="Search models..."
+                                        autocomplete="off">
                                     <div class="settings-model-list" id="s-agent-consolidationModel-list"></div>
                                 </div>
                             </div>
                         </div>
-                        <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens" class="form-input" value="8192"></div>
-                        <div class="field-row"><label>Context Window Tokens</label><input type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
-                        <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp" class="form-input" value="0.1"></div>
-                        <div class="field-row"><label>Max Tool Iterations</label><input type="number" id="s-agent-maxIter" class="form-input" value="40"></div>
-                        <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+                        <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens"
+                                class="form-input" value="8192"></div>
+                        <div class="field-row"><label>Context Window Tokens</label><input type="number"
+                                id="s-agent-ctxTokens" class="form-input" value="65536"></div>
+                        <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp"
+                                class="form-input" value="0.1"></div>
+                        <div class="field-row"><label>Max Tool Iterations</label><input type="number"
+                                id="s-agent-maxIter" class="form-input" value="40"></div>
+                        <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning"
+                                class="form-input" placeholder="null (not set)"></div>
 
                     </div>
 
@@ -398,25 +459,39 @@
                         <div class="field-row field-row-stack">
                             <label>STT Provider URL</label>
                             <p class="settings-note">
-                                Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier, ultra-fast)
+                                Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier,
+                                ultra-fast)
                                 use: <code>https://api.groq.com/openai/v1</code>
                             </p>
-                            <input type="text" id="s-audio-providerUrl" class="form-input" placeholder="https://api.groq.com/openai/v1">
+                            <input type="text" id="s-audio-providerUrl" class="form-input"
+                                placeholder="https://api.groq.com/openai/v1">
                         </div>
-                        <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
-                        <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
-                        <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey"
+                                class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
+                        <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model"
+                                class="form-input" placeholder="whisper-large-v3-turbo"></div>
+                        <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input
+                                    type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
                     </div>
 
                     <!-- Tab: Tools -->
                     <div class="settings-panel" id="panel-tools" style="display:none">
-                        <div class="field-row"><label>Search Provider</label><input type="text" id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
-                        <div class="field-row"><label>Search API Key</label><input type="password" id="s-tool-searchKey" class="form-input" placeholder="API key"></div>
-                        <div class="field-row"><label>Max Search Results</label><input type="number" id="s-tool-searchMax" class="form-input" value="5"></div>
-                        <div class="field-row"><label>Proxy URL</label><input type="text" id="s-tool-proxy" class="form-input" placeholder="(optional)"></div>
-                        <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Exec Timeout (s)</label><input type="number" id="s-tool-execTimeout" class="form-input" value="60"></div>
-                        <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Search Provider</label><input type="text"
+                                id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
+                        <div class="field-row"><label>Search API Key</label><input type="password" id="s-tool-searchKey"
+                                class="form-input" placeholder="API key"></div>
+                        <div class="field-row"><label>Max Search Results</label><input type="number"
+                                id="s-tool-searchMax" class="form-input" value="5"></div>
+                        <div class="field-row"><label>Proxy URL</label><input type="text" id="s-tool-proxy"
+                                class="form-input" placeholder="(optional)"></div>
+                        <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input
+                                    type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="field-row"><label>Exec Timeout (s)</label><input type="number"
+                                id="s-tool-execTimeout" class="form-input" value="60"></div>
+                        <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input
+                                    type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label>
+                        </div>
                     </div>
 
                     <!-- Tab: MCP Servers -->
@@ -424,21 +499,26 @@
                         <div id="mcp-servers-list"></div>
                         <div style="padding:0.5rem 0">
                             <button type="button" class="btn-secondary" onclick="addMcpServer()">
-                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">add</span> Add MCP Server
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">add</span> Add MCP Server
                             </button>
                         </div>
                     </div>
 
                     <!-- Tab: Gateway -->
                     <div class="settings-panel" id="panel-gateway" style="display:none">
-                        <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input" placeholder="127.0.0.1"></div>
-                        <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input" value="19999"></div>
+                        <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input"
+                                placeholder="127.0.0.1"></div>
+                        <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input"
+                                value="19999"></div>
                     </div>
 
                     <!-- Tab: Heartbeat -->
                     <div class="settings-panel" id="panel-heartbeat" style="display:none">
-                        <div class="field-row"><label>Enabled</label><label class="toggle"><input type="checkbox" id="s-hb-enabled"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Interval (min)</label><input type="number" id="s-hb-interval" class="form-input" value="30" min="1"></div>
+                        <div class="field-row"><label>Enabled</label><label class="toggle"><input type="checkbox"
+                                    id="s-hb-enabled"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Interval (min)</label><input type="number" id="s-hb-interval"
+                                class="form-input" value="30" min="1"></div>
                         <div class="field-row field-row-stack">
                             <label>Model</label>
                             <p class="settings-note">Leave empty to use the default agent model.</p>
@@ -446,13 +526,17 @@
                                 <input type="hidden" id="s-hb-model">
                                 <button type="button" class="form-input settings-model-button" id="s-hb-model-button">
                                     <span class="settings-model-button-main">
-                                        <span class="settings-model-button-label" id="s-hb-model-display">Same as default model</span>
-                                        <span class="settings-model-button-provider settings-model-button-provider-placeholder" id="s-hb-model-provider">Inherits</span>
+                                        <span class="settings-model-button-label" id="s-hb-model-display">Same as
+                                            default model</span>
+                                        <span
+                                            class="settings-model-button-provider settings-model-button-provider-placeholder"
+                                            id="s-hb-model-provider">Inherits</span>
                                     </span>
                                     <span class="material-icons-round">arrow_drop_down</span>
                                 </button>
                                 <div class="settings-model-menu" id="s-hb-model-menu" style="display:none">
-                                    <input type="text" id="s-hb-model-search" class="form-input settings-model-search" placeholder="Search models..." autocomplete="off">
+                                    <input type="text" id="s-hb-model-search" class="form-input settings-model-search"
+                                        placeholder="Search models..." autocomplete="off">
                                     <div class="settings-model-list" id="s-hb-model-list"></div>
                                 </div>
                             </div>
@@ -466,7 +550,8 @@
                         </div>
                         <div class="field-row field-row-stack">
                             <label>Output Channel</label>
-                            <p class="settings-note">Where to deliver heartbeat results. Leave empty for Auto-detect.</p>
+                            <p class="settings-note">Where to deliver heartbeat results. Leave empty for Auto-detect.
+                            </p>
                             <div class="hb-target-row" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem">
                                 <select id="s-hb-target-channel" class="form-input">
                                     <option value="">Auto-detect</option>
@@ -475,15 +560,19 @@
                                     <option value="discord">Discord</option>
                                     <option value="slack">Slack</option>
                                 </select>
-                                <input type="text" id="s-hb-target-id" class="form-input" placeholder="e.g. recent, or chat ID">
+                                <input type="text" id="s-hb-target-id" class="form-input"
+                                    placeholder="e.g. recent, or chat ID">
                             </div>
                         </div>
                     </div>
 
                     <!-- Tab: Channels -->
                     <div class="settings-panel" id="panel-channels" style="display:none">
-                        <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox"
+                                    id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input
+                                    type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
+                        </div>
                         <div id="channels-detail"></div>
                     </div>
 
@@ -491,13 +580,17 @@
                     <div class="settings-panel" id="panel-skills" style="display:none">
                         <!-- Skills toolbar -->
                         <div class="skills-toolbar">
-                            <input type="text" id="skills-search" class="form-input" placeholder="Filter skills by name or description...">
+                            <input type="text" id="skills-search" class="form-input"
+                                placeholder="Filter skills by name or description...">
                             <div class="skills-toolbar-actions">
                                 <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
-                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">refresh</span> Refresh
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">refresh</span> Refresh
                                 </button>
-                                <button type="button" class="btn-secondary" onclick="window.open('https://clawhub.ai/','_blank')">
-                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">store</span> ClawHub
+                                <button type="button" class="btn-secondary"
+                                    onclick="window.open('https://clawhub.ai/','_blank')">
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">store</span> ClawHub
                                 </button>
                             </div>
                         </div>
@@ -509,7 +602,8 @@
                                 <span>Always Active</span>
                                 <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
                             </div>
-                            <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills. Injected every turn.</p>
+                            <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills.
+                                Injected every turn.</p>
                             <div id="skills-pinned-list" class="skills-pinned-list"></div>
                         </div>
 
@@ -520,7 +614,9 @@
                                 <span>Installed Skills</span>
                             </div>
                             <div id="skills-list" class="skills-list">
-                                <div class="settings-loader"><span class="material-icons-round spin">progress_activity</span> Loading skills...</div>
+                                <div class="settings-loader"><span
+                                        class="material-icons-round spin">progress_activity</span> Loading skills...
+                                </div>
                             </div>
                         </div>
 
@@ -531,12 +627,16 @@
                                 <span>Import Skills (.zip)</span>
                             </div>
                             <div class="skills-import-form">
-                                <input type="file" id="skills-import-file" accept=".zip" style="display:none" onchange="handleSkillsFileSelect(event)">
-                                <button type="button" class="btn-secondary" onclick="document.getElementById('skills-import-file').click()">
-                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
+                                <input type="file" id="skills-import-file" accept=".zip" style="display:none"
+                                    onchange="handleSkillsFileSelect(event)">
+                                <button type="button" class="btn-secondary"
+                                    onclick="document.getElementById('skills-import-file').click()">
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
                                 </button>
                                 <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
-                                <button type="button" class="btn-primary" id="skills-import-btn" onclick="importSkills()" disabled>
+                                <button type="button" class="btn-primary" id="skills-import-btn"
+                                    onclick="importSkills()" disabled>
                                     Import
                                 </button>
                             </div>
@@ -547,17 +647,21 @@
                     <!-- Tab: Update -->
                     <div class="settings-panel" id="panel-update" style="display:none">
                         <div id="update-status-container">
-                            <div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Loading...</div>
+                            <div class="update-checking"><span
+                                    class="material-icons-round spin">progress_activity</span> Loading...</div>
                         </div>
-                        
+
                         <div class="settings-section-divider" style="margin-top: 2rem;">
                             <span class="material-icons-round">rocket_launch</span>
                             <span>Setup Wizard</span>
                         </div>
                         <div class="field-row field-row-stack">
-                            <p class="settings-note">Reopen the guided setup to configure provider, credentials, model and workspace templates.</p>
-                            <button type="button" class="btn-secondary settings-onboard-btn" onclick="openOnboardFromSettings()">
-                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">rocket_launch</span>
+                            <p class="settings-note">Reopen the guided setup to configure provider, credentials, model
+                                and workspace templates.</p>
+                            <button type="button" class="btn-secondary settings-onboard-btn"
+                                onclick="openOnboardFromSettings()">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">rocket_launch</span>
                                 Open onboarding wizard
                             </button>
                         </div>
@@ -566,7 +670,8 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-primary" onclick="saveSettings()">
-                    <span class="material-icons-round" style="font-size:1rem;vertical-align:middle">save</span> Save Changes
+                    <span class="material-icons-round" style="font-size:1rem;vertical-align:middle">save</span> Save
+                    Changes
                 </button>
             </div>
         </div>
@@ -593,8 +698,10 @@
             <div class="modal-header">
                 <h2><span class="material-icons-round">new_releases</span> What's New</h2>
                 <div style="flex:1"></div>
-                <a id="changelog-github-btn" href="#" target="_blank" class="btn-secondary" style="margin-right: 12px; display: none; text-decoration: none;">
-                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">open_in_new</span> GitHub
+                <a id="changelog-github-btn" href="#" target="_blank" class="btn-secondary"
+                    style="margin-right: 12px; display: none; text-decoration: none;">
+                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">open_in_new</span>
+                    GitHub
                 </a>
                 <button class="btn-icon" onclick="closeModal('changelog-modal')">
                     <span class="material-icons-round">close</span>
@@ -639,43 +746,55 @@
         <div class="modal modal-onboard">
             <div class="modal-header">
                 <h2><span class="material-icons-round">rocket_launch</span> Welcome to ShibaClaw</h2>
-                <button class="btn-icon" onclick="closeModal('onboard-modal')" title="Close"><span class="material-icons-round">close</span></button>
+                <button class="btn-icon" onclick="closeModal('onboard-modal')" title="Close"><span
+                        class="material-icons-round">close</span></button>
             </div>
             <div class="ob-steps">
-                <div class="ob-step active" data-step="1"><span class="ob-dot">1</span><span class="ob-label">Provider</span></div>
+                <div class="ob-step active" data-step="1"><span class="ob-dot">1</span><span
+                        class="ob-label">Provider</span></div>
                 <div class="ob-line"></div>
-                <div class="ob-step" data-step="2"><span class="ob-dot">2</span><span class="ob-label">Credentials</span></div>
+                <div class="ob-step" data-step="2"><span class="ob-dot">2</span><span
+                        class="ob-label">Credentials</span></div>
                 <div class="ob-line"></div>
-                <div class="ob-step" data-step="3"><span class="ob-dot">3</span><span class="ob-label">Model</span></div>
+                <div class="ob-step" data-step="3"><span class="ob-dot">3</span><span class="ob-label">Model</span>
+                </div>
                 <div class="ob-line"></div>
-                <div class="ob-step" data-step="4"><span class="ob-dot">4</span><span class="ob-label">Finish</span></div>
+                <div class="ob-step" data-step="4"><span class="ob-dot">4</span><span class="ob-label">Finish</span>
+                </div>
             </div>
             <div class="modal-body ob-body" id="ob-body">
                 <div class="ob-panel" id="ob-step-1">
                     <p class="ob-subtitle">Choose your LLM provider</p>
                     <div class="provider-grid" id="ob-provider-grid">
-                        <div style="text-align:center;padding:2rem;color:var(--text-muted)"><span class="material-icons-round spin">progress_activity</span></div>
+                        <div style="text-align:center;padding:2rem;color:var(--text-muted)"><span
+                                class="material-icons-round spin">progress_activity</span></div>
                     </div>
-                    <p class="ob-extra-note"><span class="material-icons-round">info</span>More providers can be configured later in Settings &gt; Provider.</p>
+                    <p class="ob-extra-note"><span class="material-icons-round">info</span>More providers can be
+                        configured later in Settings &gt; Provider.</p>
                 </div>
                 <div class="ob-panel" id="ob-step-2" style="display:none">
                     <p class="ob-subtitle" id="ob-key-title">Enter your API key</p>
                     <div id="ob-key-section">
                         <div class="ob-key-wrap">
-                            <input type="password" id="ob-api-key" class="form-input ob-key-input" placeholder="sk-..." autocomplete="off">
-                            <button class="ob-eye" id="ob-eye-toggle" type="button"><span class="material-icons-round">visibility_off</span></button>
+                            <input type="password" id="ob-api-key" class="form-input ob-key-input" placeholder="sk-..."
+                                autocomplete="off">
+                            <button class="ob-eye" id="ob-eye-toggle" type="button"><span
+                                    class="material-icons-round">visibility_off</span></button>
                         </div>
                         <p class="ob-hint" id="ob-key-hint"></p>
                     </div>
                     <div id="ob-oauth-section" style="display:none">
                         <p class="ob-hint">This provider uses OAuth authentication.</p>
-                        <button class="btn-primary" id="ob-oauth-btn" style="margin-top:1rem"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Login with OAuth</button>
+                        <button class="btn-primary" id="ob-oauth-btn" style="margin-top:1rem"><span
+                                class="material-icons-round"
+                                style="font-size:16px;vertical-align:middle">lock_open</span> Login with OAuth</button>
                         <div id="ob-oauth-status" style="margin-top:1rem"></div>
                     </div>
                     <div id="ob-local-section" style="display:none">
                         <div style="text-align:center;padding:2rem">
                             <span class="material-icons-round" style="font-size:48px;color:var(--shiba-gold)">dns</span>
-                            <p style="margin-top:1rem;color:var(--text-secondary)">No API key needed for local providers.<br>Make sure the server is running locally.</p>
+                            <p style="margin-top:1rem;color:var(--text-secondary)">No API key needed for local
+                                providers.<br>Make sure the server is running locally.</p>
                         </div>
                     </div>
                 </div>
@@ -683,8 +802,10 @@
                     <p class="ob-subtitle">Choose your model</p>
                     <p class="ob-hint" id="ob-model-hint" style="margin-bottom:1rem"></p>
                     <div class="model-selector-wrapper" id="ob-model-selector-wrapper" style="position: relative;">
-                        <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o" autocomplete="off" style="padding-right: 30px;">
-                        <span class="material-icons-round" style="position: absolute; right: 10px; top: 12px; color: var(--text-muted); pointer-events: none; font-size: 18px;">expand_more</span>
+                        <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o"
+                            autocomplete="off" style="padding-right: 30px;">
+                        <span class="material-icons-round"
+                            style="position: absolute; right: 10px; top: 12px; color: var(--text-muted); pointer-events: none; font-size: 18px;">expand_more</span>
                         <div class="model-dropdown-menu" id="ob-model-dropdown-menu" style="display: none;">
                             <div class="model-list" id="ob-model-list-container"></div>
                         </div>
@@ -693,11 +814,13 @@
                 <div class="ob-panel" id="ob-step-4" style="display:none">
                     <div id="ob-tpl-section" style="display:none">
                         <p class="ob-subtitle">Workspace Templates</p>
-                        <p class="ob-hint" style="margin-bottom:0.8rem">These template files already exist in your workspace. Check any you'd like to reset to defaults:</p>
+                        <p class="ob-hint" style="margin-bottom:0.8rem">These template files already exist in your
+                            workspace. Check any you'd like to reset to defaults:</p>
                         <div id="ob-tpl-list" class="ob-tpl-list"></div>
                     </div>
                     <div class="ob-summary" id="ob-summary">
-                        <span class="material-icons-round" style="font-size:48px;color:var(--shiba-gold)">check_circle</span>
+                        <span class="material-icons-round"
+                            style="font-size:48px;color:var(--shiba-gold)">check_circle</span>
                         <h3 style="margin:0.5rem 0">Ready to go!</h3>
                         <div class="ob-summary-row"><span>Provider</span><strong id="ob-sum-provider"></strong></div>
                         <div class="ob-summary-row"><span>Model</span><strong id="ob-sum-model"></strong></div>
@@ -705,10 +828,16 @@
                 </div>
             </div>
             <div class="modal-footer ob-footer">
-                <button class="btn-secondary" id="ob-btn-back" onclick="obGoStep(-1)" style="display:none"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">arrow_back</span> Back</button>
+                <button class="btn-secondary" id="ob-btn-back" onclick="obGoStep(-1)" style="display:none"><span
+                        class="material-icons-round" style="font-size:16px;vertical-align:middle">arrow_back</span>
+                    Back</button>
                 <div style="flex:1"></div>
-                <button class="btn-primary" id="ob-btn-next" onclick="obGoStep(1)">Next <span class="material-icons-round" style="font-size:16px;vertical-align:middle">arrow_forward</span></button>
-                <button class="btn-primary" id="ob-btn-finish" onclick="obSubmit()" style="display:none"><span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Finish Setup</button>
+                <button class="btn-primary" id="ob-btn-next" onclick="obGoStep(1)">Next <span
+                        class="material-icons-round"
+                        style="font-size:16px;vertical-align:middle">arrow_forward</span></button>
+                <button class="btn-primary" id="ob-btn-finish" onclick="obSubmit()" style="display:none"><span
+                        class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Finish
+                    Setup</button>
             </div>
         </div>
     </div>
@@ -736,9 +865,11 @@
     <script src="/static/js/chat.js?v=2"></script>
     <script src="/static/js/files.js?v=2"></script>
     <script src="/static/js/ui_panels.js?v=2"></script>
+    <script src="/static/js/notification-center.js?v=2"></script>
     <script src="/static/js/main.js?v=2"></script>
     <script src="/static/js/profiles.js?v=2"></script>
     <script src="/static/js/speech.js?v=2"></script>
     <script src="/static/select_session.js?v=2"></script>
 </body>
+
 </html>

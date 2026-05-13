@@ -174,8 +174,10 @@ async def notify_webui_session(
     *,
     source: str = "heartbeat",
     persist: bool = True,
+    metadata: dict[str, Any] | None = None,
+    msg_type: str = "response",
 ) -> bool:
-    if not session_key or not response:
+    if not response:
         return False
 
     import httpx
@@ -189,7 +191,10 @@ async def notify_webui_session(
         "content": response,
         "source": source,
         "persist": persist,
+        "msg_type": msg_type,
     }
+    if metadata is not None:
+        payload["metadata"] = metadata
 
     for base_url in _iter_webui_notify_urls():
         try:
@@ -333,11 +338,15 @@ async def gateway_command(
         response: str,
         *,
         targets: dict[str, str] | None = None,
+        source: str = "heartbeat",
+        persist: bool = True,
+        metadata: dict[str, Any] | None = None,
+        msg_type: str = "response",
     ) -> None:
         from shibaclaw.bus.events import OutboundMessage
 
         if not response:
-            return
+            response = "Heartbeat task completed."
 
         resolved_targets = resolve_heartbeat_targets(
             targets,
@@ -353,14 +362,22 @@ async def gateway_command(
                         "session.notify",
                         {
                             "content": response,
-                            "source": "heartbeat",
-                            "persist": True,
+                            "source": source,
+                            "persist": persist,
+                            "metadata": metadata,
+                            "msg_type": msg_type,
                         },
                         session_key=target.session_key,
                     )
                 else:
                     await notify_webui_session(
-                        target.session_key, response, auth_token, source="heartbeat"
+                        target.session_key,
+                        response,
+                        auth_token,
+                        source=source,
+                        persist=persist,
+                        metadata=metadata,
+                        msg_type=msg_type,
                     )
                 continue
             if target.channel == "cli":
@@ -371,6 +388,22 @@ async def gateway_command(
 
         if not any(target.channel != "cli" for target in resolved_targets):
             logger.info("Heartbeat: generated a response but found no deliverable session")
+
+        # Always notify the WebUI notification center when no webui session was targeted
+        webui_notified = any(t.channel == "webui" for t in resolved_targets)
+        if not webui_notified:
+            sys_payload = {
+                "content": response,
+                "source": source,
+                "persist": False,
+                "msg_type": "notification",
+            }
+            if _ws_clients:
+                await _broadcast_ws_event("session.notify", sys_payload, session_key="")
+            else:
+                await notify_webui_session(
+                    "", response, auth_token, source=source, persist=False, msg_type="notification"
+                )
 
     hb_cfg = config.gateway.heartbeat
     heartbeat = HeartbeatService(
@@ -452,7 +485,7 @@ async def gateway_command(
         except Exception as e:
             logger.error("Hot-reload failed: {}", e)
 
-    update_check_interval = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "12")) * 3600
+    update_check_interval = float(os.environ.get("SHIBACLAW_UPDATE_CHECK_HOURS", "6")) * 3600
 
     async def _update_check_loop():
         await asyncio.sleep(60)
@@ -462,22 +495,23 @@ async def gateway_command(
 
                 result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
                 if result.get("update_available"):
-                    current = result.get("current", "?")
-                    latest = result.get("latest", "?")
-                    release_url = result.get("release_url", "")
-                    msg = (
-                        f"🆕 *ShibaClaw update available!*\n"
-                        f"Version {current} → {latest}\n"
-                        f"pip: pip install --upgrade shibaclaw\n"
-                        f"Docker: docker compose pull && docker compose up -d\n"
-                        f"{release_url}"
-                    ).strip()
+                    notification = result.get("notification") or {}
+                    current = result.get("display_current") or result.get("current", "?")
+                    latest = result.get("display_latest") or result.get("latest", "?")
+                    msg = notification.get("text") or result.get("summary") or (
+                        f"🆕 *ShibaClaw update available!*\n{current} → {latest}"
+                    )
                     logger.info(
-                        "🆕 Update available: {} → {} (pip install --upgrade shibaclaw)",
+                        "🆕 Update available: {} → {}",
                         current,
                         latest,
                     )
-                    await on_heartbeat_notify(msg)
+                    await on_heartbeat_notify(
+                        msg,
+                        source="update",
+                        metadata=notification,
+                        msg_type="response",
+                    )
                 else:
                     logger.debug(
                         "Update check: already on latest version ({}).", result.get("current", "?")
@@ -758,7 +792,7 @@ async def gateway_command(
         )
         response = out.content if out else ""
         if not response:
-            return None
+            response = "Cron job executed successfully."
 
         if job.payload.deliver and job.payload.channel and job.payload.to:
             await bus.publish_outbound(
@@ -768,6 +802,15 @@ async def gateway_command(
                     content=response,
                 )
             )
+            # Also notify WebUI notification center even when delivering to external channel
+            if _ws_clients:
+                await _broadcast_ws_event(
+                    "session.notify",
+                    {"content": response, "source": "cron", "persist": False, "msg_type": "notification"},
+                    session_key="",
+                )
+            else:
+                await notify_webui_session("", response, auth_token, source="cron", persist=False)
         elif _ws_clients:
             await _broadcast_ws_event(
                 "session.notify",
@@ -776,7 +819,11 @@ async def gateway_command(
             )
         else:
             await notify_webui_session(
-                session_key, response, auth_token, source="cron", persist=False
+                session_key,
+                response,
+                auth_token,
+                source="cron",
+                persist=False,
             )
 
         return response

@@ -1,4 +1,4 @@
-"""Apply a ShibaClaw update: pip upgrade + backup personal files to _old/<version>/."""
+"""Apply a ShibaClaw update using the normalized updater contract."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from shibaclaw.updater.detector import PYPI_PACKAGE, get_installation_method
 from shibaclaw.updater.manifest import normalize_manifest_path
 
 
@@ -20,14 +21,9 @@ def _old_dir(workspace_root: Path, new_version: str) -> Path:
     return folder
 
 
-def _pip_upgrade(version: str) -> dict[str, Any]:
-    """Run pip install --upgrade shibaclaw==<version>.
-
-    Uses --user when running inside a container (detected via /.dockerenv)
-    so the upgrade persists on the mounted volume.
-    Returns {"ok": bool, "output": str}.
-    """
-    target = f"shibaclaw=={version}" if version else "shibaclaw"
+def _pip_upgrade(version: str | None) -> dict[str, Any]:
+    """Run a pip upgrade for the requested ShibaClaw version."""
+    target = f"{PYPI_PACKAGE}=={version}" if version else PYPI_PACKAGE
     cmd = [sys.executable, "-m", "pip", "install", "--upgrade", target]
     if Path("/.dockerenv").exists():
         cmd.insert(-1, "--user")
@@ -37,41 +33,37 @@ def _pip_upgrade(version: str) -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=120,
+            check=False,
         )
-        return {
-            "ok": result.returncode == 0,
-            "output": result.stdout + result.stderr,
-        }
-    except Exception as e:
-        return {"ok": False, "output": str(e)}
+    except Exception as exc:
+        return {"ok": False, "output": str(exc), "command": " ".join(cmd)}
+
+    return {
+        "ok": result.returncode == 0,
+        "output": result.stdout + result.stderr,
+        "command": " ".join(cmd),
+    }
 
 
 def _backup_personal_files(
-    manifest: dict[str, Any],
+    manifest: dict[str, Any] | None,
     workspace_root: Path,
+    version: str,
 ) -> dict[str, Any]:
-    """Move personal files (overwrite=False) to _old/ so the user keeps a backup.
+    """Copy personal files (overwrite=False) to _old/ before applying an update."""
+    if not manifest:
+        return {"moved": [], "skipped": []}
 
-    Only files that actually exist on disk are moved.
-    Returns {"moved": [...], "skipped": [...]}.
-    """
-    new_version = manifest.get("version", "unknown")
-    old_dir = _old_dir(workspace_root, new_version)
-
+    old_dir = _old_dir(workspace_root, version or "unknown")
     moved: list[dict[str, str]] = []
     skipped: list[str] = []
 
     for change in manifest.get("changes", []):
         rel_path = normalize_manifest_path(change.get("path", ""))
-        overwrite: bool = change.get("overwrite", True)
-
-        if not rel_path:
-            continue
-
-        # Personal files are those NOT overwritten — we back them up
-        # so if the new version ships a new default, the user still has theirs.
-        if overwrite:
-            skipped.append(rel_path)
+        overwrite = change.get("overwrite", True)
+        if not rel_path or overwrite:
+            if rel_path:
+                skipped.append(rel_path)
             continue
 
         local_file = workspace_root / rel_path
@@ -87,33 +79,84 @@ def _backup_personal_files(
     return {"moved": moved, "skipped": skipped}
 
 
-def apply_update(
-    manifest: dict[str, Any],
-    workspace_root: Path,
+def _normalize_update_request(
+    update_info: dict[str, Any] | None,
+    manifest: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """
-    Apply update in two steps:
+    normalized = dict(update_info or {})
+    install_method = normalized.get("install_method") or get_installation_method()
+    latest = normalized.get("latest") or (manifest or {}).get("version")
 
-    1. Backup personal files (overwrite=False in manifest) to _old/<version>/
-    2. Run pip install --upgrade shibaclaw==<version>
+    normalized.setdefault("install_method", install_method)
+    normalized.setdefault("latest", latest)
+    normalized.setdefault("action_kind", "automatic" if install_method == "pip" else "manual-command")
+    normalized.setdefault(
+        "action_label",
+        "Update now" if install_method == "pip" else "Run suggested update command",
+    )
+    normalized.setdefault(
+        "action_command",
+        "pip install --upgrade shibaclaw"
+        if install_method == "pip"
+        else "git pull --ff-only && pip install -e .",
+    )
+    return normalized
 
-    Returns a report dict:
-        {
-            "pip": {"ok": bool, "output": str},
-            "backup": {"moved": [...], "skipped": [...]},
-            "version": str,
-        }
-    """
-    new_version = manifest.get("version", "unknown")
 
-    # Step 1: backup personal files before pip potentially overwrites defaults
-    backup = _backup_personal_files(manifest, workspace_root)
-
-    # Step 2: pip upgrade
-    pip_result = _pip_upgrade(new_version)
+def _manual_report(update_info: dict[str, Any], version: str) -> dict[str, Any]:
+    install_method = update_info.get("install_method") or "source"
+    action_target = update_info.get("action_command") or update_info.get("action_url")
+    message = update_info.get("summary") or "This update must be applied manually."
+    if action_target:
+        message = f"{message} Suggested action: {action_target}"
 
     return {
-        "version": new_version,
+        "install_method": install_method,
+        "version": version,
+        "requires_manual_action": True,
+        "restarting": False,
+        "action_kind": update_info.get("action_kind"),
+        "action_label": update_info.get("action_label"),
+        "action_command": update_info.get("action_command"),
+        "action_url": update_info.get("action_url") or update_info.get("release_url"),
+        "message": message,
+        "backup": {"moved": [], "skipped": []},
+        "pip": None,
+    }
+
+
+def apply_update(
+    update_info: dict[str, Any] | None,
+    workspace_root: Path,
+    *,
+    manifest: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Apply an update or return a manual-action report for non-pip installs."""
+    normalized = _normalize_update_request(update_info, manifest)
+    install_method = normalized["install_method"]
+    version = normalized.get("latest") or (manifest or {}).get("version") or "unknown"
+
+    if install_method != "pip" or normalized.get("action_kind") != "automatic":
+        return _manual_report(normalized, version)
+
+    backup = _backup_personal_files(manifest, workspace_root, version)
+    pip_result = _pip_upgrade(version)
+    message = (
+        f"Updated ShibaClaw to {version}."
+        if pip_result.get("ok")
+        else f"Failed to update ShibaClaw to {version}."
+    )
+
+    return {
+        "install_method": install_method,
+        "version": version,
+        "requires_manual_action": False,
+        "restarting": False,
+        "action_kind": normalized.get("action_kind"),
+        "action_label": normalized.get("action_label"),
+        "action_command": normalized.get("action_command"),
+        "action_url": normalized.get("action_url") or normalized.get("release_url"),
+        "message": message,
         "pip": pip_result,
         "backup": backup,
     }

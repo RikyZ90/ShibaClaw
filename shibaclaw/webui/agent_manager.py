@@ -29,37 +29,66 @@ class AgentManager:
         source: str = "background",
         persist: bool = True,
         msg_type: str = "response",
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist and deliver a background notification to matching browser sessions."""
         if not content:
             return {"delivered": False, "matched_sessions": 0}
 
+        notification = None
+
         # For broadcasting (empty session_key), we don't persist to any specific session
         if persist and session_key:
-            if not self.config:
-                self.load_latest_config()
-            if not self.config:
-                return {"delivered": False, "matched_sessions": 0}
+            try:
+                if not self.config:
+                    self.load_latest_config()
+                pm = self.pm
+                if self.config and pm:
+                    session = pm.get_or_create(session_key)
+                    stored_metadata = {"background": True, "source": source}
+                    if metadata:
+                        stored_metadata["notification"] = metadata
+                    session.add_message(
+                        "assistant",
+                        content,
+                        metadata=stored_metadata,
+                    )
+                    pm.save(session)
+            except Exception:
+                pass  # persist failure must not block notification creation
 
-            pm = self.pm
-            if not pm:
-                return {"delivered": False, "matched_sessions": 0}
-            session = pm.get_or_create(session_key)
-            session.add_message(
-                "assistant",
-                content,
-                metadata={"background": True, "source": source},
+        try:
+            from shibaclaw.helpers.notification_manager import notification_manager
+
+            notification = notification_manager.create_from_event(
+                content=content,
+                source=source,
+                session_key=session_key,
+                metadata=metadata,
+                msg_type=msg_type,
             )
-            pm.save(session)
+        except Exception:
+            notification = None
 
         # Deliver via native WebSocket handler
-        from shibaclaw.webui.ws_handler import deliver_to_browsers
+        from shibaclaw.webui.ws_handler import broadcast_notification, deliver_to_browsers
 
         delivered = await deliver_to_browsers(
-            session_key, content, source=source, msg_type=msg_type
+            session_key,
+            content,
+            source=source,
+            msg_type=msg_type,
+            metadata=metadata,
         )
 
-        return {"delivered": delivered > 0, "matched_sessions": delivered}
+        if notification is not None:
+            await broadcast_notification(notification)
+
+        return {
+            "delivered": delivered > 0,
+            "matched_sessions": delivered,
+            "notification": notification,
+        }
 
     def load_latest_config(self):
         """Load the latest config from disk."""

@@ -15,7 +15,7 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.3.7!** This release adds a brand new **Dedicated Heartbeat Settings Tab**, supporting per-service model overrides, agent profile selection, and dynamic channel routing. It also includes the Native Windows Desktop App, cross-provider model search, and OpenRouter OAuth.
+📢 **Welcome to ShibaClaw v0.3.8!** This release introduces the **WebUI Notification Center** (bell icon with real-time badge and deep-links — ⚠️ WIP), a **Windows GPU compositing fix** (no more screen flickering during streaming), and 6 notification pipeline bug fixes covering heartbeat, cron, and agent-response routing. Also includes the security update for `protobufjs` in the WhatsApp bridge.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
@@ -123,6 +123,7 @@ The WebUI is built-in — no separate frontend or Node.js required.
 - **OAuth flows** — GitHub Copilot, OpenAI Codex, and OpenRouter can all be configured from the settings modal; OpenRouter stores the returned API key directly into provider settings
 - **Hardened rendering** — chat Markdown escapes raw HTML, file names render through safe DOM nodes, and expired auth returns cleanly to login without reconnect loops
 - **Auto-update** — checks GitHub releases every 12h, notifies in the UI and on all active channels
+- **Notification Center (WIP)** — bell icon with unread badge, real-time WebSocket push, per-notification deep-link to the related session; covers heartbeat, cron, agent responses, and update alerts
 - **Responsive** — works on desktop and mobile
 
 ### ⚡ Dynamic Model Selection

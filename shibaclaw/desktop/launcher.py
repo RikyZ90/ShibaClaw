@@ -224,11 +224,23 @@ def run(
     # Start the webview event loop (blocks until quit_event or window.destroy)
     # ------------------------------------------------------------------
     logger.info("Opening ShibaClaw window")
+
+    # Suppress GPU compositing flicker on Windows: Edge WebView2 schedules GPU
+    # compositing frames asynchronously and can cause visible screen tearing /
+    # blank flashes during heavy DOM updates (streaming responses, etc.).
+    # --disable-gpu-compositing falls back to software compositing which is
+    # visually identical but eliminates the race condition that causes the flicker.
+    if get_os_type() == "windows":
+        os.environ.setdefault(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--disable-gpu-compositing",
+        )
+
     try:
         webview.start(
             debug=_desktop_debug_enabled(),
             icon=_get_icon_path(),
-            # gui='edgechromium'  # optionally force Edge WebView2 on Windows
+            gui="edgechromium",  # force Edge WebView2 on Windows; prevents fallback to mshtml
         )
     finally:
         try:

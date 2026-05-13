@@ -34,6 +34,9 @@ from .api import (
     api_heartbeat_trigger,
     api_internal_session_notify,
     api_models_get,
+    api_notifications_delete,
+    api_notifications_list,
+    api_notifications_post,
     api_oauth_code,
     api_oauth_job,
     api_oauth_login,
@@ -123,6 +126,9 @@ def create_app(
         Route("/api/update/check", api_update_check, methods=["GET"]),
         Route("/api/update/manifest", api_update_manifest, methods=["GET"]),
         Route("/api/update/apply", api_update_apply, methods=["POST"]),
+        Route("/api/v1/notifications", api_notifications_list, methods=["GET"]),
+        Route("/api/v1/notifications", api_notifications_post, methods=["POST"]),
+        Route("/api/v1/notifications", api_notifications_delete, methods=["DELETE"]),
         Route("/api/restart", api_restart_server, methods=["POST"]),
         Route("/api/onboard/providers", api_onboard_providers, methods=["GET"]),
         Route("/api/onboard/templates", api_onboard_templates, methods=["GET"]),
@@ -151,14 +157,29 @@ def create_app(
 async def _check_update_on_startup() -> None:
     try:
         await asyncio.sleep(3)
+        from shibaclaw.helpers.notification_manager import notification_manager
         from shibaclaw.updater.checker import check_for_update
 
         result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
         if result.get("update_available"):
+            current_label = result.get("display_current") or result.get("current")
+            latest_label = result.get("display_latest") or result.get("latest")
+            notification = result.get("notification") or {}
+            notif = notification_manager.create_from_event(
+                content=notification.get("text") or result.get("summary") or "Update available",
+                source="update",
+                metadata=notification,
+                msg_type="notification",
+            )
+            try:
+                from shibaclaw.webui.ws_handler import broadcast_notification
+                await broadcast_notification(notif)
+            except Exception:
+                pass
             logger.info(
                 "🆕 ShibaClaw update available: {} → {}",
-                result["current"],
-                result["latest"],
+                current_label,
+                latest_label,
             )
     except Exception:
         pass
@@ -207,8 +228,19 @@ async def _start_gateway_client() -> None:
                 payload = msg.get("payload", {})
                 sk = msg.get("session_key", "")
                 content = payload.get("content", "")
-                if sk and content:
-                    await agent_manager.deliver_background_notification(sk, content)
+                source = payload.get("source", "background")
+                persist = payload.get("persist", True)
+                metadata = payload.get("metadata")
+                msg_type = payload.get("msg_type", "response")
+                if content:
+                    await agent_manager.deliver_background_notification(
+                        sk,  # may be empty for system broadcasts
+                        content,
+                        source=source,
+                        persist=persist,
+                        msg_type=msg_type,
+                        metadata=metadata,
+                    )
 
             gateway_client.on_event("session.notify", _on_session_notify)
 

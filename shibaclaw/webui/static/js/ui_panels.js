@@ -1,14 +1,14 @@
 // ── Channel icons & labels for grouping ─────────────────────
 const CHANNEL_META = {
-    webui:     { icon: "language",        label: "Web UI" },
-    telegram:  { icon: "send",            label: "Telegram" },
-    discord:   { icon: "forum",           label: "Discord" },
-    slack:     { icon: "tag",             label: "Slack" },
-    api:       { icon: "api",             label: "API" },
-    cli:       { icon: "terminal",        label: "CLI" },
-    heartbeat: { icon: "favorite",        label: "Heartbeat" },
-    cron:      { icon: "schedule",        label: "Cron" },
-    _default:  { icon: "chat_bubble",     label: "Other" }
+    webui: { icon: "language", label: "Web UI" },
+    telegram: { icon: "send", label: "Telegram" },
+    discord: { icon: "forum", label: "Discord" },
+    slack: { icon: "tag", label: "Slack" },
+    api: { icon: "api", label: "API" },
+    cli: { icon: "terminal", label: "CLI" },
+    heartbeat: { icon: "favorite", label: "Heartbeat" },
+    cron: { icon: "schedule", label: "Cron" },
+    _default: { icon: "chat_bubble", label: "Other" }
 };
 const RECENT_COUNT = 4;
 
@@ -161,7 +161,7 @@ function _buildSessionEl(sess) {
     if (sess.key === state.sessionId) el.classList.add("active");
 
     const date = new Date(sess.created_at).toLocaleDateString();
-    const time = new Date(sess.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const time = new Date(sess.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const name = sess.nickname || sess.key;
     const displayName = _cleanSessionTitle(name, sess.key);
     const channel = _extractChannel(sess.key);
@@ -169,7 +169,7 @@ function _buildSessionEl(sess) {
     const safeKey = encodeURIComponent(sess.key);
     const safeName = escapeHtml(displayName);
     const safeChannelLabel = escapeHtml(channelLabel);
-    
+
     // Skip empty channels but otherwise render badged tag
     const channelTag = channelLabel ? `<span class="ob-badge badge-channel-${escapeHtml(channel)} session-channel-tag">${safeChannelLabel}</span>` : "";
 
@@ -250,7 +250,7 @@ async function loadHistory() {
             };
             list.appendChild(moreBtn);
         }
-    } catch(e) {
+    } catch (e) {
         list.innerHTML = `<div class="history-item">Error loading history</div>`;
     }
 }
@@ -289,7 +289,7 @@ function _formatSchedule(s) {
         return `every ${ms}ms`;
     }
     if (s.kind === "at" && s.atMs) {
-        return new Date(s.atMs).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"});
+        return new Date(s.atMs).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     }
     return s.kind;
 }
@@ -342,13 +342,13 @@ async function loadCronSection() {
                 btn.disabled = true;
                 btn.textContent = "…";
                 try {
-                    await authFetch(`/api/cron/jobs/${encodeURIComponent(job.id)}/trigger`, {method: "POST"});
-                } catch(_) {}
+                    await authFetch(`/api/cron/jobs/${encodeURIComponent(job.id)}/trigger`, { method: "POST" });
+                } catch (_) { }
                 await loadCronSection();
             });
             list.appendChild(row);
         }
-    } catch(e) {
+    } catch (e) {
         list.innerHTML = `<div class="auto-empty">Error loading jobs</div>`;
     }
 }
@@ -395,11 +395,11 @@ async function loadHeartbeatSection() {
             btn.disabled = true;
             btn.textContent = "…";
             try {
-                await authFetch("/api/heartbeat/trigger", {method: "POST"});
-            } catch(_) {}
+                await authFetch("/api/heartbeat/trigger", { method: "POST" });
+            } catch (_) { }
             await loadHeartbeatSection();
         });
-    } catch(e) {
+    } catch (e) {
         badge.className = "automation-badge badge-off";
         badge.textContent = "";
         list.innerHTML = `<div class="auto-empty">Error loading status</div>`;
@@ -424,12 +424,12 @@ function initAutomationSections() {
     loadHeartbeatSection();
 }
 
-window.toggleSessionMenu = function(event, btn, key) {
+window.toggleSessionMenu = function (event, btn, key) {
     event.stopPropagation();
     const safeKey = encodeURIComponent(key);
     const dropdown = document.querySelector(`.session-dropdown[data-session-key="${safeKey}"]`);
     const isActive = dropdown && dropdown.classList.contains("active");
-    
+
     document.querySelectorAll(".session-dropdown").forEach(d => {
         d.classList.remove("active");
         d.style.top = "";
@@ -437,16 +437,16 @@ window.toggleSessionMenu = function(event, btn, key) {
         d.style.marginBottom = "";
     });
     document.querySelectorAll(".btn-session-menu").forEach(b => b.classList.remove("active"));
-    
+
     if (!isActive && dropdown) {
         dropdown.classList.add("active");
         btn.classList.add("active");
-        
+
         const container = dropdown.closest('.history-section');
         if (container) {
             const containerRect = container.getBoundingClientRect();
             const rect = dropdown.getBoundingClientRect();
-            
+
             if (rect.bottom > containerRect.bottom) {
                 dropdown.style.top = "auto";
                 dropdown.style.bottom = "100%";
@@ -456,7 +456,7 @@ window.toggleSessionMenu = function(event, btn, key) {
     }
 };
 
-window.renameSessionPrompt = async function(key, currentName) {
+window.renameSessionPrompt = async function (key, currentName) {
     const newName = await shibaDialog("prompt", "Rename Session", "Enter new name for session:", { defaultValue: currentName, confirmText: "Rename" });
     if (newName && newName !== currentName) {
         renameSession(key, newName);
@@ -467,7 +467,7 @@ async function renameSession(key, nickname) {
     try {
         const res = await authFetch(`/api/sessions/${encodeURIComponent(key)}`, {
             method: "PATCH",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nickname })
         });
         if (res.ok) {
@@ -476,7 +476,7 @@ async function renameSession(key, nickname) {
             }
             await loadHistory();
         }
-    } catch(e) { console.error("Rename error:", e); }
+    } catch (e) { console.error("Rename error:", e); }
 }
 
 async function autoTitleSession() {
@@ -498,7 +498,7 @@ async function autoTitleSession() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.nickname) return;
-    } catch(e) { return; }
+    } catch (e) { return; }
 
     renameSession(state.sessionId, title);
 }
@@ -512,7 +512,7 @@ async function shibaDialog(type, title, message, { confirmText = "Confirm", dang
 
         document.getElementById("confirm-title").textContent = title;
         msgEl.textContent = message ?? "";
-        
+
         let inputEl = null;
         if (type === "prompt") {
             inputEl = document.createElement("input");
@@ -539,9 +539,9 @@ async function shibaDialog(type, title, message, { confirmText = "Confirm", dang
             resolve(result);
         }
 
-        function onOk() { 
+        function onOk() {
             if (type === "prompt") cleanup(inputEl.value);
-            else cleanup(true); 
+            else cleanup(true);
         }
         function onCancel() { cleanup(type === "prompt" ? null : false); }
         function onBackdrop(e) { if (e.target === backdrop) onCancel(); }
@@ -577,7 +577,7 @@ function removeSessionFromUI(key) {
     }
 }
 
-window.deleteSession = async function(key) {
+window.deleteSession = async function (key) {
     const ok = await shibaDialog("confirm", "Delete Session", "This session will be permanently deleted.", { confirmText: "Delete", danger: true });
     if (!ok) return;
 
@@ -586,10 +586,10 @@ window.deleteSession = async function(key) {
 
     try {
         await authFetch(`/api/sessions/${encodeURIComponent(key)}`, { method: "DELETE" });
-    } catch(e) { console.error("Delete error:", e); }
+    } catch (e) { console.error("Delete error:", e); }
 };
 
-window.archiveSession = async function(key) {
+window.archiveSession = async function (key) {
     const ok = await shibaDialog("confirm", "Archive Session", "This session will run the same consolidation flow as /new and then be removed.", { confirmText: "Archive" });
     if (!ok) return;
 
@@ -598,7 +598,7 @@ window.archiveSession = async function(key) {
 
     try {
         await authFetch(`/api/sessions/${encodeURIComponent(key)}/archive`, { method: "POST" });
-    } catch(e) { console.error("Archive error:", e); }
+    } catch (e) { console.error("Archive error:", e); }
 };
 
 document.addEventListener("click", () => {
@@ -634,7 +634,7 @@ async function loadSession(sessionId) {
             if (dropdown && dropdown.dataset && dropdown.dataset.sessionKey === encodedId) {
                 el.classList.add('active');
             }
-        } catch(e) {
+        } catch (e) {
             if (el.textContent && el.textContent.includes(sessionId)) el.classList.add("active");
         }
     }
@@ -662,12 +662,12 @@ async function loadSession(sessionId) {
             if (pg && pg.timer) clearInterval(pg.timer);
         });
         state.processGroups = {};
-        
+
         const messages = Array.isArray(data.messages) ? data.messages : [];
         if (messages.length > 0) {
             activateChat();
 
-            try { refreshTokenBadge(); } catch(e) { /* ignore */ }
+            try { refreshTokenBadge(); } catch (e) { /* ignore */ }
 
             let turnSteps = [];
             let turnId = 0;
@@ -694,7 +694,7 @@ async function loadSession(sessionId) {
                     const group = createMessageGroup("user", fragment);
                     const bubble = document.createElement("div");
                     bubble.className = "message-bubble";
-                    
+
                     if (msg.content) {
                         bubble.innerHTML = renderMarkdown(msg.content);
                         enhanceCodeBlocks(bubble);
@@ -775,14 +775,14 @@ async function loadSession(sessionId) {
             if (!_isCurrentSessionLoad(loadSeq, sessionId)) return;
             chatHistory.appendChild(fragment);
 
-            console.debug("[SHIBA] loadSession rendered:", pgCount, "process groups,", 
+            console.debug("[SHIBA] loadSession rendered:", pgCount, "process groups,",
                 chatHistory.querySelectorAll(".process-group").length, "in DOM");
             scrollToBottom();
         } else {
             chatHistory.classList.remove("active");
             welcomeScreen.style.display = "";
         }
-    } catch(e) {
+    } catch (e) {
         if (_isCurrentSessionLoad(loadSeq, sessionId)) {
             console.debug("[SHIBA] Error loading session:", e);
         }
@@ -793,11 +793,11 @@ async function loadSession(sessionId) {
     }
 }
 
-window.openModal = async function(id) {
+window.openModal = async function (id) {
     const modal = $(id);
     if (!modal) return;
     modal.classList.add("active");
-    
+
     if (id === "context-modal") {
         state.contextModalOpen = true;
         await _loadContextModalContent();
@@ -812,9 +812,9 @@ window.openModal = async function(id) {
             populateSettings(cfg);
             $("settings-loading").style.display = "none";
             let startTab = "agent";
-            try { startTab = localStorage.getItem("shibaclaw_settings_tab") || "agent"; } catch(e) {}
+            try { startTab = localStorage.getItem("shibaclaw_settings_tab") || "agent"; } catch (e) { }
             switchSettingsTab(startTab);
-        } catch(e) {
+        } catch (e) {
             $("settings-loading").innerHTML = `<span class="material-icons-round" style="color:var(--accent-red)">error</span> Failed to load settings`;
         }
     } else if (id === "fs-modal") {
@@ -827,22 +827,22 @@ window.openModal = async function(id) {
     } else if (id === "changelog-modal") {
         const contentEl = $("changelog-content");
         contentEl.innerHTML = '<div class="loader">Fetching release notes...</div>';
-        
+
         try {
             let version = $("sidebar-version").textContent.replace("v", "").trim();
             if (!version || version === "loading...") version = "0.3.6"; // fallback
 
             let releaseUrl = `https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/v${version}`;
             let res = await fetch(releaseUrl);
-            
+
             if (!res.ok) {
                 // fallback to latest
                 res = await fetch("https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest");
             }
-            
+
             if (res.ok) {
                 const data = await res.json();
-                
+
                 // Show github button
                 const btn = $("changelog-github-btn");
                 if (btn && data.html_url) {
@@ -865,11 +865,11 @@ window.openModal = async function(id) {
     }
 };
 
-window.openChangelog = function() {
+window.openChangelog = function () {
     openModal("changelog-modal");
 };
 
-window.openHeartbeatFile = function(event) {
+window.openHeartbeatFile = function (event) {
     if (event && event.preventDefault) event.preventDefault();
     const filePath = "HEARTBEAT.md";
     const dir = filePath.includes("/") ? filePath.replace(/\\/g, "/").split("/").slice(0, -1).join("/") : ".";
@@ -878,7 +878,7 @@ window.openHeartbeatFile = function(event) {
     openModal("fs-modal");
 };
 
-window.closeModal = function(id) {
+window.closeModal = function (id) {
     const modal = $(id);
     if (!modal) return;
     if (id === "context-modal") {
@@ -893,12 +893,12 @@ window.closeModal = function(id) {
     modal.classList.remove("active");
 };
 
-window.openOnboardFromSettings = function() {
+window.openOnboardFromSettings = function () {
     closeModal("settings-modal");
     openOnboardWizard();
 };
 
-window.switchSettingsTab = function(tab) {
+window.switchSettingsTab = function (tab) {
     document.querySelectorAll(".settings-sidebar-item").forEach(t => t.classList.remove("active"));
     const sidebarEl = document.querySelector(`.settings-sidebar-item[data-tab="${tab}"]`);
     if (sidebarEl) sidebarEl.classList.add("active");
@@ -913,7 +913,7 @@ window.switchSettingsTab = function(tab) {
     if (tab === "update") loadUpdatePanel();
     if (tab === "skills") loadSkillsPanel();
     if (tab === "heartbeat") loadHeartbeatSettingsPanel();
-    try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch(e) {}
+    try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch (e) { }
 };
 
 /* ── Skills panel ── */
@@ -934,7 +934,7 @@ async function loadSkillsPanel() {
         window._skillsPinnedList = data.pinned_skills || [];
         window._skillsMaxPinned = data.max_pinned_skills || 5;
         renderSkillsPanel();
-    } catch(e) {
+    } catch (e) {
         console.error("loadSkillsPanel", e);
         if (listEl) listEl.innerHTML = '<div style="color:#e57373;font-size:13px;padding:12px">Error loading skills</div>';
     }
@@ -943,8 +943,8 @@ async function loadSkillsPanel() {
 function renderSkillsPanel() {
     const skills = window._skillsData;
     const pinned = window._skillsPinnedList;
-    var alwaysActive = skills.filter(function(s) { return s.always || pinned.includes(s.name); });
-    var alwaysNames = alwaysActive.map(function(s) { return s.name; });
+    var alwaysActive = skills.filter(function (s) { return s.always || pinned.includes(s.name); });
+    var alwaysNames = alwaysActive.map(function (s) { return s.name; });
 
     var counter = document.getElementById("skills-pin-counter");
     if (counter) counter.textContent = alwaysActive.length + " / " + window._skillsMaxPinned;
@@ -954,7 +954,7 @@ function renderSkillsPanel() {
         if (alwaysActive.length === 0) {
             pinnedList.innerHTML = '<span style="color:var(--text-secondary);font-size:12px">No always-active skills</span>';
         } else {
-            pinnedList.innerHTML = alwaysActive.map(function(s) {
+            pinnedList.innerHTML = alwaysActive.map(function (s) {
                 var canUnpin = !s.always;
                 var closeBtn = canUnpin
                     ? ' <span class="material-icons-round" style="font-size:14px;cursor:pointer;vertical-align:middle" onclick="toggleSkillPin(\'' + escHtml(s.name) + '\', false)">close</span>'
@@ -967,12 +967,12 @@ function renderSkillsPanel() {
     var listEl = document.getElementById("skills-list");
     if (!listEl) return;
     var q = ((document.getElementById("skills-search") || {}).value || "").toLowerCase();
-    var filtered = q ? skills.filter(function(s) { return s.name.toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q); }) : skills;
+    var filtered = q ? skills.filter(function (s) { return s.name.toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q); }) : skills;
     if (filtered.length === 0) {
         listEl.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:12px">No skills found.</div>';
         return;
     }
-    listEl.innerHTML = filtered.map(function(s) { return renderSkillCard(s, alwaysNames); }).join("");
+    listEl.innerHTML = filtered.map(function (s) { return renderSkillCard(s, alwaysNames); }).join("");
 }
 
 function escHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
@@ -990,15 +990,15 @@ function renderSkillCard(skill, activeNames) {
         : '';
     return '<div class="skill-card' + availClass + '">' +
         '<div class="skill-card-body">' +
-            '<div class="skill-card-name">' + escHtml(skill.name) + ' <span class="skill-badge ' + badgeClass + '">' + escHtml(skill.source) + '</span></div>' +
-            '<div class="skill-card-desc">' + escHtml(skill.description || 'No description') + '</div>' +
-            (skill.missing_requirements ? '<div style="font-size:11px;color:#e57373;margin-top:2px">Missing: ' + escHtml(skill.missing_requirements) + '</div>' : '') +
+        '<div class="skill-card-name">' + escHtml(skill.name) + ' <span class="skill-badge ' + badgeClass + '">' + escHtml(skill.source) + '</span></div>' +
+        '<div class="skill-card-desc">' + escHtml(skill.description || 'No description') + '</div>' +
+        (skill.missing_requirements ? '<div style="font-size:11px;color:#e57373;margin-top:2px">Missing: ' + escHtml(skill.missing_requirements) + '</div>' : '') +
         '</div>' +
         '<div class="skill-card-actions">' + pinBtn + deleteBtn + '</div>' +
-    '</div>';
+        '</div>';
 }
 
-window.toggleSkillPin = async function(name, pin) {
+window.toggleSkillPin = async function (name, pin) {
     let list = [...window._skillsPinnedList];
     if (pin) {
         if (list.length >= window._skillsMaxPinned) { alert("Max pinned skills reached (" + window._skillsMaxPinned + ")"); return; }
@@ -1007,24 +1007,24 @@ window.toggleSkillPin = async function(name, pin) {
         list = list.filter(n => n !== name);
     }
     try {
-        const res = await authFetch("/api/skills/pin", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ pinned_skills: list }) });
+        const res = await authFetch("/api/skills/pin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pinned_skills: list }) });
         if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Pin failed"); return; }
         window._skillsPinnedList = list;
         renderSkillsPanel();
-    } catch(e) { console.error("toggleSkillPin", e); }
+    } catch (e) { console.error("toggleSkillPin", e); }
 };
 
-window.deleteSkill = async function(name) {
+window.deleteSkill = async function (name) {
     if (!confirm("Delete skill '" + name + "'? This cannot be undone.")) return;
     try {
         const res = await authFetch("/api/skills/" + encodeURIComponent(name), { method: "DELETE" });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) { alert(d.error || "Delete failed"); return; }
         loadSkillsPanel();
-    } catch(e) { console.error("deleteSkill", e); }
+    } catch (e) { console.error("deleteSkill", e); }
 };
 
-window.handleSkillsFileSelect = function(event) {
+window.handleSkillsFileSelect = function (event) {
     const fileInput = event.target;
     const nameEl = document.getElementById("skills-import-filename");
     const importBtn = document.getElementById("skills-import-btn");
@@ -1037,7 +1037,7 @@ window.handleSkillsFileSelect = function(event) {
     }
 };
 
-window.importSkills = async function() {
+window.importSkills = async function () {
     const fileInput = document.getElementById("skills-import-file");
     if (!fileInput || !fileInput.files.length) return;
     const el = document.getElementById("skills-import-result");
@@ -1055,14 +1055,14 @@ window.importSkills = async function() {
         if (nameEl) nameEl.textContent = "No file selected";
         document.getElementById("skills-import-btn").disabled = true;
         loadSkillsPanel();
-    } catch(e) {
+    } catch (e) {
         console.error("importSkills", e);
         if (el) { el.style.display = "block"; el.innerHTML = '<span style="color:#e57373">Network error</span>'; }
     }
 };
 
-document.addEventListener("DOMContentLoaded", function() {
-    document.addEventListener("input", function(e) {
+document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("input", function (e) {
         if (e.target && e.target.id === "skills-search") renderSkillsPanel();
     });
 
@@ -1123,7 +1123,7 @@ async function loadOAuthPanel() {
             logsEl.style.display = "block"; logsEl.innerHTML = p.name === "openrouter" ? "Preparing OpenRouter login...\n" : "Requesting device code...\n";
             const loginBtnHtml = '<span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login';
             try {
-                const resp = await authFetch("/api/oauth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({provider:p.name}) });
+                const resp = await authFetch("/api/oauth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: p.name }) });
                 const jd = await resp.json();
                 if (jd.error) {
                     logsEl.textContent = "Error: " + jd.error;
@@ -1138,17 +1138,17 @@ async function loadOAuthPanel() {
                     logsEl.innerHTML =
                         `<div style="text-align:center;padding:12px 0">` +
                         `<div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">` +
-                          `<a href="${jd.verification_uri}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
-                            `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open GitHub` +
-                          `</a>` +
-                          `<div style="position:relative;display:inline-flex;align-items:center;background:var(--bg-secondary);border:2px solid var(--shiba-gold);border-radius:10px;padding:6px 12px 6px 16px;gap:10px;cursor:pointer" onclick="navigator.clipboard.writeText('${jd.user_code}');const t=document.getElementById('${codeId}-tip');t.textContent='Copied!';setTimeout(()=>t.textContent='Click to copy',1500)" title="Click to copy code">` +
-                            `<span style="font-size:26px;font-weight:700;letter-spacing:5px;color:var(--shiba-gold);font-family:'JetBrains Mono',monospace">${jd.user_code}</span>` +
-                            `<span class="material-icons-round" style="font-size:18px;color:var(--text-muted)">content_copy</span>` +
-                          `</div>` +
+                        `<a href="${jd.verification_uri}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
+                        `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open GitHub` +
+                        `</a>` +
+                        `<div style="position:relative;display:inline-flex;align-items:center;background:var(--bg-secondary);border:2px solid var(--shiba-gold);border-radius:10px;padding:6px 12px 6px 16px;gap:10px;cursor:pointer" onclick="navigator.clipboard.writeText('${jd.user_code}');const t=document.getElementById('${codeId}-tip');t.textContent='Copied!';setTimeout(()=>t.textContent='Click to copy',1500)" title="Click to copy code">` +
+                        `<span style="font-size:26px;font-weight:700;letter-spacing:5px;color:var(--shiba-gold);font-family:'JetBrains Mono',monospace">${jd.user_code}</span>` +
+                        `<span class="material-icons-round" style="font-size:18px;color:var(--text-muted)">content_copy</span>` +
+                        `</div>` +
                         `</div>` +
                         `<div id="${codeId}-tip" style="margin-top:6px;font-size:11px;color:var(--text-muted)">Click to copy</div>` +
                         `<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--text-muted)">` +
-                          `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
+                        `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
                         `</div>` +
                         `</div>`;
                 }
@@ -1160,11 +1160,11 @@ async function loadOAuthPanel() {
                         `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
                         `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">OpenRouter will return here automatically when the authorization is complete.</div>` +
                         `<a href="${jd.auth_url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
-                          `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
+                        `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
                         `</a>` +
                         `<div style="margin-top:12px;font-size:11px;color:var(--text-muted)">If no tab opened automatically, use the button above.</div>` +
                         `<div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
-                          `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
+                        `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
                         `</div>` +
                         `</div>`;
                     try {
@@ -1209,10 +1209,10 @@ async function loadOAuthPanel() {
                             logsEl.innerHTML =
                                 `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
                                 `<a href="${job.auth_url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
-                                  `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
+                                `<span class="material-icons-round" style="font-size:16px">open_in_new</span> ${p.cta || 'Open login'}` +
                                 `</a>` +
                                 `<div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
-                                  `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
+                                `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for browser callback...` +
                                 `</div>` +
                                 `</div>`;
                         } else if (job.status === "awaiting_code" && job.auth_url && !logsEl.querySelector('.codex-auth-ui')) {
@@ -1224,21 +1224,21 @@ async function loadOAuthPanel() {
                                 `<div class="codex-auth-ui" style="text-align:center;padding:12px 0">` +
                                 `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Click the button below to sign in with OpenAI:</div>` +
                                 `<a href="${job.auth_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;color:var(--bg-primary);background:var(--shiba-gold);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">` +
-                                  `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open OpenAI Login` +
+                                `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Open OpenAI Login` +
                                 `</a>` +
                                 `<div style="margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--bg-tertiary);text-align:left;font-size:12px;line-height:1.6;color:var(--text-secondary)">` +
-                                  `<strong style="color:var(--shiba-gold)">📋 After login</strong>, your browser will redirect to a URL like:<br>` +
-                                  `<code style="font-size:11px;color:var(--text-primary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;word-break:break-all">http://localhost:1455/auth/callback?code=<span style="color:var(--shiba-gold);font-weight:700">AUTH_CODE_HERE</span>&amp;state=...</code><br>` +
-                                  `Paste the <strong>entire URL</strong> in the field below — the code will be extracted automatically.` +
+                                `<strong style="color:var(--shiba-gold)">📋 After login</strong>, your browser will redirect to a URL like:<br>` +
+                                `<code style="font-size:11px;color:var(--text-primary);background:var(--bg-secondary);padding:2px 6px;border-radius:4px;word-break:break-all">http://localhost:1455/auth/callback?code=<span style="color:var(--shiba-gold);font-weight:700">AUTH_CODE_HERE</span>&amp;state=...</code><br>` +
+                                `Paste the <strong>entire URL</strong> in the field below — the code will be extracted automatically.` +
                                 `</div>` +
                                 `<div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:center">` +
-                                  `<input id="${inputId}" type="text" class="form-input" placeholder="Paste the full callback URL here..." style="flex:1;max-width:400px;font-size:12px;font-family:'JetBrains Mono',monospace">` +
-                                  `<button id="${submitId}" class="btn-primary btn-sm" style="white-space:nowrap">` +
-                                    `<span class="material-icons-round" style="font-size:14px;vertical-align:middle">send</span> Submit` +
-                                  `</button>` +
+                                `<input id="${inputId}" type="text" class="form-input" placeholder="Paste the full callback URL here..." style="flex:1;max-width:400px;font-size:12px;font-family:'JetBrains Mono',monospace">` +
+                                `<button id="${submitId}" class="btn-primary btn-sm" style="white-space:nowrap">` +
+                                `<span class="material-icons-round" style="font-size:14px;vertical-align:middle">send</span> Submit` +
+                                `</button>` +
                                 `</div>` +
                                 `<div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-muted)">` +
-                                  `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
+                                `<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px">progress_activity</span> Waiting for authorization...` +
                                 `</div>` +
                                 `</div>`;
                             setTimeout(() => {
@@ -1250,7 +1250,7 @@ async function loadOAuthPanel() {
                                         if (!code) return;
                                         submitBtn.disabled = true; submitBtn.textContent = "Sending...";
                                         try {
-                                            await authFetch("/api/oauth/code", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({job_id: jd.job_id, code}) });
+                                            await authFetch("/api/oauth/code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job_id: jd.job_id, code }) });
                                             inputEl.value = ""; inputEl.placeholder = "Code submitted, waiting...";
                                         } catch { submitBtn.disabled = false; submitBtn.textContent = "Submit"; }
                                     };
@@ -1265,7 +1265,7 @@ async function loadOAuthPanel() {
                     logsEl.textContent = jd.error || "Unknown response";
                     btn.disabled = false; btn.innerHTML = loginBtnHtml;
                 }
-            } catch(e) {
+            } catch (e) {
                 logsEl.textContent = "Error: " + e;
                 btn.disabled = false; btn.innerHTML = loginBtnHtml;
             }
@@ -1403,7 +1403,7 @@ function populateSettings(cfg) {
     if (targetChanSelect) {
         let html = '<option value="">Auto-detect</option>';
         html += '<option value="webui">Web UI</option>';
-        
+
         for (const [name, cc] of Object.entries(ch)) {
             if (["sendProgress", "sendToolHints"].includes(name) || typeof cc !== "object") continue;
             if (cc.enabled === true) {
@@ -1439,25 +1439,25 @@ function populateSettings(cfg) {
     const skip = ["sendProgress", "sendToolHints"];
 
     const EMAIL_FIELD_CONFIG = {
-        imapHost:       { label: "IMAP Server",       section: "inbound",  type: "text",     placeholder: "imap.gmail.com" },
-        imapPort:       { label: "IMAP Port",          section: "inbound",  type: "number",   placeholder: "993" },
-        imapUsername:   { label: "IMAP Username",      section: "inbound",  type: "text",     placeholder: "email@gmail.com" },
-        imapPassword:   { label: "IMAP Password",      section: "inbound",  type: "password", placeholder: "App password" },
-        imapUseSsl:     { label: "IMAP SSL",           section: "inbound",  type: "boolean" },
-        imapMailbox:    { label: "IMAP Mailbox",       section: "inbound",  type: "text",     placeholder: "INBOX" },
-        smtpHost:       { label: "SMTP Server",        section: "outbound", type: "text",     placeholder: "smtp.gmail.com" },
-        smtpPort:       { label: "SMTP Port",          section: "outbound", type: "number",   placeholder: "587" },
-        smtpUsername:   { label: "SMTP Username",      section: "outbound", type: "text",     placeholder: "email@gmail.com" },
-        smtpPassword:   { label: "SMTP Password",      section: "outbound", type: "password", placeholder: "App password" },
-        smtpUseTls:     { label: "SMTP STARTTLS",      section: "outbound", type: "boolean" },
-        smtpUseSsl:     { label: "SMTP SSL",           section: "outbound", type: "boolean" },
-        fromAddress:    { label: "From Address",       section: "outbound", type: "text",     placeholder: "shibaclaw@gmail.com" },
-        autoReplyEnabled:       { label: "Auto Reply",           section: "general", type: "boolean" },
-        pollIntervalSeconds:    { label: "Poll Interval (sec)",  section: "general", type: "number",  placeholder: "30" },
-        markSeen:               { label: "Mark as Read",         section: "general", type: "boolean" },
-        maxBodyChars:           { label: "Max Body Length",      section: "general", type: "number",  placeholder: "12000" },
-        subjectPrefix:          { label: "Reply Prefix",         section: "general", type: "text",    placeholder: "Re: " },
-        allowFrom:              { label: "Allowed Senders",      section: "general", type: "array",   placeholder: "email1@test.com, email2@test.com" },
+        imapHost: { label: "IMAP Server", section: "inbound", type: "text", placeholder: "imap.gmail.com" },
+        imapPort: { label: "IMAP Port", section: "inbound", type: "number", placeholder: "993" },
+        imapUsername: { label: "IMAP Username", section: "inbound", type: "text", placeholder: "email@gmail.com" },
+        imapPassword: { label: "IMAP Password", section: "inbound", type: "password", placeholder: "App password" },
+        imapUseSsl: { label: "IMAP SSL", section: "inbound", type: "boolean" },
+        imapMailbox: { label: "IMAP Mailbox", section: "inbound", type: "text", placeholder: "INBOX" },
+        smtpHost: { label: "SMTP Server", section: "outbound", type: "text", placeholder: "smtp.gmail.com" },
+        smtpPort: { label: "SMTP Port", section: "outbound", type: "number", placeholder: "587" },
+        smtpUsername: { label: "SMTP Username", section: "outbound", type: "text", placeholder: "email@gmail.com" },
+        smtpPassword: { label: "SMTP Password", section: "outbound", type: "password", placeholder: "App password" },
+        smtpUseTls: { label: "SMTP STARTTLS", section: "outbound", type: "boolean" },
+        smtpUseSsl: { label: "SMTP SSL", section: "outbound", type: "boolean" },
+        fromAddress: { label: "From Address", section: "outbound", type: "text", placeholder: "shibaclaw@gmail.com" },
+        autoReplyEnabled: { label: "Auto Reply", section: "general", type: "boolean" },
+        pollIntervalSeconds: { label: "Poll Interval (sec)", section: "general", type: "number", placeholder: "30" },
+        markSeen: { label: "Mark as Read", section: "general", type: "boolean" },
+        maxBodyChars: { label: "Max Body Length", section: "general", type: "number", placeholder: "12000" },
+        subjectPrefix: { label: "Reply Prefix", section: "general", type: "text", placeholder: "Re: " },
+        allowFrom: { label: "Allowed Senders", section: "general", type: "array", placeholder: "email1@test.com, email2@test.com" },
     };
 
     for (const [name, cc] of Object.entries(ch)) {
@@ -1466,7 +1466,7 @@ function populateSettings(cfg) {
         const displayName = name.charAt(0).toUpperCase() + name.slice(1);
         const card = document.createElement("div");
         card.className = "accordion";
-        
+
         let fieldsHtml = `
             <div class="field-row">
                 <label>Enabled</label>
@@ -1485,16 +1485,16 @@ function populateSettings(cfg) {
 
         if (name === "email" && EMAIL_FIELD_CONFIG) {
             const sections = { inbound: [], outbound: [], general: [] };
-            
+
             for (const [key, val] of Object.entries(cc)) {
                 if (key === "enabled" || key === "consentGranted" || key === "consent_granted") continue;
-                
+
                 const fieldConfig = EMAIL_FIELD_CONFIG[key] || EMAIL_FIELD_CONFIG[key.replace(/([A-Z])/g, (m) => m.toLowerCase())] || null;
                 const section = fieldConfig?.section || "general";
                 const label = fieldConfig?.label || key;
                 const inputType = fieldConfig?.type || "text";
                 const placeholder = fieldConfig?.placeholder || "";
-                
+
                 let valStr = "";
                 let originalType = typeof val;
                 if (Array.isArray(val)) {
@@ -1507,7 +1507,7 @@ function populateSettings(cfg) {
                     if (val === null) originalType = "string";
                     valStr = val === null ? "" : String(val);
                 }
-                
+
                 let inputHtml = "";
                 if (originalType === "boolean" || fieldConfig?.type === "boolean") {
                     inputHtml = `
@@ -1525,17 +1525,17 @@ function populateSettings(cfg) {
                         </div>
                     `;
                 }
-                
+
                 if (!sections[section]) sections[section] = [];
                 sections[section].push(inputHtml);
             }
-            
+
             const sectionLabels = {
                 inbound: '📥 Email IN (IMAP)',
                 outbound: '📤 Email OUT (SMTP)',
                 general: '⚙️ General'
             };
-            
+
             for (const [sectionKey, sectionFields] of Object.entries(sections)) {
                 if (sectionFields.length > 0) {
                     fieldsHtml += `<div style="padding: 8px 0 4px; font-weight: 600; color: var(--text-muted); font-size: 13px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">${sectionLabels[sectionKey] || sectionKey}</div>`;
@@ -1558,7 +1558,7 @@ function populateSettings(cfg) {
                     if (val === null) originalType = "string";
                     valStr = val === null ? "" : String(val);
                 }
-                
+
                 if (originalType === "boolean") {
                     fieldsHtml += `
                         <div class="field-row">
@@ -1567,12 +1567,12 @@ function populateSettings(cfg) {
                         </div>`;
                     continue;
                 }
-                
+
                 const lowerKey = key.toLowerCase();
                 if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
                     inputType = "password";
                 }
-                
+
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
                 fieldsHtml += `
                     <div class="field-row">
@@ -1691,32 +1691,34 @@ function collectMcpServers() {
     return result;
 }
 
-window.addMcpServer = function() {
+window.addMcpServer = function () {
     const card = buildMcpServerCard("", { args: [], enabled_tools: ["*"], tool_timeout: 30 });
     card.classList.add("open");
     $("mcp-servers-list").appendChild(card);
     card.querySelector(".mcp-name").focus();
 };
 
-window.removeMcpServer = function(btn) {
+window.removeMcpServer = function (btn) {
     btn.closest(".mcp-server-card").remove();
 };
 
-window.saveSettings = async function() {
+window.saveSettings = async function () {
     const patch = {
-        agents: { defaults: {
-            provider: "auto",
-            model: $("s-agent-model").value,
-            consolidationModel: $("s-agent-consolidationModel").value || null,
-            temperature: parseFloat($("s-agent-temp").value),
-            maxTokens: parseInt($("s-agent-maxTokens").value),
-            contextWindowTokens: parseInt($("s-agent-ctxTokens").value),
-            maxToolIterations: parseInt($("s-agent-maxIter").value),
-            workspace: $("s-agent-workspace").value,
-            reasoningEffort: $("s-agent-reasoning").value || null,
-            pinnedSkills: window._skillsPinnedList || [],
-            maxPinnedSkills: window._skillsMaxPinned || 5,
-        }},
+        agents: {
+            defaults: {
+                provider: "auto",
+                model: $("s-agent-model").value,
+                consolidationModel: $("s-agent-consolidationModel").value || null,
+                temperature: parseFloat($("s-agent-temp").value),
+                maxTokens: parseInt($("s-agent-maxTokens").value),
+                contextWindowTokens: parseInt($("s-agent-ctxTokens").value),
+                maxToolIterations: parseInt($("s-agent-maxIter").value),
+                workspace: $("s-agent-workspace").value,
+                reasoningEffort: $("s-agent-reasoning").value || null,
+                pinnedSkills: window._skillsPinnedList || [],
+                maxPinnedSkills: window._skillsMaxPinned || 5,
+            }
+        },
         providers: {},
         tools: {
             web: {
@@ -1786,14 +1788,14 @@ window.saveSettings = async function() {
         const key = el.dataset.key;
         const type = el.dataset.type;
         if (!patch.channels[name]) patch.channels[name] = {};
-        
+
         let val;
         if (type === "boolean") {
             val = el.checked;
         } else if (type === "array") {
             val = el.value ? el.value.split(",").map(s => s.trim()).filter(s => s) : [];
         } else if (type === "object") {
-            try { val = JSON.parse(el.value); } catch(e) { val = {}; }
+            try { val = JSON.parse(el.value); } catch (e) { val = {}; }
         } else if (type === "number") {
             val = Number(el.value);
         } else {
@@ -1805,7 +1807,7 @@ window.saveSettings = async function() {
     try {
         const res = await authFetch("/api/settings", {
             method: "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(patch)
         });
         const data = await res.json();
@@ -1829,13 +1831,13 @@ window.saveSettings = async function() {
             toast.innerHTML = `<span class="toast-icon material-icons-round">check_circle</span> Settings saved & hot-reloaded successfully!`;
             container.appendChild(toast);
             setTimeout(() => { toast.classList.add("visible"); }, 100);
-            setTimeout(() => { 
-                toast.classList.remove("visible"); 
+            setTimeout(() => {
+                toast.classList.remove("visible");
                 toast.classList.add("hiding");
-                setTimeout(() => toast.remove(), 300); 
+                setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
-    } catch(e) {
+    } catch (e) {
         shibaDialog("alert", "Error", "Error saving settings: " + e, { confirmText: "Close", danger: true });
     }
 };
@@ -1943,6 +1945,9 @@ function logout() {
     state.processing = false;
     state.sessionId = null;
     state.sessionLoadSeq++;
+    if (typeof resetNotificationCenter === "function") {
+        resetNotificationCenter();
+    }
     setStatusIndicator("disconnected");
     const logoutBtn = document.getElementById("btn-logout");
     if (logoutBtn) logoutBtn.hidden = true;
@@ -1958,6 +1963,9 @@ function startApp() {
     refreshTokenBadge();
     initFileHandlers();
     initOnboardWizard();
+    if (typeof initNotificationCenter === "function") {
+        void initNotificationCenter();
+    }
     chatInput.focus();
 
     syncFooterActions();
@@ -1978,11 +1986,162 @@ function startApp() {
 
 
 // ── Update Panel ──────────────────────────────────────────────
-let _updateState = { manifestUrl: null };
+let _updateState = { manifestUrl: null, manifest: null, result: null, busy: false, commands: {} };
+
+function _updateValue(data, key) {
+    return (data && data[key]) ? data[key] : "-";
+}
+
+function _renderUpdateManifestSection(manifest, personalFiles) {
+    let section = "";
+    if (manifest && manifest.release_notes) {
+        section += `
+            <div class="update-notes">
+                <div class="update-notes-title"><span class="material-icons-round">article</span> What's new</div>
+                <div class="update-notes-body">${escapeHtml(manifest.release_notes)}</div>
+            </div>`;
+    }
+
+    if (personalFiles && personalFiles.length > 0) {
+        const items = personalFiles.map(file => {
+            const note = file.note ? ` <span class="update-file-note">- ${escapeHtml(file.note)}</span>` : "";
+            return `<li><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:var(--accent-orange)">description</span> <code>${escapeHtml(file.path)}</code>${note}</li>`;
+        }).join("");
+        section += `
+            <div class="update-personal">
+                <div class="update-personal-title"><span class="material-icons-round">folder_open</span> Files changed by this release</div>
+                <ul class="update-personal-list">${items}</ul>
+                <div class="update-personal-note">If you customized any of these tracked files, back them up before updating. After the update, run <code>shibaclaw onboard</code> again to refresh them. If you keep personal information in these files, save a copy first so you can restore it afterward.</div>
+            </div>`;
+    }
+
+    return section;
+}
+
+function _renderUpdateActionSection(data) {
+    const actionCommand = (data.action_command || "").trim();
+    const actionUrl = (data.action_url || data.release_url || "").trim();
+    const actionLabel = escapeHtml(data.action_label || "Suggested action");
+    const notes = Array.isArray(data.notes) ? data.notes : [];
+
+    _updateState.commands = { action: actionCommand };
+
+    const commandRow = actionCommand ? `
+        <div style="margin-top:8px;font-size:13px;color:var(--text-muted)">Command</div>
+        <div class="update-cmd-row">
+            <code>${escapeHtml(actionCommand)}</code>
+            <button class="btn-link" onclick="copyUpdateCommand('action')" title="Copy">
+                <span class="material-icons-round" style="font-size:16px">content_copy</span>
+            </button>
+        </div>` : "";
+
+    const notesHtml = notes.length ? `
+        <ul class="update-personal-list" style="margin-top:12px">
+            ${notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}
+        </ul>` : "";
+
+    const buttons = [];
+    if (data.update_available && data.action_kind === "automatic") {
+        buttons.push(`
+            <button class="btn-secondary" onclick="runUpdateAction()" ${_updateState.busy ? "disabled" : ""}>
+                <span class="material-icons-round" style="font-size:14px;vertical-align:middle">system_update</span> Update now
+            </button>`);
+    }
+    if (actionUrl) {
+        buttons.push(`
+            <a href="${escapeHtml(actionUrl)}" target="_blank" class="btn-secondary">
+                <span class="material-icons-round" style="font-size:14px;vertical-align:middle">open_in_new</span> ${actionLabel}
+            </a>`);
+    }
+    if (data.release_url && data.release_url !== actionUrl) {
+        buttons.push(`
+            <a href="${escapeHtml(data.release_url)}" target="_blank" class="btn-secondary">
+                <span class="material-icons-round" style="font-size:14px;vertical-align:middle">article</span> Release notes
+            </a>`);
+    }
+
+    if (!commandRow && buttons.length === 0 && !notesHtml) {
+        return "";
+    }
+
+    return `
+        <div class="update-notes" style="margin-top:16px">
+            <div class="update-notes-title"><span class="material-icons-round">terminal</span> How to update</div>
+            ${commandRow}
+            ${notesHtml}
+            ${buttons.length ? `<div class="update-actions" style="margin-top:16px">${buttons.join("")}</div>` : ""}
+        </div>`;
+}
+
+window.copyUpdateCommand = async function (key) {
+    const value = ((_updateState.commands || {})[key] || "").trim();
+    if (!value) return;
+    try {
+        await navigator.clipboard.writeText(value);
+    } catch (e) {
+        console.error("copyUpdateCommand", e);
+    }
+};
+
+window.runUpdateAction = async function () {
+    const panel = $("update-status-container");
+    const update = _updateState.result;
+    if (!panel || !update || _updateState.busy) return;
+    if (update.action_kind !== "automatic") return;
+
+    const confirmed = await shibaDialog(
+        "confirm",
+        "Apply update?",
+        "ShibaClaw will restart after a successful update.",
+        { confirmText: "Update" }
+    );
+    if (!confirmed) return;
+
+    _updateState.busy = true;
+    panel.innerHTML = `<div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Applying update...</div>`;
+
+    try {
+        const res = await authFetch("/api/update/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ update, manifest: _updateState.manifest }),
+        });
+        const report = await res.json();
+        if (!res.ok || report.error) {
+            throw new Error(report.error || report.message || `HTTP ${res.status}`);
+        }
+
+        const pipOutput = report.pip && report.pip.output ? escapeHtml(report.pip.output) : "";
+        const message = escapeHtml(report.message || "Update complete.");
+        const icon = report.pip && report.pip.ok ? "check_circle" : "error_outline";
+        const color = report.pip && report.pip.ok ? "var(--accent-green)" : "var(--accent-red)";
+        const footer = report.restarting
+            ? '<div class="update-meta">Restarting ShibaClaw now...</div>'
+            : '<div class="update-meta"><button class="btn-link" onclick="loadUpdatePanel(true)">Refresh status</button></div>';
+
+        panel.innerHTML = `
+            <div class="update-available">
+                <span class="material-icons-round" style="font-size:48px;color:${color}">${icon}</span>
+                <div class="update-ok-text">${message}</div>
+                ${pipOutput ? `<div class="update-notes" style="margin-top:16px"><div class="update-notes-title"><span class="material-icons-round">terminal</span> Installer output</div><pre style="white-space:pre-wrap;margin:0;color:var(--text-secondary)">${pipOutput}</pre></div>` : ""}
+                ${footer}
+            </div>`;
+    } catch (e) {
+        panel.innerHTML = `<div class="update-error"><span class="material-icons-round">error_outline</span> ${escapeHtml(e.message || "Failed to apply the update.")}<br><button class="btn-secondary" style="margin-top:12px" onclick="loadUpdatePanel(true)">Retry</button></div>`;
+    } finally {
+        _updateState.busy = false;
+    }
+};
 
 async function loadUpdatePanel(force = false) {
     const panel = $("update-status-container");
     if (!panel) return;
+
+    _updateState.manifestUrl = null;
+    _updateState.manifest = null;
+    _updateState.result = null;
+    _updateState.commands = {};
+
     panel.innerHTML = `<div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Checking for updates...</div>`;
 
     try {
@@ -1990,94 +2149,61 @@ async function loadUpdatePanel(force = false) {
         const res = await authFetch(url);
         const data = await res.json();
 
-        if (data.error) {
+        if (data.error && !data.current) {
             panel.innerHTML = `<div class="update-error"><span class="material-icons-round">error_outline</span> ${escapeHtml(data.error)}<br><button class="btn-secondary" style="margin-top:12px" onclick="loadUpdatePanel(true)">Retry</button></div>`;
             return;
         }
 
-        const checkedAt = data.checked_at ? new Date(data.checked_at * 1000).toLocaleString() : "—";
+        _updateState.result = data;
 
-        if (!data.update_available) {
-            panel.innerHTML = `
-                <div class="update-ok">
-                    <span class="material-icons-round" style="font-size:48px;color:var(--accent-green)">check_circle</span>
-                    <div class="update-ok-text">You're up to date</div>
-                    <div class="update-version-row">
-                        <span class="update-badge current">v${escapeHtml(data.current)}</span>
-                    </div>
-                    <div class="update-meta">Last checked: ${checkedAt}</div>
-                    <button class="btn-secondary" style="margin-top:16px" onclick="loadUpdatePanel(true)">
-                        <span class="material-icons-round" style="font-size:14px;vertical-align:middle">refresh</span> Check again
-                    </button>
-                </div>`;
-            return;
-        }
+        const checkedAt = data.checked_at ? new Date(data.checked_at * 1000).toLocaleString() : "-";
+        const displayCurrent = escapeHtml(_updateValue(data, "display_current") || _updateValue(data, "current"));
+        const displayLatest = escapeHtml(_updateValue(data, "display_latest") || _updateValue(data, "latest"));
+        const summary = escapeHtml(data.summary || (data.update_available ? "Update available." : "You're up to date."));
 
-        // Update available — load manifest for details
         let manifestSection = "";
-
-        if (data.manifest_url) {
+        if (data.manifest_url && data.update_available) {
+            _updateState.manifestUrl = data.manifest_url;
             try {
                 const mRes = await authFetch("/api/update/manifest?url=" + encodeURIComponent(data.manifest_url));
                 const mData = await mRes.json();
-                const manifest = mData.manifest || {};
-                const personal = mData.personal_files || [];
-
-                if (manifest.release_notes) {
-                    manifestSection = `
-                        <div class="update-notes">
-                            <div class="update-notes-title"><span class="material-icons-round">article</span> What's new</div>
-                            <div class="update-notes-body">${escapeHtml(manifest.release_notes)}</div>
-                        </div>`;
-                }
-
-                if (personal.length > 0) {
-                    const items = personal.map(f => {
-                        const note = f.note ? ` <span class="update-file-note">— ${escapeHtml(f.note)}</span>` : "";
-                        return `<li><span class="material-icons-round" style="font-size:14px;vertical-align:middle;color:var(--accent-orange)">description</span> <code>${escapeHtml(f.path)}</code>${note}</li>`;
-                    }).join("");
-                    manifestSection += `
-                        <div class="update-personal">
-                            <div class="update-personal-title"><span class="material-icons-round">folder_open</span> Files changed by this release</div>
-                            <ul class="update-personal-list">${items}</ul>
-                            <div class="update-personal-note">If you customized any of these tracked files, back them up before updating. After the update, run <code>shibaclaw onboard</code> again to refresh them. If you keep personal information in these files, save a copy first so you can restore it afterward.</div>
-                        </div>`;
-                }
+                _updateState.manifest = mData.manifest || null;
+                manifestSection = _renderUpdateManifestSection(_updateState.manifest, mData.personal_files || []);
             } catch (e) {
                 manifestSection = `<div class="update-notes" style="color:var(--text-muted);font-size:12px">Could not load update details.</div>`;
             }
         }
 
-        const pipCmd = `pip install --upgrade shibaclaw`;
-        const dockerCmd = `docker compose pull && docker compose up -d`;
+        const actionSection = _renderUpdateActionSection(data);
+        const warningSection = data.error ? `
+            <div class="update-notes" style="margin-top:16px">
+                <div class="update-notes-title"><span class="material-icons-round">warning</span> Check warning</div>
+                <div class="update-notes-body">${escapeHtml(data.error)}</div>
+            </div>` : "";
+
+        const headline = data.update_available ? "Update available" : "Status checked";
+        const icon = data.update_available ? "system_update" : "check_circle";
+        const iconColor = data.update_available ? "var(--accent-orange)" : "var(--accent-green)";
+        const versionRow = data.update_available ? `
+            <div class="update-version-row">
+                <span class="update-badge current">${displayCurrent}</span>
+                <span class="material-icons-round" style="color:var(--text-muted)">arrow_forward</span>
+                <span class="update-badge latest">${displayLatest}</span>
+            </div>` : `
+            <div class="update-version-row">
+                <span class="update-badge current">${displayCurrent}</span>
+            </div>`;
 
         panel.innerHTML = `
-            <div class="update-available">
-                <div class="update-version-row">
-                    <span class="update-badge current">v${escapeHtml(data.current)}</span>
-                    <span class="material-icons-round" style="color:var(--text-muted)">arrow_forward</span>
-                    <span class="update-badge latest">v${escapeHtml(data.latest)}</span>
-                </div>
+            <div class="update-${data.update_available ? "available" : "ok"}">
+                <span class="material-icons-round" style="font-size:48px;color:${iconColor}">${icon}</span>
+                <div class="update-ok-text">${headline}</div>
+                <div class="update-meta" style="margin-bottom:8px">${summary}</div>
+                ${versionRow}
                 ${manifestSection}
-                <div class="update-notes" style="margin-top:16px">
-                    <div class="update-notes-title"><span class="material-icons-round">terminal</span> How to update</div>
-                    <div style="margin-top:8px;font-size:13px;color:var(--text-muted)">pip / bare metal</div>
-                    <div class="update-cmd-row">
-                        <code id="cmd-pip">${pipCmd}</code>
-                        <button class="btn-link" onclick="navigator.clipboard.writeText('${pipCmd}')" title="Copy"><span class="material-icons-round" style="font-size:16px">content_copy</span></button>
-                    </div>
-                    <div style="margin-top:10px;font-size:13px;color:var(--text-muted)">Docker</div>
-                    <div class="update-cmd-row">
-                        <code id="cmd-docker">${dockerCmd}</code>
-                        <button class="btn-link" onclick="navigator.clipboard.writeText('${dockerCmd}')" title="Copy"><span class="material-icons-round" style="font-size:16px">content_copy</span></button>
-                    </div>
-                </div>
-                <div class="update-actions" style="margin-top:16px">
-                    ${data.release_url ? `<a href="${escapeHtml(data.release_url)}" target="_blank" class="btn-secondary">
-                        <span class="material-icons-round" style="font-size:14px;vertical-align:middle">open_in_new</span> Release notes
-                    </a>` : ""}
-                </div>
-                <div class="update-meta">Last checked: ${checkedAt} · <button class="btn-link" onclick="loadUpdatePanel(true)">Check again</button></div>
+                ${warningSection}
+                ${actionSection}
+                <div class="update-meta">Last checked: ${checkedAt}${data.stale ? " (cached)" : ""} · <button class="btn-link" onclick="loadUpdatePanel(true)">Check again</button></div>
             </div>`;
     } catch (e) {
         panel.innerHTML = `<div class="update-error"><span class="material-icons-round">error_outline</span> Failed to check for updates.<br><button class="btn-secondary" style="margin-top:12px" onclick="loadUpdatePanel(true)">Retry</button></div>`;
@@ -2103,7 +2229,7 @@ function initOnboardWizard() {
     }
 }
 
-window.openOnboardWizard = async function() {
+window.openOnboardWizard = async function () {
     _ob.step = 1;
     _ob.provider = null;
     _ob._lastModelProvider = null;
@@ -2126,7 +2252,7 @@ async function _obLoadProviders() {
         _ob.currentProvider = data.current_provider;
         _ob.currentModel = data.current_model;
         _obRenderGrid();
-    } catch(e) {
+    } catch (e) {
         grid.innerHTML = '<p style="color:var(--accent-red)">Failed to load providers</p>';
     }
 }
@@ -2136,15 +2262,15 @@ async function _obLoadTemplates() {
         const res = await authFetch("/api/onboard/templates");
         const data = await res.json();
         _ob.templates = { existing: data.existing_files || [], new_files: data.new_files || [] };
-    } catch(e) { _ob.templates = { existing: [], new_files: [] }; }
+    } catch (e) { _ob.templates = { existing: [], new_files: [] }; }
 }
 
 function _obRenderGrid() {
     const grid = document.getElementById("ob-provider-grid");
     grid.innerHTML = "";
     const ICONS = {
-        openrouter:"route", anthropic:"psychology", openai:"auto_awesome", gemini:"diamond",
-        deepseek:"explore", groq:"speed", ollama:"dns", github_copilot:"code"
+        openrouter: "route", anthropic: "psychology", openai: "auto_awesome", gemini: "diamond",
+        deepseek: "explore", groq: "speed", ollama: "dns", github_copilot: "code"
     };
     for (const p of _ob.providers) {
         const card = document.createElement("div");
@@ -2228,7 +2354,7 @@ function _obSetupStep2() {
         } else {
             document.getElementById("ob-key-title").textContent = p.label + " \u2014 OAuth";
         }
-        
+
         const btn = document.getElementById("ob-oauth-btn");
         const statusEl = document.getElementById("ob-oauth-status");
         if (p.status === "oauth_ok") {
@@ -2242,7 +2368,7 @@ function _obSetupStep2() {
                 btn.disabled = true;
                 btn.innerHTML = '<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> Starting...';
                 try {
-                    const resp = await authFetch("/api/oauth/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({provider:p.name}) });
+                    const resp = await authFetch("/api/oauth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: p.name }) });
                     const jd = await resp.json();
                     if (jd.auth_url) {
                         try {
@@ -2251,7 +2377,7 @@ function _obSetupStep2() {
                             statusEl.innerHTML = '<div style="text-align:center;margin-top:1rem">' +
                                 '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">OpenRouter will return here automatically when the authorization is complete.</div>' +
                                 '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...</div>';
-                        } catch(ex) {
+                        } catch (ex) {
                             statusEl.innerHTML = `<div style="text-align:center;margin-top:1rem">` +
                                 `<a href="${jd.auth_url}" target="_blank" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">` +
                                 `<span class="material-icons-round" style="font-size:16px">open_in_new</span> Click here if popup is blocked</a>` +
@@ -2289,7 +2415,7 @@ function _obSetupStep2() {
                             return false;
                         });
                     }
-                } catch(e) {
+                } catch (e) {
                     statusEl.innerHTML = '<span style="color:#f87171">Error: ' + e + '</span>';
                     btn.disabled = false;
                     btn.innerHTML = p.name === "openrouter" ? '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry' : '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">lock_open</span> Retry';
@@ -2342,12 +2468,12 @@ function _obSetupStep3() {
     };
     wrapper._closeDropdownListener = closeDropdown;
     document.addEventListener("click", closeDropdown);
-    
+
     modelInput.onfocus = () => {
         _obRenderModelDropdown(modelInput.value);
         menu.style.display = "block";
     };
-    
+
     modelInput.oninput = () => {
         _obRenderModelDropdown(modelInput.value);
         menu.style.display = "block";
@@ -2399,7 +2525,7 @@ function _obSetupStep4() {
     }
 }
 
-window.obGoStep = function(dir) {
+window.obGoStep = function (dir) {
     let next = _ob.step + dir;
     if (next < 1) return;
 
@@ -2420,7 +2546,7 @@ window.obGoStep = function(dir) {
     _obShowStep(next);
 };
 
-window.obSubmit = async function() {
+window.obSubmit = async function () {
     const btn = document.getElementById("ob-btn-finish");
     btn.style.width = btn.offsetWidth + "px";
     btn.disabled = true;
@@ -2435,7 +2561,7 @@ window.obSubmit = async function() {
     try {
         const res = await authFetch("/api/onboard/submit", {
             method: "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 provider: _ob.provider.name,
                 api_key: document.getElementById("ob-api-key").value.trim(),
@@ -2452,7 +2578,7 @@ window.obSubmit = async function() {
         _availableModels = []; // Clear model cache to force refresh
         fetchStatus();
         loadHistory();
-    } catch(e) {
+    } catch (e) {
         btn.style.width = "";
         btn.disabled = false;
         btn.innerHTML = '<span class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Finish Setup';
@@ -2520,7 +2646,7 @@ async function fetchModels() {
             console.warn("Some providers failed to return models", data.errors);
         }
         return data.models || [];
-    } catch(e) {
+    } catch (e) {
         console.error("Failed to fetch models", e);
         return [];
     }
@@ -2598,11 +2724,11 @@ async function updateModelSelectorDisplay(modelId) {
             const cfgRes = await authFetch("/api/settings");
             const cfg = await cfgRes.json();
             resolvedModelId = cfg.agents?.defaults?.model || "";
-        } catch(e) {}
+        } catch (e) { }
     }
 
     state.activeModelId = resolvedModelId || "";
-    
+
     await ensureAvailableModels();
     const match = findAvailableModel(resolvedModelId);
     display.textContent = match ? (match.name || match.raw_id || match.id) : (resolvedModelId || "Default");
@@ -2796,7 +2922,7 @@ async function loadHeartbeatSettingsPanel() {
             profileSelect.innerHTML = html;
             profileSelect.value = currentVal; // Restore selection after populating
         }
-    } catch(e) {
+    } catch (e) {
         console.error("loadHeartbeatSettingsPanel profiles fetch failed", e);
     }
 }

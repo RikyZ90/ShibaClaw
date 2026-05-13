@@ -16,7 +16,7 @@ from shibaclaw.webui.agent_manager import agent_manager
 
 
 async def api_update_check(request: Request):
-    """Check GitHub for the latest ShibaClaw release."""
+    """Check the relevant update source for the active installation method."""
     force = request.query_params.get("force", "").lower() in ("1", "true", "yes")
     try:
         from shibaclaw.updater.checker import check_for_update
@@ -87,16 +87,26 @@ def _safe_argv() -> list[str]:
 
 
 async def api_update_apply(request: Request):
-    """Apply a ShibaClaw update: backup personal files + pip upgrade."""
+    """Apply a ShibaClaw update or return manual-action guidance."""
     try:
         data = await request.json()
     except Exception:
         return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
 
     manifest = data.get("manifest")
-    if not manifest or not isinstance(manifest, dict):
+    update_info = data.get("update")
+
+    if manifest is not None and not isinstance(manifest, dict):
         return JSONResponse(
-            {"error": "Missing or invalid 'manifest' in request body"}, status_code=400
+            {"error": "Invalid 'manifest' in request body"}, status_code=400
+        )
+    if update_info is not None and not isinstance(update_info, dict):
+        return JSONResponse(
+            {"error": "Invalid 'update' in request body"}, status_code=400
+        )
+    if update_info is None and manifest is None:
+        return JSONResponse(
+            {"error": "Missing 'update' or 'manifest' in request body"}, status_code=400
         )
 
     if not agent_manager.config:
@@ -108,12 +118,17 @@ async def api_update_apply(request: Request):
         from shibaclaw.updater.apply import apply_update
 
         loop = asyncio.get_event_loop()
-        report = await loop.run_in_executor(None, lambda: apply_update(manifest, workspace_root))
+        report = await loop.run_in_executor(
+            None,
+            lambda: apply_update(update_info, workspace_root, manifest=manifest),
+        )
     except Exception as e:
         logger.error("Update apply failed: {}", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
-    if report.get("pip", {}).get("ok"):
+    pip_result = report.get("pip") or {}
+
+    if pip_result.get("ok"):
         async def _do_restart():
             await asyncio.sleep(1.0)
             if _restart_callback is not None:
