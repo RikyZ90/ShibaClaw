@@ -61,3 +61,4 @@ def test_runtime_metadata_exposes_detection_fields(tmp_path, monkeypatch):
     assert metadata["current_version"] == "0.3.7"
     assert metadata["runtime_root"] == str(tmp_path)
     assert metadata["is_official_checkout"] is True
+

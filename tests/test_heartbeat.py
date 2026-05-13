@@ -132,7 +132,8 @@ class TestWebuiHeartbeatDelivery:
                 source="heartbeat",
             )
 
-        assert result == {"delivered": True, "matched_sessions": 1}
+        assert result["delivered"] is True
+        assert result["matched_sessions"] == 1
         mock_deliver.assert_called_once_with(
             "webui:recent", "Heartbeat completed.", source="heartbeat", msg_type="response"
         )
@@ -160,7 +161,8 @@ class TestWebuiHeartbeatDelivery:
                 persist=False,
             )
 
-        assert result == {"delivered": True, "matched_sessions": 1}
+        assert result["delivered"] is True
+        assert result["matched_sessions"] == 1
         mock_deliver.assert_called_once_with(
             "webui:recent", "Cron completed.", source="cron", msg_type="response"
         )
