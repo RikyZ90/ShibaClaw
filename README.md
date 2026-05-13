@@ -346,23 +346,6 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 
 ---
 
-## [0.2.0] - 2026-05-02
-
-### Added
-- **Cross-provider model search** — Chat and settings now aggregate models from every configured provider into one searchable catalog with provider labels.
-- **OpenRouter OAuth in WebUI** — Settings can launch a browser PKCE flow and save the returned OpenRouter API key automatically.
-
-### Changed
-- **Per-session model routing** — Each session now keeps its own model, and the gateway resolves the correct provider backend from that choice at runtime.
-- **Model-first settings UX** — The Agent tab now focuses on default model and memory / consolidation model pickers instead of a static provider selector.
-
-### Fixed
-- **Model switching correctness** — Session metadata changes now stay in sync between WebUI and gateway, GitHub Copilot model discovery refreshes credentials correctly, and the model dropdown no longer renders with transparent backgrounds.
-
-→ [Full changelog](./CHANGELOG.md)
-
----
-
 ## Troubleshooting
 
 | Problem | Try |
