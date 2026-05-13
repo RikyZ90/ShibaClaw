@@ -73,12 +73,17 @@ class AgentManager:
         # Deliver via native WebSocket handler
         from shibaclaw.webui.ws_handler import broadcast_notification, deliver_to_browsers
 
+        deliver_kwargs = {
+            "source": source,
+            "msg_type": msg_type,
+        }
+        if metadata is not None:
+            deliver_kwargs["metadata"] = metadata
+
         delivered = await deliver_to_browsers(
             session_key,
             content,
-            source=source,
-            msg_type=msg_type,
-            metadata=metadata,
+            **deliver_kwargs,
         )
 
         if notification is not None:
