@@ -1,4 +1,27 @@
 // ── Event Listeners ───────────────────────────────────────────
+function isMobileSidebar() {
+    return window.matchMedia("(max-width: 768px)").matches;
+}
+
+function setSidebarOpen(open) {
+    const sidebar = $("sidebar");
+    const backdrop = $("sidebar-backdrop");
+    if (!sidebar) return;
+
+    sidebar.classList.toggle("open", open);
+    if (backdrop) {
+        backdrop.classList.toggle("active", open && isMobileSidebar());
+    }
+}
+
+function closeSidebarOnMobile() {
+    if (isMobileSidebar()) {
+        setSidebarOpen(false);
+    }
+}
+
+window.closeSidebarOnMobile = closeSidebarOnMobile;
+
 function initListeners() {
     if (state.listenersInitialized) return;
     state.listenersInitialized = true;
@@ -19,6 +42,7 @@ function initListeners() {
 
     $("btn-new-session").addEventListener("click", () => {
         realtime.emit("new_session");
+        closeSidebarOnMobile();
     });
 
     document.querySelectorAll(".btn-command[data-command]").forEach((btn) => {
@@ -26,6 +50,7 @@ function initListeners() {
             const cmd = btn.dataset.command;
             chatInput.value = cmd;
             sendMessage();
+            closeSidebarOnMobile();
         });
     });
 
@@ -46,15 +71,33 @@ function initListeners() {
         card.addEventListener("click", () => {
             chatInput.value = card.dataset.hint;
             sendMessage();
+            closeSidebarOnMobile();
         });
     });
 
     $("mobile-menu-btn").addEventListener("click", () => {
-        $("sidebar").classList.toggle("open");
+        setSidebarOpen(!$("sidebar").classList.contains("open"));
     });
 
     $("sidebar-toggle").addEventListener("click", () => {
-        $("sidebar").classList.toggle("open");
+        setSidebarOpen(!$("sidebar").classList.contains("open"));
+    });
+
+    $("sidebar-backdrop")?.addEventListener("click", closeSidebarOnMobile);
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            closeSidebarOnMobile();
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        const sidebar = $("sidebar");
+        const menuBtn = $("mobile-menu-btn");
+        const toggleBtn = $("sidebar-toggle");
+        if (!sidebar || !isMobileSidebar() || !sidebar.classList.contains("open")) return;
+        if (sidebar.contains(e.target) || menuBtn?.contains(e.target) || toggleBtn?.contains(e.target)) return;
+        closeSidebarOnMobile();
     });
 
     document.querySelectorAll(".modal-backdrop").forEach(bg => {
