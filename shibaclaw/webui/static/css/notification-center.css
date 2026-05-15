@@ -29,6 +29,23 @@
     box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
 }
 
+.notification-bell.is-ringing {
+    animation: bell-shake 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    color: var(--shiba-gold);
+    border-color: rgba(232, 163, 23, 0.45);
+}
+
+@keyframes bell-shake {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(15deg); }
+    30% { transform: rotate(-15deg); }
+    45% { transform: rotate(10deg); }
+    60% { transform: rotate(-10deg); }
+    75% { transform: rotate(5deg); }
+    85% { transform: rotate(-5deg); }
+}
+
+
 .notification-badge {
     position: absolute;
     top: -5px;

@@ -13,6 +13,8 @@
         overflow-x: auto;
         overflow-y: hidden;
         scrollbar-width: none;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
     }
     .settings-sidebar::-webkit-scrollbar { display: none; }
     .settings-sidebar-item {
@@ -21,6 +23,8 @@
         padding: 0.5rem 0.7rem;
         font-size: 0.78rem;
         gap: 5px;
+        scroll-snap-align: start;
+        white-space: nowrap;
     }
     .settings-sidebar-item .material-icons-round { font-size: 15px; }
     .settings-sidebar-item.active {
@@ -30,7 +34,10 @@
     .settings-sidebar-item span:last-child {
         display: none; /* icon-only on mobile */
     }
-    .settings-content { padding: 1rem; }
+    .settings-content { 
+        padding: 1rem; 
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
     .field-row { grid-template-columns: 1fr; gap: 4px; }
     .skills-toolbar { flex-direction: column; }
     .skills-toolbar-actions { margin-left: 0; width: 100%; }

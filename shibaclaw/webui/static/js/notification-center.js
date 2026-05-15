@@ -295,6 +295,12 @@ const notificationCenter = (() => {
         }
         _upsert(notification);
         _render();
+
+        if (dom.bell && !dom.root.classList.contains("is-open")) {
+            dom.bell.classList.remove("is-ringing");
+            void dom.bell.offsetWidth; // trigger reflow
+            dom.bell.classList.add("is-ringing");
+        }
     }
 
     async function _createHiddenResponseNotification(data) {
