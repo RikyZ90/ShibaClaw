@@ -829,13 +829,15 @@ window.openModal = async function (id) {
         contentEl.innerHTML = '<div class="loader">Fetching release notes...</div>';
 
         try {
-            let version = $("sidebar-version").textContent.replace("v", "").trim();
-            if (!version || version === "loading...") version = "0.3.6"; // fallback
+            const version = $("sidebar-version").textContent.replace("v", "").trim();
+            const hasResolvedVersion = version && version !== "loading...";
 
-            let releaseUrl = `https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/v${version}`;
+            let releaseUrl = hasResolvedVersion
+                ? `https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/v${version}`
+                : "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest";
             let res = await fetch(releaseUrl);
 
-            if (!res.ok) {
+            if (!res.ok && hasResolvedVersion) {
                 // fallback to latest
                 res = await fetch("https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest");
             }

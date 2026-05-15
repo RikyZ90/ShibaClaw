@@ -117,7 +117,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            shibaclaw/updater/update_manifest.json
+            update_manifest.json
             dist-windows/ShibaClaw-windows.zip
           fail_on_unmatched_files: true
           generate_release_notes: true
