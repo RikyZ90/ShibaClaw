@@ -21,6 +21,7 @@ def test_version_prefers_pyproject_for_source_checkout(tmp_path, monkeypatch):
     assert shibaclaw._get_version() == "1.2.3"
 
 
+
 def test_version_prefers_installed_metadata_over_packaged_manifest(tmp_path, monkeypatch):
     import shibaclaw
 
