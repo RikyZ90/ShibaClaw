@@ -6,28 +6,39 @@
         top: 0;
         transform: translateX(-100%);
         box-shadow: var(--shadow-lg);
+        width: min(86vw, 320px);
+        min-width: min(86vw, 320px);
+        z-index: 200;
     }
+
     .sidebar.open {
         transform: translateX(0);
     }
+
     .sidebar-toggle {
         display: flex;
     }
+
     .mobile-menu-btn {
         display: flex;
     }
+
     .welcome-hints {
         grid-template-columns: 1fr;
     }
+
     .message-group {
         max-width: 95%;
     }
+
     .sidebar-footer {
         padding: 14px;
     }
+
     .footer-actions {
         flex-direction: column;
     }
+
     .footer-actions .btn-command {
         width: 100%;
         min-height: 44px;
@@ -44,21 +55,39 @@
     .input-area {
         padding-bottom: max(8px, env(safe-area-inset-bottom));
     }
+
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-base);
+        z-index: 150;
+    }
+
+    .sidebar-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 
 @media (max-width: 480px) {
     .welcome-title {
         font-size: 24px;
     }
+
     .welcome-logo {
         width: 64px;
         height: 64px;
     }
+
     .footer-info {
         font-size: 11px;
     }
+
     .footer-info-label {
         display: none;
     }
 }
-

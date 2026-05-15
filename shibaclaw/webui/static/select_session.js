@@ -1,5 +1,5 @@
 // Helper to select a session with immediate UI feedback
-window.selectSession = function(sessionId, el) {
+window.selectSession = function (sessionId, el) {
     console.debug('[SHIBA] selectSession clicked:', sessionId);
     // show loading spinner on the clicked session-info
     try {
@@ -16,7 +16,7 @@ window.selectSession = function(sessionId, el) {
                 if (nameEl) nameEl.appendChild(s);
             }
         }
-    } catch(e) { console.debug('[SHIBA] spinner add failed', e); }
+    } catch (e) { console.debug('[SHIBA] spinner add failed', e); }
 
     // Immediately mark session as active in sidebar for quick feedback
     document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
@@ -27,7 +27,11 @@ window.selectSession = function(sessionId, el) {
     (async () => {
         try {
             await loadSession(sessionId);
-        } catch(e) { console.debug('[SHIBA] loadSession failed', e); }
+        } catch (e) { console.debug('[SHIBA] loadSession failed', e); }
+
+        if (typeof window.closeSidebarOnMobile === 'function') {
+            window.closeSidebarOnMobile();
+        }
 
         // remove loading spinner
         try {
@@ -36,7 +40,7 @@ window.selectSession = function(sessionId, el) {
                 if (s) s.remove();
                 parent.classList.remove('loading');
             }
-        } catch(e) { }
+        } catch (e) { }
 
         console.debug('[SHIBA] selectSession complete:', sessionId);
     })();

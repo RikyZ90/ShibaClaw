@@ -798,6 +798,10 @@ window.openModal = async function (id) {
     if (!modal) return;
     modal.classList.add("active");
 
+    if (typeof window.closeSidebarOnMobile === "function") {
+        window.closeSidebarOnMobile();
+    }
+
     if (id === "context-modal") {
         state.contextModalOpen = true;
         await _loadContextModalContent();

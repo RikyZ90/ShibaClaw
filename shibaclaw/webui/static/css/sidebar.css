@@ -56,6 +56,10 @@
     overflow: hidden;
 }
 
+.sidebar-backdrop {
+    display: none;
+}
+
 .sidebar-header {
     padding: 20px 16px 16px;
     display: flex;
