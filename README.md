@@ -32,20 +32,6 @@ Security isn’t an add-on — it's the foundation: CVE auditing at install time
 
 Built on three pillars: **Simplicity · Security · Privacy**
 
-### What makes ShibaClaw different
-
-| Feature | ShibaClaw | OpenClaw | ZeroClaw | Nanobot | Hermes Agent |
-|---|---|---|---|---|---|
-| Security-first by design — not a plugin | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Native Windows Desktop App (no WSL2 needed) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| 3-level structured memory | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Per-session model selection + cross-provider search | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Dedicated memory consolidation model (separate budget) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Shell hardening with 20+ deny-pattern guards | ✅ | ❌ | ❌ | ❌ | ❌ |
-| SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
-
 **Also ships with:** 22 providers · 11 chat channels · built-in WebUI · cron · heartbeat · MCP · 8 skills · Agent Profiles
 
 ---
