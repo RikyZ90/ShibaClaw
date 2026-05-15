@@ -15,7 +15,12 @@
 
 ---
 
-📢 **Welcome to ShibaClaw v0.3.8!** This release introduces the **WebUI Notification Center** (bell icon with real-time badge and deep-links — ⚠️ WIP), a **Windows GPU compositing fix** (no more screen flickering during streaming), and 6 notification pipeline bug fixes covering heartbeat, cron, and agent-response routing. Also includes the security update for `protobufjs` in the WhatsApp bridge.
+
+📢 **Welcome to ShibaClaw v0.3.9!**
+This release brings:
+- **Environment-aware version resolution** — The version string is now resolved differently for EXE, pip/docker, and source installs, so the UI and update checks always show the correct version in every environment.
+- **Mobile sidebar auto-close** — The sidebar drawer now closes automatically on mobile after navigation, with a tap-outside backdrop and Escape/click-outside support for a native-app feel.
+- **Changelog UI hardening** — The WebUI changelog panel no longer falls back to a hardcoded version, always showing the correct release notes or redirecting to GitHub if unavailable.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
