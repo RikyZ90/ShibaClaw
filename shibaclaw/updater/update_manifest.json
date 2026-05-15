@@ -1,6 +1,6 @@
 {
-    "version": "0.3.8",
-    "release_notes": "WebUI Notification Center (WIP), Windows GPU compositing flicker fix, 6 notification pipeline bug fixes, and protobufjs security update.",
+    "version": "0.3.9",
+    "release_notes": "Environment-aware version resolution, mobile sidebar auto-close with backdrop, and changelog UI hardening.",
     "changes": [
         {
             "path": "CHANGELOG.md",

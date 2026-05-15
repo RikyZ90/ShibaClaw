@@ -1,6 +1,22 @@
 # Changelog
 
 All notable changes to this project are documented in this file.
+## [0.3.9] - 2026-05-15
+
+### Added
+- **Mobile Sidebar Auto-Close** — The sidebar drawer now closes automatically on mobile after selecting a session, starting a new session, clicking a hint card, executing a sidebar command, or opening any modal. A semi-transparent backdrop (`sidebar-backdrop`) is rendered behind the drawer; tapping it collapses the drawer. Pressing `Escape` or clicking outside the sidebar also closes it.
+- **Sidebar Backdrop** — New `#sidebar-backdrop` element with a smooth opacity transition (`rgba(0,0,0,0.45)`) provides a native-app feel on mobile. Hidden on desktop via `sidebar.css`; activated only when `isMobileSidebar()` is true.
+- **Version Resolution Regression Tests** — Added `tests/test_version_resolution.py` with three parametrized tests covering the frozen (EXE), source-checkout, and pip/docker version resolution branches.
+
+### Fixed
+- **Environment-Aware Version Resolution** — `shibaclaw/__init__.py` `_get_version()` now selects the appropriate source depending on runtime context:
+  - **Frozen (PyInstaller EXE):** bundled `update_manifest.json` → installed metadata → `"dev"`
+  - **Source checkout:** `pyproject.toml` → installed metadata → bundled manifest → `"dev"`
+  - **Pip / Docker install:** installed metadata → bundled manifest → `pyproject.toml` → `"dev"`
+  Previously all environments shared the same chain, causing pip/docker installs to read a stale internal manifest instead of the installed package metadata.
+- **Hardcoded Version Fallback Removed** — The changelog UI (`ui_panels.js`) was falling back to `"0.3.6"` when no version was resolved at startup. Replaced with a `hasResolvedVersion` guard and a `/releases/latest` redirect so users always see the correct information.
+- **Release Workflow Manifest Path** — The GitHub Actions publish job now attaches the repo-root `update_manifest.json` to releases instead of the internal `shibaclaw/updater/update_manifest.json` copy.
+
 ## [0.3.8] - 2026-05-13
 
 ### Added

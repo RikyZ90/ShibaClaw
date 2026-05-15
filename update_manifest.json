@@ -1,56 +1,61 @@
 {
-    "version": "0.3.8",
-    "release_notes": "WebUI Notification Center (WIP), Windows GPU compositing flicker fix, 6 notification pipeline bug fixes, and protobufjs security update.",
+    "version": "0.3.9",
+    "release_notes": "Environment-aware version resolution, mobile sidebar auto-close with backdrop, and changelog UI hardening.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.3.8 release notes."
+            "note": "Added v0.3.9 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.3.8."
+            "note": "Bumped version to 0.3.9."
         },
         {
-            "path": "shibaclaw/webui/agent_manager.py",
+            "path": "shibaclaw/__init__.py",
             "overwrite": true,
-            "note": "Fixed early-return on PackManager failure in deliver_background_notification."
+            "note": "Rewrote _get_version() with environment-aware resolution for frozen/source/pip branches."
         },
         {
-            "path": "shibaclaw/webui/server.py",
+            "path": "shibaclaw/webui/static/js/main.js",
             "overwrite": true,
-            "note": "Fixed _on_session_notify empty session_key condition; update check now broadcasts notification."
+            "note": "Added mobile sidebar auto-close helpers and backdrop toggle logic."
         },
         {
-            "path": "shibaclaw/webui/ws_handler.py",
+            "path": "shibaclaw/webui/static/js/ui_panels.js",
             "overwrite": true,
-            "note": "Agent responses now create and broadcast a notification after each reply."
+            "note": "Auto-close sidebar on modal open; removed hardcoded version fallback in changelog UI."
         },
         {
-            "path": "shibaclaw/cli/gateway.py",
+            "path": "shibaclaw/webui/static/select_session.js",
             "overwrite": true,
-            "note": "Heartbeat always broadcasts to WebUI; cron notifies WebUI even on external delivery; empty LLM response fallback text."
+            "note": "Close sidebar on mobile after session load."
         },
         {
-            "path": "shibaclaw/webui/static/js/notification-center.js",
+            "path": "shibaclaw/webui/static/index.html",
             "overwrite": true,
-            "note": "Filter agent_response badge when user is focused on the same session tab."
+            "note": "Added sidebar-backdrop element."
         },
         {
-            "path": "shibaclaw/desktop/launcher.py",
+            "path": "shibaclaw/webui/static/css/responsive.css",
             "overwrite": true,
-            "note": "Added --disable-gpu-compositing flag and explicit edgechromium gui to fix Windows screen flickering."
+            "note": "Added sidebar backdrop styles and mobile width/z-index overrides."
         },
         {
-            "path": "bridge/package.json",
+            "path": "shibaclaw/webui/static/css/sidebar.css",
             "overwrite": true,
-            "note": "Updated protobufjs override to v7.5.8."
+            "note": "Added base hidden rule for sidebar-backdrop on desktop."
         },
         {
-            "path": "bridge/package-lock.json",
+            "path": ".github/workflows/publish.yml",
             "overwrite": true,
-            "note": "Updated lockfile with security patches."
+            "note": "Release job now attaches root update_manifest.json instead of internal copy."
+        },
+        {
+            "path": "tests/test_version_resolution.py",
+            "overwrite": true,
+            "note": "Added regression tests for all version resolution branches."
         }
     ]
 }
