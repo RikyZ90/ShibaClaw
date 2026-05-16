@@ -282,6 +282,25 @@ Root: {workspace_path}
         """
         user_content = self._build_user_content(current_message, media)
 
+        import re
+        def _strip_think(text: str | None) -> str | None:
+            if not text:
+                return text
+            return re.sub(r"<think>.*?</think>\n*", "", text, flags=re.DOTALL).strip()
+
+        # We strip <think> from assistant history messages to prevent Context Pollution (token exhaustion)
+        # while keeping the original <think> blocks in the database for the WebUI.
+        cleaned_history = []
+        for m in history:
+            if m.get("role") == "assistant" and isinstance(m.get("content"), str):
+                cleaned_content = _strip_think(m["content"])
+                # Prevent API errors for empty assistant messages (if it only contained a think block)
+                if not cleaned_content and not m.get("tool_calls"):
+                    cleaned_content = "[Reasoning block hidden]"
+                cleaned_history.append({**m, "content": cleaned_content})
+            else:
+                cleaned_history.append(m)
+
         return [
             {
                 "role": "system",
@@ -294,7 +313,7 @@ Root: {workspace_path}
                     profile_id=profile_id,
                 ),
             },
-            *history,
+            *cleaned_history,
             {"role": current_role, "content": user_content},
         ]
 

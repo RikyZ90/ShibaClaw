@@ -368,6 +368,38 @@ class OpenAIThinker(Thinker):
             )
         except Exception as e:
             body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
-            if body and body.strip():
-                return LLMResponse(content=f"Error calling LLM: {body.strip()[:500]}", finish_reason="error")
-            return LLMResponse(content=f"Error calling LLM: {e}", finish_reason="error")
+            err_msg = body.strip()[:500] if body and body.strip() else str(e)
+            
+            if content_text or tool_call_chunks or reasoning_content:
+                # We have partial data, do not discard it. Assemble what we have.
+                tool_calls = []
+                for idx in sorted(tool_call_chunks.keys()):
+                    tc = tool_call_chunks[idx]
+                    args = tc["arguments"]
+                    try:
+                        args = json_repair.loads(args) if args else {}
+                    except Exception:
+                        args = {"raw": args}
+                    tool_calls.append(ToolCallRequest(
+                        id=tc["id"] or _short_tool_id(),
+                        name=tc["name"],
+                        arguments=args,
+                        provider_specific_fields=tc["provider_specific_fields"] or None,
+                        function_provider_specific_fields=tc["function_provider_specific_fields"] or None,
+                    ))
+                
+                final_content = content_text
+                if final_content:
+                    final_content += f"\n\n[Stream interrupted: {err_msg}]"
+                elif not tool_calls:
+                    final_content = f"Error calling LLM: {err_msg}"
+                
+                return LLMResponse(
+                    content=final_content or None,
+                    tool_calls=tool_calls,
+                    finish_reason="error",
+                    usage=usage_data,
+                    reasoning_content=reasoning_content or None,
+                )
+            else:
+                return LLMResponse(content=f"Error calling LLM: {err_msg}", finish_reason="error")

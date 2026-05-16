@@ -314,11 +314,28 @@ function renderMarkdown(text) {
 
     if (typeof marked !== "undefined") {
         try {
-            return marked.parse(content);
+            let processedContent = content;
+            
+            // Process closed <think> blocks
+            processedContent = processedContent.replace(/<think>([\s\S]*?)<\/think>/gi, (match, p1) => {
+                const innerParsed = marked.parse(p1.trim());
+                return `<details class="thought-block" open><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento concluso</summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
+            });
+            
+            // Process open <think> blocks (streaming)
+            if (processedContent.match(/<think>([\s\S]*)$/i) && !processedContent.match(/<\/think>/i)) {
+                processedContent = processedContent.replace(/<think>([\s\S]*)$/i, (match, p1) => {
+                    const innerParsed = marked.parse(p1.trim());
+                    return `<details class="thought-block" open><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento in corso...<span class="typing-dots-inline" style="margin-left:8px"><span></span><span></span><span></span></span></summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
+                });
+            }
+
+            return marked.parse(processedContent);
         } catch (e) {
             console.error("Markdown parse error:", e);
         }
     }
+    
     return escapeHtml(content).replace(/\n/g, "<br>");
 }
 

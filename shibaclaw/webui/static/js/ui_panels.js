@@ -2104,7 +2104,13 @@ window.runUpdateAction = async function () {
     if (!confirmed) return;
 
     _updateState.busy = true;
-    panel.innerHTML = `<div class="update-checking"><span class="material-icons-round spin">progress_activity</span> Applying update...</div>`;
+    panel.innerHTML = `
+        <div class="update-checking">
+            <div style="margin-bottom:8px;"><span class="material-icons-round spin" style="font-size:16px;vertical-align:middle;margin-right:8px;">progress_activity</span> <span id="update-progress-text">Preparing update...</span></div>
+            <div style="width:100%;height:8px;background:var(--bg-tertiary);border-radius:4px;overflow:hidden;margin-top:12px;">
+                <div id="update-progress-fill" style="width:0%;height:100%;background:var(--accent-primary);transition:width 0.2s ease;"></div>
+            </div>
+        </div>`;
 
     try {
         const res = await authFetch("/api/update/apply", {
@@ -2137,6 +2143,13 @@ window.runUpdateAction = async function () {
     } finally {
         _updateState.busy = false;
     }
+};
+
+window.updateDownloadProgress = function(percent) {
+    const textEl = document.getElementById("update-progress-text");
+    const barEl = document.getElementById("update-progress-fill");
+    if (textEl) textEl.textContent = `Downloading update... ${percent}%`;
+    if (barEl) barEl.style.width = percent + "%";
 };
 
 async function loadUpdatePanel(force = false) {

@@ -7,10 +7,12 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+import httpx
 from shibaclaw.updater.detector import PYPI_PACKAGE, get_installation_method
 from shibaclaw.updater.manifest import normalize_manifest_path
+from shibaclaw.config.paths import get_app_root
 
 
 def _old_dir(workspace_root: Path, new_version: str) -> Path:
@@ -43,6 +45,95 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
         "output": result.stdout + result.stderr,
         "command": " ".join(cmd),
     }
+
+
+def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, int], None] | None = None) -> dict[str, Any]:
+    """Download the Windows release, extract it, and execute a replacement batch script."""
+    import zipfile
+    import os
+
+    if not download_url:
+        return {"ok": False, "output": "No download URL provided for EXE update."}
+
+    temp_dir = get_app_root() / "_update_temp"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    zip_path = temp_dir / "update.zip"
+    
+    try:
+        with httpx.stream("GET", download_url, follow_redirects=True, timeout=60.0) as response:
+            response.raise_for_status()
+            total_bytes = int(response.headers.get("Content-Length", 0))
+            downloaded = 0
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_bytes(chunk_size=8192):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_cb and total_bytes:
+                        progress_cb(downloaded, total_bytes)
+                        
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(temp_dir)
+            
+        extracted_exe_path = None
+        for root, dirs, files in os.walk(temp_dir):
+            if "ShibaClaw.exe" in files:
+                extracted_exe_path = Path(root)
+                break
+                
+        if not extracted_exe_path:
+            return {"ok": False, "output": "ShibaClaw.exe not found in downloaded zip."}
+            
+        current_exe_dir = Path(sys.executable).parent
+        
+        needs_admin = False
+        test_file = current_exe_dir / ".update_test"
+        try:
+            test_file.touch()
+            test_file.unlink()
+        except PermissionError:
+            needs_admin = True
+        except Exception:
+            pass
+            
+        bat_path = temp_dir / "update_script.bat"
+        
+        bat_content = [
+            "@echo off",
+        ]
+        
+        if needs_admin:
+            bat_content.extend([
+                "net session >nul 2>&1",
+                "if %errorLevel% neq 0 (",
+                f"    powershell -Command \"Start-Process '%~f0' -Verb RunAs\"",
+                "    exit /b",
+                ")"
+            ])
+            
+        bat_content.extend([
+            "timeout /t 3 /nobreak",
+            f'xcopy /S /Y /E "{extracted_exe_path}\\*" "{current_exe_dir}\\"',
+            f'start "" "{current_exe_dir}\\ShibaClaw.exe"',
+            f'rmdir /S /Q "{temp_dir}"'
+        ])
+        
+        bat_path.write_text("\n".join(bat_content), encoding="utf-8")
+        
+        DETACHED_PROCESS = 0x00000008
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        subprocess.Popen(
+            [str(bat_path)],
+            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            close_fds=True,
+            cwd=str(temp_dir)
+        )
+        
+        return {"ok": True, "output": "Update downloaded, batch script started."}
+    except Exception as exc:
+        return {"ok": False, "output": f"Update failed: {exc}"}
 
 
 def _backup_personal_files(
@@ -89,7 +180,11 @@ def _normalize_update_request(
 
     normalized.setdefault("install_method", install_method)
     normalized.setdefault("latest", latest)
-    normalized.setdefault("action_kind", "automatic" if install_method == "pip" else "manual-command")
+    
+    if install_method == "pip" or install_method == "exe":
+        normalized.setdefault("action_kind", "automatic")
+    else:
+        normalized.setdefault("action_kind", "manual-command")
     normalized.setdefault(
         "action_label",
         "Update now" if install_method == "pip" else "Run suggested update command",
@@ -130,20 +225,27 @@ def apply_update(
     workspace_root: Path,
     *,
     manifest: dict[str, Any] | None = None,
+    progress_cb: Callable[[int, int], None] | None = None,
 ) -> dict[str, Any]:
-    """Apply an update or return a manual-action report for non-pip installs."""
+    """Apply an update or return a manual-action report for non-pip/non-exe installs."""
     normalized = _normalize_update_request(update_info, manifest)
     install_method = normalized["install_method"]
     version = normalized.get("latest") or (manifest or {}).get("version") or "unknown"
 
-    if install_method != "pip" or normalized.get("action_kind") != "automatic":
+    if install_method not in ("pip", "exe") or normalized.get("action_kind") != "automatic":
         return _manual_report(normalized, version)
 
     backup = _backup_personal_files(manifest, workspace_root, version)
-    pip_result = _pip_upgrade(version)
+    
+    if install_method == "exe":
+        download_url = normalized.get("action_url") or normalized.get("download_url")
+        apply_result = _exe_upgrade(version, download_url, progress_cb)
+    else:
+        apply_result = _pip_upgrade(version)
+        
     message = (
         f"Updated ShibaClaw to {version}."
-        if pip_result.get("ok")
+        if apply_result.get("ok")
         else f"Failed to update ShibaClaw to {version}."
     )
 
@@ -157,6 +259,7 @@ def apply_update(
         "action_command": normalized.get("action_command"),
         "action_url": normalized.get("action_url") or normalized.get("release_url"),
         "message": message,
-        "pip": pip_result,
+        "pip": apply_result if install_method == "pip" else None,
+        "exe": apply_result if install_method == "exe" else None,
         "backup": backup,
     }

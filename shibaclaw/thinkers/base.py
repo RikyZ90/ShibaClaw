@@ -94,6 +94,8 @@ class Thinker(ABC):
         "connection",
         "server error",
         "temporarily unavailable",
+        "sse stream",
+        "json error",
     )
 
     _SENTINEL = object()

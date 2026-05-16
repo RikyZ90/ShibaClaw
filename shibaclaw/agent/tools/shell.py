@@ -83,7 +83,7 @@ class ExecTool(Tool):
             r"\brm\s+-[rf]{1,2}\b",  # rm -r, rm -rf, rm -fr
             r"\bdel\s+/[fq]\b",  # del /f, del /q
             r"\brmdir\s+/s\b",  # rmdir /s
-            r"(?:^|[;&|]\s*)format\b",  # format (as standalone command only)
+            r"(?:^|[;&|]\s*)format\b(?!-)",  # format (as standalone, don't block Format-Table etc.)
             r"\b(mkfs|diskpart)\b",  # disk operations
             r"\bdd\s+if=",  # dd
             r">\s*/dev/sd",  # write to disk
@@ -94,7 +94,6 @@ class ExecTool(Tool):
             r"\b(nc|netcat|ncat)\b",  # networking/shells
             r"\b(bash|sh|zsh|dash)\s+-i\b",  # interactive shells
             r"\$\([^)]*\)",  # command substitution $()
-            r"`[^`]*`",  # backtick execution
             r"\|\s*(sh|bash|zsh|dash|fish)\b",  # pipe to shell
             r"\b(apt|apt-get|yum|dnf|brew)\s+(remove|purge)\b",  # system pkg removal (destructive)
             r"\bpip3?\s+(uninstall)\b",  # pip uninstall (destructive)
@@ -102,12 +101,16 @@ class ExecTool(Tool):
             r"\b(curl|wget)\b.*\|\s*(sh|bash|zsh|dash)\b",  # curl/wget pipe to shell
             r"<\([^)]*\)",  # bash process substitution <()
         ]
+        _posix_specific_deny = [
+            r"`[^`]*`",  # backtick execution (Bash/sh)
+        ]
+        
         if deny_patterns is not None:
             self.deny_patterns = deny_patterns
         elif get_os_type() == "windows":
             self.deny_patterns = _base_deny + _WINDOWS_DENY_PATTERNS
         else:
-            self.deny_patterns = _base_deny
+            self.deny_patterns = _base_deny + _posix_specific_deny
         self.allow_patterns = allow_patterns or []
         self.restrict_to_workspace = restrict_to_workspace
         self.path_append = path_append

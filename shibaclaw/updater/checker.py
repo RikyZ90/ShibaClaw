@@ -65,12 +65,12 @@ def _blank_result(install_method: InstallMethod, current: str) -> dict[str, Any]
             ],
         },
         "exe": {
-            "action_kind": "manual-download",
-            "action_label": "Download Windows build",
+            "action_kind": "automatic",
+            "action_label": "Update now",
             "action_command": None,
             "action_url": f"{GITHUB_REPO_URL}/releases/latest",
             "notes": [
-                "Windows desktop builds must be replaced manually after download.",
+                "ShibaClaw will automatically download and replace the executable. A UAC prompt may appear.",
             ],
         },
         "source": {

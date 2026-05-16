@@ -485,6 +485,7 @@ class ShibaBrain:
                         messages, tool_call.id, tool_call.name, result
                     )
             else:
+                # Strip think from logs/debug output, but keep full content for memory (so UI can reload it)
                 clean = self._strip_think(response.content)
                 # Don't persist error responses to session history — they can
                 # poison the context and cause permanent 400 loops (#1303).
@@ -492,13 +493,15 @@ class ShibaBrain:
                     logger.error("LLM returned error: {}", (clean or "")[:200])
                     final_content = clean or "Sorry, I encountered an error calling the AI model."
                     break
+                
                 messages = self.context.add_assistant_message(
                     messages,
-                    clean,
+                    response.content,
                     reasoning_content=response.reasoning_content,
                     thinking_blocks=response.thinking_blocks,
                 )
-                final_content = clean
+                # Preserve full content (including <think>) for the UI
+                final_content = response.content
                 break
 
         if final_content is None and iteration >= self.max_iterations:

@@ -112,6 +112,7 @@ def run(
         frameless=False,
         # Suppress the default text-selection context menu inside the WebView.
         easy_drag=False,
+        text_select=True,
     )
 
     # ------------------------------------------------------------------

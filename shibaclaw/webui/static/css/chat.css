@@ -1072,3 +1072,63 @@
     font-size: 11px;
     color: var(--text-muted);
 }
+
+/* ── Thought Blocks (Native Reasoning) ────────────────────────── */
+.thought-block {
+    margin: 8px 0;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 3px solid var(--text-muted);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.thought-block[open] {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.thought-block summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-muted);
+    user-select: none;
+    font-weight: 500;
+    outline: none;
+    transition: color var(--transition-fast);
+}
+
+.thought-block summary::-webkit-details-marker {
+    display: none;
+}
+
+.thought-block summary:hover {
+    color: var(--text-secondary);
+}
+
+.thought-block[open] summary {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+}
+
+.thought-content {
+    padding: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    opacity: 0.85;
+}
+
+.thought-content p {
+    margin-bottom: 8px;
+}
+
+.thought-content p:last-child {
+    margin-bottom: 0;
+}

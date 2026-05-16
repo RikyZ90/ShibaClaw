@@ -68,12 +68,27 @@ TELEGRAM_REPLY_CONTEXT_MAX_LEN = (
 )
 
 
+_RE_MD_BOLD1 = re.compile(r"\*\*(.+?)\*\*")
+_RE_MD_BOLD2 = re.compile(r"__(.+?)__")
+_RE_MD_STRIKE = re.compile(r"~~(.+?)~~")
+_RE_MD_INLINE = re.compile(r"`([^`]+)`")
+_RE_MD_BLOCK = re.compile(r"```[\w]*\n?([\s\S]*?)```")
+_RE_MD_TABLE = re.compile(r"^\s*\|.+\|")
+_RE_MD_TABLE_SEP = re.compile(r"^:?-+:?$")
+_RE_MD_HEADER = re.compile(r"^#{1,6}\s+(.+)$", flags=re.MULTILINE)
+_RE_MD_BLOCKQUOTE = re.compile(r"^>\s*(.*)$", flags=re.MULTILINE)
+_RE_MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_RE_MD_BOLD_ITALIC = re.compile(r"\*\*\*(.+?)\*\*\*")
+_RE_MD_ITALIC = re.compile(r"(?<![a-zA-Z0-9])_([^_]+)_(?![a-zA-Z0-9])")
+_RE_MD_BULLET = re.compile(r"^[-*]\s+", flags=re.MULTILINE)
+
+
 def _strip_md(s: str) -> str:
     """Strip markdown inline formatting from text."""
-    s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
-    s = re.sub(r"__(.+?)__", r"\1", s)
-    s = re.sub(r"~~(.+?)~~", r"\1", s)
-    s = re.sub(r"`([^`]+)`", r"\1", s)
+    s = _RE_MD_BOLD1.sub(r"\1", s)
+    s = _RE_MD_BOLD2.sub(r"\1", s)
+    s = _RE_MD_STRIKE.sub(r"\1", s)
+    s = _RE_MD_INLINE.sub(r"\1", s)
     return s.strip()
 
 
@@ -87,7 +102,7 @@ def _render_table_box(table_lines: list[str]) -> str:
     has_sep = False
     for line in table_lines:
         cells = [_strip_md(c) for c in line.strip().strip("|").split("|")]
-        if all(re.match(r"^:?-+:?$", c) for c in cells if c):
+        if all(_RE_MD_TABLE_SEP.match(c) for c in cells if c):
             has_sep = True
             continue
         rows.append(cells)
@@ -123,16 +138,16 @@ def _markdown_to_telegram_html(text: str) -> str:
         code_blocks.append(m.group(1))
         return f"\x00CB{len(code_blocks) - 1}\x00"
 
-    text = re.sub(r"```[\w]*\n?([\s\S]*?)```", save_code_block, text)
+    text = _RE_MD_BLOCK.sub(save_code_block, text)
 
     # 1.5. Convert markdown tables to box-drawing (reuse code_block placeholders)
     lines = text.split("\n")
     rebuilt: list[str] = []
     li = 0
     while li < len(lines):
-        if re.match(r"^\s*\|.+\|", lines[li]):
+        if _RE_MD_TABLE.match(lines[li]):
             tbl: list[str] = []
-            while li < len(lines) and re.match(r"^\s*\|.+\|", lines[li]):
+            while li < len(lines) and _RE_MD_TABLE.match(lines[li]):
                 tbl.append(lines[li])
                 li += 1
             box = _render_table_box(tbl)
@@ -153,35 +168,35 @@ def _markdown_to_telegram_html(text: str) -> str:
         inline_codes.append(m.group(1))
         return f"\x00IC{len(inline_codes) - 1}\x00"
 
-    text = re.sub(r"`([^`]+)`", save_inline_code, text)
+    text = _RE_MD_INLINE.sub(save_inline_code, text)
 
     # 3. Headers # Title -> just the title text
-    text = re.sub(r"^#{1,6}\s+(.+)$", r"\1", text, flags=re.MULTILINE)
+    text = _RE_MD_HEADER.sub(r"\1", text)
 
     # 4. Blockquotes > text -> just the text (before HTML escaping)
-    text = re.sub(r"^>\s*(.*)$", r"\1", text, flags=re.MULTILINE)
+    text = _RE_MD_BLOCKQUOTE.sub(r"\1", text)
 
     # 5. Escape HTML special characters
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     # 6. Links [text](url) - must be before bold/italic to handle nested cases
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
+    text = _RE_MD_LINK.sub(r'<a href="\2">\1</a>', text)
 
     # 7. Bold+Italic ***text*** (must come before bold/italic)
-    text = re.sub(r"\*\*\*(.+?)\*\*\*", r"<b><i>\1</i></b>", text)
+    text = _RE_MD_BOLD_ITALIC.sub(r"<b><i>\1</i></b>", text)
 
     # 8. Bold **text** or __text__
-    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-    text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
+    text = _RE_MD_BOLD1.sub(r"<b>\1</b>", text)
+    text = _RE_MD_BOLD2.sub(r"<b>\1</b>", text)
 
     # 9. Italic _text_ (avoid matching inside words like some_var_name)
-    text = re.sub(r"(?<![a-zA-Z0-9])_([^_]+)_(?![a-zA-Z0-9])", r"<i>\1</i>", text)
+    text = _RE_MD_ITALIC.sub(r"<i>\1</i>", text)
 
     # 9. Strikethrough ~~text~~
-    text = re.sub(r"~~(.+?)~~", r"<s>\1</s>", text)
+    text = _RE_MD_STRIKE.sub(r"<s>\1</s>", text)
 
     # 10. Bullet lists - item -> • item
-    text = re.sub(r"^[-*]\s+", "• ", text, flags=re.MULTILINE)
+    text = _RE_MD_BULLET.sub("• ", text)
 
     # 11. Restore inline code with HTML tags
     for i, code in enumerate(inline_codes):
@@ -439,7 +454,15 @@ class TelegramChannel(BaseChannel):
         if original_chat_id == "auto" or not original_chat_id.isdigit():
             # Cross-channel and WebUI usage often send `chat_id: auto`.
             allow_list = getattr(self.config, "allow_from", [])
-            valid_ids = [uid.split("|")[0] for uid in allow_list if uid.split("|")[0].isdigit()]
+            valid_ids = []
+            for uid in allow_list:
+                uid_str = str(uid).strip()
+                if "|" in uid_str:
+                    part = uid_str.split("|")[0]
+                    if part.isdigit():
+                        valid_ids.append(part)
+                elif uid_str.isdigit():
+                    valid_ids.append(uid_str)
 
             # Fallback to last non-empty known chat_id from recent incoming messages.
             if not valid_ids and self._chat_ids:
@@ -519,13 +542,15 @@ class TelegramChannel(BaseChannel):
                     )
                     continue
 
-                with open(media_path, "rb") as f:
-                    await sender(
-                        chat_id=chat_id,
-                        **{param: f},
-                        reply_parameters=reply_params,
-                        **thread_kwargs,
-                    )
+                from pathlib import Path
+
+                await self._call_with_retry(
+                    sender,
+                    chat_id=chat_id,
+                    **{param: Path(media_path)},
+                    reply_parameters=reply_params,
+                    **thread_kwargs,
+                )
             except Exception as e:
                 filename = media_path.rsplit("/", 1)[-1]
                 logger.error("Failed to send media {}: {}", media_path, e)
@@ -887,7 +912,8 @@ class TelegramChannel(BaseChannel):
             ):
                 return True
 
-        reply_user = getattr(getattr(message, "reply_to_message", None), "from_user", None)
+        reply_msg = getattr(message, "reply_to_message", None)
+        reply_user = getattr(reply_msg, "from_user", None)
         return bool(bot_id and reply_user and reply_user.id == bot_id)
 
     def _remember_thread_context(self, message) -> None:
@@ -984,6 +1010,9 @@ class TelegramChannel(BaseChannel):
         if media_group_id := getattr(message, "media_group_id", None):
             key = f"{str_chat_id}:{media_group_id}"
             if key not in self._media_group_buffers:
+                if len(self._media_group_buffers) > 500:
+                    logger.warning("Telegram media group buffer full, ignoring new group")
+                    return
                 self._media_group_buffers[key] = {
                     "sender_id": sender_id,
                     "chat_id": str_chat_id,
@@ -1051,13 +1080,19 @@ class TelegramChannel(BaseChannel):
         except (ValueError, TypeError):
             return
         try:
-            while self._app:
+            for _ in range(60):  # Limit to 4 minutes to prevent infinite tasks
+                if not self._app:
+                    break
                 await self._app.bot.send_chat_action(chat_id=numeric_id, action="typing")
                 await asyncio.sleep(4)
         except asyncio.CancelledError:
             pass
         except Exception as e:
             logger.debug("Typing indicator stopped for {}: {}", chat_id, e)
+        finally:
+            task = self._typing_tasks.get(chat_id)
+            if task and task == asyncio.current_task():
+                self._typing_tasks.pop(chat_id, None)
 
     async def _on_error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Log polling / handler errors; auto-stop on Conflict.

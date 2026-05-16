@@ -11,6 +11,20 @@ function _discardStreamBubble(msgId) {
     if (state._streamBuffers) delete state._streamBuffers[mid];
 }
 
+function _finalizeStreamBubble(msgId) {
+    const mid = msgId || "stream";
+    _cancelScheduledStreamRender(mid);
+    const bubble = document.getElementById("stream-bubble-" + mid);
+    if (bubble) {
+        if (state._streamBuffers && state._streamBuffers[mid]) {
+            bubble.innerHTML = renderMarkdown(state._streamBuffers[mid]);
+            enhanceCodeBlocks(bubble);
+        }
+        bubble.removeAttribute("id");
+    }
+    if (state._streamBuffers) delete state._streamBuffers[mid];
+}
+
 function _cancelScheduledStreamRender(msgId) {
     const mid = msgId || "stream";
     const frames = state._streamRenderFrames || {};
@@ -100,10 +114,13 @@ function initSocket() {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
-        showThinking(data.content);
-        addProcessStep(data.id, data.content, "GEN");
-        // If streaming was in progress, discard the partial bubble (model chose tools)
-        _discardStreamBubble(data.id);
+        // We no longer add a destructive GEN block if we have a stream bubble,
+        // we just finalize it so it stays natively on screen.
+        _finalizeStreamBubble(data.id);
+        
+        // Only fallback to showThinking if there was no stream bubble at all
+        // to avoid duplicating text.
+        showThinking("Sto riflettendo...");
     });
 
     realtime.on("agent_tool", (data) => {
@@ -112,8 +129,8 @@ function initSocket() {
         hideTypingBubble();
         showThinking(data.content);
         addProcessStep(data.id, data.content, "EXE");
-        // If streaming was in progress, discard the partial bubble (model chose tools)
-        _discardStreamBubble(data.id);
+        // Finalize any pending stream bubble before tool execution
+        _finalizeStreamBubble(data.id);
     });
 
     // ── Streaming response chunks ──
@@ -262,6 +279,14 @@ function initSocket() {
             }
             if (events.length > 0) {
                 showThinking(events[events.length - 1].content);
+            }
+        }
+    });
+
+    realtime.on("system_event", (data) => {
+        if (data.event === "update_progress") {
+            if (typeof window.updateDownloadProgress === "function") {
+                window.updateDownloadProgress(data.data.percent);
             }
         }
     });

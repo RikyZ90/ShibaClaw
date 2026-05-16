@@ -116,22 +116,50 @@ async def api_update_apply(request: Request):
 
     try:
         from shibaclaw.updater.apply import apply_update
-
+        from shibaclaw.webui.ws_handler import _ws_clients
+        
         loop = asyncio.get_event_loop()
+        
+        def progress_cb(current: int, total: int):
+            if not _ws_clients:
+                return
+            percent = int((current / total) * 100) if total > 0 else 0
+            payload = {
+                "type": "system_event",
+                "event": "update_progress",
+                "data": {"current": current, "total": total, "percent": percent}
+            }
+            
+            async def _send():
+                import json
+                raw = json.dumps(payload)
+                for ws in list(_ws_clients.values()):
+                    try:
+                        await ws.send_text(raw)
+                    except Exception:
+                        pass
+                        
+            asyncio.run_coroutine_threadsafe(_send(), loop)
+
         report = await loop.run_in_executor(
             None,
-            lambda: apply_update(update_info, workspace_root, manifest=manifest),
+            lambda: apply_update(update_info, workspace_root, manifest=manifest, progress_cb=progress_cb),
         )
     except Exception as e:
         logger.error("Update apply failed: {}", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
     pip_result = report.get("pip") or {}
+    exe_result = report.get("exe") or {}
 
-    if pip_result.get("ok"):
+    if pip_result.get("ok") or exe_result.get("ok"):
         async def _do_restart():
             await asyncio.sleep(1.0)
-            if _restart_callback is not None:
+            if exe_result.get("ok"):
+                # If EXE was replaced, we must exit completely so the batch script can take over
+                import os
+                os._exit(0)
+            elif _restart_callback is not None:
                 _restart_callback()
             else:
                 import subprocess
