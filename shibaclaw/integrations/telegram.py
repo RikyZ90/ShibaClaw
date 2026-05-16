@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import time
 import unicodedata
 from typing import Any, Literal
 
