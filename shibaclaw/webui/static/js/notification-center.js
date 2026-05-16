@@ -4,6 +4,7 @@ const notificationCenter = (() => {
     let initialized = false;
     let hiddenResponseSignature = "";
     let hiddenResponseAt = 0;
+    let _renderRafId = 0;
 
     function _cacheDom() {
         dom.root = $("notification-center");
@@ -77,6 +78,7 @@ const notificationCenter = (() => {
     function _setOpen(open) {
         if (!dom.root) return;
         dom.root.classList.toggle("is-open", open);
+        if (dom.dropdown) dom.dropdown.setAttribute("aria-hidden", String(!open));
     }
 
     function _renderEmpty(message) {
@@ -146,7 +148,7 @@ const notificationCenter = (() => {
         return wrapper;
     }
 
-    function _render() {
+    function _renderNow() {
         if (!dom.root || !dom.badge || !dom.list || !dom.subtitle) return;
         const items = _ordered();
         const counts = _counts();
@@ -168,6 +170,14 @@ const notificationCenter = (() => {
         const fragment = document.createDocumentFragment();
         items.forEach(item => fragment.appendChild(_renderItem(item)));
         dom.list.appendChild(fragment);
+    }
+
+    function _render() {
+        if (_renderRafId) return;
+        _renderRafId = requestAnimationFrame(() => {
+            _renderRafId = 0;
+            _renderNow();
+        });
     }
 
     async function _refresh() {
@@ -203,10 +213,7 @@ const notificationCenter = (() => {
     }
 
     async function _markAllRead() {
-        _ordered().forEach(item => {
-            item.read = true;
-            _upsert(item);
-        });
+        for (const item of store.values()) item.read = true;
         _render();
         try {
             await authFetch("/api/v1/notifications", {

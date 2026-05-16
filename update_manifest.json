@@ -1,61 +1,46 @@
 {
-    "version": "0.3.9",
-    "release_notes": "Environment-aware version resolution, mobile sidebar auto-close with backdrop, and changelog UI hardening.",
+    "version": "0.4.0",
+    "release_notes": "Mobile WebUI Perfection, Notification Center Stability, and Telegram Channel Hardening.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.3.9 release notes."
+            "note": "Added v0.4.0 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.3.9."
-        },
-        {
-            "path": "shibaclaw/__init__.py",
-            "overwrite": true,
-            "note": "Rewrote _get_version() with environment-aware resolution for frozen/source/pip branches."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/main.js",
-            "overwrite": true,
-            "note": "Added mobile sidebar auto-close helpers and backdrop toggle logic."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/ui_panels.js",
-            "overwrite": true,
-            "note": "Auto-close sidebar on modal open; removed hardcoded version fallback in changelog UI."
-        },
-        {
-            "path": "shibaclaw/webui/static/select_session.js",
-            "overwrite": true,
-            "note": "Close sidebar on mobile after session load."
-        },
-        {
-            "path": "shibaclaw/webui/static/index.html",
-            "overwrite": true,
-            "note": "Added sidebar-backdrop element."
+            "note": "Bumped version to 0.4.0."
         },
         {
             "path": "shibaclaw/webui/static/css/responsive.css",
             "overwrite": true,
-            "note": "Added sidebar backdrop styles and mobile width/z-index overrides."
+            "note": "Fixed mobile chat header overflow and session list scrolling."
         },
         {
             "path": "shibaclaw/webui/static/css/sidebar.css",
             "overwrite": true,
-            "note": "Added base hidden rule for sidebar-backdrop on desktop."
+            "note": "Added touch scrolling and flex constraints for mobile sidebar."
         },
         {
-            "path": ".github/workflows/publish.yml",
+            "path": "shibaclaw/webui/static/js/notification-center.js",
             "overwrite": true,
-            "note": "Release job now attaches root update_manifest.json instead of internal copy."
+            "note": "Debounced render with requestAnimationFrame and simplified mark-all-read."
         },
         {
-            "path": "tests/test_version_resolution.py",
+            "path": "shibaclaw/webui/static/js/main.js",
             "overwrite": true,
-            "note": "Added regression tests for all version resolution branches."
+            "note": "Auto-close notification dropdown when opening mobile sidebar."
+        },
+        {
+            "path": "shibaclaw/integrations/telegram.py",
+            "overwrite": true,
+            "note": "Added FIFO eviction for _chat_ids, stop() guards, and nested bold/italic markdown parsing."
+        },
+        {
+            "path": "shibaclaw/webui/static/index.html",
+            "overwrite": true,
+            "note": "Removed deprecated Help button from sidebar tools."
         }
     ]
 }

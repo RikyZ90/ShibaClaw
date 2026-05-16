@@ -173,6 +173,7 @@
     flex-shrink: 1;
     padding-top: 0;
     padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Custom scrollbar for history section */

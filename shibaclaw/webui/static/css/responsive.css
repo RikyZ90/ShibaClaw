@@ -31,17 +31,92 @@
         max-width: 95%;
     }
 
+    /* Width toggle is useless on mobile (chat is already full-width) */
+    .width-toggle-wrapper {
+        display: none;
+    }
+
+    /* Reduce header gap to prevent overflow on small screens */
+    .chat-header {
+        gap: 8px;
+        padding: 0 12px;
+    }
+
+    /* Input action buttons: icon-only on mobile */
+    .btn-input-action span:not(.material-icons-round) {
+        display: none;
+    }
+
+    .btn-input-action {
+        padding: 3px 7px;
+    }
+
+    /* Token badge: compact on mobile */
+    .token-badge-text {
+        max-width: 70px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Hide "Enter to send" hint — irrelevant on touch keyboards */
+    .input-hint {
+        display: none;
+    }
+
+    /* Reduce bottom padding to reclaim space */
+    .chat-history {
+        padding-bottom: 60px;
+    }
+
+    /* Sidebar: ensure session list is scrollable */
     .sidebar-footer {
-        padding: 14px;
+        padding: 10px 14px;
+        flex-shrink: 0;
     }
 
     .footer-actions {
-        flex-direction: column;
+        flex-direction: row;
     }
 
     .footer-actions .btn-command {
-        width: 100%;
-        min-height: 44px;
+        min-height: 38px;
+    }
+
+    /* Sidebar header: compact on mobile */
+    .sidebar-header {
+        padding: 12px 14px 10px;
+    }
+
+    .logo-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .logo-text h1 {
+        font-size: 20px;
+    }
+
+    /* Sidebar actions: compact */
+    .sidebar-actions {
+        padding: 8px 14px;
+    }
+
+    /* Status section: compact */
+    .sidebar-section:not(.history-section):not(.automation-section) {
+        padding: 8px 14px;
+    }
+
+    /* History section: guaranteed scrollable space on mobile */
+    .sidebar-section.history-section {
+        min-height: 120px;
+    }
+
+    /* Automation section: shrinkable on mobile so history can scroll */
+    .sidebar-section.automation-section {
+        flex-shrink: 1;
+        overflow-y: auto;
+        max-height: 140px;
+        padding: 8px 14px;
     }
 
     /* iOS: previene auto-zoom su input < 16px */
@@ -89,5 +164,18 @@
 
     .footer-info-label {
         display: none;
+    }
+
+    .chat-header {
+        gap: 6px;
+        padding: 0 8px;
+    }
+
+    /* Even more compact profile label */
+    .profile-label {
+        max-width: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }

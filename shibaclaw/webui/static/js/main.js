@@ -8,6 +8,11 @@ function setSidebarOpen(open) {
     const backdrop = $("sidebar-backdrop");
     if (!sidebar) return;
 
+    if (open && isMobileSidebar()) {
+        const nc = $("notification-center");
+        if (nc) nc.classList.remove("is-open");
+    }
+
     sidebar.classList.toggle("open", open);
     if (backdrop) {
         backdrop.classList.toggle("active", open && isMobileSidebar());

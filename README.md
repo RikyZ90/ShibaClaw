@@ -16,11 +16,11 @@
 ---
 
 
-📢 **Welcome to ShibaClaw v0.3.9!**
+📢 **Welcome to ShibaClaw v0.4.0!**
 This release brings:
-- **Environment-aware version resolution** — The version string is now resolved differently for EXE, pip/docker, and source installs, so the UI and update checks always show the correct version in every environment.
-- **Mobile sidebar auto-close** — The sidebar drawer now closes automatically on mobile after navigation, with a tap-outside backdrop and Escape/click-outside support for a native-app feel.
-- **Changelog UI hardening** — The WebUI changelog panel no longer falls back to a hardcoded version, always showing the correct release notes or redirecting to GitHub if unavailable.
+- **Mobile WebUI Perfection** — Overhauled the mobile interface, fixing chat header overflows, input action cutoffs, and session list scrolling. Added a smooth backdrop and touch-scrollable history.
+- **Notification Center Stability** — Major performance optimizations with rAF rendering, fixed threading race conditions, and simplified 'mark all read' logic.
+- **Telegram Channel Hardening** — Fixed unbounded memory growth in user mappings, added safety guards for typing loops, and improved Markdown parsing for nested bold/italic tags.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
