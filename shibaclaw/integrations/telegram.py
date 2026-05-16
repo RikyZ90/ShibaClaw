@@ -168,11 +168,14 @@ def _markdown_to_telegram_html(text: str) -> str:
     # 6. Links [text](url) - must be before bold/italic to handle nested cases
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
 
-    # 7. Bold **text** or __text__
+    # 7. Bold+Italic ***text*** (must come before bold/italic)
+    text = re.sub(r"\*\*\*(.+?)\*\*\*", r"<b><i>\1</i></b>", text)
+
+    # 8. Bold **text** or __text__
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
 
-    # 8. Italic _text_ (avoid matching inside words like some_var_name)
+    # 9. Italic _text_ (avoid matching inside words like some_var_name)
     text = re.sub(r"(?<![a-zA-Z0-9])_([^_]+)_(?![a-zA-Z0-9])", r"<i>\1</i>", text)
 
     # 9. Strikethrough ~~text~~
@@ -249,7 +252,8 @@ class TelegramChannel(BaseChannel):
         super().__init__(config, bus)
         self.config: TelegramConfig = config
         self._app: Application | None = None
-        self._chat_ids: dict[str, int] = {}  # Map sender_id to chat_id for replies
+        self._chat_ids: dict[str, int] = {}  # sender_id → chat_id (capped at 500)
+        self._CHAT_IDS_CAP = 500
         self._typing_tasks: dict[str, asyncio.Task] = {}  # chat_id -> typing loop task
         self._media_group_buffers: dict[str, dict] = {}
         self._media_group_tasks: dict[str, asyncio.Task] = {}
@@ -396,11 +400,10 @@ class TelegramChannel(BaseChannel):
 
         if self._app:
             logger.info("Stopping Telegram bot...")
-            # Suppress noisy CancelledError tracebacks from python-telegram-bot
-            # during graceful shutdown (the library logs them even when suppressed).
             _suppress_ptb_shutdown_logs()
             try:
-                await self._app.updater.stop()
+                if self._app.updater and self._app.updater.running:
+                    await self._app.updater.stop()
                 await self._app.stop()
                 await self._app.shutdown()
             finally:
@@ -926,6 +929,9 @@ class TelegramChannel(BaseChannel):
 
         # Store chat_id for replies
         self._chat_ids[sender_id] = chat_id
+        if len(self._chat_ids) > self._CHAT_IDS_CAP:
+            oldest = next(iter(self._chat_ids))
+            del self._chat_ids[oldest]
 
         if not await self._is_group_message_for_bot(message):
             return
@@ -1042,8 +1048,12 @@ class TelegramChannel(BaseChannel):
     async def _typing_loop(self, chat_id: str) -> None:
         """Repeatedly send 'typing' action until cancelled."""
         try:
+            numeric_id = int(chat_id)
+        except (ValueError, TypeError):
+            return
+        try:
             while self._app:
-                await self._app.bot.send_chat_action(chat_id=int(chat_id), action="typing")
+                await self._app.bot.send_chat_action(chat_id=numeric_id, action="typing")
                 await asyncio.sleep(4)
         except asyncio.CancelledError:
             pass

@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to this project are documented in this file.
+
+## [0.4.0] - 2026-05-16
+
+### Fixed
+- **Mobile WebUI Perfection** — Overhauled the mobile interface: fixed chat header overflows by hiding the width toggle on small screens, reduced element gap, and made input action buttons icon-only. Fixed session list scrolling issues by ensuring the history section has a guaranteed `min-height` and touch scrolling (`-webkit-overflow-scrolling: touch`), preventing other sidebar sections from collapsing it.
+- **Notification Center Stability** — Major performance optimizations for the WebUI notification center: implemented `requestAnimationFrame` debouncing for `_render()` to prevent UI janking during rapid notification bursts, optimized the "mark all read" logic to avoid redundant `_upsert()` calls, and fixed accessibility by properly toggling `aria-hidden` on the dropdown.
+- **Telegram Memory Leaks** — Fixed unbounded memory growth by adding a 500-entry FIFO eviction cap to `_chat_ids`.
+- **Telegram Safety Guards** — Added a guard on `stop()` to prevent calling `updater.stop()` when the updater was never started, silencing noisy startup/shutdown exceptions. Protected the `_typing_loop` with a `try/except` block to handle non-numeric `chat_id`s, preventing silent crashes of the typing task.
+- **Telegram Markdown Parsing** — Improved the `_markdown_to_telegram_html` converter to correctly parse nested bold and italic tags (e.g. `***text***`), ensuring complex agent formatting renders correctly in Telegram.
+
 ## [0.3.9] - 2026-05-15
 
 ### Added
