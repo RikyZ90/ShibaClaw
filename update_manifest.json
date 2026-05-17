@@ -1,41 +1,31 @@
 {
-    "version": "0.4.2",
-    "release_notes": "Implemented 'Run on Startup' for the Windows System Tray, GitHub Star popup in WebUI, and fixed WebUI rendering issues.",
+    "version": "0.4.3",
+    "release_notes": "Telegram Group Context Support: manage context, trigger words, and non-reply messages in Telegram group chats.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.2 release notes."
+            "note": "Added v0.4.3 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.2."
+            "note": "Bumped version to 0.4.3."
         },
         {
-            "path": "shibaclaw/webui/static/index.html",
+            "path": "shibaclaw/integrations/telegram.py",
             "overwrite": true,
-            "note": "Added GitHub star popup HTML markup."
+            "note": "Implemented group trigger words, group policies, and no_reply metadata context accumulation."
         },
         {
-            "path": "shibaclaw/webui/static/css/components.css",
+            "path": "shibaclaw/agent/loop.py",
             "overwrite": true,
-            "note": "Added styles for GitHub star popup."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/main.js",
-            "overwrite": true,
-            "note": "Added logic for GitHub star popup delay and local persistence."
-        },
-        {
-            "path": "shibaclaw/desktop/tray.py",
-            "overwrite": true,
-            "note": "Implemented Windows System Tray integration for the Desktop launcher."
+            "note": "Added short-circuit return for messages with no_reply metadata."
         },
         {
             "path": "shibaclaw/desktop/launcher.py",
             "overwrite": true,
-            "note": "Wired PyWebview with the new system tray orchestrator."
+            "note": "Fixed pywebview localStorage wiping by explicitly disabling private_mode."
         }
     ]
 }

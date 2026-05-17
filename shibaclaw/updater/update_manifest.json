@@ -1,46 +1,31 @@
 {
-    "version": "0.4.0",
-    "release_notes": "Mobile WebUI Perfection, Notification Center Stability, and Telegram Channel Hardening.",
+    "version": "0.4.3",
+    "release_notes": "Telegram Group Context Support: manage context, trigger words, and non-reply messages in Telegram group chats.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.0 release notes."
+            "note": "Added v0.4.3 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.0."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/responsive.css",
-            "overwrite": true,
-            "note": "Fixed mobile chat header overflow and session list scrolling."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/sidebar.css",
-            "overwrite": true,
-            "note": "Added touch scrolling and flex constraints for mobile sidebar."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/notification-center.js",
-            "overwrite": true,
-            "note": "Debounced render with requestAnimationFrame and simplified mark-all-read."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/main.js",
-            "overwrite": true,
-            "note": "Auto-close notification dropdown when opening mobile sidebar."
+            "note": "Bumped version to 0.4.3."
         },
         {
             "path": "shibaclaw/integrations/telegram.py",
             "overwrite": true,
-            "note": "Added FIFO eviction for _chat_ids, stop() guards, and nested bold/italic markdown parsing."
+            "note": "Implemented group trigger words, group policies, and no_reply metadata context accumulation."
         },
         {
-            "path": "shibaclaw/webui/static/index.html",
+            "path": "shibaclaw/agent/loop.py",
             "overwrite": true,
-            "note": "Removed deprecated Help button from sidebar tools."
+            "note": "Added short-circuit return for messages with no_reply metadata."
+        },
+        {
+            "path": "shibaclaw/desktop/launcher.py",
+            "overwrite": true,
+            "note": "Fixed pywebview localStorage wiping by explicitly disabling private_mode."
         }
     ]
 }

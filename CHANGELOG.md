@@ -2,7 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.3] - 2026-05-17
+
+### Added
+- **Telegram Group Context Support** — Implemented advanced message tracking and context retention in Telegram group chats.
+  - Added new `group_policy` configurations: `trigger` and `mention_or_trigger` (alongside existing `open` and `mention`).
+  - Introduced `trigger_words` to configure custom keywords that trigger active bot responses in group chats.
+  - Added `group_context_buffer_size` to control group conversation tracking.
+  - Implemented a "non-reply" context accumulation flow (`no_reply` metadata): messages that do not directly trigger a bot response are silently saved into the active session history to maintain surrounding context without invoking the agent loop or showing typing indicators.
+  - Group messages are now prefixed with the sender's identity (`sender_name: content`) to keep track of the group conversation history.
+
+### Fixed
+- **Desktop Launcher Persistence** — Fixed a bug where the native Windows Desktop Launcher (`pywebview`) wiped `localStorage` across application restarts because it was running in the default private mode. `private_mode=False` is now explicitly set, ensuring that UI preferences (like the GitHub star popup dismissal, active settings tab, and TTS settings) are properly persisted between sessions.
+
 ## [0.4.2] - 2026-05-17
+
 
 ### Added
 - **Windows Auto-Start** — Added a "Run on Startup" option to the Windows System Tray menu. When enabled, ShibaClaw automatically launches when Windows boots up.

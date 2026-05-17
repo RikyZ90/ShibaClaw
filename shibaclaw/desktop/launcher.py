@@ -242,6 +242,7 @@ def run(
             debug=_desktop_debug_enabled(),
             icon=_get_icon_path(),
             gui="edgechromium",  # force Edge WebView2 on Windows; prevents fallback to mshtml
+            private_mode=False,
         )
     finally:
         try:

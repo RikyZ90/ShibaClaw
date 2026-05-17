@@ -16,19 +16,17 @@
 ---
 
 
+📢 **Welcome to ShibaClaw v0.4.3!**
+This release brings:
+- **Telegram Group Context Support** — Added advanced context tracking, trigger words, and non-reply message accumulation for Telegram group chats, allowing the agent to observe and retain group conversations without triggering active replies or typing indicators.
+
+---
+
 📢 **Welcome to ShibaClaw v0.4.2!**
 This release brings:
 - **Windows Auto-Start** — Added a "Run on Startup" option directly to the Windows System Tray menu, allowing ShibaClaw to automatically boot up when the OS starts.
 - **GitHub Star Popup** — Added a non-intrusive popup in the WebUI to invite users to star the GitHub repository, featuring a smart delay and local persistence.
 - **WebUI Fixes** — Resolved an issue with agent-generated files (images, text) missing from the chat by correctly resolving absolute workspace paths, and fixed a minor auto-focus highlight bug on startup.
-
----
-
-📢 **Welcome to ShibaClaw v0.4.1!**
-This release brings:
-- **Multilingual Memory Support** — Fixed regex tokenization to fully support non-Latin scripts (Cyrillic, CJK, etc.) across the agent's memory systems and Telegram integration.
-- **Thought Streaming UX** — Overhauled the reasoning display. `<think>` blocks are now natively rendered as fluid `<details>` components, persisting correctly across sessions. Also added unified UI support for models that return native reasoning fields (such as Gemini 2.0 Thinking or DeepSeek) outside of traditional text blocks.
-- **Windows Automatic Updates** — Implemented and hardened a self-replacing, UAC-aware background update system for `.exe` distributions.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
