@@ -225,7 +225,9 @@ class TelegramConfig(Base):
     allow_from: list[str] = Field(default_factory=list)
     proxy: str | None = None
     reply_to_message: bool = False
-    group_policy: Literal["open", "mention"] = "mention"
+    group_policy: Literal["open", "mention", "trigger", "mention_or_trigger"] = "mention"
+    trigger_words: list[str] = Field(default_factory=list)
+    group_context_buffer_size: int = 10
     connection_pool_size: int = 32
     pool_timeout: float = 5.0
 
@@ -889,32 +891,45 @@ class TelegramChannel(BaseChannel):
         return handle in text.lower()
 
     async def _is_group_message_for_bot(self, message) -> bool:
-        """Allow group messages when policy is open, @mentioned, or replying to the bot."""
+        """Allow group messages based on the configured group_policy."""
         if message.chat.type == "private" or self.config.group_policy == "open":
             return True
 
-        bot_id, bot_username = await self._ensure_bot_identity()
-        if bot_username:
-            text = message.text or ""
-            caption = message.caption or ""
-            if self._has_mention_entity(
-                text,
-                getattr(message, "entities", None),
-                bot_username,
-                bot_id,
-            ):
-                return True
-            if self._has_mention_entity(
-                caption,
-                getattr(message, "caption_entities", None),
-                bot_username,
-                bot_id,
-            ):
-                return True
+        text = message.text or ""
+        caption = message.caption or ""
+        combined_text = f"{text} {caption}".lower()
+        policy = self.config.group_policy
 
-        reply_msg = getattr(message, "reply_to_message", None)
-        reply_user = getattr(reply_msg, "from_user", None)
-        return bool(bot_id and reply_user and reply_user.id == bot_id)
+        # Check trigger words if policy allows it
+        if policy in ("trigger", "mention_or_trigger"):
+            for word in self.config.trigger_words:
+                if word.lower() in combined_text:
+                    return True
+
+        # Check mentions and replies if policy allows it
+        if policy in ("mention", "mention_or_trigger"):
+            bot_id, bot_username = await self._ensure_bot_identity()
+            if bot_username:
+                if self._has_mention_entity(
+                    text,
+                    getattr(message, "entities", None),
+                    bot_username,
+                    bot_id,
+                ):
+                    return True
+                if self._has_mention_entity(
+                    caption,
+                    getattr(message, "caption_entities", None),
+                    bot_username,
+                    bot_id,
+                ):
+                    return True
+
+            reply_msg = getattr(message, "reply_to_message", None)
+            reply_user = getattr(reply_msg, "from_user", None)
+            return bool(bot_id and reply_user and reply_user.id == bot_id)
+
+        return False
 
     def _remember_thread_context(self, message) -> None:
         """Cache topic thread id by chat/message id for follow-up replies."""
@@ -958,9 +973,6 @@ class TelegramChannel(BaseChannel):
             oldest = next(iter(self._chat_ids))
             del self._chat_ids[oldest]
 
-        if not await self._is_group_message_for_bot(message):
-            return
-
         # Build content from text and/or media
         content_parts = []
         media_paths = []
@@ -995,11 +1007,25 @@ class TelegramChannel(BaseChannel):
                 content_parts.insert(0, tag)
         content = "\n".join(content_parts) if content_parts else "[empty message]"
 
-        logger.debug("Telegram message from {}: {}...", sender_id, content[:50])
-
         str_chat_id = str(chat_id)
+        
+        is_group = message.chat.type in ("group", "supergroup")
+        sender_name = user.first_name or user.username or sender_id
+
+        if is_group:
+            # Identify sender for group chats without markdown link syntax ([name]: text)
+            content = f"{sender_name}: {content}"
+
         metadata = self._build_message_metadata(message, user)
         session_key = self._derive_topic_session_key(message)
+
+        # Check if we should respond
+        should_respond = await self._is_group_message_for_bot(message)
+
+        if is_group and not should_respond:
+            metadata["no_reply"] = True
+
+        logger.debug("Telegram message from {}: {}...", sender_id, content[:50])
 
         # Reject unauthorised senders before doing anything visible
         if not self.is_allowed(sender_id):
@@ -1021,7 +1047,8 @@ class TelegramChannel(BaseChannel):
                     "metadata": metadata,
                     "session_key": session_key,
                 }
-                self._start_typing(str_chat_id)
+                if not metadata.get("no_reply"):
+                    self._start_typing(str_chat_id)
             buf = self._media_group_buffers[key]
             if content and content != "[empty message]":
                 buf["contents"].append(content)
@@ -1031,7 +1058,8 @@ class TelegramChannel(BaseChannel):
             return
 
         # Start typing indicator only after authorisation is confirmed
-        self._start_typing(str_chat_id)
+        if not metadata.get("no_reply"):
+            self._start_typing(str_chat_id)
 
         # Forward to the message bus
         await self._handle_message(

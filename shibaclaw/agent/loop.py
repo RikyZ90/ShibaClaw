@@ -806,6 +806,9 @@ class ShibaBrain:
             _user_entry["metadata"] = metadata
         session.messages.append(_user_entry)
         self.sessions.save(session)
+        
+        if msg.metadata and msg.metadata.get("no_reply"):
+            return None
         _pre_saved_count = 1
 
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:
