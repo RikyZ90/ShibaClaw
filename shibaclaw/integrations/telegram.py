@@ -79,7 +79,7 @@ _RE_MD_HEADER = re.compile(r"^#{1,6}\s+(.+)$", flags=re.MULTILINE)
 _RE_MD_BLOCKQUOTE = re.compile(r"^>\s*(.*)$", flags=re.MULTILINE)
 _RE_MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 _RE_MD_BOLD_ITALIC = re.compile(r"\*\*\*(.+?)\*\*\*")
-_RE_MD_ITALIC = re.compile(r"(?<![a-zA-Z0-9])_([^_]+)_(?![a-zA-Z0-9])")
+_RE_MD_ITALIC = re.compile(r"(?<![^\W_])_([^_]+)_(?![^\W_])")
 _RE_MD_BULLET = re.compile(r"^[-*]\s+", flags=re.MULTILINE)
 
 
@@ -451,7 +451,7 @@ class TelegramChannel(BaseChannel):
 
         original_chat_id = str(msg.chat_id)
 
-        if original_chat_id == "auto" or not original_chat_id.isdigit():
+        if original_chat_id == "auto" or not original_chat_id.lstrip("-").isdigit():
             # Cross-channel and WebUI usage often send `chat_id: auto`.
             allow_list = getattr(self.config, "allow_from", [])
             valid_ids = []

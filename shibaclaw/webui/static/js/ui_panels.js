@@ -244,7 +244,8 @@ async function loadHistory() {
             const moreBtn = document.createElement("button");
             moreBtn.className = "btn-show-more";
             moreBtn.innerHTML = `<span class="material-icons-round">expand_more</span> Show ${remaining.length} more`;
-            moreBtn.onclick = () => {
+            moreBtn.onclick = (e) => {
+                e.stopPropagation();
                 remaining.forEach(s => list.insertBefore(_buildSessionEl(s), moreBtn));
                 moreBtn.remove();
             };

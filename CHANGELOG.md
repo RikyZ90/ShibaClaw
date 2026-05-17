@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.4.1]
+## [0.4.1] - 2026-05-17
     
 ### Added
 - **Thought Streaming UX** — Overhauled the model reasoning display in the WebUI. `<think>` blocks are now rendered as native, fluid `<details>` (accordion) components with glassmorphism styling and "Reasoning in progress" indicators, eliminating layout shifts during streaming.
@@ -10,6 +10,10 @@ All notable changes to this project are documented in this file.
 - **Desktop Text Selection** — Enabled native text selection in the desktop WebView window (`ShibaClaw.exe`), allowing users to select and copy chat content.
 
 ### Fixed
+- **Multilingual Support** *(thanks to @dercar2)* — Updated the tokenizer in `memory_search.py` to use Unicode-aware regular expressions (`\w+`) and aggressive case-folding. The agent can now successfully search and retrieve memories written in non-Latin alphabets (Cyrillic, CJK, etc.). Additionally, fixed a Telegram Markdown parsing bug (`telegram.py`) by replacing an ASCII-only regex with a Unicode word boundary, preventing the accidental corruption of non-Latin snake_case words.
+- **Proactive Learning Data Loss** — Fixed a critical concurrency race condition where new messages arriving during a proactive consolidation cycle were incorrectly marked as "learned" without actually being saved.
+- **Telegram Group Reply Bug** *(thanks to @dotvav)* — Fixed an issue in `telegram.py` where negative group chat IDs were mistakenly parsed as invalid strings, causing responses intended for group chats to be wrongly routed to user DMs.
+- **WebUI Header Layout** *(thanks to @dercar2)* — Refined the sidebar interface by completely integrating the "Status" block into the top header next to the version badge, making it incredibly compact and styling it to match seamlessly. Shrunk the logo size and enforced `nowrap` layout so the badges fit perfectly on a single line on desktop displays. Also fixed a frustrating UX bug where the entire sidebar would auto-close whenever a user clicked the "Show X more" history button on mobile.
 - **PowerShell False-Positive Guard** — Resolved an issue where PowerShell escape characters (like `` `n ``) triggered the "backtick execution" safety guard. The backtick block is now exclusively applied to POSIX (Linux/macOS) environments, as it is a safe character in PowerShell.
 - **Thought Context Pollution** — Implemented dynamic stripping of `<think>` blocks from assistant messages *only* during prompt construction for the LLM API. This prevents token exhaustion (Context Pollution) while ensuring the WebUI still has access to the raw reasoning data.
 - **Streaming Transition Flicker** — Updated WebSocket streaming logic to prevent the destructive removal of reasoning bubbles when the agent transitions between thinking and tool execution.

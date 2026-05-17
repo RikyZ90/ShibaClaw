@@ -709,13 +709,13 @@ class PackMemory:
             logger.debug(
                 "🐕 Proactive Learning starting for {} ({} new messages)", session.key, len(chunk)
             )
-            session.last_learned = len(session.messages)
-            self.sessions.save(session)
-
             success = await self.store.proactive_consolidate(
                 chunk, self.provider, self.consolidation_model
             )
-            if not success:
+            if success:
+                session.last_learned += len(chunk)
+                self.sessions.save(session)
+            else:
                 logger.debug("🐕 Proactive Learning skipped/failed for {}", session.key)
         await self.maybe_compact_memory()
 

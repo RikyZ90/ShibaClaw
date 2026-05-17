@@ -29,7 +29,7 @@ _STOP_WORDS = frozenset(
 
 
 def _tokenize(text: str) -> list[str]:
-    return [w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOP_WORDS]
+    return [w for w in re.findall(r"\w+", text.casefold(), re.UNICODE) if w not in _STOP_WORDS]
 
 
 def _parse_entries(raw: str) -> list[dict[str, Any]]:

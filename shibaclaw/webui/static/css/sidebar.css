@@ -75,14 +75,14 @@
 }
 
 .logo-icon {
-    width: 90px;
-    height: 90px;
+    width: 74px;
+    height: 74px;
     object-fit: contain;
     filter: drop-shadow(0 0 4px var(--shiba-gold-glow));
 }
 
 .logo-text h1 {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
     background: linear-gradient(135deg, var(--shiba-gold), var(--shiba-gold-light));
     -webkit-background-clip: text;
@@ -103,7 +103,14 @@
     padding: 2px 6px;
     border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.04);
-    margin-top: 2px;
+}
+
+.header-sub-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-top: 4px;
 }
 
 .version:hover {
@@ -227,19 +234,19 @@
     padding-bottom: 10px;
 }
 
-.status-card {
+.status-micro {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    background: var(--bg-surface);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
+    gap: 4px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--accent-red);
     transition: background var(--transition-base);
@@ -365,8 +372,10 @@
 }
 
 .status-text {
-    font-size: 12px;
+    font-size: 10px;
+    font-weight: 500;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .quick-commands {

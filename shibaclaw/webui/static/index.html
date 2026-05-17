@@ -61,8 +61,17 @@
                     <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="logo-icon">
                     <div class="logo-text">
                         <h1>ShibaClaw</h1>
-                        <span class="version" id="sidebar-version" onclick="openChangelog()"
-                            title="View what's new">loading...</span>
+                        <div class="header-sub-row">
+                            <span class="version" id="sidebar-version" onclick="openChangelog()"
+                                title="View what's new">loading...</span>
+                            <div class="status-micro" id="status-card">
+                                <div class="status-dot disconnected" id="status-dot"></div>
+                                <span class="status-text" id="status-text">Connecting...</span>
+                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()" title="Restart Gateway">
+                                    <span class="material-icons-round">refresh</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
@@ -77,16 +86,6 @@
                 </button>
             </div>
 
-            <div class="sidebar-section">
-                <h3 class="sidebar-section-title">Status</h3>
-                <div class="status-card" id="status-card">
-                    <div class="status-dot disconnected" id="status-dot"></div>
-                    <span class="status-text" id="status-text">Connecting...</span>
-                    <button class="btn-restart" id="btn-restart" onclick="restartGateway()" title="Restart Gateway">
-                        <span class="material-icons-round">refresh</span>
-                    </button>
-                </div>
-            </div>
 
             <div class="sidebar-section">
                 <div class="section-title">TOOLS</div>
