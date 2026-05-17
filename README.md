@@ -18,8 +18,9 @@
 
 📢 **Welcome to ShibaClaw v0.4.2!**
 This release brings:
+- **Windows System Tray** — Added native system tray integration for the Desktop launcher (`ShibaClaw.exe`). The app now minimizes to the tray for seamless background execution, complete with a context menu.
 - **GitHub Star Popup** — Added a non-intrusive popup in the WebUI to invite users to star the GitHub repository, featuring a smart delay and local persistence.
-- **WebUI File Display Fix** — Resolved an issue with agent-generated files (images, text) missing from the chat or returning 404s by correctly resolving absolute workspace paths.
+- **WebUI Fixes** — Resolved an issue with agent-generated files (images, text) missing from the chat by correctly resolving absolute workspace paths, and fixed a minor auto-focus highlight bug on startup.
 
 ---
 

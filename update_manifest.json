@@ -1,6 +1,6 @@
 {
     "version": "0.4.2",
-    "release_notes": "Implemented GitHub Star popup in WebUI and fixed agent media path resolution.",
+    "release_notes": "Implemented Windows System Tray support, GitHub Star popup in WebUI, and fixed WebUI rendering issues.",
     "changes": [
         {
             "path": "CHANGELOG.md",
@@ -26,6 +26,16 @@
             "path": "shibaclaw/webui/static/js/main.js",
             "overwrite": true,
             "note": "Added logic for GitHub star popup delay and local persistence."
+        },
+        {
+            "path": "shibaclaw/desktop/tray.py",
+            "overwrite": true,
+            "note": "Implemented Windows System Tray integration for the Desktop launcher."
+        },
+        {
+            "path": "shibaclaw/desktop/launcher.py",
+            "overwrite": true,
+            "note": "Wired PyWebview with the new system tray orchestrator."
         }
     ]
 }
