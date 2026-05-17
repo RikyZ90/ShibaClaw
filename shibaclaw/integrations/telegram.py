@@ -272,7 +272,6 @@ class TelegramChannel(BaseChannel):
         self._CHAT_IDS_CAP = 500
         self._typing_tasks: dict[str, asyncio.Task] = {}  # chat_id -> typing loop task
         self._media_group_buffers: dict[str, dict] = {}
-        self._group_buffers: dict[str, list[dict]] = {}  # chat_id -> list of recent messages
         self._media_group_tasks: dict[str, asyncio.Task] = {}
         self._message_threads: dict[tuple[str, int], int] = {}
         self._progress_messages: dict[
@@ -1010,36 +1009,23 @@ class TelegramChannel(BaseChannel):
 
         str_chat_id = str(chat_id)
         
-        # --- GROUP CONTEXT BUFFER LOGIC ---
         is_group = message.chat.type in ("group", "supergroup")
+        sender_name = user.first_name or user.username or sender_id
+
         if is_group:
-            if str_chat_id not in self._group_buffers:
-                self._group_buffers[str_chat_id] = []
-            
-            # Add current message to buffer
-            sender_name = user.first_name or user.username or sender_id
-            self._group_buffers[str_chat_id].append(f"[{sender_name}]: {content}")
-            
-            # Trim buffer
-            if len(self._group_buffers[str_chat_id]) > self.config.group_context_buffer_size:
-                self._group_buffers[str_chat_id].pop(0)
-
-        # Check if we should respond
-        if not await self._is_group_message_for_bot(message):
-            return
-
-        # If we respond in a group, inject the context buffer
-        if is_group and len(self._group_buffers.get(str_chat_id, [])) > 1:
-            # We exclude the last message from the context since it's the current one
-            context_msgs = self._group_buffers[str_chat_id][:-1]
-            if context_msgs:
-                context_str = "\n".join(context_msgs)
-                content = f"[Previous conversation context:\n{context_str}\n]\n\n{content}"
-
-        logger.debug("Telegram message from {}: {}...", sender_id, content[:50])
+            # Identify sender for group chats without markdown link syntax ([name]: text)
+            content = f"{sender_name}: {content}"
 
         metadata = self._build_message_metadata(message, user)
         session_key = self._derive_topic_session_key(message)
+
+        # Check if we should respond
+        should_respond = await self._is_group_message_for_bot(message)
+
+        if is_group and not should_respond:
+            metadata["no_reply"] = True
+
+        logger.debug("Telegram message from {}: {}...", sender_id, content[:50])
 
         # Reject unauthorised senders before doing anything visible
         if not self.is_allowed(sender_id):
@@ -1061,7 +1047,8 @@ class TelegramChannel(BaseChannel):
                     "metadata": metadata,
                     "session_key": session_key,
                 }
-                self._start_typing(str_chat_id)
+                if not metadata.get("no_reply"):
+                    self._start_typing(str_chat_id)
             buf = self._media_group_buffers[key]
             if content and content != "[empty message]":
                 buf["contents"].append(content)
@@ -1071,7 +1058,8 @@ class TelegramChannel(BaseChannel):
             return
 
         # Start typing indicator only after authorisation is confirmed
-        self._start_typing(str_chat_id)
+        if not metadata.get("no_reply"):
+            self._start_typing(str_chat_id)
 
         # Forward to the message bus
         await self._handle_message(
