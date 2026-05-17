@@ -1,51 +1,31 @@
 {
-    "version": "0.4.1",
-    "release_notes": "Multilingual Memory Support, Concurrency Data Loss Fix, Telegram Group Bug Fix, Desktop Header UI Polish, and Updater Lint Fixes.",
+    "version": "0.4.2",
+    "release_notes": "Implemented GitHub Star popup in WebUI and fixed agent media path resolution.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.1 release notes."
+            "note": "Added v0.4.2 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.1."
-        },
-        {
-            "path": "shibaclaw/integrations/telegram.py",
-            "overwrite": true,
-            "note": "Fixed group chat ID routing and Unicode markdown formatting."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/sidebar.css",
-            "overwrite": true,
-            "note": "Scaled header layout and enforced nowrap for desktop."
+            "note": "Bumped version to 0.4.2."
         },
         {
             "path": "shibaclaw/webui/static/index.html",
             "overwrite": true,
-            "note": "Moved status block to header."
+            "note": "Added GitHub star popup HTML markup."
         },
         {
-            "path": "shibaclaw/webui/static/js/ui_panels.js",
+            "path": "shibaclaw/webui/static/css/components.css",
             "overwrite": true,
-            "note": "Fixed session expand button closing sidebar."
+            "note": "Added styles for GitHub star popup."
         },
         {
-            "path": "shibaclaw/agent/memory.py",
+            "path": "shibaclaw/webui/static/js/main.js",
             "overwrite": true,
-            "note": "Fixed proactive learning concurrency race condition."
-        },
-        {
-            "path": "shibaclaw/agent/tools/memory_search.py",
-            "overwrite": true,
-            "note": "Added Unicode support for multilingual tokenization."
-        },
-        {
-            "path": "shibaclaw/updater/apply.py",
-            "overwrite": true,
-            "note": "Fixed linting errors in updater code."
+            "note": "Added logic for GitHub star popup delay and local persistence."
         }
     ]
 }

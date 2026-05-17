@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import threading
 from typing import TYPE_CHECKING
 
@@ -32,15 +33,30 @@ class TrayIcon:
 
     def _create_menu(self) -> pystray.Menu:
         """Create the tray menu structure."""
-        return pystray.Menu(
+        menu_items = [
             pystray.MenuItem("Open ShibaClaw", self._on_open, default=True),
             pystray.MenuItem("Workspace Folder", self._on_open_workspace),
             pystray.MenuItem("Open Logs", self._on_open_logs),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Website", self._on_open_website),
+        ]
+
+        if sys.platform == "win32":
+            menu_items.extend([
+                pystray.MenuItem(
+                    "Run on Startup",
+                    self._on_toggle_autostart,
+                    checked=lambda item: self._is_autostart_enabled()
+                ),
+                pystray.Menu.SEPARATOR,
+            ])
+
+        menu_items.extend([
+            pystray.MenuItem("GitHub", self._on_open_website),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit", self._on_quit),
-        )
+        ])
+
+        return pystray.Menu(*menu_items)
 
     def _load_icon_image(self) -> Image.Image:
         """Load the icon image from assets."""
@@ -71,6 +87,39 @@ class TrayIcon:
 
     def _on_open_website(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         self._controller.open_website()
+
+    def _is_autostart_enabled(self) -> bool:
+        if sys.platform != "win32":
+            return False
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_READ)
+            value, _ = winreg.QueryValueEx(key, "ShibaClaw")
+            winreg.CloseKey(key)
+            return True
+        except Exception:
+            return False
+
+    def _on_toggle_autostart(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
+        if sys.platform != "win32":
+            return
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_ALL_ACCESS)
+            if self._is_autostart_enabled():
+                winreg.DeleteValue(key, "ShibaClaw")
+                logger.info("Autostart disabled")
+            else:
+                exe_path = sys.executable
+                if getattr(sys, 'frozen', False):
+                    cmd = f'"{exe_path}"'
+                else:
+                    cmd = f'"{exe_path}" -m shibaclaw'
+                winreg.SetValueEx(key, "ShibaClaw", 0, winreg.REG_SZ, cmd)
+                logger.info(f"Autostart enabled: {cmd}")
+            winreg.CloseKey(key)
+        except Exception as e:
+            logger.error(f"Failed to toggle autostart: {e}")
 
     def _on_quit(self, icon: pystray.Icon, item: pystray.MenuItem) -> None:
         logger.info("Chiusura richiesta tramite menu tray")

@@ -16,6 +16,13 @@
 ---
 
 
+📢 **Welcome to ShibaClaw v0.4.2!**
+This release brings:
+- **GitHub Star Popup** — Added a non-intrusive popup in the WebUI to invite users to star the GitHub repository, featuring a smart delay and local persistence.
+- **WebUI File Display Fix** — Resolved an issue with agent-generated files (images, text) missing from the chat or returning 404s by correctly resolving absolute workspace paths.
+
+---
+
 📢 **Welcome to ShibaClaw v0.4.1!**
 This release brings:
 - **Multilingual Memory Support** — Fixed regex tokenization to fully support non-Latin scripts (Cyrillic, CJK, etc.) across the agent's memory systems and Telegram integration.

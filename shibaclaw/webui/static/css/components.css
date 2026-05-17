@@ -953,3 +953,117 @@
     color: var(--text-secondary);
     opacity: 1;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   GitHub Star Popup
+   ═══════════════════════════════════════════════════════════════ */
+#gh-star-popup {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 9999;
+    background: rgba(30, 30, 46, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transform: translateY(150px);
+    opacity: 0;
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
+    pointer-events: none;
+    max-width: 350px;
+}
+
+#gh-star-popup.show {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.gh-star-icon {
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--shiba-gold);
+}
+
+.gh-star-content {
+    flex: 1;
+}
+
+.gh-star-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.gh-star-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.gh-star-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.gh-star-btn {
+    background: var(--shiba-gold);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-decoration: none;
+}
+
+.gh-star-btn:hover {
+    filter: brightness(1.1);
+}
+
+.gh-star-close {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gh-star-close:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+    #gh-star-popup {
+        bottom: 80px;
+        left: 12px;
+        right: 12px;
+        max-width: none;
+    }
+}

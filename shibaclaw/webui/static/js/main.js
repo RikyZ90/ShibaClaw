@@ -218,4 +218,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
+// ── GitHub Star Popup ─────────────────────────────────────────
+function initGithubPopup() {
+    // Check if user already dismissed or starred
+    if (localStorage.getItem('shibaclaw_gh_star_dismissed') === 'true') {
+        return;
+    }
+
+    // Show popup after 45 seconds to not bother the user immediately
+    setTimeout(() => {
+        const popup = document.getElementById('gh-star-popup');
+        const dismissBtn = document.getElementById('gh-star-dismiss');
+        const starLink = document.getElementById('gh-star-link');
+        
+        if (popup && dismissBtn && starLink) {
+            popup.classList.add('show');
+            
+            const dismissPopup = () => {
+                popup.classList.remove('show');
+                localStorage.setItem('shibaclaw_gh_star_dismissed', 'true');
+            };
+            
+            dismissBtn.addEventListener('click', dismissPopup);
+            starLink.addEventListener('click', dismissPopup);
+        }
+    }, 45000); // 45 seconds delay
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initGithubPopup();
+});
+
 
