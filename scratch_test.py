@@ -1,6 +1,4 @@
 import asyncio
-import os
-import sys
 
 from shibaclaw.agent.tools.shell import ExecTool
 

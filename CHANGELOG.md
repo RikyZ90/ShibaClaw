@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file.
 - **Thought Streaming UX** — Overhauled the model reasoning display in the WebUI. `<think>` blocks are now rendered as native, fluid `<details>` (accordion) components with glassmorphism styling and "Reasoning in progress" indicators, eliminating layout shifts during streaming.
 - **Thought Persistence** — Modified the agent loop and context management to preserve full reasoning history in the database. Reasoning blocks are now correctly recovered and displayed when refreshing the page or switching sessions.
 - **Desktop Text Selection** — Enabled native text selection in the desktop WebView window (`ShibaClaw.exe`), allowing users to select and copy chat content.
+- **Windows Automatic Updates** — Implemented and hardened the automatic self-replacing update system for Windows executables (`ShibaClaw.exe`), including seamless process hand-off and UAC elevation handling.
+- **Update Progress UI** — Integrated a dynamic progress bar into the WebUI update modal, featuring real-time WebSocket progress reporting for instant user feedback during downloads and extraction.
 
 ### Fixed
 - **Multilingual Support** *(thanks to @dercar2)* — Updated the tokenizer in `memory_search.py` to use Unicode-aware regular expressions (`\w+`) and aggressive case-folding. The agent can now successfully search and retrieve memories written in non-Latin alphabets (Cyrillic, CJK, etc.). Additionally, fixed a Telegram Markdown parsing bug (`telegram.py`) by replacing an ASCII-only regex with a Unicode word boundary, preventing the accidental corruption of non-Latin snake_case words.
@@ -18,8 +20,6 @@ All notable changes to this project are documented in this file.
 - **Thought Context Pollution** — Implemented dynamic stripping of `<think>` blocks from assistant messages *only* during prompt construction for the LLM API. This prevents token exhaustion (Context Pollution) while ensuring the WebUI still has access to the raw reasoning data.
 - **Streaming Transition Flicker** — Updated WebSocket streaming logic to prevent the destructive removal of reasoning bubbles when the agent transitions between thinking and tool execution.
 - **Empty Assistant Message Error** — Added a placeholder for assistant messages that contain *only* reasoning blocks, preventing "empty content" API errors from providers like OpenAI and Gemini after stripping the think tags.
-- **Windows Automatic Updates** — Implemented and hardened the automatic self-replacing update system for Windows executables (`ShibaClaw.exe`), including seamless process hand-off and UAC elevation handling.
-- **Update Progress UI** — Integrated a dynamic progress bar into the WebUI update modal, featuring real-time WebSocket progress reporting for instant user feedback during downloads and extraction.
 - **OpenAI Stream Resilience** — Fixed intermittent "JSON error" issues injected into SSE streams during AI model response streaming by hardening the `chat_streaming` implementation in `OpenAIThinker` against malformed chunks and proxy/server interruptions.
 - **PowerShell Formatting Commands Block** — Fixed a bug where PowerShell formatting cmdlets (like `Format-Table`, `Format-List`) were incorrectly blocked by the security guard. The regex for the destructive DOS `format` command was updated to use a negative lookahead, allowing safe PowerShell commands to pass through.
 

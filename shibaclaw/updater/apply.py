@@ -108,7 +108,7 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
             bat_content.extend([
                 "net session >nul 2>&1",
                 "if %errorLevel% neq 0 (",
-                f"    powershell -Command \"Start-Process '%~f0' -Verb RunAs\"",
+                "    powershell -Command \"Start-Process '%~f0' -Verb RunAs\"",
                 "    exit /b",
                 ")"
             ])
@@ -122,11 +122,11 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
         
         bat_path.write_text("\n".join(bat_content), encoding="utf-8")
         
-        DETACHED_PROCESS = 0x00000008
-        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        detached_process = 0x00000008
+        create_new_process_group = 0x00000200
         subprocess.Popen(
             [str(bat_path)],
-            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            creationflags=detached_process | create_new_process_group,
             close_fds=True,
             cwd=str(temp_dir)
         )
