@@ -16,11 +16,11 @@
 ---
 
 
-📢 **Welcome to ShibaClaw v0.4.0!**
+📢 **Welcome to ShibaClaw v0.4.1!**
 This release brings:
-- **Mobile WebUI Perfection** — Overhauled the mobile interface, fixing chat header overflows, input action cutoffs, and session list scrolling. Added a smooth backdrop and touch-scrollable history.
-- **Notification Center Stability** — Major performance optimizations with rAF rendering, fixed threading race conditions, and simplified 'mark all read' logic.
-- **Telegram Channel Hardening** — Fixed unbounded memory growth in user mappings, added safety guards for typing loops, and improved Markdown parsing for nested bold/italic tags.
+- **Multilingual Memory Support** — Fixed regex tokenization to fully support non-Latin scripts (Cyrillic, CJK, etc.) across the agent's memory systems and Telegram integration.
+- **Thought Streaming UX** — Overhauled the reasoning display. `<think>` blocks are now natively rendered as fluid `<details>` components, persisting correctly across sessions. Also added unified UI support for models that return native reasoning fields (such as Gemini 2.0 Thinking or DeepSeek) outside of traditional text blocks.
+- **Windows Automatic Updates** — Implemented and hardened a self-replacing, UAC-aware background update system for `.exe` distributions.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---

@@ -1,46 +1,51 @@
 {
-    "version": "0.4.0",
-    "release_notes": "Mobile WebUI Perfection, Notification Center Stability, and Telegram Channel Hardening.",
+    "version": "0.4.1",
+    "release_notes": "Multilingual Memory Support, Concurrency Data Loss Fix, Telegram Group Bug Fix, Desktop Header UI Polish, and Updater Lint Fixes.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.0 release notes."
+            "note": "Added v0.4.1 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.0."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/responsive.css",
-            "overwrite": true,
-            "note": "Fixed mobile chat header overflow and session list scrolling."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/sidebar.css",
-            "overwrite": true,
-            "note": "Added touch scrolling and flex constraints for mobile sidebar."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/notification-center.js",
-            "overwrite": true,
-            "note": "Debounced render with requestAnimationFrame and simplified mark-all-read."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/main.js",
-            "overwrite": true,
-            "note": "Auto-close notification dropdown when opening mobile sidebar."
+            "note": "Bumped version to 0.4.1."
         },
         {
             "path": "shibaclaw/integrations/telegram.py",
             "overwrite": true,
-            "note": "Added FIFO eviction for _chat_ids, stop() guards, and nested bold/italic markdown parsing."
+            "note": "Fixed group chat ID routing and Unicode markdown formatting."
+        },
+        {
+            "path": "shibaclaw/webui/static/css/sidebar.css",
+            "overwrite": true,
+            "note": "Scaled header layout and enforced nowrap for desktop."
         },
         {
             "path": "shibaclaw/webui/static/index.html",
             "overwrite": true,
-            "note": "Removed deprecated Help button from sidebar tools."
+            "note": "Moved status block to header."
+        },
+        {
+            "path": "shibaclaw/webui/static/js/ui_panels.js",
+            "overwrite": true,
+            "note": "Fixed session expand button closing sidebar."
+        },
+        {
+            "path": "shibaclaw/agent/memory.py",
+            "overwrite": true,
+            "note": "Fixed proactive learning concurrency race condition."
+        },
+        {
+            "path": "shibaclaw/agent/tools/memory_search.py",
+            "overwrite": true,
+            "note": "Added Unicode support for multilingual tokenization."
+        },
+        {
+            "path": "shibaclaw/updater/apply.py",
+            "overwrite": true,
+            "note": "Fixed linting errors in updater code."
         }
     ]
 }

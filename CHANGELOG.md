@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
     
 ### Added
 - **Thought Streaming UX** — Overhauled the model reasoning display in the WebUI. `<think>` blocks are now rendered as native, fluid `<details>` (accordion) components with glassmorphism styling and "Reasoning in progress" indicators, eliminating layout shifts during streaming.
+- **Native Reasoning Support** — Added unified UI support for models that return native reasoning fields (like Gemini 2.0 Thinking or DeepSeek API) instead of raw `<think>` text blocks, ensuring all agent thoughts are rendered with the same beautiful accordion UX.
 - **Thought Persistence** — Modified the agent loop and context management to preserve full reasoning history in the database. Reasoning blocks are now correctly recovered and displayed when refreshing the page or switching sessions.
 - **Desktop Text Selection** — Enabled native text selection in the desktop WebView window (`ShibaClaw.exe`), allowing users to select and copy chat content.
 - **Windows Automatic Updates** — Implemented and hardened the automatic self-replacing update system for Windows executables (`ShibaClaw.exe`), including seamless process hand-off and UAC elevation handling.
