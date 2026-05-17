@@ -846,7 +846,11 @@ class ShibaBrain:
         if media_match:
             try:
                 media_json = json.loads(media_match.group(0))
-                media_list = media_json.get("media", [])
+                raw_media = media_json.get("media", [])
+                media_list = [
+                    str((self.workspace / p).resolve()) if not Path(p).is_absolute() else p
+                    for p in raw_media
+                ]
                 final_content = final_content.replace(media_match.group(0), "").strip()
             except Exception:
                 pass
