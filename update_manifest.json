@@ -1,6 +1,6 @@
 {
     "version": "0.4.2",
-    "release_notes": "Implemented Windows System Tray support, GitHub Star popup in WebUI, and fixed WebUI rendering issues.",
+    "release_notes": "Implemented 'Run on Startup' for the Windows System Tray, GitHub Star popup in WebUI, and fixed WebUI rendering issues.",
     "changes": [
         {
             "path": "CHANGELOG.md",

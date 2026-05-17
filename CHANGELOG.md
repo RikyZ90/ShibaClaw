@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 ## [0.4.2] - 2026-05-17
 
 ### Added
-- **Windows System Tray** — Added native system tray integration for the Desktop launcher (`ShibaClaw.exe`). The application now minimizes silently to the tray instead of closing completely, allowing the agent to remain active in the background. Includes a context menu to easily restore the WebUI, view logs, or quit the engine.
+- **Windows Auto-Start** — Added a "Run on Startup" option to the Windows System Tray menu. When enabled, ShibaClaw automatically launches when Windows boots up.
 - **GitHub Star Popup** — Added an elegant, non-intrusive popup in the WebUI to encourage users to star the repository. The popup appears after a smart 45-second delay and permanently dismisses itself via `localStorage` once interacted with.
     
 ### Fixed
