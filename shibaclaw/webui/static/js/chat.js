@@ -298,7 +298,7 @@ function renderMarkdown(text) {
         try {
             const parsed = JSON.parse(content);
             if (Array.isArray(parsed)) content = parsed;
-        } catch (e) { /* not JSON, continue with original string */ }
+        } catch (e) { }
     }
 
     if (Array.isArray(content)) {
@@ -315,20 +315,44 @@ function renderMarkdown(text) {
     if (typeof marked !== "undefined") {
         try {
             let processedContent = content;
+            const codeBlocks = [];
+            const inlineCodes = [];
             
-            // Process closed <think> blocks
+            processedContent = processedContent.replace(/```[\s\S]*?```/g, (match) => {
+                codeBlocks.push(match);
+                return `__CODE_BLOCK_PLACEHOLDER_${codeBlocks.length - 1}__`;
+            });
+            
+            processedContent = processedContent.replace(/`[^`]+`/g, (match) => {
+                inlineCodes.push(match);
+                return `__INLINE_CODE_PLACEHOLDER_${inlineCodes.length - 1}__`;
+            });
+            
             processedContent = processedContent.replace(/<think>([\s\S]*?)<\/think>/gi, (match, p1) => {
-                const innerParsed = marked.parse(p1.trim());
+                let restoredP1 = p1;
+                restoredP1 = restoredP1.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (m, idx) => inlineCodes[parseInt(idx, 10)]);
+                restoredP1 = restoredP1.replace(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g, (m, idx) => codeBlocks[parseInt(idx, 10)]);
+                const innerParsed = marked.parse(restoredP1.trim());
                 return `<details class="thought-block" open><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento concluso</summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
             });
             
-            // Process open <think> blocks (streaming)
             if (processedContent.match(/<think>([\s\S]*)$/i) && !processedContent.match(/<\/think>/i)) {
                 processedContent = processedContent.replace(/<think>([\s\S]*)$/i, (match, p1) => {
-                    const innerParsed = marked.parse(p1.trim());
+                    let restoredP1 = p1;
+                    restoredP1 = restoredP1.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (m, idx) => inlineCodes[parseInt(idx, 10)]);
+                    restoredP1 = restoredP1.replace(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g, (m, idx) => codeBlocks[parseInt(idx, 10)]);
+                    const innerParsed = marked.parse(restoredP1.trim());
                     return `<details class="thought-block" open><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento in corso...<span class="typing-dots-inline" style="margin-left:8px"><span></span><span></span><span></span></span></summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
                 });
             }
+            
+            processedContent = processedContent.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (match, p1) => {
+                return inlineCodes[parseInt(p1, 10)];
+            });
+            
+            processedContent = processedContent.replace(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g, (match, p1) => {
+                return codeBlocks[parseInt(p1, 10)];
+            });
 
             return marked.parse(processedContent);
         } catch (e) {
