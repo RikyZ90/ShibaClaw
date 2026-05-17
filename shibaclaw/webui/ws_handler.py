@@ -35,11 +35,15 @@ def _build_attachments(media_paths: list[str]) -> list[Dict[str, str]]:
     atts = []
     for m_path in media_paths:
         p = Path(m_path)
-        res = mimetypes.guess_type(m_path)
+        if not p.is_absolute():
+            cfg = agent_manager.config
+            if cfg:
+                p = (cfg.workspace_path / p).resolve()
+        res = mimetypes.guess_type(str(p))
         atts.append(
             {
                 "name": p.name,
-                "url": f"/api/file-get?path={urllib.parse.quote(str(p.absolute()))}",
+                "url": f"/api/file-get?path={urllib.parse.quote(str(p))}",
                 "type": res[0] or "application/octet-stream",
             }
         )
