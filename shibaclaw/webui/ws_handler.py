@@ -40,11 +40,23 @@ def _build_attachments(media_paths: list[str]) -> list[Dict[str, str]]:
             if cfg:
                 p = (cfg.workspace_path / p).resolve()
         res = mimetypes.guess_type(str(p))
+        mime_type = res[0]
+        if not mime_type:
+            ext = p.suffix.lower()
+            if ext in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}:
+                mime_type = f"image/{ext[1:]}"
+                if ext == ".jpg":
+                    mime_type = "image/jpeg"
+                elif ext == ".svg":
+                    mime_type = "image/svg+xml"
+            else:
+                mime_type = "application/octet-stream"
+        
         atts.append(
             {
                 "name": p.name,
                 "url": f"/api/file-get?path={urllib.parse.quote(str(p))}",
-                "type": res[0] or "application/octet-stream",
+                "type": mime_type,
             }
         )
     return atts

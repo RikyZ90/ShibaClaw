@@ -751,7 +751,19 @@ async function loadSession(sessionId) {
                         bubble.innerHTML = renderMarkdown(msg.content);
                         enhanceCodeBlocks(bubble);
 
-                        const attachments = msg.metadata?.attachments || [];
+                        let attachments = msg.metadata?.attachments ? [...msg.metadata.attachments] : [];
+                        if (msg.metadata?.media && Array.isArray(msg.metadata.media)) {
+                            msg.metadata.media.forEach(p => {
+                                const name = p.split(/[/\\]/).pop();
+                                let type = "application/octet-stream";
+                                if (name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) type = "image/png";
+                                attachments.push({
+                                    name: name,
+                                    url: "/api/file-get?path=" + encodeURIComponent(p),
+                                    type: type
+                                });
+                            });
+                        }
                         attachments.forEach(file => {
                             _appendHistoryAttachment(bubble, file);
                         });
