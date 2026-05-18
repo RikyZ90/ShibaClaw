@@ -51,7 +51,6 @@ Built on three pillars: **Simplicity · Security · Privacy**
 | Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Native Windows Desktop App (no WSL2 needed) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Working / Episodic / Semantic 3-tier memory | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Dedicated memory consolidation model (separate budget) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Shell hardening with 20+ deny-pattern guards | ✅ | ❌ | ❌ | ❌ | ❌ |
 | SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
