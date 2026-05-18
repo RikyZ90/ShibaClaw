@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.4] - 2026-05-18
+
+### Optimized
+- **Context Bloat Mitigation** — Added smart truncation for past tool outputs within the conversation history, dramatically reducing token usage and preventing context window exhaustion during extended sessions.
+  - Introduced `_HISTORY_TOOL_MAX_CHARS` (capped at 1500 characters) to `ScentBuilder` in `context.py`.
+  - Tool outputs from past conversation turns are now automatically truncated to 1500 characters when constructing LLM prompts.
+  - Active turn tool outputs remain fully available (up to the 8000 character limit) during active reasoning.
+  - The complete raw outputs are preserved intact in session databases, ensuring the WebUI still renders full transcripts without data loss.
+
 ## [0.4.3] - 2026-05-17
 
 ### Added
