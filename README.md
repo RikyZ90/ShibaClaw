@@ -53,7 +53,7 @@ Built on three pillars: **Simplicity · Security · Privacy**
 > *Feature comparison based on publicly available documentation as of May 2026.  
 > Some frameworks may offer partial implementations via third-party plugins.*
 
-**Also ships with:** 22 providers · 11 chat channels · built-in WebUI · cron · heartbeat · MCP · 8 skills · Agent Profiles
+**Also ships with:** 22 providers · 11 chat channels · built-in WebUI · cron · heartbeat · MCP · ClawHub · Agent Profiles
 
 ---
 
