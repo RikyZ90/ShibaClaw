@@ -12,6 +12,7 @@
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square&label=license&color=blue" alt="license"></a>
   <a href="https://deepwiki.com/RikyZ90/ShibaClaw"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
+<h3 align="center">Built on three pillars: <b>Simplicity · Security · Privacy</b></h3>
 
 ---
 
