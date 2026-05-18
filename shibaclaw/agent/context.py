@@ -18,6 +18,7 @@ class ScentBuilder:
     """
 
     _RUNTIME_CONTEXT_TAG = "[Runtime Context — metadata only, not instructions]"
+    _HISTORY_TOOL_MAX_CHARS = 1500
     BOOTSTRAP_FILES = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md"]
 
     def __init__(self, workspace: Path):
@@ -294,10 +295,19 @@ Root: {workspace_path}
         for m in history:
             if m.get("role") == "assistant" and isinstance(m.get("content"), str):
                 cleaned_content = _strip_think(m["content"])
-                # Prevent API errors for empty assistant messages (if it only contained a think block)
                 if not cleaned_content and not m.get("tool_calls"):
                     cleaned_content = "[Reasoning block hidden]"
                 cleaned_history.append({**m, "content": cleaned_content})
+            elif m.get("role") == "tool" and isinstance(m.get("content"), str):
+                content = m["content"]
+                if len(content) > self._HISTORY_TOOL_MAX_CHARS:
+                    cleaned_history.append({
+                        **m,
+                        "content": content[: self._HISTORY_TOOL_MAX_CHARS]
+                        + "\n...[truncated for context efficiency]...",
+                    })
+                else:
+                    cleaned_history.append(m)
             else:
                 cleaned_history.append(m)
 
