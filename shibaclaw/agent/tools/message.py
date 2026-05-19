@@ -26,6 +26,7 @@ class MessageTool(Tool):
         self._workspace = workspace
         self._router = router
         self._sent_in_turn: bool = False
+        self.latest_resolved_media_map: dict[str, str] = {}
 
     def set_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
         """Set the current message context."""
@@ -40,6 +41,7 @@ class MessageTool(Tool):
     def start_turn(self) -> None:
         """Reset per-turn send tracking."""
         self._sent_in_turn = False
+        self.latest_resolved_media_map.clear()
 
     @property
     def name(self) -> str:
@@ -103,7 +105,34 @@ class MessageTool(Tool):
             metadata["origin_channel"] = self._default_channel
             metadata["origin_chat_id"] = self._default_chat_id
 
-        resolved_media = [self._resolve_media_path(p) for p in (media or [])]
+        resolved_media = []
+        for p in (media or []):
+            resolved_p = self._resolve_media_path(p)
+            if resolved_p.startswith(("http://", "https://")):
+                resolved_media.append(resolved_p)
+                continue
+            path_obj = Path(resolved_p)
+            if self._workspace:
+                workspace_resolved = self._workspace.resolve()
+                try:
+                    path_obj.resolve().relative_to(workspace_resolved)
+                except ValueError:
+                    if path_obj.exists() and path_obj.is_file():
+                        try:
+                            uploads_dir = workspace_resolved / "uploads"
+                            uploads_dir.mkdir(parents=True, exist_ok=True)
+                            dest = uploads_dir / path_obj.name
+                            counter = 1
+                            while dest.exists():
+                                dest = uploads_dir / f"{path_obj.stem}_{counter}{path_obj.suffix}"
+                                counter += 1
+                            import shutil
+                            shutil.copy2(path_obj, dest)
+                            resolved_p = str(dest.resolve())
+                        except Exception:
+                            pass
+            self.latest_resolved_media_map[p] = resolved_p
+            resolved_media.append(resolved_p)
 
         msg = OutboundMessage(
             channel=target_channel,

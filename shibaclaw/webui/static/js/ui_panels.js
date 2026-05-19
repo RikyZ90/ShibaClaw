@@ -719,32 +719,38 @@ async function loadSession(sessionId) {
                         const preview = (msg.reasoning_content?.slice?.(0, 120)) || "";
                         turnSteps.push({ badge: "GEN", text: preview });
                     }
+
+                    let msgToolCall = null;
                     if (hasTc) {
                         for (const tc of msg.tool_calls) {
                             const fn = tc.function?.name || "tool";
-                            let args = "";
-                            try {
-                                const raw = tc.function?.arguments;
-                                if (raw) {
-                                    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-                                    const vals = Object.values(parsed);
-                                    if (vals.length > 0) {
-                                        const preview = String(vals[0]).replace(/\n/g, " ");
-                                        args = `("${truncate(preview, 60)}")`;
+                            if (fn === "message") {
+                                msgToolCall = tc;
+                            } else {
+                                let args = "";
+                                try {
+                                    const raw = tc.function?.arguments;
+                                    if (raw) {
+                                        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+                                        const vals = Object.values(parsed);
+                                        if (vals.length > 0) {
+                                            const preview = String(vals[0]).replace(/\n/g, " ");
+                                            args = `("${truncate(preview, 60)}")`;
+                                        }
                                     }
-                                }
-                            } catch { /* ignore parse errors */ }
-                            turnSteps.push({ badge: "EXE", text: fn + args });
+                                } catch { }
+                                turnSteps.push({ badge: "EXE", text: fn + args });
+                            }
                         }
                     }
 
-                    if (hasContent && !hasTc) {
+                    if (hasContent) {
                         const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
                         if (turnSteps.length > 0 && hasExeSteps) {
                             renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                             pgCount++;
+                            turnSteps = [];
                         }
-                        turnSteps = [];
                         const group = createMessageGroup("agent", fragment);
                         const bubble = document.createElement("div");
                         bubble.className = "message-bubble";
@@ -771,7 +777,54 @@ async function loadSession(sessionId) {
                         group.querySelector(".message-content").appendChild(bubble);
                         if (msg.timestamp) addTimestamp(group, msg.timestamp);
                         fragment.appendChild(group);
-                    } else if (!hasContent && !hasTc && turnSteps.length > 0) {
+                    }
+
+                    if (msgToolCall) {
+                        const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
+                        if (turnSteps.length > 0 && hasExeSteps) {
+                            renderProcessGroupFromHistory(turnId, turnSteps, fragment);
+                            pgCount++;
+                            turnSteps = [];
+                        }
+                        let toolContent = "";
+                        let toolMedia = [];
+                        try {
+                            const args = typeof msgToolCall.function.arguments === "string"
+                                ? JSON.parse(msgToolCall.function.arguments)
+                                : msgToolCall.function.arguments;
+                            toolContent = args.content || "";
+                            toolMedia = args.media || [];
+                        } catch (e) {
+                            console.error("Failed to parse message tool args:", e);
+                        }
+
+                        const group = createMessageGroup("agent", fragment);
+                        const bubble = document.createElement("div");
+                        bubble.className = "message-bubble";
+                        bubble.innerHTML = renderMarkdown(toolContent);
+                        enhanceCodeBlocks(bubble);
+
+                        let attachments = [];
+                        toolMedia.forEach(p => {
+                            const name = p.split(/[/\\]/).pop();
+                            let type = "application/octet-stream";
+                            if (name.match(/\.(png|jpe?g|gif|webp|svg)$/i)) type = "image/png";
+                            attachments.push({
+                                name: name,
+                                url: "/api/file-get?path=" + encodeURIComponent(p),
+                                type: type
+                            });
+                        });
+                        attachments.forEach(file => {
+                            _appendHistoryAttachment(bubble, file);
+                        });
+
+                        group.querySelector(".message-content").appendChild(bubble);
+                        if (msg.timestamp) addTimestamp(group, msg.timestamp);
+                        fragment.appendChild(group);
+                    }
+
+                    if (!hasContent && !msgToolCall && turnSteps.length > 0) {
                         renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                         pgCount++;
                         turnSteps = [];
@@ -2062,8 +2115,8 @@ function _renderUpdateActionSection(data) {
     const buttons = [];
     if (data.update_available && data.action_kind === "automatic") {
         buttons.push(`
-            <button class="btn-secondary" onclick="runUpdateAction()" ${_updateState.busy ? "disabled" : ""}>
-                <span class="material-icons-round" style="font-size:14px;vertical-align:middle">system_update</span> Update now
+            <button class="btn-primary" onclick="runUpdateAction()" ${_updateState.busy ? "disabled" : ""}>
+                <span class="material-icons-round" style="font-size:14px;vertical-align:middle">system_update</span> Install update
             </button>`);
     }
     if (actionUrl) {
@@ -2118,10 +2171,19 @@ window.runUpdateAction = async function () {
 
     _updateState.busy = true;
     panel.innerHTML = `
-        <div class="update-checking">
-            <div style="margin-bottom:8px;"><span class="material-icons-round spin" style="font-size:16px;vertical-align:middle;margin-right:8px;">progress_activity</span> <span id="update-progress-text">Preparing update...</span></div>
-            <div style="width:100%;height:8px;background:var(--bg-tertiary);border-radius:4px;overflow:hidden;margin-top:12px;">
-                <div id="update-progress-fill" style="width:0%;height:100%;background:var(--accent-primary);transition:width 0.2s ease;"></div>
+        <div class="update-progress-card">
+            <div class="update-progress-icon-wrap">
+                <span class="material-icons-round update-icon-pulsing">system_update</span>
+            </div>
+            <div class="update-progress-container">
+                <div class="update-progress-header">
+                    <span class="update-progress-title">Downloading Update</span>
+                    <span class="update-progress-percent" id="update-progress-percent">0%</span>
+                </div>
+                <div class="update-progress-track">
+                    <div id="update-progress-fill" class="update-progress-fill" style="width: 0%;"></div>
+                </div>
+                <div class="update-progress-status" id="update-progress-text">Preparing update...</div>
             </div>
         </div>`;
 
@@ -2161,13 +2223,19 @@ window.runUpdateAction = async function () {
 window.updateDownloadProgress = function(percent) {
     const textEl = document.getElementById("update-progress-text");
     const barEl = document.getElementById("update-progress-fill");
-    if (textEl) textEl.textContent = `Downloading update... ${percent}%`;
+    const percentEl = document.getElementById("update-progress-percent");
+    if (textEl) textEl.textContent = `Downloading update package...`;
+    if (percentEl) percentEl.textContent = `${percent}%`;
     if (barEl) barEl.style.width = percent + "%";
 };
 
 async function loadUpdatePanel(force = false) {
     const panel = $("update-status-container");
     if (!panel) return;
+
+    if (_updateState.busy) {
+        return;
+    }
 
     _updateState.manifestUrl = null;
     _updateState.manifest = null;

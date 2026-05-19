@@ -264,7 +264,7 @@ class DesktopRuntime:
 
     def _start_server(self) -> None:
         from shibaclaw.webui.server import ServerManager
-        from shibaclaw.webui.routers.system import set_restart_callback
+        from shibaclaw.webui.routers.system import set_restart_callback, set_shutdown_callback
 
         self._server_mgr = ServerManager(
             port=self._port,
@@ -274,6 +274,7 @@ class DesktopRuntime:
         )
         self._server_mgr.start()
         set_restart_callback(self._restart_gateway)
+        set_shutdown_callback(self._stop_gateway)
 
     def _stop_server(self) -> None:
         if self._server_mgr is not None:

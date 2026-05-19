@@ -30,6 +30,7 @@ class AgentManager:
         persist: bool = True,
         msg_type: str = "response",
         metadata: dict[str, Any] | None = None,
+        media: list[str] | None = None,
     ) -> dict[str, Any]:
         """Persist and deliver a background notification to matching browser sessions."""
         if not content:
@@ -48,6 +49,8 @@ class AgentManager:
                     stored_metadata = {"background": True, "source": source}
                     if metadata:
                         stored_metadata["notification"] = metadata
+                    if media:
+                        stored_metadata["media"] = media
                     session.add_message(
                         "assistant",
                         content,
@@ -79,6 +82,8 @@ class AgentManager:
         }
         if metadata is not None:
             deliver_kwargs["metadata"] = metadata
+        if media is not None:
+            deliver_kwargs["media"] = media
 
         delivered = await deliver_to_browsers(
             session_key,

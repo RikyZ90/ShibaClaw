@@ -835,14 +835,13 @@ class ShibaBrain:
         if final_content is None:
             final_content = "I've completed processing but have no response to give."
 
-        if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
-            return None
-
-        # Skip the user message we already eagerly persisted before the loop
         self._save_turn(session, all_msgs, 1 + len(history) + _pre_saved_count)
         self.sessions.save(session)
         self._schedule_background(self.memory_consolidator.maybe_consolidate_by_tokens(session))
         self._schedule_background(self.memory_consolidator.maybe_proactive_learn(session))
+
+        if (mt := self.tools.get("message")) and isinstance(mt, MessageTool) and mt._sent_in_turn:
+            return None
 
         media_list = []
         media_match = _MEDIA_RE.search(final_content)
@@ -875,6 +874,23 @@ class ShibaBrain:
             role, content = entry.get("role"), entry.get("content")
             if role == "assistant" and not content and not entry.get("tool_calls"):
                 continue
+
+            if role == "assistant" and entry.get("tool_calls"):
+                mt = self.tools.get("message")
+                if mt and isinstance(mt, MessageTool) and mt.latest_resolved_media_map:
+                    entry["tool_calls"] = json.loads(json.dumps(entry["tool_calls"]))
+                    for tc in entry["tool_calls"]:
+                        if tc.get("function", {}).get("name") == "message":
+                            try:
+                                args = json.loads(tc["function"]["arguments"])
+                                if "media" in args and isinstance(args["media"], list):
+                                    args["media"] = [
+                                        mt.latest_resolved_media_map.get(p, p)
+                                        for p in args["media"]
+                                    ]
+                                    tc["function"]["arguments"] = json.dumps(args, ensure_ascii=False)
+                            except Exception:
+                                pass
 
             if role == "assistant" and isinstance(content, str):
                 media_match = _MEDIA_RE.search(content)

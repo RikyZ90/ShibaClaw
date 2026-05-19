@@ -66,7 +66,7 @@ def _blank_result(install_method: InstallMethod, current: str) -> dict[str, Any]
         },
         "exe": {
             "action_kind": "automatic",
-            "action_label": "Update now",
+            "action_label": "Manual download",
             "action_command": None,
             "action_url": f"{GITHUB_REPO_URL}/releases/latest",
             "notes": [

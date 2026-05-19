@@ -55,6 +55,7 @@ async def api_update_manifest(request: Request):
 _ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli", "desktop"})
 
 _restart_callback: "Callable[[], None] | None" = None
+_shutdown_callback: "Callable[[], None] | None" = None
 
 
 def set_restart_callback(fn: "Callable[[], None]") -> None:
@@ -65,6 +66,11 @@ def set_restart_callback(fn: "Callable[[], None]") -> None:
     """
     global _restart_callback
     _restart_callback = fn
+
+
+def set_shutdown_callback(fn: "Callable[[], None]") -> None:
+    global _shutdown_callback
+    _shutdown_callback = fn
 
 
 def _safe_argv() -> list[str]:
@@ -156,7 +162,11 @@ async def api_update_apply(request: Request):
         async def _do_restart():
             await asyncio.sleep(1.0)
             if exe_result.get("ok"):
-                # If EXE was replaced, we must exit completely so the batch script can take over
+                if _shutdown_callback is not None:
+                    try:
+                        _shutdown_callback()
+                    except Exception:
+                        pass
                 import os
                 os._exit(0)
             elif _restart_callback is not None:

@@ -261,6 +261,7 @@ async def api_internal_session_notify(request: Request):
     persist = data.get("persist", True)
     metadata = data.get("metadata")
     msg_type = data.get("msg_type", "response")
+    media = data.get("media")
 
     result = await agent_manager.deliver_background_notification(
         session_key,
@@ -269,5 +270,6 @@ async def api_internal_session_notify(request: Request):
         persist=persist,
         metadata=metadata,
         msg_type=msg_type,
+        media=media,
     )
     return JSONResponse(result)

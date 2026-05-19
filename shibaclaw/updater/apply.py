@@ -98,7 +98,9 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
         except Exception:
             pass
             
-        bat_path = temp_dir / "update_script.bat"
+        import tempfile
+        import time
+        bat_path = Path(tempfile.gettempdir()) / f"shibaclaw_update_{int(time.time())}.bat"
         
         bat_content = [
             "@echo off",
@@ -115,9 +117,19 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
             
         bat_content.extend([
             "timeout /t 3 /nobreak",
-            f'xcopy /S /Y /E "{extracted_exe_path}\\*" "{current_exe_dir}\\"',
+            "set /a retry=0",
+            ":loop",
+            f'xcopy /S /Y /E "{extracted_exe_path}\\*" "{current_exe_dir}"',
+            "if %errorlevel% neq 0 (",
+            "    set /a retry+=1",
+            "    if %retry% lss 15 (",
+            "        timeout /t 1 /nobreak >nul",
+            "        goto loop",
+            "    )",
+            ")",
+            f'rmdir /S /Q "{temp_dir}"',
             f'start "" "{current_exe_dir}\\ShibaClaw.exe"',
-            f'rmdir /S /Q "{temp_dir}"'
+            'del "%~f0"'
         ])
         
         bat_path.write_text("\n".join(bat_content), encoding="utf-8")
@@ -128,7 +140,7 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
             [str(bat_path)],
             creationflags=detached_process | create_new_process_group,
             close_fds=True,
-            cwd=str(temp_dir)
+            cwd=tempfile.gettempdir()
         )
         
         return {"ok": True, "output": "Update downloaded, batch script started."}

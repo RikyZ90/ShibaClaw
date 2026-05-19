@@ -2,7 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.4.4] - 2026-05-18
+## [0.4.4] - 2026-05-19
+
+### Added
+- **Premium Update Progress UI** — Designed a stunning, glassmorphic download progress card in the WebUI with gold-gradient bars and pulsing animation for clear visual feedback.
+- **Progress Persistence** — Prevented settings modal or tab switching from interrupting or resetting the active download progress display.
 
 ### Optimized
 - **Context Bloat Mitigation** — Added smart truncation for past tool outputs within the conversation history, dramatically reducing token usage and preventing context window exhaustion during extended sessions.
@@ -10,6 +14,12 @@ All notable changes to this project are documented in this file.
   - Tool outputs from past conversation turns are now automatically truncated to 1500 characters when constructing LLM prompts.
   - Active turn tool outputs remain fully available (up to the 8000 character limit) during active reasoning.
   - The complete raw outputs are preserved intact in session databases, ensuring the WebUI still renders full transcripts without data loss.
+
+### Fixed
+- **Windows EXE Updater Process Lock** — Hardened self-replacing update execution on Windows by cleanly terminating the background gateway child process prior to restarting.
+- **Hardened Update Installer Script** — Refactored the update batch script to write/execute from `%TEMP%` to avoid directory locks, added robust xcopy write-retry loops up to 15 times, and configured self-deletion after successful installation.
+- **WebView2 WebUI Cache Busting** — Implemented no-cache headers (`Cache-Control: no-cache, no-store, must-revalidate`) for all WebUI routes and static assets to prevent Windows desktop WebView2 from caching stale JavaScript or CSS.
+- **Duplicate Action Button UX** — Fixed duplicate "Update now" buttons in the update available card by renaming the secondary manual update action label to "Manual download".
 
 ## [0.4.3] - 2026-05-17
 

@@ -283,6 +283,8 @@ class ChannelManager:
                                 session_key=f"webui:{msg.chat_id}",
                                 content=msg.content,
                                 persist=False,  # Already saved in session by loop.py
+                                media=msg.media,
+                                metadata=msg.metadata,
                             )
                         except Exception as e:
                             logger.error("Failed to push to WebUI: {}", e)

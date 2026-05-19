@@ -75,6 +75,15 @@ from .ws_handler import ws_endpoint
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+class NoCacheStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+
 def create_app(
     config: Any | None = None,
     provider: Any | None = None,
@@ -87,7 +96,11 @@ def create_app(
         agent_manager.provider = provider
 
     async def index(request):
-        return FileResponse(STATIC_DIR / "index.html")
+        response = FileResponse(STATIC_DIR / "index.html")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     routes = [
         Route("/", index),
@@ -144,7 +157,7 @@ def create_app(
         Route("/api/profiles/{profile_id}", api_profiles_delete, methods=["DELETE"]),
         Route("/api/internal/session-notify", api_internal_session_notify, methods=["POST"]),
         WebSocketRoute("/ws", ws_endpoint),
-        Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
+        Mount("/static", app=NoCacheStaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
 
     app = Starlette(routes=routes)
@@ -232,6 +245,7 @@ async def _start_gateway_client() -> None:
                 persist = payload.get("persist", True)
                 metadata = payload.get("metadata")
                 msg_type = payload.get("msg_type", "response")
+                media = payload.get("media")
                 if content:
                     await agent_manager.deliver_background_notification(
                         sk,  # may be empty for system broadcasts
@@ -240,6 +254,7 @@ async def _start_gateway_client() -> None:
                         persist=persist,
                         msg_type=msg_type,
                         metadata=metadata,
+                        media=media,
                     )
 
             gateway_client.on_event("session.notify", _on_session_notify)

@@ -176,6 +176,7 @@ async def notify_webui_session(
     persist: bool = True,
     metadata: dict[str, Any] | None = None,
     msg_type: str = "response",
+    media: list[str] | None = None,
 ) -> bool:
     if not response:
         return False
@@ -195,6 +196,8 @@ async def notify_webui_session(
     }
     if metadata is not None:
         payload["metadata"] = metadata
+    if media is not None:
+        payload["media"] = media
 
     for base_url in _iter_webui_notify_urls():
         try:

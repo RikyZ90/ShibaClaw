@@ -1,31 +1,36 @@
 {
-    "version": "0.4.3",
-    "release_notes": "Telegram Group Context Support: manage context, trigger words, and non-reply messages in Telegram group chats.",
+    "version": "0.4.4",
+    "release_notes": "Premium Update UI & Hardened Windows EXE Auto-Updater: features a stunning progress bar, WebView2 cache busting, graceful background shutdown, and robust directory unlock retry loops.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.3 release notes."
+            "note": "Added v0.4.4 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.3."
+            "note": "Bumped version to 0.4.4."
         },
         {
-            "path": "shibaclaw/integrations/telegram.py",
+            "path": "shibaclaw/webui/static/css/modals.css",
             "overwrite": true,
-            "note": "Implemented group trigger words, group policies, and no_reply metadata context accumulation."
+            "note": "Premium glassmorphic progress card and keyframe animations."
         },
         {
-            "path": "shibaclaw/agent/loop.py",
+            "path": "shibaclaw/webui/static/js/ui_panels.js",
             "overwrite": true,
-            "note": "Added short-circuit return for messages with no_reply metadata."
+            "note": "Progress bar updates and persistent display state."
         },
         {
-            "path": "shibaclaw/desktop/launcher.py",
+            "path": "shibaclaw/webui/server.py",
             "overwrite": true,
-            "note": "Fixed pywebview localStorage wiping by explicitly disabling private_mode."
+            "note": "WebView2 cache-busting headers."
+        },
+        {
+            "path": "shibaclaw/updater/apply.py",
+            "overwrite": true,
+            "note": "Hardened update installer script executing from Temp with xcopy retry loop."
         }
     ]
 }

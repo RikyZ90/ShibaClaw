@@ -531,6 +531,7 @@ async def deliver_to_browsers(
     source: str = "background",
     msg_type: str = "response",
     metadata: dict | None = None,
+    media: list[str] | None = None,
 ) -> int:
     """Deliver a background notification to matching browser WebSocket clients.
 
@@ -547,7 +548,7 @@ async def deliver_to_browsers(
         "type": msg_type,
         "id": str(uuid.uuid4())[:8],
         "content": content,
-        "attachments": [],
+        "attachments": _build_attachments(media or []),
         "session_key": session_key,
         "source": source,
     }
