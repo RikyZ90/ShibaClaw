@@ -43,11 +43,8 @@ Built on three pillars: **Simplicity · Security · Privacy**
 
 | Feature | ShibaClaw | OpenClaw | ZeroClaw | Nanobot | Hermes Agent |
 |---|---|---|---|---|---|
-| Security-first by design — not a plugin | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Native Windows Desktop App (no WSL2 needed) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Shell hardening with 20+ deny-pattern guards | ✅ | ❌ | ❌ | ❌ | ❌ |
 | SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 > *Feature comparison based on publicly available documentation as of May 2026.  
