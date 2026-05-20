@@ -40,7 +40,7 @@ ShibaClaw implements defense-in-depth across multiple layers:
 - **Shell deny-list**: The `exec` tool blocks 20+ dangerous patterns (fork bombs, `rm -rf /`, `sudo`, hex/unicode-encoded obfuscation, command substitution, `curl|bash`) before execution.
 - **Install audit**: `pip install` commands are scanned for known CVEs via `pip-audit`. `npm install` commands are scanned via `npm audit`. Severity threshold is configurable (`installAuditBlockSeverity`).
 - **Tool output truncation**: LLM context is protected from overflow via configurable character caps on tool results.
-- **Structural randomized wrapping**: A random nonce is regenerated each turn and used to fence tool outputs, mitigating prompt injection from untrusted content.
+- **Structural randomized wrapping**: A random nonce is regenerated each turn and used to fence tool outputs, mitigating prompt injection from untrusted content. This core defense mechanism (Randomized Tool Output Wrapping or RTOW) has been decoupled and packaged as a standalone, zero-dependency Python library called [Muzzle](https://github.com/RikyZ90/Muzzle) so you can easily protect any AI agent framework.
 - **Untrusted content banner**: Web-fetched content is explicitly marked with `[UNTRUSTED EXTERNAL CONTENT]` delimiters.
 - **Workspace sandboxing**: File tools and the WebUI file browser are constrained to the configured workspace root.
 

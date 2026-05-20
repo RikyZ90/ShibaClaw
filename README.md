@@ -109,6 +109,9 @@ Defenses that are normally scattered across app glue or external proxies — in 
 
 ### 🛡️ Prompt-Injection Wrapping (Tool Sandboxing)
 Instead of simply feeding raw tool outputs back to the LLM, ShibaClaw wraps every tool result in a dynamically generated XML-like boundary with a randomized nonce (e.g., `<tool_output_a1b2c3d4>`). 
+
+> 💡 **Standalone Defense**: This core security mechanism (Randomized Tool Output Wrapping) has been decoupled and packaged as a standalone, zero-dependency Python library called [Muzzle](https://github.com/RikyZ90/Muzzle). You can use Muzzle to protect any agent framework (LangChain, LlamaIndex, CrewAI, AutoGen, or custom LLM loops) using this identical technique.
+
 **Why this matters:** Attackers often try to prematurely close tags or inject fake system instructions inside tool outputs (like web page content). By using a randomized boundary generated per-iteration, the agent can reliably differentiate between actual system instructions and injected payloads. Furthermore, any attempt to inject the specific closing tag inside the content is automatically sanitized and escaped, ensuring the sandbox remains airtight and the original system prompt takes precedence.
 
 ### 🔍 Install-Time Package Autoscan
