@@ -8,6 +8,15 @@ from starlette.responses import JSONResponse
 
 from shibaclaw.webui.agent_manager import agent_manager
 from shibaclaw.webui.utils import _deep_merge, _redact_secrets
+from typing import Any
+
+
+def _filter_redacted(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: _filter_redacted(v) for k, v in data.items() if v != "***"}
+    elif isinstance(data, list):
+        return [_filter_redacted(item) for item in data]
+    return data
 
 
 def _normalize_provider_name(provider_name: str) -> str:
@@ -151,7 +160,8 @@ async def api_settings_post(request: Request):
         merged = old_cfg.model_dump(mode="json", by_alias=True)
         if isinstance(data.get("tools"), dict) and "mcpServers" in data["tools"]:
             merged.setdefault("tools", {})["mcpServers"] = data["tools"]["mcpServers"]
-        _deep_merge(merged, data)
+        filtered_data = _filter_redacted(data)
+        _deep_merge(merged, filtered_data)
 
         try:
             new_cfg = Config.model_validate(merged)

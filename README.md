@@ -17,12 +17,11 @@
 ---
 
 
-📢 **Welcome to ShibaClaw v0.4.4!**
+📢 **Welcome to ShibaClaw v0.4.5!**
 This release brings:
-- **Premium Update Progress UI** — Designed a stunning, glassmorphic download progress card in the WebUI with gold-gradient bars and pulsing animation for clear visual feedback.
-- **Hardened Windows Auto-Updater** — Cleanly terminates the background gateway child process prior to restarting to resolve Windows EXE updater process locks, and executes self-deleting scripts from Temp with robust write retry loops.
-- **WebView2 Cache Busting** — Configured Starlette to serve cache-busting headers so that the Windows desktop WebUI loads the latest styling and javascript instantly.
-- **Context Bloat Mitigation** — Added smart truncation for past tool outputs within the conversation history, dramatically reducing token usage.
+- **Native Windows Toast Notifications** — Integrated OS-level notifications for the packaged executable using `pystray` when the desktop app is minimized or hidden.
+- **Deduplicated Agent Notifications** — Removed redundant server-side notifications, relying exclusively on frontend focus-checking state logic to prevent multiple alerts.
+- **Cooldown System** — Implemented a robust 10-second notification cooldown logic to safeguard users against system notification floods.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---

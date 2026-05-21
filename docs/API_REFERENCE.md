@@ -160,6 +160,35 @@ Update configuration with a **partial** JSON object (deep-merged into the curren
 
 ---
 
+### `GET /api/models`
+
+Get available models for one provider or aggregate all configured providers.
+
+**Query params**
+
+| Param | Required | Description |
+|---|---|---|
+| `provider` | ❌ | Name of the provider to fetch models for |
+
+**Response**
+
+```json
+{
+  "models": [
+    {
+      "id": "openai/gpt-4o",
+      "raw_id": "gpt-4o",
+      "name": "GPT-4o",
+      "provider": "openai",
+      "provider_label": "OpenAI"
+    }
+  ],
+  "errors": []
+}
+```
+
+---
+
 ## Sessions
 
 ### `GET /api/sessions`
@@ -210,14 +239,15 @@ Get details and message history for a specific session.
 
 ### `PATCH /api/sessions/{session_id}`
 
-Update session metadata (nickname and/or profile).
+Update session metadata (nickname and/or profile) or dynamically switch the active model.
 
 **Request body** (all fields optional)
 
 ```json
 {
   "nickname": "Renamed session",
-  "profile_id": "my-profile"
+  "profile_id": "my-profile",
+  "model": "gpt-4o"
 }
 ```
 
@@ -254,6 +284,74 @@ Archive a session: consolidates its messages into long-term memory via the gatew
 ```json
 { "status": "archived" }
 ```
+
+---
+
+## Notifications
+
+Manage the WebUI notification center.
+
+### `GET /api/v1/notifications`
+
+List saved notifications.
+
+**Query params**
+
+| Param | Required | Description |
+|---|---|---|
+| `unread` | ❌ | If `true`, returns only unread notifications |
+| `limit` | ❌ | Maximum number of notifications to return |
+
+**Response**
+
+```json
+{
+  "notifications": [
+    {
+      "id": "notif_123",
+      "read": false,
+      "message": "Update available",
+      "source": "system"
+    }
+  ]
+}
+```
+
+---
+
+### `POST /api/v1/notifications`
+
+Create a new notification or modify read state.
+
+**Request body**
+
+To create:
+```json
+{
+  "message": "Hello!",
+  "source": "heartbeat"
+}
+```
+
+To modify read state:
+```json
+{
+  "operation": "mark_read",
+  "id": "notif_123"
+}
+```
+
+---
+
+### `DELETE /api/v1/notifications`
+
+Clear notifications.
+
+**Query params**
+
+| Param | Required | Description |
+|---|---|---|
+| `id` | ❌ | ID of the specific notification to delete. If omitted, deletes all notifications. |
 
 ---
 
@@ -908,6 +1006,18 @@ Submit a device authorization code to complete the OAuth flow.
 
 ---
 
+### `GET /api/oauth/openrouter/callback`
+
+Handle OpenRouter OAuth PKCE callback flow.
+
+---
+
+### `GET /api/oauth/openrouter/callback/{job_id}/{flow_token}`
+
+Handle OpenRouter OAuth PKCE callback flow with job ID tracking.
+
+---
+
 ## Onboarding
 
 First-run wizard endpoints for configuring providers and workspace templates.
@@ -1192,29 +1302,57 @@ ws://127.0.0.1:3000/ws?token=<your-token>
 
 ### Client → Server messages
 
-All messages are JSON objects with an `action` field.
+All messages are JSON objects with a `type` field.
 
 #### Start a chat turn
 
 ```json
 {
-  "action": "chat",
-  "session_id": "abc123",
-  "message": "Hello, agent!",
-  "profile_id": "default"
+  "type": "message",
+  "id": "msg_abc123",
+  "content": "Hello, agent!",
+  "attachments": []
 }
 ```
 
 #### Interrupt the agent
 
 ```json
-{ "action": "interrupt" }
+{ "type": "stop" }
 ```
 
 #### Keep-alive ping
 
 ```json
-{ "action": "ping" }
+{ "type": "ping" }
+```
+
+#### Start a new session
+
+```json
+{
+  "type": "new_session",
+  "profile_id": "default"
+}
+```
+
+#### Switch session
+
+```json
+{
+  "type": "switch_session",
+  "session_id": "webui:abc12345"
+}
+```
+
+#### Transcribe audio
+
+```json
+{
+  "type": "transcribe",
+  "id": "req_123",
+  "audio": "base64_encoded_audio_string..."
+}
 ```
 
 ### Server → Client messages
@@ -1224,16 +1362,19 @@ All messages are JSON objects with a `type` field.
 | `type` | Description |
 |---|---|
 | `pong` | Response to `ping` |
+| `connected` | Client connected successfully: `{ "type": "connected", "session_id": "...", "profile_id": "..." }` |
+| `session_reset` | A new session was started |
+| `session_status` | Status update for session processing state |
 | `thinking` | Agent is processing |
-| `chunk` | Streaming text chunk: `{ "type": "chunk", "content": "..." }` |
-| `tool_call` | Agent is invoking a tool: `{ "type": "tool_call", "name": "...", "input": {...} }` |
-| `tool_result` | Tool result: `{ "type": "tool_result", "name": "...", "output": "..." }` |
-| `done` | Turn complete |
+| `response_chunk` | Streaming text chunk: `{ "type": "response_chunk", "content": "..." }` |
+| `tool` | Agent tool call or tool result: `{ "type": "tool", "content": "...", "tool_hint": true }` |
+| `response` | Turn complete with final response and attachments |
 | `error` | An error occurred: `{ "type": "error", "message": "..." }` |
 | `notification` | Background notification delivered to the session |
+| `system_event` | System-level event (e.g. progress updates) |
 
 Background notifications may include `source` and `metadata` fields. Update notifications use `metadata.category = "update"` plus optional `title`, `body`, `action_command`, and `action_url` fields.
 
 ---
 
-*Generated from source code — last updated with ShibaClaw v0.1.x*
+*Generated from source code — last updated with ShibaClaw v0.4.5*

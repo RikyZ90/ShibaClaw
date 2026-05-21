@@ -150,9 +150,22 @@ class TrayIcon:
         self._thread.start()
         logger.info("Process started")
 
+    def notify(self, title: str, message: str) -> None:
+        """Send a native OS toast/balloon notification via the tray icon."""
+        if self._icon is None:
+            return
+        try:
+            self._icon.notify(message, title=title)
+        except Exception as e:
+            logger.debug("Tray notify failed: {}", e)
+
     def stop(self) -> None:
         """Stop the tray icon."""
         if self._icon:
+            try:
+                self._icon.remove_notification()
+            except Exception:
+                pass
             self._icon.stop()
             self._icon = None
         if self._thread:

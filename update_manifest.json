@@ -1,36 +1,51 @@
 {
-    "version": "0.4.4",
-    "release_notes": "Premium Update UI & Hardened Windows EXE Auto-Updater: features a stunning progress bar, WebView2 cache busting, graceful background shutdown, and robust directory unlock retry loops.",
+    "version": "0.4.5",
+    "release_notes": "Native Windows Toast Notifications & Duplicate Agent Notification Fix: integrates pystray OS toast notifications for minimized desktop app, and fixes duplicate agent chat alerts by consolidating WebUI notification dispatch.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.4 release notes."
+            "note": "Added v0.4.5 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.4."
+            "note": "Bumped version to 0.4.5."
         },
         {
-            "path": "shibaclaw/webui/static/css/modals.css",
+            "path": "README.md",
             "overwrite": true,
-            "note": "Premium glassmorphic progress card and keyframe animations."
+            "note": "Updated welcome announcement to v0.4.5."
         },
         {
-            "path": "shibaclaw/webui/static/js/ui_panels.js",
+            "path": "shibaclaw/webui/ws_handler.py",
             "overwrite": true,
-            "note": "Progress bar updates and persistent display state."
+            "note": "Removed redundant server-side WebSocket notification creation."
         },
         {
-            "path": "shibaclaw/webui/server.py",
+            "path": "shibaclaw/desktop/tray.py",
             "overwrite": true,
-            "note": "WebView2 cache-busting headers."
+            "note": "Added notify interface to TrayIcon using pystray."
         },
         {
-            "path": "shibaclaw/updater/apply.py",
+            "path": "shibaclaw/desktop/controller.py",
             "overwrite": true,
-            "note": "Hardened update installer script executing from Temp with xcopy retry loop."
+            "note": "Added window visibility tracking, native notification handler, and 10s cooldown."
+        },
+        {
+            "path": "shibaclaw/helpers/notification_manager.py",
+            "overwrite": true,
+            "note": "Added listener callback system to NotificationManager."
+        },
+        {
+            "path": "shibaclaw/desktop/launcher.py",
+            "overwrite": true,
+            "note": "Wired NotificationManager listener to DesktopController native notifications."
+        },
+        {
+            "path": "shibaclaw/updater/update_manifest.json",
+            "overwrite": true,
+            "note": "Bumped packaged update manifest to v0.4.5."
         }
     ]
 }

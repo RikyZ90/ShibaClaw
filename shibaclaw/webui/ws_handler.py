@@ -369,23 +369,6 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 },
             )
 
-            # Create notification for other sessions/browser tabs
-            if response_content:
-                try:
-                    from shibaclaw.helpers.notification_manager import notification_manager
-                    notif = notification_manager.create_notification(
-                        message=response_content[:200],
-                        kind="agent_response",
-                        source="agent_response",
-                        session_key=session_key,
-                        title="Agent response ready",
-                        action={"kind": "session", "label": "Open session", "target": session_key},
-                        dedupe_key=f"agent-response:{session_key}:{message['id']}",
-                    )
-                    await broadcast_notification(notif)
-                except Exception:
-                    pass
-
         except asyncio.CancelledError:
             pass
         except Exception as e:

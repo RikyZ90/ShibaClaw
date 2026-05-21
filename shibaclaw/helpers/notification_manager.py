@@ -6,7 +6,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 NotificationActionKind = Literal["none", "session", "url", "command", "settings-tab"]
 
@@ -59,6 +59,13 @@ class NotificationManager:
         self._max_items = max_items
         self._lock = threading.Lock()
         self._items: list[NotificationItem] = []
+        self._listeners: list[Callable[[dict[str, Any]], None]] = []
+
+    def add_listener(self, callback: Callable[[dict[str, Any]], None]) -> None:
+        """Register a callback to be invoked when a new notification is created."""
+        with self._lock:
+            if callback not in self._listeners:
+                self._listeners.append(callback)
 
     def _coerce_kind(
         self,
@@ -214,7 +221,15 @@ class NotificationManager:
             self._items.insert(0, item)
             if len(self._items) > self._max_items:
                 del self._items[self._max_items :]
-            return item.to_dict()
+            item_dict = item.to_dict()
+
+        for listener in self._listeners:
+            try:
+                listener(item_dict)
+            except Exception:
+                pass
+
+        return item_dict
 
     def create_from_event(
         self,

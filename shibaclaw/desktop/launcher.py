@@ -177,9 +177,26 @@ def run(
     from shibaclaw.desktop.tray import HAS_TRAY_DEPS, TrayIcon
     if HAS_TRAY_DEPS:
         tray = TrayIcon(controller)
+        controller.set_tray(tray)
         tray.start()
     else:
         logger.debug("Optional tray dependencies (pystray, PIL) missing; tray icon disabled")
+
+    # Initialize visibility state
+    if window_config.get("start_hidden"):
+        controller.window_visible = False
+
+    # ------------------------------------------------------------------
+    # Forward notifications to native OS toast
+    # ------------------------------------------------------------------
+    from shibaclaw.helpers.notification_manager import notification_manager
+    def _on_notification(notif: dict[str, Any]) -> None:
+        title = notif.get("title") or "ShibaClaw"
+        message = notif.get("message")
+        if message:
+            controller.send_native_notification(title, message)
+            
+    notification_manager.add_listener(_on_notification)
 
     # ------------------------------------------------------------------
     # Close-button policy

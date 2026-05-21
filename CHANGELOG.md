@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.5] - 2026-05-21
+
+### Added
+- **Native Windows Toast Notifications** — Integrated OS-level notifications for the packaged executable. The system tray icon now leverages `pystray` to deliver toast alerts when the desktop app is minimized or hidden in the tray. Backed by visibility state tracking and a 10-second cooldown per notification to prevent spam.
+
+### Fixed
+- **Duplicate Agent Notifications** — Resolved a bug where multiple notifications were fired per agent response. Removed redundant server-side WebSocket notification creation, delegating solely to the frontend `notification-center.js` focus-checking logic.
+
+### Security
+- **Asterisk Merge Vulnerability** — Fixed a critical configuration vulnerability in `settings.py` where saving a redacted configuration payload could silently overwrite and corrupt stored API keys with `"***"`.
+
+### Changed
+- **API Reference Documentation** — Completely overhauled `API_REFERENCE.md` to match the current WebUI behavior. Documented missing REST endpoints (e.g., `/api/models`, `/api/v1/notifications`, OAuth callbacks) and modernized the WebSocket specification to correctly reflect the `"type"`-based payload structure and missing server events. @dercar2
+
 ## [0.4.4] - 2026-05-19
 
 ### Added

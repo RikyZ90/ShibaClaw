@@ -16,13 +16,17 @@ Usage::
 from __future__ import annotations
 
 import threading
+import time
 import webbrowser
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from loguru import logger
 
 from shibaclaw.config.paths import get_app_root, get_logs_dir, get_workspace_path
 from shibaclaw.desktop.runtime import DesktopRuntime
+
+if TYPE_CHECKING:
+    from shibaclaw.desktop.tray import TrayIcon
 
 
 class DesktopController:
@@ -31,6 +35,8 @@ class DesktopController:
     The *window_show* and *window_hide* callables are injected by the
     launcher so this class stays decoupled from any specific GUI toolkit.
     """
+
+    _NATIVE_NOTIFY_COOLDOWN = 10.0
 
     def __init__(
         self,
@@ -44,6 +50,9 @@ class DesktopController:
         self._window_hide = window_hide
         self._quit_callback = quit_callback
         self._quitting = False
+        self._tray: TrayIcon | None = None
+        self._window_visible = True
+        self._last_native_notify = 0.0
 
     # ------------------------------------------------------------------
     # Compatibility Aliases (for code using snake_case)
@@ -68,11 +77,13 @@ class DesktopController:
 
     def show_window(self) -> None:
         """Bring the embedded window to the foreground."""
+        self._window_visible = True
         if self._window_show:
             self._window_show()
 
     def hide_window(self) -> None:
         """Hide the embedded window (minimise to tray)."""
+        self._window_visible = False
         if self._window_hide:
             self._window_hide()
 
@@ -136,6 +147,33 @@ class DesktopController:
             self._runtime.stop()
 
         threading.Thread(target=_do_quit, name="shibaclaw-quit", daemon=True).start()
+
+    # ------------------------------------------------------------------
+    # Native OS notifications
+    # ------------------------------------------------------------------
+
+    def set_tray(self, tray: TrayIcon) -> None:
+        self._tray = tray
+
+    @property
+    def window_visible(self) -> bool:
+        return self._window_visible
+
+    @window_visible.setter
+    def window_visible(self, value: bool) -> None:
+        self._window_visible = value
+
+    def send_native_notification(self, title: str, message: str) -> None:
+        """Send a native Windows toast notification if the window is not visible."""
+        if self._window_visible:
+            return
+        if not self._tray:
+            return
+        now = time.monotonic()
+        if now - self._last_native_notify < self._NATIVE_NOTIFY_COOLDOWN:
+            return
+        self._last_native_notify = now
+        self._tray.notify(title, message)
 
 
 # ------------------------------------------------------------------
