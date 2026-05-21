@@ -2,18 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.4.5] - 2026-05-21
-
-### Added
-- **Native Windows Toast Notifications** — Integrated OS-level notifications for the packaged executable. The system tray icon now leverages `pystray` to deliver toast alerts when the desktop app is minimized or hidden in the tray. Backed by visibility state tracking and a 10-second cooldown per notification to prevent spam.
+## [0.4.6] - 2026-05-21
 
 ### Fixed
-- **Duplicate Agent Notifications** — Resolved a bug where multiple notifications were fired per agent response. Removed redundant server-side WebSocket notification creation, delegating solely to the frontend `notification-center.js` focus-checking logic.
+- **Windows Updater Process Lock** — Hardened the update installer batch script by explicitly killing all gateway child processes immediately prior to `xcopy`, rather than waiting up to 5 seconds for a graceful shutdown. This prevents the update script from copying files while they are still locked by the OS.
+- **Update Cache Invalidation** — The update checker's local cache is now forcefully invalidated upon successfully applying an update. This ensures the UI correctly reflects that the latest version has been installed immediately upon restarting.
+- **Hardened Update Batch Script** — Increased the timeout window of the Windows self-replacing updater from 3s to 8s, added the `/I` flag to `xcopy` to ensure proper directory treatment, and appended `>nul 2>&1` to suppress noisy shell output during detached execution.
 
-### Security
-- **Asterisk Merge Vulnerability** — Fixed a critical configuration vulnerability in `settings.py` where saving a redacted configuration payload could silently overwrite and corrupt stored API keys with `"***"`.
-
-### Changed
+## [0.4.5] - 2026-05-21
 - **API Reference Documentation** — Completely overhauled `API_REFERENCE.md` to match the current WebUI behavior. Documented missing REST endpoints (e.g., `/api/models`, `/api/v1/notifications`, OAuth callbacks) and modernized the WebSocket specification to correctly reflect the `"type"`-based payload structure and missing server events. @dercar2
 
 ## [0.4.4] - 2026-05-19
