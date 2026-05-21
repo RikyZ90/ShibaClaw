@@ -1,6 +1,6 @@
 {
     "version": "0.4.5",
-    "release_notes": "Native Windows Toast Notifications & Duplicate Agent Notification Fix: integrates pystray OS toast notifications for minimized desktop app, and fixes duplicate agent chat alerts by consolidating WebUI notification dispatch.",
+    "release_notes": "Security Hardening (Asterisk Merge fix), API Reference Overhaul, Native Windows Toast Notifications, and Duplicate Agent Notification Fix.",
     "changes": [
         {
             "path": "CHANGELOG.md",
@@ -16,6 +16,16 @@
             "path": "README.md",
             "overwrite": true,
             "note": "Updated welcome announcement to v0.4.5."
+        },
+        {
+            "path": "shibaclaw/webui/routers/settings.py",
+            "overwrite": true,
+            "note": "Fixed Asterisk Merge vulnerability."
+        },
+        {
+            "path": "docs/API_REFERENCE.md",
+            "overwrite": true,
+            "note": "Overhauled API surface documentation."
         },
         {
             "path": "shibaclaw/webui/ws_handler.py",

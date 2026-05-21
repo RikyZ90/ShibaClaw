@@ -19,9 +19,10 @@
 
 📢 **Welcome to ShibaClaw v0.4.5!**
 This release brings:
+- **Security Hardening** — Resolved a critical "Asterisk Merge" vulnerability in the configuration router to prevent corruption of stored API keys.
+- **API Surface Documentation** — Completely overhauled `API_REFERENCE.md` to document missing REST endpoints and modernize the WebSocket protocol schema.
 - **Native Windows Toast Notifications** — Integrated OS-level notifications for the packaged executable using `pystray` when the desktop app is minimized or hidden.
 - **Deduplicated Agent Notifications** — Removed redundant server-side notifications, relying exclusively on frontend focus-checking state logic to prevent multiple alerts.
-- **Cooldown System** — Implemented a robust 10-second notification cooldown logic to safeguard users against system notification floods.
 See the [Changelog](./CHANGELOG.md) for details.
 
 ---
