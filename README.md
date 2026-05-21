@@ -17,7 +17,7 @@
 ---
 
 
-📢 **Welcome to ShibaClaw v0.4.5!**
+📢 **Welcome to ShibaClaw v0.4.6!**
 This release brings:
 - **Security Hardening** — Resolved a critical "Asterisk Merge" vulnerability in the configuration router to prevent corruption of stored API keys.
 - **API Surface Documentation** — Completely overhauled `API_REFERENCE.md` to document missing REST endpoints and modernize the WebSocket protocol schema.

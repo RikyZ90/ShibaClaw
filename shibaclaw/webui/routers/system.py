@@ -160,10 +160,22 @@ async def api_update_apply(request: Request):
 
     if pip_result.get("ok") or exe_result.get("ok"):
         async def _do_restart():
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(0.5)
             if exe_result.get("ok"):
                 if _shutdown_callback is not None:
                     try:
+                        from shibaclaw.updater.checker import invalidate_cache
+                        invalidate_cache()
+                        # Instead of just calling _shutdown_callback which does a graceful wait(timeout=5),
+                        # we kill the gateway child process immediately to prevent the batch script race condition.
+                        import psutil
+                        current_proc = psutil.Process()
+                        for child in current_proc.children(recursive=True):
+                            try:
+                                child.kill()
+                            except psutil.NoSuchProcess:
+                                pass
+                        
                         _shutdown_callback()
                     except Exception:
                         pass
