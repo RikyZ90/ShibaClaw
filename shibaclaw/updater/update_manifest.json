@@ -1,0 +1,36 @@
+{
+    "version": "0.4.6",
+    "release_notes": "Fixed Windows EXE update race condition.",
+    "changes": [
+        {
+            "path": "CHANGELOG.md",
+            "overwrite": true,
+            "note": "Added v0.4.6 release notes."
+        },
+        {
+            "path": "pyproject.toml",
+            "overwrite": true,
+            "note": "Bumped version to 0.4.6."
+        },
+        {
+            "path": "README.md",
+            "overwrite": true,
+            "note": "Updated welcome announcement to v0.4.6."
+        },
+        {
+            "path": "shibaclaw/webui/routers/system.py",
+            "overwrite": true,
+            "note": "Force-kill gateway process during Windows update to prevent file locks."
+        },
+        {
+            "path": "shibaclaw/updater/apply.py",
+            "overwrite": true,
+            "note": "Hardened Windows update batch script to wait longer and use xcopy correctly."
+        },
+        {
+            "path": "shibaclaw/updater/update_manifest.json",
+            "overwrite": true,
+            "note": "Bumped packaged update manifest to v0.4.6."
+        }
+    ]
+}

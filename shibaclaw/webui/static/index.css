@@ -1,0 +1,12 @@
+/* ShibaClaw Modular CSS */
+@import url('css/vars.css');
+@import url('css/sidebar.css?v=7');
+@import url('css/chat.css');
+@import url('css/responsive.css');
+@import url('css/panels.css');
+@import url('css/modals.css');
+@import url('css/modals_responsive.css');
+@import url('css/login.css');
+@import url('css/components.css');
+@import url('css/notification-center.css');
+@import url('css/profiles.css');

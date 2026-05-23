@@ -1,0 +1,63 @@
+x-common-env: &common-env
+  TZ: Europe/Rome
+  OR_SITE_URL: https://github.com/RikyZ90/ShibaClaw
+  OR_APP_NAME: ShibaClaw
+  # SHIBACLAW_DEBUG: "true"  # Uncomment to enable debug logging
+  
+x-common-config: &common-config
+  image: rikyz90/shibaclaw:latest
+  deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.2"
+          memory: 128M  
+  environment:
+    <<: *common-env
+  volumes:
+    - ./.shibaclaw:/root/.shibaclaw        # app data & main config
+    - ./.shibaclaw/.config:/root/.config   # XDG user config dir
+    - ./.shibaclaw/.local:/root/.local     # user-level installs (pip, pipx...)
+    - ./.shibaclaw/.cache:/root/.cache     # package/build cache
+    - ./.shibaclaw/tools:/opt/tools        # custom tools installed at runtime
+services:
+  shibaclaw-gateway:
+    container_name: shibaclaw-gateway
+    <<: *common-config
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+    command: [ "shibaclaw", "gateway", "--host", "0.0.0.0" ]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:19999:19999"
+      - "127.0.0.1:19998:19998"
+
+  shibaclaw-cli:
+    container_name: shibaclaw-cli
+    <<: *common-config
+    profiles:
+      - cli
+    command: [ "shibaclaw", "status" ]
+    stdin_open: true
+    tty: true
+
+  shibaclaw-web:
+    container_name: shibaclaw-web
+    <<: *common-config
+    command: [ "shibaclaw", "web", "--host", "0.0.0.0", "--port", "3000" ]
+    restart: unless-stopped
+    depends_on:
+      - shibaclaw-gateway
+    environment:
+      <<: *common-env
+      SHIBACLAW_CORS_ORIGINS: "*"
+    ports:
+      - "127.0.0.1:3000:3000"

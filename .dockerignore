@@ -1,0 +1,35 @@
+.worktrees/
+.assets
+.docs
+.env
+*.pyc
+build/
+*.egg-info/
+*.egg
+*.pycs
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzz
+.venv/
+venv/
+__pycache__/
+poetry.lock
+.pytest_cache/
+botpy.log
+nano.*.save
+.DS_Store
+uv.lock
+
+# Local data & research
+.shibaclaw/
+ROADMAP.md
+docker-compose.build.yml
+
+# Node dependencies
+node_modules/
+dist/
+*.log
+audit_results.json

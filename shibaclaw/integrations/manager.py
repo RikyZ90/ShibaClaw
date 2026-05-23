@@ -1,0 +1,313 @@
+"""Channel manager for coordinating chat channels."""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+from loguru import logger
+
+from shibaclaw.bus.events import OutboundMessage
+from shibaclaw.bus.queue import MessageBus
+from shibaclaw.config.schema import Config
+from shibaclaw.integrations.base import BaseChannel
+
+
+class ChannelManager:
+    """
+    Manages chat channels and coordinates message routing.
+
+    Responsibilities:
+    - Initialize enabled channels (Telegram, WhatsApp, etc.)
+    - Start/stop channels
+    - Route outbound messages
+    """
+
+    def __init__(self, config: Config, bus: MessageBus):
+        self.config = config
+        self.bus = bus
+        self.channels: dict[str, BaseChannel] = {}
+        self._dispatch_task: asyncio.Task | None = None
+        self._channel_tasks: dict[str, asyncio.Task] = {}
+        self._stop_event: asyncio.Event | None = None
+
+        self._init_channels()
+
+    def _init_channels(self) -> None:
+        """Initialize channels discovered via pkgutil scan + entry_points plugins."""
+        from shibaclaw.integrations.registry import discover_all
+
+        for name, cls in discover_all().items():
+            section = getattr(self.config.channels, name, None)
+            if section is None:
+                continue
+            enabled = (
+                section.get("enabled", False)
+                if isinstance(section, dict)
+                else getattr(section, "enabled", False)
+            )
+            if not enabled:
+                continue
+            try:
+                channel = cls(section, self.bus)
+                channel.audio_config = self.config.audio
+                channel._providers_config = self.config.providers
+                self.channels[name] = channel
+                logger.debug("{} channel enabled", cls.display_name)
+            except Exception as e:
+                logger.warning("{} channel not available: {}", name, e)
+
+        self._validate_allow_from()
+
+    def _validate_allow_from(self) -> None:
+        for name, ch in self.channels.items():
+            if getattr(ch.config, "allow_from", None) == []:
+                raise SystemExit(
+                    f'Error: "{name}" has empty allowFrom (denies all). '
+                    f'Set ["*"] to allow everyone, or add specific user IDs.'
+                )
+
+    async def _start_channel(self, name: str, channel: BaseChannel) -> None:
+        """Start a channel and log any exceptions."""
+        try:
+            await channel.start()
+        except Exception as e:
+            logger.error("Failed to start channel {}: {}", name, e)
+
+    async def _init_channel_for_sending(self, name: str, channel: BaseChannel) -> None:
+        """Initialize a channel for outbound-only sending (no inbound polling)."""
+        try:
+            await channel.start_for_sending()
+        except Exception as e:
+            logger.error("Failed to init channel {} for sending: {}", name, e)
+
+    async def start_all(self) -> None:
+        """Start all channels and the outbound dispatcher."""
+        if not self.channels:
+            logger.debug("No channels enabled")
+            self._stop_event = asyncio.Event()
+            await self._stop_event.wait()
+            return
+
+        # Start outbound dispatcher
+        self._dispatch_task = asyncio.create_task(self._dispatch_outbound())
+
+        # Start channels as individually tracked tasks
+        self._stop_event = asyncio.Event()
+        for name, channel in self.channels.items():
+            logger.debug("Starting {} channel...", name)
+            self._channel_tasks[name] = asyncio.create_task(self._start_channel(name, channel))
+
+        # Wait until stop() or reconfigure() signals shutdown
+        await self._stop_event.wait()
+
+    async def start_channels_only(self) -> None:
+        """Start inbound channel polling WITHOUT the outbound dispatcher.
+
+        Use this when another consumer (e.g. the WebUI) already handles
+        outbound routing, to avoid two consumers racing on the same queue.
+        """
+        if not self.channels:
+            logger.debug("No channels enabled")
+            self._stop_event = asyncio.Event()
+            await self._stop_event.wait()
+            return
+
+        self._stop_event = asyncio.Event()
+        for name, channel in self.channels.items():
+            logger.debug("Starting {} channel (inbound only)...", name)
+            self._channel_tasks[name] = asyncio.create_task(self._start_channel(name, channel))
+
+        await self._stop_event.wait()
+
+    async def reconfigure(self, new_cfg: "Config") -> None:
+        """Hot-reload channel configuration without restarting the gateway process.
+
+        Channels whose config is unchanged keep running undisturbed.
+        Channels that are new, removed, or have a changed config are stopped/started as needed.
+        """
+        from shibaclaw.integrations.registry import discover_all
+
+        old_channels_dump = {
+            name: (
+                ch.config.model_dump(mode="json") if hasattr(ch.config, "model_dump") else dict(ch.config)
+            )
+            for name, ch in self.channels.items()
+        }
+
+        new_channels_cfg: dict[str, Any] = {}
+        for name in discover_all():
+            section = getattr(new_cfg.channels, name, None)
+            if section is None:
+                continue
+            enabled = (
+                section.get("enabled", False)
+                if isinstance(section, dict)
+                else getattr(section, "enabled", False)
+            )
+            if enabled:
+                new_channels_cfg[name] = section
+
+        # Determine which channels to stop (removed or config changed)
+        to_stop = []
+        for name in list(self.channels.keys()):
+            if name not in new_channels_cfg:
+                to_stop.append(name)
+            else:
+                new_sec = new_channels_cfg[name]
+                new_dump = (
+                    new_sec.model_dump(mode="json") if hasattr(new_sec, "model_dump") else dict(new_sec)
+                )
+                if new_dump != old_channels_dump.get(name):
+                    to_stop.append(name)
+
+        # Stop removed/changed channels
+        for name in to_stop:
+            task = self._channel_tasks.pop(name, None)
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
+            channel = self.channels.pop(name, None)
+            if channel:
+                try:
+                    await channel.stop()
+                except Exception as e:
+                    logger.error("Error stopping {} during reconfigure: {}", name, e)
+            logger.debug("Reconfigure: stopped channel {}", name)
+
+        # Start new/changed channels
+        all_channel_classes = discover_all()
+        for name, section in new_channels_cfg.items():
+            if name in self.channels:
+                # Already running and unchanged — just update audio/providers refs
+                self.channels[name].audio_config = new_cfg.audio
+                self.channels[name]._providers_config = new_cfg.providers
+                continue
+            cls = all_channel_classes.get(name)
+            if cls is None:
+                continue
+            try:
+                channel = cls(section, self.bus)
+                channel.audio_config = new_cfg.audio
+                channel._providers_config = new_cfg.providers
+                self.channels[name] = channel
+                self._channel_tasks[name] = asyncio.create_task(self._start_channel(name, channel))
+                logger.info("Reconfigure: started channel {}", name)
+            except Exception as e:
+                logger.warning("Reconfigure: {} channel not available: {}", name, e)
+
+        # Update shared config fields
+        self.config = new_cfg
+        logger.info("ChannelManager reconfigured (stopped={}, active={})", to_stop, list(self.channels))
+
+    async def stop_all(self) -> None:
+        """Stop all channels and the dispatcher."""
+        logger.debug("Stopping all channels...")
+
+        # Signal start_all() to return
+        if self._stop_event:
+            self._stop_event.set()
+
+        # Cancel individual channel tasks
+        for name, task in list(self._channel_tasks.items()):
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+        self._channel_tasks.clear()
+
+        # Stop dispatcher
+        if self._dispatch_task:
+            self._dispatch_task.cancel()
+            try:
+                await self._dispatch_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop all channels
+        for name, channel in self.channels.items():
+            try:
+                await channel.stop()
+                logger.debug("Stopped {} channel", name)
+            except Exception as e:
+                logger.error("Error stopping {}: {}", name, e)
+
+    async def _dispatch_outbound(self) -> None:
+        """Dispatch outbound messages to the appropriate channel."""
+        logger.debug("Outbound dispatcher started")
+
+        while True:
+            try:
+                msg = await asyncio.wait_for(self.bus.consume_outbound(), timeout=1.0)
+
+                if msg.metadata.get("_progress"):
+                    if msg.metadata.get("_tool_hint") and not self.config.channels.send_tool_hints:
+                        continue
+                    if (
+                        not msg.metadata.get("_tool_hint")
+                        and not self.config.channels.send_progress
+                    ):
+                        continue
+
+                channel = self.channels.get(msg.channel)
+                if channel:
+                    try:
+                        await channel.send(msg)
+                    except Exception as e:
+                        logger.error("Error sending to {}: {}", msg.channel, e)
+
+                        origin_channel = msg.metadata.get("origin_channel")
+                        origin_chat_id = msg.metadata.get("origin_chat_id")
+                        if origin_channel and origin_chat_id and origin_channel != msg.channel:
+                            try:
+                                await self.bus.publish_outbound(
+                                    OutboundMessage(
+                                        channel=origin_channel,
+                                        chat_id=origin_chat_id,
+                                        content=f"[Delivery failed to {msg.channel}:{msg.chat_id}: {e}]",
+                                    )
+                                )
+                            except Exception as e2:
+                                logger.error(
+                                    "Failed to notify origin channel {}: {}", origin_channel, e2
+                                )
+                else:
+                    if msg.channel == "webui":
+                        try:
+                            from shibaclaw.webui.agent_manager import agent_manager
+                            await agent_manager.deliver_background_notification(
+                                session_key=f"webui:{msg.chat_id}",
+                                content=msg.content,
+                                persist=False,  # Already saved in session by loop.py
+                                media=msg.media,
+                                metadata=msg.metadata,
+                            )
+                        except Exception as e:
+                            logger.error("Failed to push to WebUI: {}", e)
+                    elif msg.channel != "system":
+                        logger.warning("Unknown channel: {}", msg.channel)
+
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                break
+
+    def get_channel(self, name: str) -> BaseChannel | None:
+        """Get a channel by name."""
+        return self.channels.get(name)
+
+    def get_status(self) -> dict[str, Any]:
+        """Get status of all channels."""
+        return {
+            name: {"enabled": True, "running": channel.is_running}
+            for name, channel in self.channels.items()
+        }
+
+    @property
+    def enabled_channels(self) -> list[str]:
+        """Get list of enabled channel names."""
+        return list(self.channels.keys())

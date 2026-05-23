@@ -1,0 +1,179 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-release-tag:
+    name: Verify Release Tag Target
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tag commit is contained in origin/main
+        run: |
+          git fetch origin main --force
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
+            echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/main." >&2
+            echo "Releases are repository-wide; tag only commits that are already on main." >&2
+            exit 1
+          fi
+
+  # ── PyPI ────────────────────────────────────────────────────────────────────
+  pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: verify-release-tag
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install hatch
+
+      - name: Build package
+        run: hatch build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+  # ── Docker Hub ──────────────────────────────────────────────────────────────
+  docker:
+    name: Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    needs: verify-release-tag
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU (multi-arch emulation)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: meta
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/shibaclaw:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/shibaclaw:${{ steps.meta.outputs.version }}
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [verify-release-tag, pypi, docker, windows-exe]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ShibaClaw-windows-exe
+          path: dist-windows/
+
+      - name: Publish GitHub release with update manifest and Windows exe
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            update_manifest.json
+            dist-windows/ShibaClaw-windows.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  # ── Windows .exe (PyInstaller onedir) ───────────────────────────────────────
+  windows-exe:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    needs: verify-release-tag
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies (desktop + dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[windows-native,dev,all-channels]"
+
+      - name: Build with PyInstaller
+        run: python scripts/build_windows.py
+
+      - name: Smoke-test CLI path
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "gateway", "--help" -Wait -PassThru -NoNewWindow
+          if ($proc.ExitCode -ne 0) {
+            throw "ShibaClaw.exe gateway --help failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Smoke-test desktop dependencies
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "dist/ShibaClaw/ShibaClaw.exe" -ArgumentList "--verify-desktop" -Wait -PassThru -NoNewWindow
+          if ($proc.ExitCode -ne 0) {
+            throw "Desktop dependency verification failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Unblock bundled DLLs
+        shell: pwsh
+        run: Get-ChildItem dist/ShibaClaw -Recurse -Include '*.dll','*.exe' | Unblock-File
+
+      - name: Zip artifact
+        shell: pwsh
+        run: Compress-Archive -Path dist/ShibaClaw -DestinationPath dist/ShibaClaw-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShibaClaw-windows-exe
+          path: dist/ShibaClaw-windows.zip
+          retention-days: 7

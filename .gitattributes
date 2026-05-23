@@ -1,0 +1,3 @@
+# Force LF for shell scripts
+*.sh text eol=lf
+entrypoint.sh text eol=lf

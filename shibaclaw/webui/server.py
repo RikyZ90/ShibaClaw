@@ -1,0 +1,448 @@
+"""WebUI server module."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import os
+import socket
+import threading
+import time
+from pathlib import Path
+from typing import Any
+
+import uvicorn
+from loguru import logger
+from starlette.applications import Starlette
+from starlette.responses import FileResponse
+from starlette.routing import Mount, Route, WebSocketRoute
+from starlette.staticfiles import StaticFiles
+
+from .agent_manager import agent_manager
+from .api import (
+    api_auth_status,
+    api_auth_verify,
+    api_automation_job_delete,
+    api_automation_job_get,
+    api_automation_job_trigger,
+    api_automation_job_update,
+    api_automation_jobs_create,
+    api_automation_jobs_list,
+    api_automation_status,
+    api_context_get,
+    api_cron_list,
+    api_cron_trigger,
+    api_file_get,
+    api_file_save,
+    api_fs_explore,
+    api_gateway_health,
+    api_gateway_restart,
+    api_heartbeat_status,
+    api_heartbeat_trigger,
+    api_internal_session_notify,
+    api_models_get,
+    api_notifications_delete,
+    api_notifications_list,
+    api_notifications_post,
+    api_oauth_code,
+    api_oauth_job,
+    api_oauth_login,
+    api_oauth_openrouter_callback,
+    api_oauth_providers,
+    api_onboard_providers,
+    api_onboard_submit,
+    api_onboard_templates,
+    api_profiles_create,
+    api_profiles_delete,
+    api_profiles_get,
+    api_profiles_list,
+    api_profiles_update,
+    api_restart_server,
+    api_sessions_archive,
+    api_sessions_delete,
+    api_sessions_get,
+    api_sessions_list,
+    api_sessions_patch,
+    api_settings_get,
+    api_settings_post,
+    api_skills_delete,
+    api_skills_import,
+    api_skills_list,
+    api_skills_pin,
+    api_status,
+    api_update_apply,
+    api_update_check,
+    api_update_manifest,
+    api_upload,
+)
+from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
+from .gateway_client import gateway_client
+from .ws_handler import ws_endpoint
+
+STATIC_DIR = Path(__file__).parent / "static"
+
+
+class NoCacheStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+
+def create_app(
+    config: Any | None = None,
+    provider: Any | None = None,
+    port: int = 3000,
+    host: str = "127.0.0.1",
+) -> Starlette:
+    if config:
+        agent_manager.config = config
+    if provider:
+        agent_manager.provider = provider
+
+    async def index(request):
+        response = FileResponse(STATIC_DIR / "index.html")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+    routes = [
+        Route("/", index),
+        Route("/api/auth/verify", api_auth_verify, methods=["POST"]),
+        Route("/api/auth/status", api_auth_status, methods=["GET"]),
+        Route("/api/status", api_status),
+        Route("/api/settings", api_settings_get, methods=["GET"]),
+        Route("/api/settings", api_settings_post, methods=["POST"]),
+        Route("/api/models", api_models_get, methods=["GET"]),
+        Route("/api/sessions", api_sessions_list),
+        Route("/api/sessions/{session_id}", api_sessions_get, methods=["GET"]),
+        Route("/api/sessions/{session_id}", api_sessions_patch, methods=["PATCH"]),
+        Route("/api/sessions/{session_id}", api_sessions_delete, methods=["DELETE"]),
+        Route("/api/sessions/{session_id}/archive", api_sessions_archive, methods=["POST"]),
+        Route("/api/context", api_context_get),
+        Route("/api/gateway-health", api_gateway_health),
+        Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
+        # ── Automation (unified) ──────────────────────────────────────────
+        Route("/api/automation/status", api_automation_status, methods=["GET"]),
+        Route("/api/automation/jobs", api_automation_jobs_list, methods=["GET"]),
+        Route("/api/automation/jobs", api_automation_jobs_create, methods=["POST"]),
+        Route("/api/automation/jobs/{job_id}", api_automation_job_get, methods=["GET"]),
+        Route("/api/automation/jobs/{job_id}", api_automation_job_update, methods=["PATCH"]),
+        Route("/api/automation/jobs/{job_id}", api_automation_job_delete, methods=["DELETE"]),
+        Route("/api/automation/jobs/{job_id}/trigger", api_automation_job_trigger, methods=["POST"]),
+        # ── Legacy shims (deprecated, kept for backward compat) ───────────
+        Route("/api/cron/jobs", api_cron_list, methods=["GET"]),
+        Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
+        Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
+        Route("/api/heartbeat/trigger", api_heartbeat_trigger, methods=["POST"]),
+        # ─────────────────────────────────────────────────────────────────
+        Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
+        Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
+        Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),
+        Route("/api/oauth/code", api_oauth_code, methods=["POST"]),
+        Route(
+            "/api/oauth/openrouter/callback/{job_id}/{flow_token}",
+            api_oauth_openrouter_callback,
+            methods=["GET"],
+        ),
+        Route("/api/oauth/openrouter/callback", api_oauth_openrouter_callback, methods=["GET"]),
+        Route("/api/upload", api_upload, methods=["POST"]),
+        Route("/api/file-get", api_file_get, methods=["GET"]),
+        Route("/api/file-save", api_file_save, methods=["POST"]),
+        Route("/api/fs/explore", api_fs_explore, methods=["GET"]),
+        Route("/api/update/check", api_update_check, methods=["GET"]),
+        Route("/api/update/manifest", api_update_manifest, methods=["GET"]),
+        Route("/api/update/apply", api_update_apply, methods=["POST"]),
+        Route("/api/v1/notifications", api_notifications_list, methods=["GET"]),
+        Route("/api/v1/notifications", api_notifications_post, methods=["POST"]),
+        Route("/api/v1/notifications", api_notifications_delete, methods=["DELETE"]),
+        Route("/api/restart", api_restart_server, methods=["POST"]),
+        Route("/api/onboard/providers", api_onboard_providers, methods=["GET"]),
+        Route("/api/onboard/templates", api_onboard_templates, methods=["GET"]),
+        Route("/api/onboard/submit", api_onboard_submit, methods=["POST"]),
+        Route("/api/skills", api_skills_list, methods=["GET"]),
+        Route("/api/skills/pin", api_skills_pin, methods=["POST"]),
+        Route("/api/skills/import", api_skills_import, methods=["POST"]),
+        Route("/api/skills/{name}", api_skills_delete, methods=["DELETE"]),
+        Route("/api/profiles", api_profiles_list, methods=["GET"]),
+        Route("/api/profiles", api_profiles_create, methods=["POST"]),
+        Route("/api/profiles/{profile_id}", api_profiles_get, methods=["GET"]),
+        Route("/api/profiles/{profile_id}", api_profiles_update, methods=["PUT"]),
+        Route("/api/profiles/{profile_id}", api_profiles_delete, methods=["DELETE"]),
+        Route("/api/internal/session-notify", api_internal_session_notify, methods=["POST"]),
+        WebSocketRoute("/ws", ws_endpoint),
+        Mount("/static", app=NoCacheStaticFiles(directory=str(STATIC_DIR)), name="static"),
+    ]
+
+    app = Starlette(routes=routes)
+
+    if _auth_enabled():
+        app.add_middleware(AuthMiddleware)
+    return app
+
+
+async def _check_update_on_startup() -> None:
+    try:
+        await asyncio.sleep(3)
+        from shibaclaw.helpers.notification_manager import notification_manager
+        from shibaclaw.updater.checker import check_for_update
+
+        result = await asyncio.get_event_loop().run_in_executor(None, check_for_update)
+        if result.get("update_available"):
+            current_label = result.get("display_current") or result.get("current")
+            latest_label = result.get("display_latest") or result.get("latest")
+            notification = result.get("notification") or {}
+            notif = notification_manager.create_from_event(
+                content=notification.get("text") or result.get("summary") or "Update available",
+                source="update",
+                metadata=notification,
+                msg_type="notification",
+            )
+            try:
+                from shibaclaw.webui.ws_handler import broadcast_notification
+                await broadcast_notification(notif)
+            except Exception:
+                pass
+            logger.info(
+                "🆕 ShibaClaw update available: {} → {}",
+                current_label,
+                latest_label,
+            )
+    except Exception:
+        pass
+
+
+async def _sync_skills_on_startup() -> None:
+    """Sync built-in skills and profiles to workspace on startup."""
+    try:
+        await asyncio.sleep(1)
+        from shibaclaw.helpers.helpers import sync_profiles, sync_skills
+
+        cfg = agent_manager.config
+        if cfg:
+            sync_skills(cfg.workspace_path)
+            sync_profiles(cfg.workspace_path)
+            logger.info("Skills and profiles synced on startup")
+    except Exception:
+        logger.exception("Failed to sync skills/profiles on startup")
+
+
+async def _ensure_config_on_startup() -> None:
+    """Load config eagerly so routes have workspace info."""
+    try:
+        await asyncio.sleep(1)
+        if not agent_manager.config:
+            agent_manager.load_latest_config()
+            logger.info("Config loaded on startup")
+    except Exception:
+        logger.exception("Failed to load config on startup")
+
+
+async def _start_gateway_client() -> None:
+    """Connect the WebSocket client to the gateway."""
+    try:
+        await asyncio.sleep(2)
+        cfg = agent_manager.config
+        if not cfg:
+            agent_manager.load_latest_config()
+            cfg = agent_manager.config
+        if cfg:
+            token = get_auth_token() or ""
+            gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, token)
+
+            # Register handler for gateway push notifications
+            async def _on_session_notify(msg):
+                payload = msg.get("payload", {})
+                sk = msg.get("session_key", "")
+                content = payload.get("content", "")
+                source = payload.get("source", "background")
+                persist = payload.get("persist", True)
+                metadata = payload.get("metadata")
+                msg_type = payload.get("msg_type", "response")
+                media = payload.get("media")
+                if content:
+                    await agent_manager.deliver_background_notification(
+                        sk,  # may be empty for system broadcasts
+                        content,
+                        source=source,
+                        persist=persist,
+                        msg_type=msg_type,
+                        metadata=metadata,
+                        media=media,
+                    )
+
+            gateway_client.on_event("session.notify", _on_session_notify)
+
+            await gateway_client.start()
+            logger.info("Gateway WS client started")
+    except Exception:
+        logger.debug("Gateway WS client start deferred")
+
+
+async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, provider=None):
+    app = create_app(config=config, provider=provider, port=port, host=host)
+    if host in ("0.0.0.0", "::") and not os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip():
+        logger.warning("Binding to {} — set SHIBACLAW_CORS_ORIGINS for non-loopback clients", host)
+
+    token = get_auth_token()
+    if token:
+        logger.info("🔒 Auth enabled — token: {}", mask_token(token))
+    else:
+        logger.warning("WARNING: Authentication is DISABLED")
+
+    _startup_tasks = [
+        asyncio.create_task(_check_update_on_startup()),
+        asyncio.create_task(_sync_skills_on_startup()),
+        asyncio.create_task(_ensure_config_on_startup()),
+        asyncio.create_task(_start_gateway_client()),
+    ]
+
+    def _log_task_exc(t: asyncio.Task) -> None:
+        if not t.cancelled() and (exc := t.exception()):
+            logger.error("Startup task '{}' failed: {}", t.get_name(), exc)
+
+    for _t in _startup_tasks:
+        _t.add_done_callback(_log_task_exc)
+
+    server_config = uvicorn.Config(
+        app=app,
+        host=host,
+        port=port,
+        log_level="warning",
+        access_log=False,
+        ws_ping_interval=60.0,
+        ws_ping_timeout=120.0,
+    )
+    server = uvicorn.Server(server_config)
+    await server.serve()
+
+
+class ServerManager:
+    """Controllable uvicorn wrapper for programmatic start/stop.
+
+    Used by the desktop launcher so the server runs in a background thread
+    while the main thread drives the native window / tray loop.
+
+    Usage::
+
+        mgr = ServerManager(port=3000, config=cfg, provider=provider)
+        mgr.start()
+        if mgr.wait_ready(timeout=10):
+            # server is reachable
+        ...
+        mgr.stop()
+    """
+
+    def __init__(
+        self,
+        port: int = 3000,
+        host: str = "127.0.0.1",
+        config: Any | None = None,
+        provider: Any | None = None,
+    ) -> None:
+        self._port = port
+        self._host = host
+        self._config = config
+        self._provider = provider
+        self._server: uvicorn.Server | None = None
+        self._thread: threading.Thread | None = None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def start(self) -> None:
+        """Spawn the server in a background daemon thread."""
+        if self._thread and self._thread.is_alive():
+            return
+
+        app = create_app(
+            config=self._config,
+            provider=self._provider,
+            port=self._port,
+            host=self._host,
+        )
+
+        cfg = uvicorn.Config(
+            app=app,
+            host=self._host,
+            port=self._port,
+            log_level="warning",
+            access_log=False,
+            ws_ping_interval=None,
+            ws_ping_timeout=None,
+        )
+        self._server = uvicorn.Server(cfg)
+
+        self._thread = threading.Thread(
+            target=self._run_in_thread,
+            name="shibaclaw-webui",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self, timeout: float = 8.0) -> None:
+        """Signal the server to shut down and wait for the thread to finish."""
+        if self._server:
+            self._server.should_exit = True
+        if self._thread:
+            self._thread.join(timeout=timeout)
+
+    def wait_ready(self, timeout: float = 15.0) -> bool:
+        """Poll until the HTTP port is reachable or *timeout* seconds elapse."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection((self._host, self._port), timeout=0.5):
+                    return True
+            except OSError:
+                time.sleep(0.1)
+        return False
+
+    @property
+    def is_running(self) -> bool:
+        return bool(self._thread and self._thread.is_alive())
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self._host}:{self._port}"
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    def _run_in_thread(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._serve_with_startup_tasks())
+        finally:
+            loop.close()
+
+    async def _serve_with_startup_tasks(self) -> None:
+        assert self._server is not None
+        startup_tasks = [
+            asyncio.create_task(_check_update_on_startup()),
+            asyncio.create_task(_sync_skills_on_startup()),
+            asyncio.create_task(_ensure_config_on_startup()),
+            asyncio.create_task(_start_gateway_client()),
+        ]
+        try:
+            await self._server.serve()
+        finally:
+            for task in startup_tasks:
+                task.cancel()
+            await asyncio.gather(*startup_tasks, return_exceptions=True)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="ShibaClaw WebUI Server")
+    parser.add_argument("--port", type=int, default=3000)
+    parser.add_argument("--host", type=str, default="127.0.0.1")
+    args = parser.parse_args()
+
+    print(f"🐕 Starting ShibaClaw WebUI on http://{args.host}:{args.port}")
+    asyncio.run(run_server(port=args.port, host=args.host))
