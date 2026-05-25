@@ -371,6 +371,8 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) — PRs welcome.
 
 Channels are extensible via Python entry points (`shibaclaw.integrations`). Skill creation is documented in [`docs/CHANNEL_PLUGIN_GUIDE.md`](./docs/CHANNEL_PLUGIN_GUIDE.md) and the built-in `skill-creator` skill.
 
+Gateway integrators: see [`docs/GATEWAY_PROTOCOL.md`](./docs/GATEWAY_PROTOCOL.md) for the WebSocket contract on port `19998`.
+
 
 
 ---

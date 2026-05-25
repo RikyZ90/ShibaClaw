@@ -1284,6 +1284,8 @@ Receive a background notification from the gateway and broadcast it to connected
 
 ## WebSocket
 
+> **Gateway protocol (third-party clients):** see [`GATEWAY_PROTOCOL.md`](./GATEWAY_PROTOCOL.md) for the agent gateway WebSocket on port `19998` (`hello` / `request` / `event` / `response`).
+
 ### `WS /ws`
 
 The primary real-time channel for all agent interactions.
