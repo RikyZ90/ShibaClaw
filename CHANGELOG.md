@@ -2,7 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.7] - 2026-05-26
+
+### Added
+- **Mobile WebUI Enter Behavior** — Added a mobile-only settings toggle so `Enter` inserts a newline instead of sending the message on mobile devices.
+- **Mobile Chat Layout** — Expanded mobile chat bubbles to `95%` width and made rendered tables in message bubbles horizontally scrollable to prevent overflow.
+
 ## [0.4.6] - 2026-05-21
+
+### Added
+- **Gateway WebSocket Protocol Contract** — Added `docs/GATEWAY_PROTOCOL.md`, formalizing the contract for third-party clients connecting to the gateway WebSocket (default port `19998`).
+Documents handshake (`hello` / `hello_ok`), envelope types (`request`, `response`, `event`), chat streaming events (`chat.progress`, `chat.response_token`, `session.notify`), stable payload fields (`c`, `h`, `content`, `media`, `request_id`, ...), success vs error completion semantics, and HTTP NDJSON fallback (`POST /api/chat`).
+Linked from `README.md` and `docs/API_REFERENCE.md` (clarifies gateway WS vs WebUI browser `/ws`).
+Issue [#26](https://github.com/RikyZ90/ShibaClaw/issues/26).
 
 ### Fixed
 - **Windows Updater Process Lock** — Hardened the update installer batch script by explicitly killing all gateway child processes immediately prior to `xcopy`, rather than waiting up to 5 seconds for a graceful shutdown. This prevents the update script from copying files while they are still locked by the OS.

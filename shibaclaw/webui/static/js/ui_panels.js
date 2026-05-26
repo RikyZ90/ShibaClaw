@@ -1406,6 +1406,8 @@ function populateSettings(cfg) {
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
 
+    $("s-mobile-enter-newline").checked = localStorage.getItem("shibaclaw_mobile_enter_newline") !== "false";
+
     // Audio settings
     const au = cfg.audio || {};
     $("s-audio-providerUrl").value = au.providerUrl || "";
@@ -1877,6 +1879,12 @@ window.saveSettings = async function () {
     });
 
     try {
+        localStorage.setItem("shibaclaw_mobile_enter_newline", $("s-mobile-enter-newline").checked ? "true" : "false");
+    } catch (e) {
+        console.warn("Unable to persist mobile enter preference", e);
+    }
+
+    try {
         const res = await authFetch("/api/settings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2220,7 +2228,7 @@ window.runUpdateAction = async function () {
     }
 };
 
-window.updateDownloadProgress = function(percent) {
+window.updateDownloadProgress = function (percent) {
     const textEl = document.getElementById("update-progress-text");
     const barEl = document.getElementById("update-progress-fill");
     const percentEl = document.getElementById("update-progress-percent");

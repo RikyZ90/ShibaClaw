@@ -1,4 +1,8 @@
 /* ── Responsive ────────────────────────────────────────────── */
+.mobile-only-setting {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .sidebar {
         position: fixed;
@@ -29,6 +33,24 @@
 
     .message-group {
         max-width: 95%;
+    }
+
+    .message-group.user,
+    .message-group.agent {
+        max-width: 95%;
+    }
+
+    .message-bubble table {
+        display: block;
+        overflow-x: auto;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-only-setting {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
     /* Width toggle is useless on mobile (chat is already full-width) */

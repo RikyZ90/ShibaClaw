@@ -1,21 +1,21 @@
 {
-    "version": "0.4.6",
-    "release_notes": "Fixed Windows EXE update race condition.",
+    "version": "0.4.7",
+    "release_notes": "Mobile WebUI update (#37) — Added a mobile-only setting to make Enter insert a newline on mobile, expanded mobile chat bubble width, and made message tables horizontally scrollable to avoid overflow.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.6 release notes."
+            "note": "Added v0.4.7 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.6."
+            "note": "Bumped version to 0.4.7."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.4.6."
+            "note": "Updated welcome announcement to v0.4.7."
         },
         {
             "path": "shibaclaw/webui/routers/system.py",

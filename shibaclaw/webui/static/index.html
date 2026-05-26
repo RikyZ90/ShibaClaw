@@ -67,7 +67,8 @@
                             <div class="status-micro" id="status-card">
                                 <div class="status-dot disconnected" id="status-dot"></div>
                                 <span class="status-text" id="status-text">Connecting...</span>
-                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()" title="Restart Gateway" tabindex="-1">
+                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()"
+                                    title="Restart Gateway" tabindex="-1">
                                     <span class="material-icons-round">refresh</span>
                                 </button>
                             </div>
@@ -434,7 +435,13 @@
                                 id="s-agent-maxIter" class="form-input" value="40"></div>
                         <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning"
                                 class="form-input" placeholder="null (not set)"></div>
-
+                        <div class="field-row field-row-stack mobile-only-setting">
+                            <label>Enter for Newline (Mobile)</label>
+                            <p class="settings-note">On mobile, pressing Enter inserts a new line instead of sending the
+                                message.</p>
+                            <label class="toggle"><input type="checkbox" id="s-mobile-enter-newline" checked><span
+                                    class="toggle-slider"></span></label>
+                        </div>
                     </div>
 
 
@@ -863,7 +870,8 @@
         </div>
         <div class="gh-star-content">
             <div class="gh-star-title">Support ShibaClaw</div>
-            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!</div>
+            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!
+            </div>
         </div>
         <div class="gh-star-actions">
             <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" class="gh-star-btn" id="gh-star-link">

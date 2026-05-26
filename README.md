@@ -17,8 +17,9 @@
 ---
 
 
-📢 **Welcome to ShibaClaw v0.4.6!**
+📢 **Welcome to ShibaClaw v0.4.7!**
 This release brings:
+- **Mobile WebUI Improvements** — Added a mobile-only setting to make Enter insert a newline on mobile devices, improved mobile chat bubble width, and made message tables horizontally scrollable.
 - **Security Hardening** — Resolved a critical "Asterisk Merge" vulnerability in the configuration router to prevent corruption of stored API keys.
 - **API Surface Documentation** — Completely overhauled `API_REFERENCE.md` to document missing REST endpoints and modernize the WebSocket protocol schema.
 - **Native Windows Toast Notifications** — Integrated OS-level notifications for the packaged executable using `pystray` when the desktop app is minimized or hidden.
