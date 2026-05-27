@@ -3,21 +3,27 @@
 </p>
 
 <h1 align="center">ShibaClaw 🐕</h1>
-<h3 align="center">Security-first AI agent with built-in WebUI, native provider support, and hardened tools.</h3>
+<h3 align="center">The AI agent that <b>just works</b> — securely, privately, without babysitting.</h3>
 
 <p align="center">
   <a href="https://pypi.org/project/shibaclaw/"><img src="https://img.shields.io/pypi/v/shibaclaw.svg?style=flat-square&color=orange" alt="version"></a>   
   <a href="https://pepy.tech/projects/shibaclaw"><img src="https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads" alt="PyPI Downloads"></a>
-  <img src="https://img.shields.io/badge/python-≥3.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
+  <img src="https://img.shields.io/badge/python-	73.11-blue?style=flat-square&logo=python&logoColor=white" alt="python">
   <a href="https://github.com/RikyZ90/ShibaClaw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/RikyZ90/ShibaClaw?style=flat-square&label=license&color=blue" alt="license"></a>
   <a href="https://deepwiki.com/RikyZ90/ShibaClaw"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
+
+<p align="center">
+  <b>22 Providers · 11 Chat Channels · Built-in WebUI · Security-First Core · MCP Ready</b>
+</p>
+
 <h3 align="center">Built on three pillars: <b>Simplicity · Security · Privacy</b></h3>
 
----
+***
 
+<details>
+<summary>📢 <b>Latest Release: v0.4.8</b> — Click to see what's new</summary>
 
-📢 **Welcome to ShibaClaw v0.4.8!**
 This release brings:
 - **Code Block Copy Fix** — Fixed an issue where the "Copy" button inside code blocks would silently fail on non-HTTPS environments by adding a robust fallback clipboard mechanism.
 - **Message Copy Feature** — Added a new "Copy Message" button next to the timestamp on every message bubble to easily copy the raw text content of an entire message.
@@ -25,40 +31,137 @@ This release brings:
 - **Update Manifest Fixes** — Resolved issues where updates were not correctly recognized by Python package managers.
 - **Mobile WebUI Improvements** — Added a mobile-only setting to make Enter insert a newline on mobile devices, improved mobile chat bubble width, and made message tables horizontally scrollable.
 
-See the [Changelog](./CHANGELOG.md) for details.
+See the [Changelog](./CHANGELOG.md) for full release history.
 
----
+</details>
 
-ShibaClaw is a **security-first AI agent** for your terminal, desktop, browser and 11 other channels.
-Security isn’t an add-on — it's the foundation: CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection, shell hardening, workspace sandboxing, and bearer-token auth are all built into the core.
+***
 
----
+## ✨ Everything in One Agent
+
+<table>
+<tr>
+<td align="center" width="33%">
+
+### 🛡️ Security-First
+CVE audit, prompt-injection wrap,<br>SSRF guard — <b>on by default</b>
+
+</td>
+<td align="center" width="33%">
+
+### 🧠 Smart Memory
+3-level system with proactive<br>learning & auto-compaction
+
+</td>
+<td align="center" width="33%">
+
+### 🌐 22 Providers
+Native SDKs, no LiteLLM proxy<br>OpenAI · Anthropic · Gemini · DeepSeek...
+
+</td>
+</tr>
+<tr>
+<td align="center" width="33%">
+
+### 📱 Web & Mobile
+Expose the WebUI on your LAN and<br>use the same agent from your phone
+
+</td>
+<td align="center" width="33%">
+
+### 🖥️ Desktop App
+Native Windows launcher with tray,<br>perfect combo with the WebUI
+
+</td>
+<td align="center" width="33%">
+
+### 🔌 MCP Ready
+Connect any MCP server,<br>tools auto-registered
+
+</td>
+</tr>
+</table>
+
+***
 
 ## Why ShibaClaw? Simply Works. 🐕
 
-> **Have you ever spent hours fixing your AI agent instead of actually using it?**
-> ShibaClaw is built around one idea: your agent should just work — securely, reliably, and without babysitting.
+> **Tired of agents that need more babysitting than your actual work?**  
+> ShibaClaw is engineered around one principle: <b>it just works</b> — securely, reliably, and without constant maintenance.
 
-Built on three pillars: **Simplicity · Security · Privacy**
+Most AI agent frameworks treat security as an afterthought, leave you wrestling with provider compatibility, or force you to babysit configurations. ShibaClaw flips the script: security isn't bolted on, it's <b>the foundation</b>.
 
-### What makes ShibaClaw different
+What makes ShibaClaw different:
+- **Security layers built into the core** — CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection
+- **Native provider support** — 22 providers via their official SDKs, no proxy layer to debug
+- **One-command setup** — Docker or pip, follow the wizard, you're chatting in about a minute
+- **Runs everywhere** — Terminal, WebUI, Discord, Telegram, WhatsApp, Windows desktop app, and more
 
-| Feature | ShibaClaw | OpenClaw | ZeroClaw | Nanobot | Hermes Agent |
-|---|---|---|---|---|---|
-| Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
-| SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
+***
 
-> *Feature comparison based on publicly available documentation as of May 2026.  
-> Some frameworks may offer partial implementations via third-party plugins.*
+## 🛡️ Security, Built In
 
-**Also ships with:** 22 providers · 11 chat channels · built-in WebUI · cron · heartbeat · MCP · ClawHub · Agent Profiles
+Defenses that are normally scattered across app glue or external proxies — in ShibaClaw they ship in the core, <b>on by default</b>.
 
----
+### Core Security Layers
 
-## Native Desktop App (Windows) 🖥️
+| Layer | What it does |
+|---|---|
+| 🔍 Install-time audit | Audits `pip` and `npm` before execution — blocks critical/high CVEs before they land |
+| 🛡️ Prompt-injection wrapping | Wraps every tool result in a randomized `<tool_output_...>` boundary and sanitizes closing tags |
+| 🔒 Shell hardening | 20+ deny patterns, escape normalization (`\x..`, `\u....`), internal URL detection |
+| 🌐 Network guard | SSRF filtering, redirect revalidation, DNS-rebinding-safe resolution |
+| 📁 Workspace sandbox | File tools and file browser locked to the configured workspace |
+| 🔑 Access control | Bearer token auth, constant-time checks, channel allowlists, optional rate limiting |
+| ⚡ Distributed engine | UI (≈128 MB) decoupled from agent brain (≈256 MB+) — minimal footprint per process |
 
-ShibaClaw now features a fully integrated **Windows Desktop Launcher** built with `pywebview`. 
+### 🛡️ Prompt-Injection Wrapping (Tool Sandboxing)
+
+Instead of simply feeding raw tool outputs back to the LLM, ShibaClaw wraps every tool result in a dynamically generated XML-like boundary with a <b>randomized nonce</b> (e.g., `<tool_output_a1b2c3d4>`). 
+
+> 💡 <b>Standalone Defense</b>: This core security mechanism (Randomized Tool Output Wrapping) has been decoupled and packaged as a standalone, zero-dependency Python library called [Muzzle](https://github.com/RikyZ90/Muzzle). You can use Muzzle to protect any agent framework (LangChain, LlamaIndex, CrewAI, AutoGen, or custom LLM loops) using this identical technique.
+
+Why this matters: attackers often try to prematurely close tags or inject fake system instructions inside tool outputs (like web page content). By using a randomized boundary generated per-iteration, the agent can reliably differentiate between actual system instructions and injected payloads. Furthermore, any attempt to inject the specific closing tag inside the content is automatically sanitized and escaped, ensuring the sandbox remains airtight and the original system prompt takes precedence.
+
+### 🔍 Install-Time Package Autoscan
+
+Before executing any `pip`, `npm`, or `apt` install command, ShibaClaw intercepts the action and parses the dependencies. It runs tools like `pip-audit` or `npm audit --json` to scan for known vulnerabilities against CVE databases before applying any changes.
+
+Why this matters: it shifts security entirely to the left. Instead of blindly blocking package managers or relying on post-install scans, it evaluates the exact dependency tree <i>before</i> execution. If a package contains critical/high CVEs, or if suspicious flags (like `--allow-unauthenticated` for `apt`) are detected, the installation is blocked. This allows the AI to autonomously build software without turning the host into a liability.
+
+Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
+
+***
+
+## ⚡ Quick Start
+
+### Docker
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/docker-compose.yml -o docker-compose.yml
+docker compose up -d     # pulls from Docker Hub
+docker exec -it shibaclaw-gateway shibaclaw print-token
+```
+
+Open **http://localhost:3000**, paste the token, and follow the onboard wizard.
+
+Expose `shibaclaw-web` on your LAN (e.g. via reverse proxy) and open the same URL from your phone to chat with your agent on mobile.
+
+### pip
+
+```bash
+pip install shibaclaw
+shibaclaw web --with-gateway   # starts WebUI + agent engine on :3000
+```
+
+Open **http://localhost:3000** and follow the onboard wizard.  
+Prefer the CLI? `shibaclaw onboard` runs the same guided setup from the terminal.
+
+***
+
+## 🖥️ Native Desktop App (Windows)
+
+ShibaClaw features a fully integrated **Windows Desktop Launcher** built with `pywebview`. 
 It offers a seamless local experience without the need to manage background terminal windows.
 
 - **System Tray Integration**: Close the window to minimize ShibaClaw silently into the system tray. Right-click the Shiba icon to re-open the UI, access workspace logs, visit the website, or gracefully quit the engine.
@@ -76,64 +179,9 @@ Or download the pre-built Windows executable directly from the latest release:
 > **[⬇ Download ShibaClaw.exe (latest)](https://github.com/RikyZ90/ShibaClaw/releases/latest/download/ShibaClaw-windows.zip)**  
 > Full release notes → [github.com/RikyZ90/ShibaClaw/releases/latest](https://github.com/RikyZ90/ShibaClaw/releases/latest)
 
----
+***
 
-## Quick Start
-
-### Docker
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/docker-compose.yml -o docker-compose.yml
-docker compose up -d     # pulls from Docker Hub
-docker exec -it shibaclaw-gateway shibaclaw print-token
-```
-
-Open **http://localhost:3000**, paste the token, and follow the onboard wizard.
-
-### pip
-
-```bash
-pip install shibaclaw
-shibaclaw web --with-gateway   # starts WebUI + agent engine on :3000
-```
-
-Open **http://localhost:3000** and follow the onboard wizard.
-Prefer the CLI? `shibaclaw onboard` runs the same guided setup from the terminal.
-
----
-
-## Security, Built In
-
-Defenses that are normally scattered across app glue or external proxies — in ShibaClaw they ship in the core, on by default.
-
-### 🛡️ Prompt-Injection Wrapping (Tool Sandboxing)
-Instead of simply feeding raw tool outputs back to the LLM, ShibaClaw wraps every tool result in a dynamically generated XML-like boundary with a randomized nonce (e.g., `<tool_output_a1b2c3d4>`). 
-
-> 💡 **Standalone Defense**: This core security mechanism (Randomized Tool Output Wrapping) has been decoupled and packaged as a standalone, zero-dependency Python library called [Muzzle](https://github.com/RikyZ90/Muzzle). You can use Muzzle to protect any agent framework (LangChain, LlamaIndex, CrewAI, AutoGen, or custom LLM loops) using this identical technique.
-
-**Why this matters:** Attackers often try to prematurely close tags or inject fake system instructions inside tool outputs (like web page content). By using a randomized boundary generated per-iteration, the agent can reliably differentiate between actual system instructions and injected payloads. Furthermore, any attempt to inject the specific closing tag inside the content is automatically sanitized and escaped, ensuring the sandbox remains airtight and the original system prompt takes precedence.
-
-### 🔍 Install-Time Package Autoscan
-Before executing any `pip`, `npm`, or `apt` install command, ShibaClaw intercepts the action and parses the dependencies. It runs tools like `pip-audit` or `npm audit --json` to scan for known vulnerabilities against CVE databases before applying any changes.
-**Why this matters:** It shifts security entirely to the left. Instead of blindly blocking package managers or relying on post-install scans, it evaluates the exact dependency tree *before* execution. If a package contains critical/high CVEs, or if suspicious flags (like `--allow-unauthenticated` for `apt`) are detected, the installation is blocked. This allows the AI to autonomously build software without turning the host into a liability.
-
-### Security Layers Overview
-
-| Layer | What it does |
-|---|---|
-| 🔍 Install-time audit | Audits `pip` and `npm` before execution — blocks critical/high CVEs before they land |
-| 🛡️ Prompt-injection wrapping | Wraps every tool result in a randomized `<tool_output_...>` boundary and sanitizes closing tags |
-| 🔒 Shell hardening | 20+ deny patterns, escape normalization (`\x..`, `\u....`), internal URL detection |
-| 🌐 Network guard | SSRF filtering, redirect revalidation, DNS-rebinding-safe resolution |
-| 📁 Workspace sandbox | File tools and file browser locked to the configured workspace |
-| 🔑 Access control | Bearer token auth, constant-time checks, channel allowlists, optional rate limiting |
-| ⚡ Distributed engine | UI (≈128 MB) decoupled from agent brain (≈256 MB+) — minimal footprint per process |
-
-Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
-
----
-
-## WebUI
+## 🌐 WebUI
 
 <p align="center">
   <img src="assets/settings.gif" width="420" alt="Settings">
@@ -142,6 +190,8 @@ Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
 </p>
 
 The WebUI is built-in — no separate frontend or Node.js required.
+
+Expose it on your local network and open the same URL from your phone or tablet — no extra apps, just a browser.
 
 - **Chat** — multi-session conversations with live streaming of tool calls, thinking blocks, elapsed time, and per-session model switching from the chat footer
 - **Cross-provider model search** — one searchable picker merges models from all configured providers, shows provider labels, and switches the live runtime provider when you change the session model
@@ -156,15 +206,15 @@ The WebUI is built-in — no separate frontend or Node.js required.
 - **Hardened rendering** — chat Markdown escapes raw HTML, file names render through safe DOM nodes, and expired auth returns cleanly to login without reconnect loops
 - **Auto-update** — checks GitHub releases every 12h, notifies in the UI and on all active channels
 - **Notification Center (WIP)** — bell icon with unread badge, real-time WebSocket push, per-notification deep-link to the related session; covers heartbeat, cron, agent responses, and update alerts
-- **Responsive** — works on desktop and mobile
+- **Responsive** — works great on desktop and mobile; open the same agent UI from your couch, not only from your desk
 
 ### ⚡ Dynamic Model Selection
 
 <p align="center">
-  <img src="assets/model_sel.jpg" width="600" alt="Agent Profile Selector">
+  <img src="assets/model_sel.jpg" width="600" alt="Dynamic Model Selector">
 </p>
 
-**Change models per session** — no more single global model, but a flexible choice for every conversation.
+Change models per session — no more single global model, but a flexible choice for every conversation.
 
 - **Multi-Provider Search**: Search through all models from all your configured providers (OpenRouter, GitHub Copilot, Anthropic, etc.) in a single dropdown.
 - **Session-Aware Routing**: Each session remembers its chosen model. You can have a coding session with `Claude 3.5 Sonnet` and a research session with `Gemma 4` simultaneously.
@@ -172,7 +222,7 @@ The WebUI is built-in — no separate frontend or Node.js required.
 - **Dedicated Memory Model**: Configure a separate model and provider specifically for memory consolidation and proactive learning, ensuring high-quality state extraction without affecting your chat budget.
 - **Default-First**: New sessions automatically start with the default model set in settings, ensuring immediate consistency.
 
-### Agent Profiles
+### 🤖 Agent Profiles
 
 <p align="center">
   <img src="assets/hacker-mode.gif" width="600" alt="Agent Profile Selector">
@@ -180,24 +230,25 @@ The WebUI is built-in — no separate frontend or Node.js required.
 
 Switch the agent's personality on-the-fly without losing context. Each profile overrides the system prompt (SOUL.md) while keeping model, memory, and tools shared. Profiles are per-session — run a security audit in one tab and plan architecture in another.
 
-**Built-in profiles:** Default · Builder · Planner · Reviewer · **Hacker** (elite security expert with 50+ tool recommendations, OWASP/MITRE/NIST methodologies, CVSS scoring, and a custom cyber-shiba avatar).
+Built-in profiles: Default · Builder · Planner · Reviewer · <b>Hacker</b> (elite security expert with 50+ tool recommendations, OWASP/MITRE/NIST methodologies, CVSS scoring, and a custom cyber-shiba avatar).
 
 Create your own profiles interactively — the agent walks you through defining the persona and saves everything automatically.
 
----
+***
 
-## Features
-
-### 🧠 Advanced 3-Level Memory System
+## 🧠 Advanced 3-Level Memory System
 
 ShibaClaw's memory isn't just a rolling chat buffer; it's a structured, proactive system designed for long-term operational continuity.
 
-- **`USER.md` (Identity & Preferences):** Stores durable personal facts, communication styles, and language preferences. The agent reads this to know *who* you are.
+- **`USER.md` (Identity & Preferences):** Stores durable personal facts, communication styles, and language preferences. The agent reads this to know <i>who</i> you are.
 - **`MEMORY.md` (Operational State):** The agent's working knowledge. It tracks environment details, recurring entities, and project state.
 - **`HISTORY.md` (Session Archive):** An append-only, searchable ledger of past sessions with timestamped, tagged summaries.
 
-**Why this matters:**
 Instead of bloating the system prompt with thousands of messages, ShibaClaw features a **Proactive Learning loop**. Every N messages, a background LLM process silently extracts new durable facts and updates `USER.md` and `MEMORY.md`, without interrupting the conversation. When `MEMORY.md` grows too large, an auto-compaction routine summarizes and deduplicates the context, prioritizing recent state while keeping token usage within strict budgets. When the agent needs older context, it can autonomously search `HISTORY.md` using TF-IDF and recency scoring. This separation of concerns ensures the agent stays hyper-aware of the current project without ever hitting token limits or losing focus.
+
+***
+
+## 🛠️ Features
 
 ### Workflow & Reasoning
 
@@ -236,9 +287,24 @@ All channels route through the same message bus. WhatsApp uses a Node.js bridge 
 
 If you are upgrading from an older release, it is recommended to reset your workspace `HEARTBEAT.md` once so you get the new frontmatter-based base template. Existing files still work, but they will not gain the new editable settings block automatically.
 
----
+***
 
-## Supported Providers
+## 🔌 MCP Ecosystem
+
+ShibaClaw is fully compatible with the **Model Context Protocol (MCP)**, transforming the agent from a standalone tool into a plug-and-play AI hub. 
+
+Instead of relying solely on built-in skills, ShibaClaw can connect to any MCP-compliant server, instantly granting your agent access to a vast universe of external data sources and professional tools without modifying a single line of core code.
+
+Why this matters:
+- **Instant Extensibility**: Plug in community-made MCP servers for Google Drive, Slack, GitHub, PostgreSQL, and more.
+- **Standardized Tooling**: Leverage a universal protocol for AI-to-tool communication, ensuring stability and interoperability.
+- **Decoupled Architecture**: Keep your agent lean while scaling its capabilities through a distributed network of MCP servers.
+
+Configure your MCP servers directly in the **Settings** panel to start expanding ShibaClaw's horizons.
+
+***
+
+## 🌐 Supported Providers
 
 ShibaClaw uses native SDKs (no LiteLLM proxy) and resolves the active provider from the selected model or canonical provider-prefixed model ID. In the WebUI, all configured provider catalogs are merged into a single searchable list, while each session keeps its own chosen model.
 
@@ -283,26 +349,26 @@ For OpenRouter, the callback reuses the current WebUI URL and port by default, s
 
 ShibaClaw performs exceptionally well even without expensive API usage:
 - **Free/Open Models:** We highly recommend using **OpenRouter** to access powerful free models like `nvidia/nemotron-3-super-120b-a12b:free` or `gemma-4-31b-it:free`.
-- **Unlimited Premium:** If you use the **GitHub Copilot** OAuth integration, you gain access to premium models like `raptor` (`oswe-vscode-prime`) at **zero additional cost**, effectively giving you unlimited requests.
+- **Unlimited Premium:** If you use the **GitHub Copilot** OAuth integration, you gain access to premium models like `raptor` (`oswe-vscode-prime`) at zero additional cost, effectively giving you unlimited requests.
 
----
+***
 
-## 🔌 MCP Ecosystem
+## 📊 How ShibaClaw Compares (Security-first)
 
-ShibaClaw is fully compatible with the **Model Context Protocol (MCP)**, transforming the agent from a standalone tool into a plug-and-play AI hub. 
+> This table is a **rough, security-focused snapshot**, based only on what is explicitly documented in public repos/docs as of May 2026.  
+> `❓` means “not clearly documented / not checked”, <b>not</b> “does not exist”.
 
-Instead of relying solely on built-in skills, ShibaClaw can connect to any MCP-compliant server, instantly granting your agent access to a vast universe of external data sources and professional tools without modifying a single line of core code.
+| Security Feature | ShibaClaw | OpenClaw | Hermes Agent | Nanobot | ZeroClaw |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
+| SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-**Why this matters:**
-- **Instant Extensibility**: Plug in community-made MCP servers for Google Drive, Slack, GitHub, PostgreSQL, and more.
-- **Standardized Tooling**: Leverage a universal protocol for AI-to-tool communication, ensuring stability and interoperability.
-- **Decoupled Architecture**: Keep your agent lean while scaling its capabilities through a distributed network of MCP servers.
+ShibaClaw focuses on shipping these defenses in the core engine, on by default, so you do not have to glue together external scanners and proxies just to run an agent safely.
 
-*Configure your MCP servers directly in the **Settings** panel to start expanding ShibaClaw's horizons.*
+***
 
----
-
-## Architecture
+## 🏗️ Architecture
 
 <p align="center">
   <img src="assets/arch.png" width="800" alt="ShibaClaw Architecture">
@@ -311,7 +377,7 @@ Instead of relying solely on built-in skills, ShibaClaw can connect to any MCP-c
 ### Docker Compose
 
 | Service | Role | Default Port |
-|---------|------|-------------|
+|---------|------|--------------|
 | `shibaclaw-gateway` | Core agent loop, message bus, channel integrations | 19999 (HTTP) · 19998 (WS) |
 | `shibaclaw-web` | WebUI (Starlette + native WebSocket), cron service | 3000 |
 
@@ -337,25 +403,28 @@ Both share the `~/.shibaclaw/` volume (config, workspace, memory, cron jobs, med
 | Gateway | ~120 MB | ~350 MB |
 | WebUI | ~120 MB | ~350 MB |
 
-Docker Compose sets a **512 MB** limit / **256 MB** reservation per container. Tool output is streamed with bounded buffers, so long-running commands (`apt`, `npm install`) can't blow up memory.
+Docker Compose sets a 512 MB limit / 256 MB reservation per container. Tool output is streamed with bounded buffers, so long-running commands (`apt`, `npm install`) can't blow up memory.
 
-## CLI Reference
+***
+
+## 🔧 CLI Reference
 
 ```bash
 shibaclaw web               # Start WebUI (agent + cron in-process)
-shibaclaw gateway            # Start gateway only (for Docker split)
-shibaclaw onboard            # CLI-based first-time setup wizard
-shibaclaw agent -m "Hello"   # One-shot message via terminal
-shibaclaw agent              # Interactive REPL with history
-shibaclaw status             # Provider, workspace, OAuth health check
-shibaclaw print-token        # Show WebUI auth token
-shibaclaw channels status    # List enabled channels
-shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
+shibaclaw gateway           # Start gateway only (for Docker split)
+shibaclaw onboard           # CLI-based first-time setup wizard
+shibaclaw agent -m "Hello"  # One-shot message via terminal
+shibaclaw agent             # Interactive REPL with history
+shibaclaw status            # Provider, workspace, OAuth health check
+shibaclaw print-token       # Show WebUI auth token
+shibaclaw channels status   # List enabled channels
+shibaclaw provider login <p># OAuth login (github-copilot, openai-codex)
+shibaclaw desktop           # Launch Windows desktop app
 ```
 
----
+***
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
 | Problem | Try |
 |---------|-----|
@@ -365,9 +434,9 @@ shibaclaw provider login <p> # OAuth login (github-copilot, openai-codex)
 | Provider errors | `shibaclaw status` shows API key and OAuth state |
 | Security policy | [`SECURITY.md`](./SECURITY.md) |
 
----
+***
 
-## Contributing
+## 🤝 Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) — PRs welcome.
 
@@ -375,26 +444,25 @@ Channels are extensible via Python entry points (`shibaclaw.integrations`). Skil
 
 Gateway integrators: see [`docs/GATEWAY_PROTOCOL.md`](./docs/GATEWAY_PROTOCOL.md) for the WebSocket contract on port `19998`.
 
+***
 
+## 🌟 Join the ShibaClaw Pack
 
----
+ShibaClaw is built by one developer, maintained by the community, and growing fast.  
+If it saved you time, secured your workflow, or just made you smile — <b>leave a star</b> ⭐
 
-### 🌟 Support ShibaClaw
-
-If you find this project useful or if it helps you build a more secure and powerful AI workflow, please consider giving it a **Star**! 
-
-Your support helps ShibaClaw grow, reach more developers, and stay updated with the latest AI advancements. Thank you for being part of the journey! ❤️
-
-
----
-
-Inspired by [NanoBot](https://github.com/HKUDS/nanobot) by HKUDS — MIT License.
-
----
+> "The AI agent that just works. No babysitting required." 🐕
 
 <p align="center">
   ⭐ <a href="https://github.com/RikyZ90/ShibaClaw">Star the repo</a> &nbsp;·&nbsp;
   🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> &nbsp;·&nbsp;
   🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a> &nbsp;·&nbsp;
-  💬 <a href="https://discord.gg/kys6UYHmEb">Join the Discord</a>
+  💬 <a href="https://discord.gg/kys6UYHmEb">Join the Discord</a> &nbsp;·&nbsp;
+  📦 <a href="https://clawhub.ai/">Browse ClawHub</a>
+</p>
+
+***
+
+<p align="center">
+  <i>Inspired by <a href="https://github.com/HKUDS/nanobot">NanoBot</a> by HKUDS — MIT License.</i>
 </p>
