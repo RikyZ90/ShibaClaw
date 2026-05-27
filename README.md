@@ -70,7 +70,7 @@ Expose the WebUI on your LAN and<br>use the same agent from your phone
 <td align="center" width="33%">
 
 ### 🖥️ Desktop App
-Native Windows launcher with tray,<br>perfect combo with the WebUI
+Native Windows launcher
 
 </td>
 <td align="center" width="33%">
