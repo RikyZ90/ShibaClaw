@@ -80,7 +80,7 @@ Returns general server and agent status.
 ```json
 {
   "status": "ok",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "agent_configured": true,
   "oauth_configured": false,
   "provider": "openai",
