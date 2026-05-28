@@ -80,7 +80,7 @@ Returns general server and agent status.
 ```json
 {
   "status": "ok",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "agent_configured": true,
   "oauth_configured": false,
   "provider": "openai",
@@ -1389,3 +1389,4 @@ Background notifications may include `source` and `metadata` fields. Update noti
 ---
 
 *Generated from source code — last updated with ShibaClaw v0.4.5*
+

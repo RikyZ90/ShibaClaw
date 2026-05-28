@@ -22,7 +22,7 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.5.1</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.5.2</b> — Click to see what's new</summary>
 
 This major release brings a complete overhaul to background tasks:
 - **Unified Automation Engine & UI** — Refactored "Cron" and "Heartbeat" systems into a single "Automations" engine with a dedicated, premium control center in the WebUI.
