@@ -21,15 +21,15 @@
 
 ***
 
-<details>
-<summary>📢 <b>Latest Release: v0.4.8</b> — Click to see what's new</summary>
+<details open>
+<summary>📢 <b>Latest Release: v0.5.0</b> — Click to see what's new</summary>
 
-This release brings:
-- **Code Block Copy Fix** — Fixed an issue where the "Copy" button inside code blocks would silently fail on non-HTTPS environments by adding a robust fallback clipboard mechanism.
-- **Message Copy Feature** — Added a new "Copy Message" button next to the timestamp on every message bubble to easily copy the raw text content of an entire message.
-- **Thought Blocks UI Settings** — Added options to hide or collapse by default the agent's reasoning `<think>` blocks in the WebUI.
-- **Update Manifest Fixes** — Resolved issues where updates were not correctly recognized by Python package managers.
-- **Mobile WebUI Improvements** — Added a mobile-only setting to make Enter insert a newline on mobile devices, improved mobile chat bubble width, and made message tables horizontally scrollable.
+This major release brings a complete overhaul to background tasks:
+- **Unified Automation Engine & UI** — Refactored "Cron" and "Heartbeat" systems into a single "Automations" engine with a dedicated, premium control center in the WebUI.
+- **Realtime Background Telemetry** — The UI global status indicator now pulses gold ("Executing...") whenever any automated job runs silently in the background.
+- **Native TASK.md Syncing** — The WebUI now reads and writes `TASK.md` directly via the filesystem, ensuring perfect synchronization between the UI and the agent's directives.
+- **Boot Storm Prevention** — Recurring jobs that were missed while the gateway was offline are now silently "fast-forwarded" to their next occurrence upon boot, preventing instant execution storms.
+- **Modern Workspace Summary** — A sleek new glassmorphic widget at the bottom of the sidebar displays Active Channels, the Configured Provider, and strict Workspace Restriction status.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
@@ -70,7 +70,7 @@ Expose the WebUI on your LAN and<br>use the same agent from your phone
 <td align="center" width="33%">
 
 ### 🖥️ Desktop App
-Native Windows launcher
+Native Windows launcher with tray,<br>perfect combo with the WebUI
 
 </td>
 <td align="center" width="33%">
@@ -205,7 +205,7 @@ Expose it on your local network and open the same URL from your phone or tablet 
 - **OAuth flows** — GitHub Copilot, OpenAI Codex, and OpenRouter can all be configured from the settings modal; OpenRouter stores the returned API key directly into provider settings
 - **Hardened rendering** — chat Markdown escapes raw HTML, file names render through safe DOM nodes, and expired auth returns cleanly to login without reconnect loops
 - **Auto-update** — checks GitHub releases every 12h, notifies in the UI and on all active channels
-- **Notification Center (WIP)** — bell icon with unread badge, real-time WebSocket push, per-notification deep-link to the related session; covers heartbeat, cron, agent responses, and update alerts
+- **Notification Center (WIP)** — bell icon with unread badge, real-time WebSocket push, per-notification deep-link to the related session; covers background automations, agent responses, and update alerts
 - **Responsive** — works great on desktop and mobile; open the same agent UI from your couch, not only from your desk
 
 ### ⚡ Dynamic Model Selection
@@ -266,7 +266,7 @@ Instead of bloating the system prompt with thousands of messages, ShibaClaw feat
 | `web_fetch` | HTTP fetch with SSRF protection, DNS rebinding defense, and redirect validation |
 | `memory_search` | Ranked search over session history (TF-IDF + recency + importance scoring) |
 | `message` | Cross-channel messaging with media attachments |
-| `cron` | Schedule one-time or recurring jobs (cron expressions, intervals, ISO dates, timezone-aware) |
+| `automation` | Manage or schedule background jobs (cron expressions, intervals, ISO dates, timezone-aware) |
 | `spawn` | Optional background worker for a focused task; reports back to the main session when done |
 | MCP | Connect any MCP server (stdio, SSE, or streamable HTTP) — tools auto-registered as `mcp_<server>_<tool>` |
 
@@ -278,14 +278,14 @@ All channels route through the same message bus. WhatsApp uses a Node.js bridge 
 
 ### Skills
 
-8 built-in skills (GitHub, weather, summarize, tmux, cron reference, memory guide, skill-creator, ClawHub browser). Skills are Markdown files with YAML frontmatter and optional scripts — create your own or install from [ClawHub](https://clawhub.ai/). Pin frequently-used skills to load them on every conversation.
+8 built-in skills (GitHub, weather, summarize, tmux, automation, memory guide, skill-creator, ClawHub browser). Skills are Markdown files with YAML frontmatter and optional scripts — create your own or install from [ClawHub](https://clawhub.ai/). Pin frequently-used skills to load them on every conversation.
 
 ### Automation
 
-- **Cron service** — persistent, timezone-aware scheduled jobs stored in `jobs.json`. Supports `every`, `cron`, and `at` schedules. Overdue jobs fire on startup.
-- **Heartbeat** — periodic wake-up reads `HEARTBEAT.md`, uses its frontmatter for session/profile/targets, keeps enable/interval in global settings, skips the LLM entirely when `Active Tasks` is empty, and only asks the model to decide when real active work exists.
+- **Automations Engine** — persistent, timezone-aware scheduled jobs and background interval routines managed via a unified UI modal and stored in `automation.json`. Supports `every`, `cron`, and `at` schedules. Missed jobs are automatically fast-forwarded on startup to prevent execution storms.
+- **TASK.md Integration** — the engine uses `TASK.md` as the unified source of truth for background routines, skipping the LLM entirely when tasks are empty to save tokens and only processing active directives.
 
-If you are upgrading from an older release, it is recommended to reset your workspace `HEARTBEAT.md` once so you get the new frontmatter-based base template. Existing files still work, but they will not gain the new editable settings block automatically.
+If you are upgrading from an older release, `HEARTBEAT.md` has been deprecated and removed. Your tasks and schedules should be migrated to `TASK.md` and the new Automations UI.
 
 ***
 
@@ -379,13 +379,13 @@ ShibaClaw focuses on shipping these defenses in the core engine, on by default, 
 | Service | Role | Default Port |
 |---------|------|--------------|
 | `shibaclaw-gateway` | Core agent loop, message bus, channel integrations | 19999 (HTTP) · 19998 (WS) |
-| `shibaclaw-web` | WebUI (Starlette + native WebSocket), cron service | 3000 |
+| `shibaclaw-web` | WebUI (Starlette + native WebSocket), automations service | 3000 |
 
-Both share the `~/.shibaclaw/` volume (config, workspace, memory, cron jobs, media cache).
+Both share the `~/.shibaclaw/` volume (config, workspace, memory, automation jobs, media cache).
 
 ### Single-process mode
 
-`shibaclaw web` runs agent + WebUI + cron in a single process — no gateway container needed.
+`shibaclaw web` runs agent + WebUI + automations in a single process — no gateway container needed.
 
 ### Stack
 
@@ -410,7 +410,7 @@ Docker Compose sets a 512 MB limit / 256 MB reservation per container. Tool outp
 ## 🔧 CLI Reference
 
 ```bash
-shibaclaw web               # Start WebUI (agent + cron in-process)
+shibaclaw web               # Start WebUI (agent + automations in-process)
 shibaclaw gateway           # Start gateway only (for Docker split)
 shibaclaw onboard           # CLI-based first-time setup wizard
 shibaclaw agent -m "Hello"  # One-shot message via terminal

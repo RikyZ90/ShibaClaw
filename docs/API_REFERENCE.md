@@ -12,8 +12,7 @@ This document describes the full HTTP REST API exposed by the ShibaClaw WebUI se
 - [Skills](#skills)
 - [Profiles](#profiles)
 - [Gateway](#gateway)
-- [Heartbeat](#heartbeat)
-- [Cron](#cron)
+- [Automations](#automations)
 - [Filesystem](#filesystem)
 - [OAuth](#oauth)
 - [Onboarding](#onboarding)
@@ -81,11 +80,14 @@ Returns general server and agent status.
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "agent_configured": true,
+  "oauth_configured": false,
   "provider": "openai",
   "model": "gpt-4o",
   "workspace": "/home/user/.shibaclaw/workspace",
+  "restrict_workspace": true,
+  "active_channels": ["discord", "telegram"],
   "gateway": true
 }
 ```
@@ -95,9 +97,12 @@ Returns general server and agent status.
 | `status` | string | `"ok"` or `"gateway_offline"` |
 | `version` | string | Installed ShibaClaw version |
 | `agent_configured` | boolean | Whether the agent is ready to serve requests |
+| `oauth_configured` | boolean | Whether an OAuth provider is successfully linked |
 | `provider` | string | Active LLM provider name |
 | `model` | string | Active model identifier |
 | `workspace` | string | Absolute path to the workspace directory |
+| `restrict_workspace` | boolean | Whether the agent is sandboxed to the workspace |
+| `active_channels` | array | List of active channel identifiers |
 | `gateway` | boolean | Whether the gateway process is reachable |
 
 ---
@@ -689,45 +694,33 @@ Send a restart command to the gateway.
 
 ---
 
-## Heartbeat
+## Automations
 
-The heartbeat module probes external resources or URLs on a schedule.
+Scheduled and interval-based background jobs managed by the gateway engine.
 
-### `GET /api/heartbeat/status`
+### `GET /api/automation/status`
 
-Proxy heartbeat status from the gateway.
+Retrieve global status for the automation engine.
 
 **Response**
 
 ```json
 {
   "reachable": true,
-  "last_check": 1713500000,
-  "status": "ok"
+  "running": false,
+  "jobs": 3,
+  "enabled": 2,
+  "scheduled": 2,
+  "heartbeats": 1,
+  "next_wake_at_ms": 1713501000000
 }
 ```
 
 ---
 
-### `POST /api/heartbeat/trigger`
+### `GET /api/automation/jobs`
 
-Manually trigger an immediate heartbeat check.
-
-**Response** — forwarded from the gateway.
-
-| Status | Body | Cause |
-|---|---|---|
-| 503 | `{ "error": "Gateway unreachable" }` | Cannot reach gateway |
-
----
-
-## Cron
-
-Scheduled jobs managed by the gateway.
-
-### `GET /api/cron/jobs`
-
-List all scheduled cron jobs.
+List all background automation jobs.
 
 **Response**
 
@@ -736,35 +729,53 @@ List all scheduled cron jobs.
   "jobs": [
     {
       "id": "daily-summary",
-      "schedule": "0 8 * * *",
+      "description": "Summarize today's commits",
       "enabled": true,
-      "last_run": 1713500000
+      "payload": {
+        "kind": "scheduled",
+        "cron": "0 8 * * *",
+        "timezone": "UTC"
+      },
+      "state": {
+        "last_run_at_ms": 1713500000000,
+        "next_run_at_ms": 1713586400000,
+        "last_status": "ok",
+        "error_message": null
+      }
     }
   ]
 }
 ```
 
-| Status | Body | Cause |
-|---|---|---|
-| 503 | `{ "jobs": [], "error": "gateway_unreachable" }` | Gateway offline |
+---
+
+### `POST /api/automation/jobs`
+
+Create a new automation job.
 
 ---
 
-### `POST /api/cron/jobs/{job_id}/trigger`
+### `GET /api/automation/jobs/{job_id}`
 
-Manually trigger a specific cron job immediately.
+Get details for a specific job.
 
-**Path params**
+---
 
-| Param | Description |
-|---|---|
-| `job_id` | Cron job identifier |
+### `PUT /api/automation/jobs/{job_id}`
 
-**Response** — forwarded from the gateway.
+Update a specific job.
 
-| Status | Body | Cause |
-|---|---|---|
-| 503 | `{ "error": "Gateway unreachable" }` | Cannot reach gateway |
+---
+
+### `DELETE /api/automation/jobs/{job_id}`
+
+Delete a specific job.
+
+---
+
+### `POST /api/automation/jobs/{job_id}/trigger`
+
+Manually trigger a specific job immediately.
 
 ---
 
@@ -1283,8 +1294,6 @@ Receive a background notification from the gateway and broadcast it to connected
 ---
 
 ## WebSocket
-
-> **Gateway protocol (third-party clients):** see [`GATEWAY_PROTOCOL.md`](./GATEWAY_PROTOCOL.md) for the agent gateway WebSocket on port `19998` (`hello` / `request` / `event` / `response`).
 
 ### `WS /ws`
 

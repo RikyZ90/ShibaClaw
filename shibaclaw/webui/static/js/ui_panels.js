@@ -6,8 +6,9 @@ const CHANNEL_META = {
     slack: { icon: "tag", label: "Slack" },
     api: { icon: "api", label: "API" },
     cli: { icon: "terminal", label: "CLI" },
-    heartbeat: { icon: "favorite", label: "Heartbeat" },
-    cron: { icon: "schedule", label: "Cron" },
+    automation: { icon: "autorenew", label: "Automation" },
+    heartbeat: { icon: "autorenew", label: "Recurring" },
+    cron: { icon: "schedule_send", label: "One-time" },
     _default: { icon: "chat_bubble", label: "Other" }
 };
 const RECENT_COUNT = 4;
@@ -15,8 +16,15 @@ const RECENT_COUNT = 4;
 const _channelCollapsed = {};
 
 function _extractChannel(key) {
-    const idx = key.indexOf(":");
-    return idx > 0 ? key.substring(0, idx).toLowerCase() : "_default";
+    const rawKey = (key || "").trim();
+    const idx = rawKey.indexOf(":");
+    if (idx > 0) {
+        return rawKey.substring(0, idx).toLowerCase();
+    }
+    if (rawKey) {
+        return "automation";
+    }
+    return "_default";
 }
 
 function _channelInfo(ch) {
@@ -69,8 +77,10 @@ function _appendHistoryAttachment(container, file) {
     if (file.type && file.type.startsWith("image/")) {
         const img = document.createElement("img");
         img.src = file.url;
+        img.onload = () => { if (typeof scrollToBottom === 'function') scrollToBottom(); };
         img.onclick = () => window.open(file.url, "_blank");
         container.appendChild(img);
+        if (typeof scrollToBottom === 'function') scrollToBottom();
         return;
     }
 
@@ -321,7 +331,7 @@ async function loadCronSection() {
         count.textContent = jobs.length;
 
         if (jobs.length === 0) {
-            list.innerHTML = `<div class="auto-empty">No scheduled jobs</div>`;
+            list.innerHTML = `<div class="auto-empty">No one-time jobs</div>`;
             return;
         }
 
@@ -350,7 +360,7 @@ async function loadCronSection() {
             list.appendChild(row);
         }
     } catch (e) {
-        list.innerHTML = `<div class="auto-empty">Error loading jobs</div>`;
+        list.innerHTML = `<div class="auto-empty">Error loading one-time jobs</div>`;
     }
 }
 
@@ -371,7 +381,7 @@ async function loadHeartbeatSection() {
         if (!data.enabled) {
             badge.className = "automation-badge badge-off";
             badge.textContent = "off";
-            list.innerHTML = `<div class="auto-empty">Heartbeat disabled</div>`;
+            list.innerHTML = `<div class="auto-empty">Recurring check disabled</div>`;
             return;
         }
 
@@ -386,9 +396,9 @@ async function loadHeartbeatSection() {
         if (data.last_check_ms) info += `<span class="hb-label">Last check:</span> ${_timeAgo(data.last_check_ms)} — ${data.last_action || "?"}<br>`;
         if (data.last_run_ms) info += `<span class="hb-label">Last run:</span> ${_timeAgo(data.last_run_ms)}<br>`;
         if (data.last_error) info += `<span class="hb-label">Error:</span> ${escapeHtml(data.last_error)}<br>`;
-        info += `<span class="hb-label">File:</span> ${data.heartbeat_file_exists ? `<a class="hb-file-link" href="#" onclick="openHeartbeatFile(event)">HEARTBEAT.md</a>` : "missing"}`;
+        info += `<span class="hb-label">File:</span> ${data.heartbeat_file_exists ? `<a class="hb-file-link" href="#" onclick="openHeartbeatFile(event)">TASK.md</a>` : "missing"}`;
         info += `</div>`;
-        info += `<div class="auto-row"><button class="btn-auto-trigger" id="btn-hb-trigger" title="Run heartbeat now">▶ Trigger</button></div>`;
+        info += `<div class="auto-row"><button class="btn-auto-trigger" id="btn-hb-trigger" title="Run recurring check now">▶ Trigger</button></div>`;
 
         list.innerHTML = info;
         $("btn-hb-trigger").addEventListener("click", async (e) => {
@@ -685,7 +695,8 @@ async function loadSession(sessionId) {
                     if (!msg.content || msg.content === lastUserContent) continue;
                     lastUserContent = msg.content;
 
-                    if (turnSteps.length > 0) {
+                    const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
+                    if (turnSteps.length > 0 && hasExeSteps) {
                         renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                         pgCount++;
                     }
@@ -696,7 +707,6 @@ async function loadSession(sessionId) {
                     bubble.className = "message-bubble";
 
                     if (msg.content) {
-                        bubble.setAttribute("data-raw-content", msg.content);
                         bubble.innerHTML = renderMarkdown(msg.content);
                         enhanceCodeBlocks(bubble);
                     }
@@ -745,7 +755,8 @@ async function loadSession(sessionId) {
                     }
 
                     if (hasContent) {
-                        if (turnSteps.length > 0) {
+                        const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
+                        if (turnSteps.length > 0 && hasExeSteps) {
                             renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                             pgCount++;
                             turnSteps = [];
@@ -753,7 +764,6 @@ async function loadSession(sessionId) {
                         const group = createMessageGroup("agent", fragment);
                         const bubble = document.createElement("div");
                         bubble.className = "message-bubble";
-                        bubble.setAttribute("data-raw-content", msg.content);
                         bubble.innerHTML = renderMarkdown(msg.content);
                         enhanceCodeBlocks(bubble);
 
@@ -780,7 +790,8 @@ async function loadSession(sessionId) {
                     }
 
                     if (msgToolCall) {
-                        if (turnSteps.length > 0) {
+                        const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
+                        if (turnSteps.length > 0 && hasExeSteps) {
                             renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                             pgCount++;
                             turnSteps = [];
@@ -800,7 +811,6 @@ async function loadSession(sessionId) {
                         const group = createMessageGroup("agent", fragment);
                         const bubble = document.createElement("div");
                         bubble.className = "message-bubble";
-                        bubble.setAttribute("data-raw-content", toolContent);
                         bubble.innerHTML = renderMarkdown(toolContent);
                         enhanceCodeBlocks(bubble);
 
@@ -833,7 +843,7 @@ async function loadSession(sessionId) {
                 } else if (msg.role === "tool") {
                 }
             }
-            if (turnSteps.length > 0) {
+            if (turnSteps.length > 0 && turnSteps.some(s => s.badge === "EXE")) {
                 renderProcessGroupFromHistory(turnId, turnSteps, fragment);
                 pgCount++;
             }
@@ -941,9 +951,9 @@ window.openChangelog = function () {
     openModal("changelog-modal");
 };
 
-window.openHeartbeatFile = function (event) {
+window.openHeartbeatFile = async function (event) {
     if (event && event.preventDefault) event.preventDefault();
-    const filePath = "HEARTBEAT.md";
+    const filePath = "TASK.md";
     const dir = filePath.includes("/") ? filePath.replace(/\\/g, "/").split("/").slice(0, -1).join("/") : ".";
     state.currentFsPath = dir || ".";
     state.fsOpenTarget = filePath;
@@ -1405,10 +1415,6 @@ function populateSettings(cfg) {
     $("s-agent-maxIter").value = d.maxToolIterations ?? 40;
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
-
-    $("s-mobile-enter-newline").checked = localStorage.getItem("shibaclaw_mobile_enter_newline") !== "false";
-    $("s-ui-hide-thoughts").checked = localStorage.getItem("shibaclaw_hide_thoughts") === "true";
-    $("s-ui-collapse-thoughts").checked = localStorage.getItem("shibaclaw_collapse_thoughts") === "true";
 
     // Audio settings
     const au = cfg.audio || {};
@@ -1879,14 +1885,6 @@ window.saveSettings = async function () {
         }
         patch.channels[name][key] = val;
     });
-
-    try {
-        localStorage.setItem("shibaclaw_mobile_enter_newline", $("s-mobile-enter-newline").checked ? "true" : "false");
-        localStorage.setItem("shibaclaw_hide_thoughts", $("s-ui-hide-thoughts").checked ? "true" : "false");
-        localStorage.setItem("shibaclaw_collapse_thoughts", $("s-ui-collapse-thoughts").checked ? "true" : "false");
-    } catch (e) {
-        console.warn("Unable to persist UI preferences", e);
-    }
 
     try {
         const res = await authFetch("/api/settings", {
@@ -2629,7 +2627,8 @@ function _obSetupStep4() {
         for (const f of _ob.templates.existing) {
             const item = document.createElement("label");
             item.className = "ob-tpl-item";
-            item.innerHTML = '<input type="checkbox" value="' + f + '"> <span class="material-icons-round" style="font-size:16px;color:var(--text-muted)">description</span> ' + f;
+            const icon = f === "Tasks.md" ? "schedule_send" : "description";
+            item.innerHTML = '<input type="checkbox" value="' + f + '"> <span class="material-icons-round" style="font-size:16px;color:var(--text-muted)">' + icon + '</span> ' + f;
             tplList.appendChild(item);
         }
     } else {

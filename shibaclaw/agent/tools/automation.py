@@ -1,23 +1,23 @@
-"""Cron tool for scheduling reminders and tasks."""
+"""Automation tool for scheduling reminders and tasks."""
 
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any
 
 from shibaclaw.agent.tools.base import Tool
-from shibaclaw.cron.service import CronService
-from shibaclaw.cron.types import CronJobState, CronSchedule
+from shibaclaw.automation.service import AutomationService
+from shibaclaw.automation.types import AutomationJobState, AutomationSchedule, AutomationPayload
 
 
-class CronTool(Tool):
+class AutomationTool(Tool):
     """Tool to schedule reminders and recurring tasks."""
 
-    def __init__(self, cron_service: CronService):
-        self._cron = cron_service
+    def __init__(self, automation_service: AutomationService):
+        self._automation = automation_service
         self._channel = ""
         self._chat_id = ""
         self._session_key = "cli:direct"
-        self._in_cron_context: ContextVar[bool] = ContextVar("cron_in_context", default=False)
+        self._in_automation_context: ContextVar[bool] = ContextVar("automation_in_context", default=False)
 
     def set_context(self, channel: str, chat_id: str, session_key: str | None = None) -> None:
         """Set the current session context for delivery."""
@@ -25,17 +25,17 @@ class CronTool(Tool):
         self._chat_id = chat_id
         self._session_key = session_key or f"{channel}:{chat_id}"
 
-    def set_cron_context(self, active: bool):
-        """Mark whether the tool is executing inside a cron job callback."""
-        return self._in_cron_context.set(active)
+    def set_automation_context(self, active: bool):
+        """Mark whether the tool is executing inside an automation job callback."""
+        return self._in_automation_context.set(active)
 
-    def reset_cron_context(self, token) -> None:
-        """Restore previous cron context."""
-        self._in_cron_context.reset(token)
+    def reset_automation_context(self, token) -> None:
+        """Restore previous automation context."""
+        self._in_automation_context.reset(token)
 
     @property
     def name(self) -> str:
-        return "cron"
+        return "automation"
 
     @property
     def description(self) -> str:
@@ -68,6 +68,10 @@ class CronTool(Tool):
                     "type": "string",
                     "description": "ISO datetime for one-time execution (e.g. '2026-02-12T10:30:00')",
                 },
+                "delete_after_run": {
+                    "type": "boolean",
+                    "description": "Whether the job should be deleted after its first successful or failed execution",
+                },
                 "job_id": {"type": "string", "description": "Job ID (for remove)"},
             },
             "required": ["action"],
@@ -81,13 +85,14 @@ class CronTool(Tool):
         cron_expr: str | None = None,
         tz: str | None = None,
         at: str | None = None,
+        delete_after_run: bool | None = None,
         job_id: str | None = None,
         **kwargs: Any,
     ) -> str:
         if action == "add":
-            if self._in_cron_context.get():
-                return "Error: cannot schedule new jobs from within a cron job execution"
-            return self._add_job(message, every_seconds, cron_expr, tz, at)
+            if self._in_automation_context.get():
+                return "Error: cannot schedule new jobs from within an automation job execution"
+            return self._add_job(message, every_seconds, cron_expr, tz, at, delete_after_run)
         elif action == "list":
             return self._list_jobs()
         elif action == "remove":
@@ -101,6 +106,7 @@ class CronTool(Tool):
         cron_expr: str | None,
         tz: str | None,
         at: str | None,
+        delete_after_run: bool | None = None,
     ) -> str:
         if not message:
             return "Error: message is required for add"
@@ -117,11 +123,10 @@ class CronTool(Tool):
                 return f"Error: unknown timezone '{tz}'"
 
         # Build schedule
-        delete_after = False
         if every_seconds:
-            schedule = CronSchedule(kind="every", every_ms=every_seconds * 1000)
+            schedule = AutomationSchedule(kind="every", every_ms=every_seconds * 1000)
         elif cron_expr:
-            schedule = CronSchedule(kind="cron", expr=cron_expr, tz=tz)
+            schedule = AutomationSchedule(kind="cron", expr=cron_expr, tz=tz)
         elif at:
             from datetime import datetime
 
@@ -130,29 +135,40 @@ class CronTool(Tool):
             except ValueError:
                 return f"Error: invalid ISO datetime format '{at}'. Expected format: YYYY-MM-DDTHH:MM:SS"
             at_ms = int(dt.timestamp() * 1000)
-            schedule = CronSchedule(kind="at", at_ms=at_ms)
-            delete_after = True
+            schedule = AutomationSchedule(kind="at", at_ms=at_ms)
         else:
             return "Error: either every_seconds, cron_expr, or at is required"
 
-        job = self._cron.add_job(
-            name=message[:30],
-            schedule=schedule,
+        # Determine if it should be deleted after run
+        if delete_after_run is not None:
+            delete_after = delete_after_run
+        else:
+            # Default: one-shot jobs are deleted, recurring ones are kept
+            delete_after = (schedule.kind == "at")
+
+        payload = AutomationPayload(
+            kind="scheduled",
             message=message,
             deliver=True,
             channel=self._channel,
             to=self._chat_id,
             session_key=self._session_key,
+        )
+
+        job = self._automation.add_job(
+            name=message[:30],
+            schedule=schedule,
+            payload=payload,
             delete_after_run=delete_after,
         )
         return f"Created job '{job.name}' (id: {job.id})"
 
     @staticmethod
-    def _format_timing(schedule: CronSchedule) -> str:
+    def _format_timing(schedule: AutomationSchedule) -> str:
         """Format schedule as a human-readable timing string."""
         if schedule.kind == "cron":
             tz = f" ({schedule.tz})" if schedule.tz else ""
-            return f"cron: {schedule.expr}{tz}"
+            return f"automation: {schedule.expr}{tz}"
         if schedule.kind == "every" and schedule.every_ms:
             ms = schedule.every_ms
             if ms % 3_600_000 == 0:
@@ -168,7 +184,7 @@ class CronTool(Tool):
         return schedule.kind
 
     @staticmethod
-    def _format_state(state: CronJobState) -> list[str]:
+    def _format_state(state: AutomationJobState) -> list[str]:
         """Format job run state as display lines."""
         lines: list[str] = []
         if state.last_run_at_ms:
@@ -183,7 +199,7 @@ class CronTool(Tool):
         return lines
 
     def _list_jobs(self) -> str:
-        jobs = self._cron.list_jobs()
+        jobs = self._automation.list_jobs()
         if not jobs:
             return "No scheduled jobs."
         lines = []
@@ -197,6 +213,6 @@ class CronTool(Tool):
     def _remove_job(self, job_id: str | None) -> str:
         if not job_id:
             return "Error: job_id is required for remove"
-        if self._cron.remove_job(job_id):
+        if self._automation.remove_job(job_id):
             return f"Removed job {job_id}"
         return f"Job {job_id} not found"

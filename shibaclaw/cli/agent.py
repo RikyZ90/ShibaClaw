@@ -114,8 +114,8 @@ def agent_command(
 
     from shibaclaw.agent.loop import ShibaBrain
     from shibaclaw.bus.queue import MessageBus
-    from shibaclaw.config.paths import get_cron_dir
-    from shibaclaw.cron.service import CronService
+    from shibaclaw.config.paths import get_automation_dir
+    from shibaclaw.automation.service import AutomationService
 
     if logs:
         logger.enable("shibaclaw")
@@ -127,8 +127,8 @@ def agent_command(
 
     provider = _make_provider(config_obj)
 
-    cron_store_path = get_cron_dir() / "jobs.json"
-    CronService(cron_store_path)
+    automation_store_path = get_automation_dir() / "automation.json"
+    AutomationService(automation_store_path)
 
     agent_loop = ShibaBrain(
         bus=bus,

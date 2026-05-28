@@ -1,4 +1,4 @@
-﻿# Tool Usage Notes
+# Tool Usage Notes
 
 Tool signatures are provided automatically via function calling.
 This file documents non-obvious constraints and usage patterns.
@@ -10,6 +10,6 @@ This file documents non-obvious constraints and usage patterns.
 - Output is truncated at 10,000 characters
 - `restrictToWorkspace` config can limit file access to the workspace
 
-## cron — Scheduled Reminders
+## automation — Scheduled Reminders
 
-- Please refer to cron skill for usage.
+- Please refer to automation skill for usage.

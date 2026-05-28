@@ -27,7 +27,6 @@ def get_runtime_root() -> Path:
     """
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         meipass = Path(sys._MEIPASS)
-        # In newer PyInstaller versions, resources might be in an '_internal' subdir
         internal = meipass / "_internal"
         return internal if internal.exists() else meipass
     return Path(__file__).resolve().parents[2]
@@ -62,7 +61,17 @@ def get_media_dir(channel: str | None = None) -> Path:
 
 
 def get_cron_dir() -> Path:
-    """Return the cron storage directory."""
+    """Return the cron storage directory (legacy alias for get_automation_dir)."""
+    return get_runtime_subdir("cron")
+
+
+def get_automation_dir() -> Path:
+    """Return the automation storage directory.
+
+    ``automation.json`` lives here.  The directory is the same as the old
+    ``cron/`` directory so that the legacy migration in AutomationService
+    can find ``jobs.json`` alongside the new ``automation.json``.
+    """
     return get_runtime_subdir("cron")
 
 

@@ -19,7 +19,7 @@ from shibaclaw.agent.context import ScentBuilder
 from shibaclaw.agent.memory import PackMemory, ScentKeeper
 from shibaclaw.agent.skills import BUILTIN_SKILLS_DIR
 from shibaclaw.agent.subagent import SubagentManager
-from shibaclaw.agent.tools.cron import CronTool
+from shibaclaw.agent.tools.automation import AutomationTool
 from shibaclaw.agent.tools.filesystem import EditFileTool, ListDirTool, ReadFileTool, WriteFileTool
 from shibaclaw.agent.tools.memory_search import MemorySearchTool
 from shibaclaw.agent.tools.message import MessageTool
@@ -59,7 +59,7 @@ class ShibaBrain:
         web_search_config: WebSearchConfig | None = None,
         web_proxy: str | None = None,
         exec_config: ExecToolConfig | None = None,
-        cron_service: Any | None = None,
+        automation_service: Any | None = None,
         restrict_to_workspace: bool = True,
         session_manager: PackManager | None = None,
         mcp_servers: dict[str, Any] | None = None,
@@ -82,7 +82,7 @@ class ShibaBrain:
         self.web_search_config = web_search_config or WebSearchConfig()
         self.web_proxy = web_proxy
         self.exec_config = exec_config or ExecToolConfig()
-        self.cron_service = cron_service
+        self.automation_service = automation_service
         self.restrict_to_workspace = restrict_to_workspace
         self.session_router = session_router
 
@@ -276,8 +276,8 @@ class ShibaBrain:
             )
         )
         self.tools.register(SpawnTool(manager=self.subagents))
-        if self.cron_service:
-            self.tools.register(CronTool(self.cron_service))
+        if self.automation_service:
+            self.tools.register(AutomationTool(self.automation_service))
 
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
@@ -316,7 +316,7 @@ class ShibaBrain:
             chat_id,
             message_id,
         )
-        for name in ("message", "spawn", "cron"):
+        for name in ("message", "spawn", "automation"):
             if tool := self.tools.get(name):
                 if hasattr(tool, "set_context"):
                     logger.debug("✅ Updating tool: {}", name)

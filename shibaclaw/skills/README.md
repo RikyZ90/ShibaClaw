@@ -1,4 +1,4 @@
-﻿# shibaclaw Skills
+# shibaclaw Skills
 
 This directory contains built-in skills that extend shibaclaw's capabilities.
 
@@ -24,4 +24,4 @@ The skill format and metadata structure follow OpenClaw's conventions to maintai
 | `clawhub` | Search and install skills from ClawHub registry |
 | `skill-creator` | Create new skills |
 | `memory` | Persistent memory system (USER.md, MEMORY.md, HISTORY.md) |
-| `cron` | Schedule reminders and recurring tasks |
+| `automation` | Schedule reminders and recurring tasks |

@@ -39,7 +39,7 @@ def resolve_webui_session_key(session_key: str | None, chat_id: str | None) -> s
     return f"webui:{chat_id[:8]}"
 
 
-def resolve_cron_target(job: Any) -> HeartbeatTarget:
+def resolve_automation_target(job: Any) -> HeartbeatTarget:
     channel = job.payload.channel or "cli"
     chat_id = job.payload.to or "direct"
     session_key = job.payload.session_key or f"{channel}:{chat_id}"
@@ -117,7 +117,7 @@ def resolve_heartbeat_targets(
                 target_value = "direct"
             else:
                 logger.warning(
-                    "Heartbeat: target {}:{} has no matching recent session; skipping",
+                    "Automation: target {}:{} has no matching recent session; skipping",
                     channel,
                     raw_target,
                 )
@@ -172,7 +172,7 @@ async def notify_webui_session(
     response: str,
     auth_token: str | None,
     *,
-    source: str = "heartbeat",
+    source: str = "automation",
     persist: bool = True,
     metadata: dict[str, Any] | None = None,
     msg_type: str = "response",
@@ -239,12 +239,12 @@ async def gateway_command(
 ):
     """Start the shibaclaw gateway."""
     from shibaclaw.agent.loop import ShibaBrain
+    from shibaclaw.automation.service import AutomationService
+    from shibaclaw.automation.types import AutomationJob, AutomationPayload, AutomationSchedule
     from shibaclaw.brain.manager import PackManager
     from shibaclaw.bus.queue import MessageBus
-    from shibaclaw.config.paths import get_cron_dir
-    from shibaclaw.cron.service import CronService
-    from shibaclaw.heartbeat.service import HeartbeatService
-    from shibaclaw.helpers.helpers import sync_profiles, sync_skills
+    from shibaclaw.config.paths import get_automation_dir
+    from shibaclaw.helpers.helpers import sync_profiles, sync_skills, sync_workspace_templates
     from shibaclaw.integrations.manager import ChannelManager
     from shibaclaw.webui.server import get_auth_token
 
@@ -261,11 +261,13 @@ async def gateway_command(
 
     sync_skills(config.workspace_path)
     sync_profiles(config.workspace_path)
+    sync_workspace_templates(config.workspace_path, silent=True)
 
     auth_token = get_auth_token()
 
     def _current_auth_token() -> str | None:
         return get_auth_token(refresh=True)
+
     bus = MessageBus(rate_limit_per_minute=config.gateway.rate_limit_per_minute)
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
@@ -275,73 +277,19 @@ async def gateway_command(
         )
 
     session_manager = PackManager(config.workspace_path)
-    cron = CronService(get_cron_dir() / "jobs.json")
 
     from shibaclaw.brain.routing import SessionRouter
     session_router = SessionRouter()
 
-    agent = ShibaBrain(
-        bus=bus,
-        provider=provider,
-        workspace=config.workspace_path,
-        config=config,
-        model=config.agents.defaults.model,
-        max_iterations=config.agents.defaults.max_tool_iterations,
-        context_window_tokens=config.agents.defaults.context_window_tokens,
-        web_search_config=config.tools.web.search,
-        web_proxy=config.tools.web.proxy,
-        exec_config=config.tools.exec,
-        cron_service=cron,
-        mcp_servers=config.tools.mcp_servers,
-        channels_config=config.channels,
-        restrict_to_workspace=config.tools.restrict_to_workspace,
-        learning_enabled=config.agents.defaults.learning_enabled,
-        learning_interval=config.agents.defaults.learning_interval,
-        memory_max_prompt_tokens=config.agents.defaults.memory_max_prompt_tokens,
-        memory_compact_threshold_tokens=config.agents.defaults.memory_compact_threshold_tokens,
-        session_router=session_router,
-    )
+    # ------------------------------------------------------------------
+    # AutomationService callbacks
+    # ------------------------------------------------------------------
 
-    channels = ChannelManager(config, bus)
-
-    def _pick_heartbeat_target() -> HeartbeatTarget:
-        return select_heartbeat_target(
-            session_manager.list_sessions(),
-            set(channels.enabled_channels),
-        )
-
-    async def on_heartbeat_execute(
-        tasks: str,
-        *,
-        session_key: str = "heartbeat:default",
-        profile_id: str | None = None,
-        targets: dict[str, str] | None = None,
-    ) -> str:
-        async def _noop_progress(*_args, **_kwargs) -> None:
-            return None
-
-        resolved_targets = resolve_heartbeat_targets(
-            targets,
-            session_manager.list_sessions(),
-            set(channels.enabled_channels),
-        )
-        exec_target = resolved_targets[0] if resolved_targets else _pick_heartbeat_target()
-
-        outbound = await agent.process_direct(
-            tasks,
-            session_key,
-            exec_target.channel,
-            exec_target.chat_id,
-            on_progress=_noop_progress,
-            profile_id=profile_id,
-        )
-        return outbound.content if outbound else ""
-
-    async def on_heartbeat_notify(
+    async def on_automation_notify(
         response: str,
         *,
         targets: dict[str, str] | None = None,
-        source: str = "heartbeat",
+        source: str = "automation",
         persist: bool = True,
         metadata: dict[str, Any] | None = None,
         msg_type: str = "response",
@@ -349,7 +297,7 @@ async def gateway_command(
         from shibaclaw.bus.events import OutboundMessage
 
         if not response:
-            response = "Heartbeat task completed."
+            response = "Automation task completed."
 
         resolved_targets = resolve_heartbeat_targets(
             targets,
@@ -359,7 +307,6 @@ async def gateway_command(
 
         for target in resolved_targets:
             if target.channel == "webui":
-                # Try WebSocket broadcast first, fall back to HTTP callback
                 if _ws_clients:
                     await _broadcast_ws_event(
                         "session.notify",
@@ -390,9 +337,8 @@ async def gateway_command(
             )
 
         if not any(target.channel != "cli" for target in resolved_targets):
-            logger.info("Heartbeat: generated a response but found no deliverable session")
+            logger.info("Automation: generated a response but found no deliverable session")
 
-        # Always notify the WebUI notification center when no webui session was targeted
         webui_notified = any(t.channel == "webui" for t in resolved_targets)
         if not webui_notified:
             sys_payload = {
@@ -408,20 +354,164 @@ async def gateway_command(
                     "", response, auth_token, source=source, persist=False, msg_type="notification"
                 )
 
+    async def on_heartbeat_execute(
+        tasks: str,
+        *,
+        session_key: str = "automation:heartbeat",
+        profile_id: str | None = None,
+        targets: dict[str, str] | None = None,
+    ) -> str:
+        async def _noop_progress(*_args, **_kwargs) -> None:
+            return None
+
+        resolved_targets = resolve_heartbeat_targets(
+            targets,
+            session_manager.list_sessions(),
+            set(channels.enabled_channels),
+        )
+        exec_target = resolved_targets[0] if resolved_targets else select_heartbeat_target(
+            session_manager.list_sessions(), set(channels.enabled_channels)
+        )
+
+        outbound = await agent.process_direct(
+            tasks,
+            session_key,
+            exec_target.channel,
+            exec_target.chat_id,
+            on_progress=_noop_progress,
+            profile_id=profile_id,
+        )
+        return outbound.content if outbound else ""
+
+    async def on_scheduled_job(job: AutomationJob) -> str | None:
+        """Execute a scheduled job: run an agent turn then optionally deliver."""
+        from shibaclaw.bus.events import OutboundMessage
+
+        session_key = job.payload.session_key or job.name or f"automation:{job.id}"
+
+        async def _noop_progress(*_args, **_kwargs) -> None:
+            return None
+
+        out = await agent.process_direct(
+            job.payload.message,
+            session_key,
+            channel="automation",
+            chat_id=job.id,
+            on_progress=_noop_progress,
+            metadata={"hidden": True},
+        )
+        response = out.content if out else ""
+        if not response:
+            response = "Automation job executed successfully."
+
+        if job.payload.deliver and job.payload.channel and job.payload.to:
+            await bus.publish_outbound(
+                OutboundMessage(
+                    channel=job.payload.channel,
+                    chat_id=job.payload.to,
+                    content=response,
+                )
+            )
+
+            # Only send fallback notification to the global session if not already delivering to WebUI
+            if job.payload.channel != "webui":
+                if _ws_clients:
+                    await _broadcast_ws_event(
+                        "session.notify",
+                        {
+                            "content": response,
+                            "source": "automation",
+                            "persist": False,
+                            "msg_type": "notification",
+                        },
+                        session_key="",
+                    )
+                else:
+                    await notify_webui_session(
+                        "", response, auth_token, source="automation", persist=False
+                    )
+        elif _ws_clients:
+            await _broadcast_ws_event(
+                "session.notify",
+                {"content": response, "source": "automation", "persist": False},
+                session_key=session_key,
+            )
+        else:
+            await notify_webui_session(
+                session_key,
+                response,
+                auth_token,
+                source="automation",
+                persist=False,
+            )
+
+        return response
+
+    # Build AutomationService — replaces both CronService and HeartbeatService
     hb_cfg = config.gateway.heartbeat
-    heartbeat = HeartbeatService(
+    automation_store = get_automation_dir() / "automation.json"
+    store_existed = automation_store.exists()
+
+    automation = AutomationService(
+        store_path=automation_store,
         workspace=config.workspace_path,
+        on_scheduled=on_scheduled_job,
+        on_heartbeat=on_heartbeat_execute,
+        on_notify=on_automation_notify,
         provider=provider,
-        model=hb_cfg.model or agent.model,
-        on_execute=on_heartbeat_execute,
-        on_notify=on_heartbeat_notify,
-        interval_min=hb_cfg.interval_min,
-        enabled=hb_cfg.enabled,
-        session_key=hb_cfg.session_key,
-        targets=hb_cfg.targets,
-        profile_id=hb_cfg.profile_id,
+        model=hb_cfg.model or None,
     )
 
+    # If heartbeat was enabled in config, register it as a heartbeat job
+    # Only do this on first run (if store didn't exist) to allow users to delete it.
+    _existing_hb = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
+    if hb_cfg.enabled and not store_existed and not _existing_hb:
+        from shibaclaw.automation.types import AutomationPayload, AutomationSchedule
+        automation.add_job(
+            name="Heartbeat",
+            schedule=AutomationSchedule(
+                kind="every",
+                every_ms=hb_cfg.interval_min * 60 * 1000,
+            ),
+            payload=AutomationPayload(
+                kind="heartbeat",
+                session_key=hb_cfg.session_key,
+                targets=hb_cfg.targets or {},
+                profile_id=hb_cfg.profile_id,
+            ),
+        )
+        logger.info(
+            "AutomationService: registered heartbeat job from config (every {}m)",
+            hb_cfg.interval_min,
+        )
+
+    agent = ShibaBrain(
+        bus=bus,
+        provider=provider,
+        workspace=config.workspace_path,
+        config=config,
+        model=config.agents.defaults.model,
+        max_iterations=config.agents.defaults.max_tool_iterations,
+        context_window_tokens=config.agents.defaults.context_window_tokens,
+        web_search_config=config.tools.web.search,
+        web_proxy=config.tools.web.proxy,
+        exec_config=config.tools.exec,
+        automation_service=automation,
+        mcp_servers=config.tools.mcp_servers,
+        channels_config=config.channels,
+        restrict_to_workspace=config.tools.restrict_to_workspace,
+        learning_enabled=config.agents.defaults.learning_enabled,
+        learning_interval=config.agents.defaults.learning_interval,
+        memory_max_prompt_tokens=config.agents.defaults.memory_max_prompt_tokens,
+        memory_compact_threshold_tokens=config.agents.defaults.memory_compact_threshold_tokens,
+        session_router=session_router,
+    )
+
+    channels = ChannelManager(config, bus)
+
+    # ------------------------------------------------------------------
+    # Status banner
+    # ------------------------------------------------------------------
     status_parts = [
         f"[bold gold1]{__logo__} ShibaClaw Gateway v{__version__}[/bold gold1] [dim](port {port})[/dim]",
         "",
@@ -433,14 +523,13 @@ async def gateway_command(
         status_parts.append(
             "  [dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
         )
-    c_status = cron.status()
-    hb_info = f"✓ Heartbeat: {hb_cfg.interval_min}m" if hb_cfg.enabled else "Heartbeat: disabled"
+    a_status = automation.status()
     status_parts.append(
-        f"  [green]✓[/green] Cron: {c_status['jobs']} jobs"
-        if c_status["jobs"] > 0
-        else "  [dim]Cron: idle[/dim]"
+        f"  [green]✓[/green] Automation: {a_status['scheduled']} scheduled, "
+        f"{a_status['heartbeats']} heartbeat(s)"
+        if a_status["jobs"] > 0
+        else "  [dim]Automation: idle[/dim]"
     )
-    status_parts.append(f"  {hb_info}")
     webui_url = os.environ.get("SHIBACLAW_WEBUI_URL", "http://localhost:3000")
     status_parts.append(f"  [cyan]🖥️  WebUI:[/cyan] [link={webui_url}]{webui_url}[/link]")
     status_parts.append(
@@ -451,7 +540,7 @@ async def gateway_command(
     _state = {"restart": False}
 
     async def _do_reload() -> None:
-        """Hot-reload all components from the saved config file without restarting the process."""
+        """Hot-reload all components from the saved config file."""
         nonlocal config, provider
         try:
             new_cfg = _load_runtime_config(config_path, workspace)
@@ -459,7 +548,6 @@ async def gateway_command(
             logger.error("Hot-reload: failed to load config: {}", e)
             return
 
-        # If network-binding settings changed, fall back to a full restart
         net_changed = (
             new_cfg.gateway.host != config.gateway.host
             or new_cfg.gateway.port != config.gateway.port
@@ -482,8 +570,8 @@ async def gateway_command(
 
             await agent.reconfigure(new_cfg, new_provider)
             await channels.reconfigure(new_cfg)
-            hb_cfg = new_cfg.gateway.heartbeat
-            await heartbeat.reconfigure(hb_cfg, new_provider, hb_cfg.model or agent.model)
+            new_hb = new_cfg.gateway.heartbeat
+            await automation.reconfigure(new_provider, new_hb.model or None)
             logger.info("Hot-reload complete")
         except Exception as e:
             logger.error("Hot-reload failed: {}", e)
@@ -504,12 +592,8 @@ async def gateway_command(
                     msg = notification.get("text") or result.get("summary") or (
                         f"🆕 *ShibaClaw update available!*\n{current} → {latest}"
                     )
-                    logger.info(
-                        "🆕 Update available: {} → {}",
-                        current,
-                        latest,
-                    )
-                    await on_heartbeat_notify(
+                    logger.info("🆕 Update available: {} → {}", current, latest)
+                    await on_automation_notify(
                         msg,
                         source="update",
                         metadata=notification,
@@ -523,15 +607,13 @@ async def gateway_command(
                 logger.debug("Update check failed: {}", e)
             await asyncio.sleep(update_check_interval)
 
-    # ── WebSocket server for realtime WebUI↔Gateway communication ───
+    # ── WebSocket server ─────────────────────────────────────────────────
     _ws_clients: set[websockets.ServerConnection] = set()
     _ws_start_time = time.time()
 
     async def _ws_handler(websocket: websockets.ServerConnection):
-        """Handle a single WebSocket connection from the WebUI."""
         authed = False
         try:
-            # First message must be hello with auth token
             raw = await asyncio.wait_for(websocket.recv(), timeout=10)
             hello = json.loads(raw)
             if hello.get("type") != "hello":
@@ -566,7 +648,6 @@ async def gateway_command(
 
                 if msg_type == "ping":
                     await websocket.send(json.dumps({"type": "pong"}))
-
                 elif msg_type == "request":
                     action = msg.get("action", "")
                     payload = msg.get("payload", {})
@@ -582,7 +663,6 @@ async def gateway_command(
                 logger.info("🔌 WebUI WebSocket client disconnected")
 
     async def _handle_ws_request(ws, request_id: str, action: str, payload: dict):
-        """Dispatch a WebSocket request from the WebUI."""
         nonlocal _state
 
         def _ok(data: dict | None = None):
@@ -592,6 +672,38 @@ async def gateway_command(
 
         def _err(error: str):
             return json.dumps({"type": "response", "id": request_id, "ok": False, "error": error})
+
+        def _ser_job(j) -> dict:
+            return {
+                "id": j.id,
+                "name": j.name,
+                "enabled": j.enabled,
+                "kind": j.payload.kind,
+                "schedule": {
+                    "kind": j.schedule.kind,
+                    "atMs": j.schedule.at_ms,
+                    "everyMs": j.schedule.every_ms,
+                    "expr": j.schedule.expr,
+                    "tz": j.schedule.tz,
+                },
+                "payload": {
+                    "kind": j.payload.kind,
+                    "message": j.payload.message,
+                    "heartbeatFile": j.payload.heartbeat_file,
+                    "deliver": j.payload.deliver,
+                    "channel": j.payload.channel,
+                    "to": j.payload.to,
+                    "targets": j.payload.targets,
+                },
+                "state": {
+                    "nextRunAtMs": j.state.next_run_at_ms,
+                    "lastRunAtMs": j.state.last_run_at_ms,
+                    "lastStatus": j.state.last_status,
+                    "lastError": j.state.last_error,
+                    "runCount": j.state.run_count,
+                },
+                "deleteAfterRun": j.delete_after_run,
+            }
 
         try:
             if action == "status":
@@ -690,53 +802,103 @@ async def gateway_command(
                     0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
                 )
 
-            elif action == "cron.list":
-
-                def _ser(j):
-                    return {
-                        "id": j.id,
-                        "name": j.name,
-                        "enabled": j.enabled,
-                        "schedule": {
-                            "kind": j.schedule.kind,
-                            "atMs": j.schedule.at_ms,
-                            "everyMs": j.schedule.every_ms,
-                            "expr": j.schedule.expr,
-                            "tz": j.schedule.tz,
-                        },
-                        "payload": {
-                            "message": j.payload.message,
-                            "deliver": j.payload.deliver,
-                            "channel": j.payload.channel,
-                            "to": j.payload.to,
-                        },
-                        "state": {
-                            "nextRunAtMs": j.state.next_run_at_ms,
-                            "lastRunAtMs": j.state.last_run_at_ms,
-                            "lastStatus": j.state.last_status,
-                            "lastError": j.state.last_error,
-                        },
-                        "deleteAfterRun": j.delete_after_run,
-                    }
-
+            # --- Automation (new unified actions) ---
+            elif action == "automation.list":
                 await ws.send(
-                    _ok({"jobs": [_ser(j) for j in cron.list_jobs(include_disabled=True)]})
+                    _ok({"jobs": [_ser_job(j) for j in automation.list_jobs(include_disabled=True)]})
                 )
+
+            elif action == "automation.trigger":
+                job_id = payload.get("job_id", "")
+                ran = await automation.run_job(job_id, force=True)
+                await ws.send(_ok({"triggered": ran}))
+
+            elif action == "automation.status":
+                await ws.send(_ok(automation.status()))
+
+            elif action == "automation.enable":
+                job_id = payload.get("job_id", "")
+                enabled = payload.get("enabled", True)
+                job = automation.enable_job(job_id, enabled)
+                await ws.send(_ok({"ok": job is not None}))
+
+            elif action == "automation.remove":
+                job_id = payload.get("job_id", "")
+                removed = automation.remove_job(job_id)
+                await ws.send(_ok({"removed": removed}))
+
+            elif action == "automation.create":
+                from shibaclaw.automation.types import AutomationPayload, AutomationSchedule
+                s = payload.get("schedule", {})
+                p = payload.get("payload", {})
+                name = payload.get("name", "")
+                delete_after_run = payload.get("deleteAfterRun", payload.get("delete_after_run", False))
+                schedule = AutomationSchedule(
+                    kind=s.get("kind", "every"),
+                    at_ms=s.get("atMs", s.get("at_ms")),
+                    every_ms=s.get("everyMs", s.get("every_ms")),
+                    expr=s.get("expr"),
+                    tz=s.get("tz"),
+                )
+                payload_obj = AutomationPayload(
+                    kind=p.get("kind", "scheduled"),
+                    message=p.get("message", ""),
+                    heartbeat_file=p.get("heartbeatFile", p.get("heartbeat_file")),
+                    deliver=p.get("deliver", False),
+                    channel=p.get("channel"),
+                    to=p.get("to"),
+                    session_key=p.get("sessionKey", p.get("session_key")),
+                    profile_id=p.get("profileId", p.get("profile_id")),
+                    targets=p.get("targets") or {},
+                )
+                job = automation.add_job(name, schedule, payload_obj, delete_after_run)
+                await ws.send(_ok(_ser_job(job)))
+
+            elif action == "automation.get":
+                job_id = payload.get("job_id", "")
+                job = automation.get_job(job_id)
+                if job:
+                    await ws.send(_ok(_ser_job(job)))
+                else:
+                    await ws.send(_err("job not found"))
+
+            elif action == "automation.update":
+                job_id = payload.get("job_id", "")
+                patch = payload.get("patch", {})
+                job = automation.update_job(job_id, patch)
+                if job:
+                    await ws.send(_ok(_ser_job(job)))
+                else:
+                    await ws.send(_err("job not found"))
+
+            # --- Backward-compat aliases (deprecated, keep for WebUI compat) ---
+            elif action == "cron.list":
+                scheduled = [j for j in automation.list_jobs(include_disabled=True)
+                             if j.payload.kind == "scheduled"]
+                await ws.send(_ok({"jobs": [_ser_job(j) for j in scheduled]}))
 
             elif action == "cron.trigger":
                 job_id = payload.get("job_id", "")
-                ran = await cron.run_job(job_id, force=True)
+                ran = await automation.run_job(job_id, force=True)
                 await ws.send(_ok({"triggered": ran}))
 
             elif action == "heartbeat.status":
-                await ws.send(_ok(heartbeat.status()))
+                hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
+                hb = hb_jobs[0] if hb_jobs else None
+                await ws.send(_ok({
+                    "enabled": hb is not None and hb.enabled,
+                    "running": automation.status()["running"],
+                    "last_run_ms": hb.state.last_run_at_ms if hb else None,
+                    "last_status": hb.state.last_status if hb else None,
+                }))
 
             elif action == "heartbeat.trigger":
-                try:
-                    result = await heartbeat.trigger_now()
-                    await ws.send(_ok({"triggered": True, "response": result}))
-                except Exception as e:
-                    await ws.send(_err(str(e)))
+                hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
+                if not hb_jobs:
+                    await ws.send(_err("no heartbeat job configured"))
+                else:
+                    ran = await automation.run_job(hb_jobs[0].id, force=True)
+                    await ws.send(_ok({"triggered": ran}))
 
             elif action == "archive":
                 snapshot = payload.get("snapshot", [])
@@ -761,7 +923,6 @@ async def gateway_command(
                 pass
 
     async def _broadcast_ws_event(name: str, payload: dict, session_key: str | None = None):
-        """Broadcast an event to all connected WebSocket clients."""
         msg = json.dumps(
             {
                 "type": "event",
@@ -775,63 +936,6 @@ async def gateway_command(
                 await ws.send(msg)
             except Exception:
                 _ws_clients.discard(ws)
-
-    async def on_cron_job(job) -> str | None:
-        """Execute a cron job: run an agent turn then deliver the response."""
-        from shibaclaw.bus.events import OutboundMessage
-
-        session_key = job.payload.session_key or f"cron:{job.id}"
-
-        async def _noop_progress(*_args, **_kwargs) -> None:
-            return None
-
-        out = await agent.process_direct(
-            job.payload.message,
-            session_key,
-            channel="cron",
-            chat_id=job.id,
-            on_progress=_noop_progress,
-            metadata={"hidden": True},
-        )
-        response = out.content if out else ""
-        if not response:
-            response = "Cron job executed successfully."
-
-        if job.payload.deliver and job.payload.channel and job.payload.to:
-            await bus.publish_outbound(
-                OutboundMessage(
-                    channel=job.payload.channel,
-                    chat_id=job.payload.to,
-                    content=response,
-                )
-            )
-            # Also notify WebUI notification center even when delivering to external channel
-            if _ws_clients:
-                await _broadcast_ws_event(
-                    "session.notify",
-                    {"content": response, "source": "cron", "persist": False, "msg_type": "notification"},
-                    session_key="",
-                )
-            else:
-                await notify_webui_session("", response, auth_token, source="cron", persist=False)
-        elif _ws_clients:
-            await _broadcast_ws_event(
-                "session.notify",
-                {"content": response, "source": "cron", "persist": False},
-                session_key=session_key,
-            )
-        else:
-            await notify_webui_session(
-                session_key,
-                response,
-                auth_token,
-                source="cron",
-                persist=False,
-            )
-
-        return response
-
-    cron.on_job = on_cron_job
 
     async def run():
         _start_time = time.time()
@@ -868,15 +972,16 @@ async def gateway_command(
                     if idx < 0:
                         return {}
                     try:
-                        return json.loads(data[idx + 4 :])
+                        return json.loads(data[idx + 4:])
                     except (json.JSONDecodeError, ValueError):
                         return {}
 
-                def _serialize_cron_job(j) -> dict:
+                def _serialize_job(j) -> dict:
                     return {
                         "id": j.id,
                         "name": j.name,
                         "enabled": j.enabled,
+                        "kind": j.payload.kind,
                         "schedule": {
                             "kind": j.schedule.kind,
                             "atMs": j.schedule.at_ms,
@@ -885,16 +990,20 @@ async def gateway_command(
                             "tz": j.schedule.tz,
                         },
                         "payload": {
+                            "kind": j.payload.kind,
                             "message": j.payload.message,
+                            "heartbeatFile": j.payload.heartbeat_file,
                             "deliver": j.payload.deliver,
                             "channel": j.payload.channel,
                             "to": j.payload.to,
+                            "targets": j.payload.targets,
                         },
                         "state": {
                             "nextRunAtMs": j.state.next_run_at_ms,
                             "lastRunAtMs": j.state.last_run_at_ms,
                             "lastStatus": j.state.last_status,
                             "lastError": j.state.last_error,
+                            "runCount": j.state.run_count,
                         },
                         "deleteAfterRun": j.delete_after_run,
                     }
@@ -908,6 +1017,7 @@ async def gateway_command(
                         asyncio.get_event_loop().call_later(
                             0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
                         )
+
                 elif "POST" in request_line and "/reload" in request_line:
                     if not _check_auth():
                         writer.write(_json_response({"error": "unauthorized"}, 401))
@@ -915,17 +1025,138 @@ async def gateway_command(
                         writer.write(_json_response({"status": "reloading"}))
                         await writer.drain()
                         asyncio.create_task(_do_reload())
-                elif "GET" in request_line and "/heartbeat/status" in request_line:
-                    writer.write(_json_response(heartbeat.status()))
-                elif "POST" in request_line and "/heartbeat/trigger" in request_line:
+
+                # --- Automation HTTP endpoints (new) ---
+                elif "GET" in request_line and ("/api/automation/jobs" in request_line or "/api/automation/list" in request_line):
+                    parts = request_line.split(" ")
+                    path = parts[1] if len(parts) > 1 else ""
+                    path = path.split("?")[0]
+                    if path in ("/api/automation/jobs", "/api/automation/list"):
+                        writer.write(
+                            _json_response(
+                                {"jobs": [_serialize_job(j) for j in automation.list_jobs(include_disabled=True)]}
+                            )
+                        )
+                    elif path.startswith("/api/automation/jobs/"):
+                        job_id = path.split("/api/automation/jobs/")[1]
+                        job = automation.get_job(job_id)
+                        if job:
+                            writer.write(_json_response(_serialize_job(job)))
+                        else:
+                            writer.write(_json_response({"error": "not found"}, 404))
+
+                elif "GET" in request_line and "/api/automation/status" in request_line:
+                    writer.write(_json_response(automation.status()))
+
+                elif "POST" in request_line and "/api/automation/jobs" in request_line:
                     if not _check_auth():
                         writer.write(_json_response({"error": "unauthorized"}, 401))
                     else:
-                        try:
-                            result = await heartbeat.trigger_now()
-                            writer.write(_json_response({"triggered": True, "response": result}))
-                        except Exception as e:
-                            writer.write(_json_response({"triggered": False, "error": str(e)}))
+                        parts = request_line.split(" ")
+                        path = parts[1] if len(parts) > 1 else ""
+                        path = path.split("?")[0]
+                        if path == "/api/automation/jobs":
+                            body = _parse_body()
+                            from shibaclaw.automation.types import AutomationPayload, AutomationSchedule
+                            s = body.get("schedule", {})
+                            p = body.get("payload", {})
+                            name = body.get("name", "")
+                            delete_after_run = body.get("deleteAfterRun", body.get("delete_after_run", False))
+                            schedule = AutomationSchedule(
+                                kind=s.get("kind", "every"),
+                                at_ms=s.get("atMs", s.get("at_ms")),
+                                every_ms=s.get("everyMs", s.get("every_ms")),
+                                expr=s.get("expr"),
+                                tz=s.get("tz"),
+                            )
+                            payload_obj = AutomationPayload(
+                                kind=p.get("kind", "scheduled"),
+                                message=p.get("message", ""),
+                                heartbeat_file=p.get("heartbeatFile", p.get("heartbeat_file")),
+                                deliver=p.get("deliver", False),
+                                channel=p.get("channel"),
+                                to=p.get("to"),
+                                session_key=p.get("sessionKey", p.get("session_key")),
+                                profile_id=p.get("profileId", p.get("profile_id")),
+                                targets=p.get("targets") or {},
+                            )
+                            job = automation.add_job(name, schedule, payload_obj, delete_after_run)
+
+                            writer.write(_json_response(_serialize_job(job), 201))
+                        elif path.endswith("/update"):
+                            job_id = path.split("/api/automation/jobs/")[1].split("/update")[0]
+                            body = _parse_body()
+                            job = automation.update_job(job_id, body)
+
+                            if job:
+                                writer.write(_json_response(_serialize_job(job)))
+                            else:
+                                writer.write(_json_response({"error": "not found"}, 404))
+                        elif path.endswith("/trigger"):
+                            job_id = path.split("/api/automation/jobs/")[1].split("/trigger")[0]
+                            ran = await automation.run_job(job_id, force=True)
+                            writer.write(_json_response({"triggered": ran}))
+
+                elif "DELETE" in request_line and "/api/automation/jobs/" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        parts = request_line.split(" ")
+                        path = parts[1] if len(parts) > 1 else ""
+                        path = path.split("?")[0]
+                        job_id = path.split("/api/automation/jobs/")[1]
+                        removed = automation.remove_job(job_id)
+                        writer.write(_json_response({"removed": removed}))
+
+                elif "POST" in request_line and "/api/automation/trigger/" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        job_id = (
+                            request_line.split("/api/automation/trigger/")[1]
+                            .split(" ")[0].split("?")[0]
+                        )
+                        ran = await automation.run_job(job_id, force=True)
+                        writer.write(_json_response({"triggered": ran}))
+
+                # --- Backward-compat HTTP aliases ---
+                elif "GET" in request_line and "/heartbeat/status" in request_line:
+                    hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
+                    hb = hb_jobs[0] if hb_jobs else None
+                    writer.write(_json_response({
+                        "enabled": hb is not None and hb.enabled,
+                        "running": automation.status()["running"],
+                        "last_run_ms": hb.state.last_run_at_ms if hb else None,
+                        "last_status": hb.state.last_status if hb else None,
+                    }))
+
+                elif "POST" in request_line and ("/heartbeat/trigger" in request_line or "/api/automation/trigger-heartbeats" in request_line):
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
+                        if hb_jobs:
+                            ran = await automation.run_job(hb_jobs[0].id, force=True)
+                            writer.write(_json_response({"triggered": ran}))
+                        else:
+                            writer.write(_json_response({"triggered": False, "error": "no heartbeat job"}))
+
+                elif "GET" in request_line and "/api/cron/list" in request_line:
+                    scheduled = [j for j in automation.list_jobs(include_disabled=True)
+                                 if j.payload.kind == "scheduled"]
+                    writer.write(_json_response({"jobs": [_serialize_job(j) for j in scheduled]}))
+
+                elif "POST" in request_line and "/api/cron/trigger/" in request_line:
+                    if not _check_auth():
+                        writer.write(_json_response({"error": "unauthorized"}, 401))
+                    else:
+                        job_id = (
+                            request_line.split("/api/cron/trigger/")[1]
+                            .split(" ")[0].split("?")[0]
+                        )
+                        ran = await automation.run_job(job_id, force=True)
+                        writer.write(_json_response({"triggered": ran}))
+
                 elif "POST" in request_line and "/api/chat" in request_line:
                     if not _check_auth():
                         writer.write(_json_response({"error": "unauthorized"}, 401))
@@ -942,7 +1173,8 @@ async def gateway_command(
                             writer.write(
                                 (
                                     json.dumps(
-                                        {"t": "p", "c": text, "h": tool_hint}, ensure_ascii=False
+                                        {"t": "p", "c": text, "h": tool_hint},
+                                        ensure_ascii=False,
                                     )
                                     + "\n"
                                 ).encode()
@@ -976,30 +1208,13 @@ async def gateway_command(
                         except Exception as e:
                             writer.write(
                                 (
-                                    json.dumps({"t": "e", "error": str(e)}, ensure_ascii=False)
+                                    json.dumps(
+                                        {"t": "e", "error": str(e)}, ensure_ascii=False
+                                    )
                                     + "\n"
                                 ).encode()
                             )
-                elif "GET" in request_line and "/api/cron/list" in request_line:
-                    writer.write(
-                        _json_response(
-                            {
-                                "jobs": [
-                                    _serialize_cron_job(j)
-                                    for j in cron.list_jobs(include_disabled=True)
-                                ]
-                            }
-                        )
-                    )
-                elif "POST" in request_line and "/api/cron/trigger/" in request_line:
-                    if not _check_auth():
-                        writer.write(_json_response({"error": "unauthorized"}, 401))
-                    else:
-                        job_id = (
-                            request_line.split("/api/cron/trigger/")[1].split(" ")[0].split("?")[0]
-                        )
-                        ran = await cron.run_job(job_id, force=True)
-                        writer.write(_json_response({"triggered": ran}))
+
                 elif "POST" in request_line and "/api/archive" in request_line:
                     if not _check_auth():
                         writer.write(_json_response({"error": "unauthorized"}, 401))
@@ -1014,6 +1229,7 @@ async def gateway_command(
                             except Exception:
                                 pass
                         writer.write(_json_response({"archived": archived}))
+
                 elif "GET" in request_line:
                     writer.write(
                         _json_response(
@@ -1033,14 +1249,13 @@ async def gateway_command(
                 writer.close()
 
         health_srv = await asyncio.start_server(_health_handler, host, port)
-
         ws_server = await websockets.serve(
             _ws_handler, host, ws_port, ping_interval=None, ping_timeout=None
         )
         logger.info("🔌 Gateway WebSocket server listening on {}:{}", host, ws_port)
 
         try:
-            await cron.start()
+            await automation.start()
             await asyncio.gather(
                 agent.run(),
                 channels.start_all(),
@@ -1058,8 +1273,7 @@ async def gateway_command(
                 await agent.close_mcp()
             except asyncio.CancelledError:
                 pass
-            heartbeat.stop()
-            cron.stop()
+            automation.stop()
             agent.stop()
             try:
                 await channels.stop_all()

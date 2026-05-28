@@ -57,8 +57,10 @@ function _appendAgentAttachment(container, file) {
     if (file.type && file.type.startsWith("image/")) {
         const img = document.createElement("img");
         img.src = file.url;
+        img.onload = () => { if (typeof scrollToBottom === 'function') scrollToBottom(); };
         img.onclick = () => window.open(file.url, "_blank");
         container.appendChild(img);
+        if (typeof scrollToBottom === 'function') scrollToBottom();
         return;
     }
 
@@ -114,9 +116,13 @@ function initSocket() {
         if (data.session_key && data.session_key !== state.sessionId) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
+        // We no longer add a destructive GEN block if we have a stream bubble,
+        // we just finalize it so it stays natively on screen.
         _finalizeStreamBubble(data.id);
+        
+        // Only fallback to showThinking if there was no stream bubble at all
+        // to avoid duplicating text.
         showThinking("Sto riflettendo...");
-        addProcessStep(data.id, data.content || "Thinking...", "GEN");
     });
 
     realtime.on("agent_tool", (data) => {
@@ -173,7 +179,6 @@ function initSocket() {
             if (state._streamBuffers) delete state._streamBuffers[mid];
             // Re-render with final content (which may include <think> stripping, etc.)
             if (data.content) {
-                streamBubble.setAttribute("data-raw-content", data.content);
                 streamBubble.innerHTML = renderMarkdown(data.content);
                 enhanceCodeBlocks(streamBubble);
             }
@@ -323,6 +328,38 @@ async function fetchStatus() {
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;
 
             const isConfigured = (data.agent_configured || data.oauth_configured) && data.model;
+            
+            // Popola il mini-widget in basso
+            const chEl = document.getElementById("summary-channels");
+            const prEl = document.getElementById("summary-provider");
+            const resEl = document.getElementById("summary-restrict-badge");
+            
+            const chDot = document.getElementById("summary-ch-dot");
+            const prDot = document.getElementById("summary-provider-dot");
+            const resDot = document.getElementById("summary-restrict-dot");
+
+            if (data.active_channels && data.active_channels.length > 0) {
+                if (chEl) chEl.textContent = data.active_channels.join(", ");
+                if (chDot) chDot.className = "status-dot connected";
+            } else {
+                if (chEl) chEl.textContent = "WebUI";
+                if (chDot) chDot.className = "status-dot connected";
+            }
+
+            if (data.provider) {
+                if (prEl) prEl.textContent = data.provider;
+                if (prDot) prDot.className = "status-dot connected";
+            } else {
+                if (prEl) prEl.textContent = "N/A";
+                if (prDot) prDot.className = "status-dot disconnected";
+            }
+            
+            if (resEl) {
+                const isRestricted = data.restrict_workspace;
+                resEl.textContent = isRestricted ? "ON" : "OFF";
+                if (resDot) resDot.className = isRestricted ? "status-dot connected" : "status-dot disconnected";
+            }
+
             if (isConfigured && realtime.connected) {
                 state.gatewayUp = true;
                 state.gatewayKnown = true;
@@ -367,8 +404,21 @@ async function checkGatewayHealth() {
         providerReady = true;
     }
 
+    let anyJobRunning = false;
+    if (reachable) {
+        try {
+            const jobsRes = await authFetch("/api/automation/jobs?_t=" + Date.now());
+            if (jobsRes.ok) {
+                const jobsData = await jobsRes.json();
+                const jobs = jobsData.jobs || [];
+                anyJobRunning = jobs.some(j => (j.state || {}).last_status === "running" || (j.state || {}).lastStatus === "running");
+            }
+        } catch(e) {}
+    }
+
     state.gatewayKnown = true;
     state.gatewayProviderReady = providerReady;
+    state.anyJobRunning = anyJobRunning;
 
     if (reachable) {
         state.gatewayUp = true;
@@ -402,6 +452,8 @@ function updateUIFromHealthState() {
             setStatusIndicator("not-configured");
         } else if (!state.gatewayProviderReady) {
             setStatusIndicator("model-offline");
+        } else if (state.anyJobRunning) {
+            setStatusIndicator("working");
         } else {
             setStatusIndicator("ready");
         }
@@ -422,7 +474,7 @@ function setStatusIndicator(mode) {
             break;
         case "working":
             statusDot.className = "status-dot working";
-            statusText.textContent = "Working...";
+            statusText.textContent = "Executing...";
             break;
         case "gateway-down":
             statusDot.className = "status-dot gateway-down";

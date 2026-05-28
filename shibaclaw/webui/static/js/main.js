@@ -40,8 +40,6 @@ function initListeners() {
 
     chatInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
-            const prefersNewline = localStorage.getItem('shibaclaw_mobile_enter_newline') === 'true';
-            if (isMobileSidebar() && prefersNewline) return;
             e.preventDefault();
             sendMessage();
         }
@@ -232,15 +230,15 @@ function initGithubPopup() {
         const popup = document.getElementById('gh-star-popup');
         const dismissBtn = document.getElementById('gh-star-dismiss');
         const starLink = document.getElementById('gh-star-link');
-
+        
         if (popup && dismissBtn && starLink) {
             popup.classList.add('show');
-
+            
             const dismissPopup = () => {
                 popup.classList.remove('show');
                 localStorage.setItem('shibaclaw_gh_star_dismissed', 'true');
             };
-
+            
             dismissBtn.addEventListener('click', dismissPopup);
             starLink.addEventListener('click', dismissPopup);
         }

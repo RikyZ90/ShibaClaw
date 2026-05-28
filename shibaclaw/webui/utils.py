@@ -230,11 +230,23 @@ async def _gateway_request(method: str, path: str) -> dict | None:
         "/": "status",
         "/api/cron/list": "cron.list",
         "/heartbeat/status": "heartbeat.status",
+        "/api/automation/status": "automation.status",
+        "/api/automation/jobs": "automation.list",
     }
 
     action = _path_to_action.get(path)
     if action and gateway_client.connected:
         return await gateway_client.request(action)
+
+    if method == "DELETE" and path.startswith("/api/automation/jobs/"):
+        job_id = path.split("/")[-1]
+        if gateway_client.connected:
+            return await gateway_client.request("automation.remove", {"job_id": job_id})
+
+    if method == "GET" and path.startswith("/api/automation/jobs/") and not path.endswith("/trigger") and not path.endswith("/update"):
+        job_id = path.split("/")[-1]
+        if gateway_client.connected:
+            return await gateway_client.request("automation.get", {"job_id": job_id})
 
     # Fallback: raw HTTP
     hosts, port = _resolve_gateway_hosts()
@@ -284,6 +296,17 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
     if path.startswith("/api/cron/trigger/") and gateway_client.connected:
         job_id = path.split("/")[-1]
         return await gateway_client.request("cron.trigger", {"job_id": job_id})
+
+    if path == "/api/automation/jobs" and gateway_client.connected:
+        return await gateway_client.request("automation.create", body)
+
+    if path.startswith("/api/automation/jobs/") and path.endswith("/update") and gateway_client.connected:
+        job_id = path.split("/")[-2]
+        return await gateway_client.request("automation.update", {"job_id": job_id, "patch": body})
+
+    if path.startswith("/api/automation/jobs/") and path.endswith("/trigger") and gateway_client.connected:
+        job_id = path.split("/")[-2]
+        return await gateway_client.request("automation.trigger", {"job_id": job_id})
 
     # Fallback: raw HTTP
     hosts, port = _resolve_gateway_hosts()

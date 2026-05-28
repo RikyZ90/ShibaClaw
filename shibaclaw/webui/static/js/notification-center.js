@@ -44,7 +44,7 @@ const notificationCenter = (() => {
         const icons = {
             update: "system_update",
             cron: "schedule_send",
-            heartbeat: "favorite",
+            heartbeat: "autorenew",
             agent_response: "chat",
             memory_compact: "auto_fix_high",
             memory_compacted: "auto_fix_high",
@@ -56,8 +56,8 @@ const notificationCenter = (() => {
         const kind = item.kind || item.source || "notification";
         const labels = {
             update: "Update",
-            cron: "Cron",
-            heartbeat: "Heartbeat",
+            cron: "One-time",
+            heartbeat: "Recurring",
             agent_response: "Agent response",
             memory_compact: "Memory",
             memory_compacted: "Memory",

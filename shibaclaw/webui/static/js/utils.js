@@ -132,61 +132,11 @@ window.copyCode = function (btn) {
     const pre = btn.closest("pre");
     const code = pre.querySelector("code");
     if (code) {
-        const text = code.textContent;
-        const doCopy = () => {
+        navigator.clipboard.writeText(code.textContent).then(() => {
             btn.textContent = "Copied!";
             setTimeout(() => (btn.textContent = "Copy"), 2000);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(doCopy).catch(e => {
-                console.error("Clipboard API failed", e);
-                fallbackCopy(text, doCopy);
-            });
-        } else {
-            fallbackCopy(text, doCopy);
-        }
+        });
     }
 };
-
-window.copyMessage = function (btn) {
-    const contentDiv = btn.closest(".message-content");
-    const bubble = contentDiv.querySelector(".message-bubble");
-    if (bubble) {
-        // Find raw content if saved, otherwise use textContent of the bubble
-        // We clone to remove thought blocks or just use textContent
-        let text = bubble.getAttribute("data-raw-content") || bubble.textContent;
-        
-        const originalHtml = btn.innerHTML;
-        const doCopy = () => {
-            btn.innerHTML = `<span class="material-icons-round" style="font-size:12px">check</span>`;
-            setTimeout(() => (btn.innerHTML = originalHtml), 2000);
-        };
-        
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(doCopy).catch(e => {
-                console.error("Clipboard API failed", e);
-                fallbackCopy(text, doCopy);
-            });
-        } else {
-            fallbackCopy(text, doCopy);
-        }
-    }
-};
-
-function fallbackCopy(text, onSuccess) {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "absolute";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-        document.execCommand("copy");
-        if (onSuccess) onSuccess();
-    } catch (err) {
-        console.error("Fallback copy failed", err);
-    }
-    document.body.removeChild(ta);
-}
 
 

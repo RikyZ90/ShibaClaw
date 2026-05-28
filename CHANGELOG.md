@@ -2,28 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.4.8] - 2026-05-27
+## [0.5.0] - 2026-05-28
+
+### Added
+- **Unified Automation Engine & UI** — Completely refactored the previously disjointed "Cron" and "Heartbeat" systems into a single, unified "Automations" engine. Automations now feature a dedicated, premium modal in the WebUI where users can intuitively create, toggle, and delete background tasks (both interval-based heartbeats and cron-scheduled jobs) from one centralized control center.
+- **Automation Background Telemetry** — The WebUI now actively polls the status of background automation jobs during its health checks. When any automated job (cron, interval) executes silently in the background, the global status indicator intelligently switches to a pulsing gold "Executing..." badge, providing clear real-time visibility into agent background activity.
+- **Modern Workspace Summary Widget** — Replaced the text-heavy workspace summary with a sleek, glassmorphic widget anchored at the bottom of the sidebar. It cleanly displays Active Channels (e.g. `WebUI`, `Telegram`), the Configured Provider, and a strict "Restrict WP" toggle status, leveraging unified `status-dot` styling.
+- **Native TASK.md File Syncing** — The WebUI automation panel now reads, parses, and rewrites the `TASK.md` file natively via direct filesystem APIs (`fs_read`/`fs_write`). This eliminates reliance on error-prone LLM payload injection, guaranteeing that tasks are perfectly synchronized when jobs are toggled or deleted from the UI.
+
+### Changed
+- **Unified Workspace Tasks** — Removed the legacy `HEARTBEAT.md` file entirely. The system now exclusively uses `TASK.md` as the single source of truth for both background routines and automation payloads, reducing workspace clutter and standardizing how the agent interacts with its directives.
 
 ### Fixed
-- **Code Block Copy Fix** — Fixed an issue where the "Copy" button inside code blocks would silently fail on non-HTTPS environments by adding a robust fallback clipboard mechanism. (Issue #40)
-- **Message Copy Feature** — Added a new "Copy Message" button next to the timestamp on every message bubble to easily copy the raw text content of an entire message. (Issue #40)
-- **Update Manifest Synchronization** — Fixed a bug where `pyproject.toml` and inner `update_manifest.json` versions were out of sync, preventing pip from recognizing updates. (Issue #41)
-- **Thought Blocks UI** — Added UI settings to completely hide or collapse by default the agent's reasoning blocks (`<think>`) in the WebUI. (Issue #39)
-
-## [0.4.7] - 2026-05-26
-
-### Added
-- **Mobile WebUI Enter Behavior** — Added a mobile-only settings toggle so `Enter` inserts a newline instead of sending the message on mobile devices.
-- **Mobile Chat Layout** — Expanded mobile chat bubbles to `95%` width and made rendered tables in message bubbles horizontally scrollable to prevent overflow.
+- **Boot Storm Prevention (Catch-up Execution)** — Fixed a major issue where the gateway would simultaneously execute all missed recurring jobs (cron/interval) upon startup after a period of downtime. The automation engine now implements a "fast-forward" mechanism on boot, silently advancing missed schedules to their *next* natural occurrence to prevent instant execution storms.
+- **REST Method Overlapping** — Fixed a routing bug in `utils.py` where the API dispatcher incorrectly intercepted `DELETE` requests intended for `/api/automation/jobs`, treating them as `GET` requests and failing to delete tasks.
+- **UI Text Truncation** — Fixed an overflow issue where the "Executing task..." status text was crashing into the borders of the `.status-micro` container by adopting the punchier and perfectly sized "Executing..." label.
+- **Automation State Persistence** — Added the `running` state flag to the automation service core (`service.py`). The engine now correctly broadcasts when it begins executing a job, whereas previously it only reported terminal states (`ok` or `error`), leaving the frontend blind during execution.
 
 ## [0.4.6] - 2026-05-21
-
-### Added
-- **Gateway WebSocket Protocol Contract** — Added `docs/GATEWAY_PROTOCOL.md`, formalizing the contract for third-party clients connecting to the gateway WebSocket (default port `19998`).
-Documents handshake (`hello` / `hello_ok`), envelope types (`request`, `response`, `event`), chat streaming events (`chat.progress`, `chat.response_token`, `session.notify`), stable payload fields (`c`, `h`, `content`, `media`, `request_id`, ...), success vs error completion semantics, and HTTP NDJSON fallback (`POST /api/chat`).
-Linked from `README.md` and `docs/API_REFERENCE.md` (clarifies gateway WS vs WebUI browser `/ws`).
-Issue [#26](https://github.com/RikyZ90/ShibaClaw/issues/26).
-
 ### Fixed
 - **Windows Updater Process Lock** — Hardened the update installer batch script by explicitly killing all gateway child processes immediately prior to `xcopy`, rather than waiting up to 5 seconds for a graceful shutdown. This prevents the update script from copying files while they are still locked by the OS.
 - **Update Cache Invalidation** — The update checker's local cache is now forcefully invalidated upon successfully applying an update. This ensures the UI correctly reflects that the latest version has been installed immediately upon restarting.

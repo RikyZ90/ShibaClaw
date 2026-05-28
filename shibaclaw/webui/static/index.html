@@ -67,8 +67,7 @@
                             <div class="status-micro" id="status-card">
                                 <div class="status-dot disconnected" id="status-dot"></div>
                                 <span class="status-text" id="status-text">Connecting...</span>
-                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()"
-                                    title="Restart Gateway" tabindex="-1">
+                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()" title="Restart Gateway" tabindex="-1">
                                     <span class="material-icons-round">refresh</span>
                                 </button>
                             </div>
@@ -93,6 +92,10 @@
                 <button class="btn-command" onclick="openModal('fs-modal')">
                     <span class="material-icons-round">folder_open</span> Files
                 </button>
+                <button class="btn-command" onclick="openModal('automation-modal')">
+                    <span class="material-icons-round">event_repeat</span> Automation
+                    <span class="automation-badge-mini" id="automation-badge-mini" style="display:none"></span>
+                </button>
                 <button class="btn-command" onclick="openModal('settings-modal')">
                     <span class="material-icons-round">settings</span> Settings
                 </button>
@@ -106,26 +109,19 @@
                 </div>
             </div>
 
-            <!-- Automation Section -->
-            <div class="sidebar-section automation-section">
-                <div class="section-title">AUTOMATION</div>
-                <div id="cron-section" class="automation-subsection">
-                    <div class="automation-header" id="cron-header">
-                        <span class="material-icons-round">schedule_send</span>
-                        <span>Cron Jobs</span>
-                        <span class="automation-count" id="cron-count">0</span>
-                        <span class="material-icons-round group-chevron">expand_more</span>
-                    </div>
-                    <div class="automation-items" id="cron-list"></div>
+            <!-- Workspace Summary -->
+            <div class="sidebar-section workspace-summary-section" id="workspace-summary" style="margin-top:auto; padding-top:16px; margin-bottom: 8px; border-top:1px solid var(--border-color); font-size:12px; color:var(--text-secondary);">
+                <div style="display:flex; align-items:center; margin-bottom:8px;" title="Active Channels">
+                    <div class="status-dot disconnected" id="summary-ch-dot" style="margin-right:8px;"></div>
+                    <span>Channel: <strong id="summary-channels" style="color:var(--text-primary)">--</strong></span>
                 </div>
-                <div id="heartbeat-section" class="automation-subsection">
-                    <div class="automation-header" id="heartbeat-header">
-                        <span class="material-icons-round">favorite</span>
-                        <span>Heartbeat</span>
-                        <span class="automation-badge" id="heartbeat-badge"></span>
-                        <span class="material-icons-round group-chevron">expand_more</span>
-                    </div>
-                    <div class="automation-items" id="heartbeat-list"></div>
+                <div style="display:flex; align-items:center; margin-bottom:8px;" title="Configured Provider">
+                    <div class="status-dot disconnected" id="summary-provider-dot" style="margin-right:8px;"></div>
+                    <span>Provider: <strong id="summary-provider" style="color:var(--text-primary)">--</strong></span>
+                </div>
+                <div style="display:flex; align-items:center;" title="Restrict agent to workspace directory">
+                    <div class="status-dot disconnected" id="summary-restrict-dot" style="margin-right:8px;"></div>
+                    <span>Restrict WP: <strong id="summary-restrict-badge" style="color:var(--text-primary)">--</strong></span>
                 </div>
             </div>
 
@@ -317,6 +313,178 @@
 
     <!-- ── Modals ────────────────────────────────────────────── -->
 
+    <!-- ══ Automation Modal ══════════════════════════════════════════ -->
+    <div id="automation-modal" class="modal-backdrop">
+        <div class="modal modal-automation">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">event_repeat</span> Automation</h2>
+                <button class="btn-icon" onclick="closeModal('automation-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="automation-modal-toolbar">
+                <div class="automation-status-row" id="automation-status-row">
+                    <span class="material-icons-round spin" style="font-size:16px">progress_activity</span>
+                    <span id="automation-status-text">Loading...</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center">
+                    <button class="btn-secondary btn-sm" id="btn-auto-clear-completed" onclick="clearCompletedJobs()" style="display:none">
+                        <span class="material-icons-round" style="font-size:15px;vertical-align:middle">delete_sweep</span>
+                        Clear Completed
+                    </button>
+                    <button class="btn-primary btn-sm" onclick="openJobForm()">
+                        <span class="material-icons-round" style="font-size:15px;vertical-align:middle">add</span>
+                        New Job
+                    </button>
+                </div>
+            </div>
+
+            <div class="automation-tabs">
+                <button class="auto-tab active" data-tab="active" onclick="switchAutoTab('active')">
+                    <span class="material-icons-round">bolt</span> Active
+                </button>
+                <button class="auto-tab" data-tab="completed" onclick="switchAutoTab('completed')">
+                    <span class="material-icons-round">check_circle</span> Completed
+                </button>
+            </div>
+
+            <div class="modal-body automation-modal-body">
+                <!-- Job list -->
+                <div id="automation-job-list">
+                    <div class="automation-empty-state">
+                        <span class="material-icons-round">event_repeat</span>
+                        <p>No automation jobs yet.<br>Click <strong>New Job</strong> to create one.</p>
+                    </div>
+                </div>
+
+                <!-- Inline form (hidden by default) -->
+                <div id="automation-job-form" class="automation-job-form" style="display:none">
+                    <div class="automation-form-header">
+                        <span id="automation-form-title">New Job</span>
+                        <button class="btn-icon" onclick="closeJobForm()">
+                            <span class="material-icons-round">close</span>
+                        </button>
+                    </div>
+
+                    <div class="automation-form-body">
+                        <div class="field-row">
+                            <label>Name</label>
+                            <input type="text" id="ajf-name" class="form-input" placeholder="e.g. Daily Report">
+                        </div>
+
+                        <div class="field-row field-row-stack">
+                            <label>Message to agent</label>
+                            <p class="settings-note">What should the agent do when this job runs?</p>
+                            <textarea id="ajf-message" class="form-input" rows="3"
+                                placeholder="E.g. Check my latest emails and summarize them..."></textarea>
+                        </div>
+
+                        <!-- Schedule -->
+                        <div class="field-row">
+                            <label>Schedule</label>
+                            <select id="ajf-sched-kind" class="form-input" onchange="onSchedKindChange()">
+                                <option value="every">Every N minutes</option>
+                                <option value="cron">Cron expression</option>
+                                <option value="at">One-shot (specific datetime)</option>
+                            </select>
+                        </div>
+                        <div id="ajf-sched-every" class="field-row">
+                            <label>Interval (min)</label>
+                            <input type="number" id="ajf-every-min" class="form-input" value="30" min="1">
+                        </div>
+                        <div id="ajf-sched-cron" class="field-row" style="display:none">
+                            <label>Cron expr</label>
+                            <input type="text" id="ajf-cron-expr" class="form-input" placeholder="0 9 * * 1-5">
+                        </div>
+                        <div id="ajf-tz-row" class="field-row" style="display:none">
+                            <label>Timezone</label>
+                            <input type="text" id="ajf-tz" class="form-input" placeholder="Europe/Rome (optional)">
+                        </div>
+                        <div id="ajf-sched-at" class="field-row" style="display:none">
+                            <label>Run at</label>
+                            <input type="datetime-local" id="ajf-at-dt" class="form-input">
+                        </div>
+
+                        <details style="margin-top: 24px;">
+                            <summary style="cursor: pointer; color: var(--text-muted); font-size: 13px; user-select: none; font-weight: 500;">Advanced Options</summary>
+                            <div style="margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--border-color);">
+                                <!-- Delivery -->
+                                <div class="field-row">
+                                    <label>Deliver result</label>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="ajf-deliver" onchange="onDeliverChange()">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div id="ajf-delivery-fields" style="display:none">
+                                    <div class="field-row">
+                                        <label>Channel</label>
+                                        <select id="ajf-channel" class="form-input">
+                                            <option value="">Auto-detect</option>
+                                            <option value="webui">Web UI</option>
+                                            <option value="telegram">Telegram</option>
+                                            <option value="discord">Discord</option>
+                                            <option value="slack">Slack</option>
+                                        </select>
+                                    </div>
+                                    <div class="field-row">
+                                        <label>Target ID</label>
+                                        <input type="text" id="ajf-target-id" class="form-input" placeholder="chat_id / channel">
+                                    </div>
+                                </div>
+
+                                <!-- Other Advanced -->
+                                <div class="field-row">
+                                    <label>Session key</label>
+                                    <input type="text" id="ajf-session-key" class="form-input" placeholder="(auto)">
+                                </div>
+                                <div class="field-row">
+                                    <label>Agent profile</label>
+                                    <select id="ajf-profile" class="form-input">
+                                        <option value="">Default</option>
+                                    </select>
+                                </div>
+                                <div class="field-row">
+                                    <label>Delete after run</label>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="ajf-delete-after">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="field-row">
+                                    <label>Enabled</label>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="ajf-enabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="automation-form-footer">
+                        <button class="btn-secondary" onclick="closeJobForm()">Cancel</button>
+                        <button class="btn-primary" id="ajf-save-btn" onclick="saveJobForm()">
+                            <span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span>
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" id="automation-job-form-footer" style="display:none">
+                <button class="btn-secondary" onclick="closeJobForm()">Cancel</button>
+                <button class="btn-primary" id="ajf-save-btn-footer" onclick="saveJobForm()">
+                    <span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span>
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ══ / Automation Modal ════════════════════════════════════════ -->
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-backdrop">
         <div class="modal modal-settings">
@@ -339,7 +507,7 @@
                         <span class="material-icons-round">lock_open</span><span>OAuth</span>
                     </button>
                     <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
-                        <span class="material-icons-round">mic</span><span>Voice &amp; Audio</span>
+                        <span class="material-icons-round">mic</span><span>Voice & Audio</span>
                     </button>
                     <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
                         <span class="material-icons-round">build</span><span>Tools</span>
@@ -349,9 +517,6 @@
                     </button>
                     <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
                         <span class="material-icons-round">dns</span><span>Gateway</span>
-                    </button>
-                    <button class="settings-sidebar-item" data-tab="heartbeat" onclick="switchSettingsTab('heartbeat')">
-                        <span class="material-icons-round">favorite</span><span>Heartbeat</span>
                     </button>
                     <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
                         <span class="material-icons-round">forum</span><span>Channels</span>
@@ -411,7 +576,7 @@
                                         <span class="settings-model-button-label"
                                             id="s-agent-consolidationModel-display">Same as default session model</span>
                                         <span
-                                            class="settings-model-button-provider settings-model-button-provider-placeholder"
+                                             class="settings-model-button-provider settings-model-button-provider-placeholder"
                                             id="s-agent-consolidationModel-provider">Inherits</span>
                                     </span>
                                     <span class="material-icons-round">arrow_drop_down</span>
@@ -435,33 +600,7 @@
                                 id="s-agent-maxIter" class="form-input" value="40"></div>
                         <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning"
                                 class="form-input" placeholder="null (not set)"></div>
-                        <div class="field-row field-row-stack mobile-only-setting">
-                            <label>Enter for Newline (Mobile)</label>
-                            <p class="settings-note">On mobile, pressing Enter inserts a new line instead of sending the
-                                message.</p>
-                            <label class="toggle"><input type="checkbox" id="s-mobile-enter-newline" checked><span
-                                    class="toggle-slider"></span></label>
-                        </div>
-                        <div class="field-row field-row-stack">
-                            <label>Thought Blocks (Reasoning Models)</label>
-                            <p class="settings-note">Control how agent reasoning blocks are displayed in the chat (for models emitting raw &lt;think&gt; tags, e.g., DeepSeek-R1).</p>
-                            <div style="display:flex; gap:24px; margin-top:8px">
-                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                    <div class="toggle" style="flex-shrink:0;">
-                                        <input type="checkbox" id="s-ui-hide-thoughts">
-                                        <span class="toggle-slider"></span>
-                                    </div>
-                                    <span style="font-size:13px; font-weight:normal; color:var(--text-primary);">Hide completely</span>
-                                </label>
-                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                    <div class="toggle" style="flex-shrink:0;">
-                                        <input type="checkbox" id="s-ui-collapse-thoughts">
-                                        <span class="toggle-slider"></span>
-                                    </div>
-                                    <span style="font-size:13px; font-weight:normal; color:var(--text-primary);">Collapse by default</span>
-                                </label>
-                            </div>
-                        </div>
+
                     </div>
 
 
@@ -536,67 +675,24 @@
                                 placeholder="127.0.0.1"></div>
                         <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input"
                                 value="19999"></div>
-                    </div>
-
-                    <!-- Tab: Heartbeat -->
-                    <div class="settings-panel" id="panel-heartbeat" style="display:none">
-                        <div class="field-row"><label>Enabled</label><label class="toggle"><input type="checkbox"
-                                    id="s-hb-enabled"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Interval (min)</label><input type="number" id="s-hb-interval"
-                                class="form-input" value="30" min="1"></div>
-                        <div class="field-row field-row-stack">
-                            <label>Model</label>
-                            <p class="settings-note">Leave empty to use the default agent model.</p>
-                            <div class="settings-model-picker" id="s-hb-model-picker">
-                                <input type="hidden" id="s-hb-model">
-                                <button type="button" class="form-input settings-model-button" id="s-hb-model-button">
-                                    <span class="settings-model-button-main">
-                                        <span class="settings-model-button-label" id="s-hb-model-display">Same as
-                                            default model</span>
-                                        <span
-                                            class="settings-model-button-provider settings-model-button-provider-placeholder"
-                                            id="s-hb-model-provider">Inherits</span>
-                                    </span>
-                                    <span class="material-icons-round">arrow_drop_down</span>
-                                </button>
-                                <div class="settings-model-menu" id="s-hb-model-menu" style="display:none">
-                                    <input type="text" id="s-hb-model-search" class="form-input settings-model-search"
-                                        placeholder="Search models..." autocomplete="off">
-                                    <div class="settings-model-list" id="s-hb-model-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field-row field-row-stack">
-                            <label>Agent Profile</label>
-                            <p class="settings-note">Profile persona used during heartbeat execution.</p>
-                            <select id="s-hb-profile" class="form-input">
-                                <option value="">Default (inherit)</option>
-                            </select>
-                        </div>
-                        <div class="field-row field-row-stack">
-                            <label>Output Channel</label>
-                            <p class="settings-note">Where to deliver heartbeat results. Leave empty for Auto-detect.
-                            </p>
-                            <div class="hb-target-row" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem">
-                                <select id="s-hb-target-channel" class="form-input">
-                                    <option value="">Auto-detect</option>
-                                    <option value="webui">Web UI</option>
-                                    <option value="telegram">Telegram</option>
-                                    <option value="discord">Discord</option>
-                                    <option value="slack">Slack</option>
-                                </select>
-                                <input type="text" id="s-hb-target-id" class="form-input"
-                                    placeholder="e.g. recent, or chat ID">
-                            </div>
-                        </div>
+                        <!--
+                            Legacy heartbeat fields — kept hidden so saveSettings() still collects them
+                            and avoids stripping existing config values. Managed via the Automation panel.
+                        -->
+                        <input type="hidden" id="s-hb-enabled" value="true">
+                        <input type="hidden" id="s-hb-interval" value="30">
+                        <input type="hidden" id="s-hb-model" value="">
+                        <input type="hidden" id="s-hb-profile" value="">
+                        <select id="s-hb-target-channel" style="display:none"></select>
+                        <input type="hidden" id="s-hb-target-id" value="">
                     </div>
 
                     <!-- Tab: Channels -->
                     <div class="settings-panel" id="panel-channels" style="display:none">
                         <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox"
                                     id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input
-                                    type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
+                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input type="checkbox"
+                                    id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
                         </div>
                         <div id="channels-detail"></div>
                     </div>
@@ -795,7 +891,7 @@
                                 class="material-icons-round spin">progress_activity</span></div>
                     </div>
                     <p class="ob-extra-note"><span class="material-icons-round">info</span>More providers can be
-                        configured later in Settings &gt; Provider.</p>
+                        configured later in Settings > Provider.</p>
                 </div>
                 <div class="ob-panel" id="ob-step-2" style="display:none">
                     <p class="ob-subtitle" id="ob-key-title">Enter your API key</p>
@@ -890,8 +986,7 @@
         </div>
         <div class="gh-star-content">
             <div class="gh-star-title">Support ShibaClaw</div>
-            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!
-            </div>
+            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!</div>
         </div>
         <div class="gh-star-actions">
             <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" class="gh-star-btn" id="gh-star-link">
@@ -908,6 +1003,7 @@
     <script src="/static/js/chat.js?v=2"></script>
     <script src="/static/js/files.js?v=2"></script>
     <script src="/static/js/ui_panels.js?v=2"></script>
+    <script src="/static/js/automation.js?v=2"></script>
     <script src="/static/js/notification-center.js?v=2"></script>
     <script src="/static/js/main.js?v=2"></script>
     <script src="/static/js/profiles.js?v=2"></script>

@@ -298,11 +298,15 @@ class GatewayClient:
 
         # Map actions to HTTP methods/paths
         method_map = {
+            # Automation (unified)
             "status": ("GET", "/"),
             "restart": ("POST", "/restart"),
-            "cron.list": ("GET", "/api/cron/list"),
-            "heartbeat.status": ("GET", "/heartbeat/status"),
-            "heartbeat.trigger": ("POST", "/heartbeat/trigger"),
+            "automation.status": ("GET", "/api/automation/status"),
+            "automation.list": ("GET", "/api/automation/jobs"),
+            # Legacy aliases kept for any old consumers
+            "cron.list": ("GET", "/api/automation/jobs"),
+            "heartbeat.status": ("GET", "/api/automation/status"),
+            "heartbeat.trigger": ("POST", "/api/automation/trigger-heartbeats"),
         }
         if action in method_map:
             method, path = method_map[action]
@@ -311,9 +315,29 @@ class GatewayClient:
             else:
                 return await _http_post(hosts, port, path, payload or {}, self._token)
 
-        if action == "cron.trigger":
+        if action in ("automation.trigger", "cron.trigger"):
             job_id = (payload or {}).get("job_id", "")
-            return await _http_post(hosts, port, f"/api/cron/trigger/{job_id}", {}, self._token)
+            return await _http_post(
+                hosts, port, f"/api/automation/jobs/{job_id}/trigger", {}, self._token
+            )
+
+        if action == "automation.create":
+            return await _http_post(hosts, port, "/api/automation/jobs", payload or {}, self._token)
+
+        if action == "automation.get":
+            job_id = (payload or {}).get("job_id", "")
+            return await _http_get(hosts, port, f"/api/automation/jobs/{job_id}", self._token)
+
+        if action == "automation.update":
+            job_id = (payload or {}).get("job_id", "")
+            patch = (payload or {}).get("patch", {})
+            return await _http_post(
+                hosts, port, f"/api/automation/jobs/{job_id}/update", patch, self._token
+            )
+
+        if action == "automation.remove":
+            job_id = (payload or {}).get("job_id", "")
+            return await _http_delete(hosts, port, f"/api/automation/jobs/{job_id}", self._token)
 
         if action == "archive":
             return await _http_post(hosts, port, "/api/archive", payload or {}, self._token)
@@ -429,7 +453,7 @@ async def _http_post(hosts: list[str], port: int, path: str, body: dict, token: 
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host, port),
-                timeout=5,
+                timeout=5.0,
             )
             try:
                 writer.write(
@@ -438,12 +462,37 @@ async def _http_post(hosts: list[str], port: int, path: str, body: dict, token: 
                         f"Host: gw\r\n"
                         f"Content-Type: application/json\r\n"
                         f"Content-Length: {len(payload)}\r\n"
-                        f"{auth_hdr}\r\n"
+                        f"{auth_hdr}"
+                        f"\r\n"
                     ).encode()
                     + payload
                 )
                 await writer.drain()
-                data = await asyncio.wait_for(reader.read(65536), timeout=30)
+                data = await asyncio.wait_for(reader.read(65536), timeout=30.0)
+            finally:
+                writer.close()
+                await writer.wait_closed()
+            if b"200" in data:
+                body_start = data.find(b"\r\n\r\n")
+                if body_start > 0:
+                    return json.loads(data[body_start + 4 :])
+        except Exception:
+            continue
+    return None
+
+
+async def _http_delete(hosts: list[str], port: int, path: str, token: str) -> dict | None:
+    auth_hdr = f"Authorization: Bearer {token}\r\n" if token else ""
+    for host in hosts:
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port),
+                timeout=5.0,
+            )
+            try:
+                writer.write(f"DELETE {path} HTTP/1.0\r\nHost: gw\r\n{auth_hdr}\r\n".encode())
+                await writer.drain()
+                data = await asyncio.wait_for(reader.read(8192), timeout=10.0)
             finally:
                 writer.close()
                 await writer.wait_closed()

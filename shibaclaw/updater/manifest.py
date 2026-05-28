@@ -61,7 +61,7 @@ def personal_files_in_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]
         "USER.md",
         "SOUL.md",
         "AGENTS.md",
-        "HEARTBEAT.md",
+        "TASK.md",
         "TOOLS.md",
         "memory/MEMORY.md",
         "memory/HISTORY.md",

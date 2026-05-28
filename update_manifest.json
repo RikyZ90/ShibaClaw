@@ -1,21 +1,21 @@
 {
-    "version": "0.4.8",
-    "release_notes": "v0.4.8 — Fix copy button, add message copy, fix thought blocks UI, restore GEN steps.",
+    "version": "0.5.0",
+    "release_notes": "**Unified Automation Engine & UI** — Completely refactored the previously disjointed "Cron" and "Heartbeat" systems into a single, unified "Automations" engine",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.8 release notes."
+            "note": "Added v0.5.0 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.8."
+            "note": "Bumped version to 0.5.0."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.4.8."
+            "note": "Updated welcome announcement to v0.5.0."
         },
         {
             "path": "shibaclaw/webui/routers/system.py",
@@ -30,37 +30,7 @@
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.4.8."
-        },
-        {
-            "path": "shibaclaw/webui/static/index.html",
-            "overwrite": true,
-            "note": "Fixed thought blocks toggle layout (toggle inside div, not label)."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/chat.js",
-            "overwrite": true,
-            "note": "Thought block hide/collapse support, copy message button, data-raw-content."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/api_socket.js",
-            "overwrite": true,
-            "note": "Restored GEN process steps, data-raw-content for streamed bubbles."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/ui_panels.js",
-            "overwrite": true,
-            "note": "Render GEN steps in history, data-raw-content, thought block settings persistence."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/utils.js",
-            "overwrite": true,
-            "note": "Fixed copyCode with fallback, added copyMessage function."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/chat.css",
-            "overwrite": true,
-            "note": "Added btn-copy-msg styles for message copy button."
+            "note": "Bumped packaged update manifest to v0.5.0."
         }
     ]
 }

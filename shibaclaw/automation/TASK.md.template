@@ -1,0 +1,21 @@
+# TASK.md — Multi-task Automation Template
+
+## Active Tasks
+
+## <job_name_1>
+Detailed description of task 1...
+
+## <job_name_2>
+Detailed description of task 2...
+
+## <job_name_3>
+Detailed description of task 3...
+
+# (Add more tasks using the same structure)
+
+---
+
+## Note
+- Each heartbeat job must have a unique task name that matches its section header.
+- The agent will execute only the section that matches its own job name.
+- Other sections remain as archive or for future triggers.

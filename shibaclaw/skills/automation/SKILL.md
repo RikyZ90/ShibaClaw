@@ -1,11 +1,11 @@
-﻿---
-name: cron
+---
+name: automation
 description: Schedule reminders and recurring tasks.
 ---
 
-# Cron
+# Automation
 
-Use the `cron` tool to schedule reminders or recurring tasks.
+Use the `automation` tool to schedule reminders or recurring tasks.
 
 ## Three Modes
 
@@ -17,28 +17,28 @@ Use the `cron` tool to schedule reminders or recurring tasks.
 
 Fixed reminder:
 ```
-cron(action="add", message="Time to take a break!", every_seconds=1200)
+automation(action="add", message="Time to take a break!", every_seconds=1200)
 ```
 
 Dynamic task (agent executes each time):
 ```
-cron(action="add", message="Check RikyZ90/shibaclaw GitHub stars and report", every_seconds=600)
+automation(action="add", message="Check RikyZ90/shibaclaw GitHub stars and report", every_seconds=600)
 ```
 
 One-time scheduled task (compute ISO datetime from current time):
 ```
-cron(action="add", message="Remind me about the meeting", at="<ISO datetime>")
+automation(action="add", message="Remind me about the meeting", at="<ISO datetime>")
 ```
 
 Timezone-aware cron:
 ```
-cron(action="add", message="Morning standup", cron_expr="0 9 * * 1-5", tz="America/Vancouver")
+automation(action="add", message="Morning standup", cron_expr="0 9 * * 1-5", tz="America/Vancouver")
 ```
 
 List/remove:
 ```
-cron(action="list")
-cron(action="remove", job_id="abc123")
+automation(action="list")
+automation(action="remove", job_id="abc123")
 ```
 
 ## Time Expressions

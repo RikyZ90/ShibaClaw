@@ -32,6 +32,12 @@ async def api_status(request: Request):
     oauth_providers = get_oauth_providers_status()
     oauth_configured = any(p.get("status") == "configured" for p in oauth_providers)
 
+    active_channels = []
+    if cfg and cfg.channels and cfg.channels.model_extra:
+        for ch_name, ch_data in cfg.channels.model_extra.items():
+            if isinstance(ch_data, dict) and ch_data.get("enabled", False):
+                active_channels.append(ch_name)
+
     resp = {
         "status": "ok" if gw_ready else "gateway_offline",
         "version": __version__,
@@ -40,6 +46,8 @@ async def api_status(request: Request):
         "provider": cfg.agents.defaults.provider if cfg else None,
         "model": cfg.agents.defaults.model if cfg else None,
         "workspace": str(cfg.workspace_path) if cfg else None,
+        "restrict_workspace": cfg.tools.restrict_to_workspace if cfg else True,
+        "active_channels": active_channels,
         "gateway": gw_ready,
     }
     return JSONResponse(resp)
@@ -203,10 +211,19 @@ async def api_notifications_delete(request: Request):
 
 # ── Re-exports (server.py imports everything from here) ──────────────
 from .routers.auth import api_auth_status, api_auth_verify  # noqa: E402, F401
-from .routers.cron import api_cron_list, api_cron_trigger  # noqa: E402, F401
+from .routers.automation import (  # noqa: E402, F401
+    api_automation_job_delete,
+    api_automation_job_get,
+    api_automation_job_trigger,
+    api_automation_job_update,
+    api_automation_jobs_create,
+    api_automation_jobs_list,
+    api_automation_status,
+)
+from .routers.cron import api_cron_list, api_cron_trigger  # noqa: E402, F401  (legacy shim)
 from .routers.fs import api_file_get, api_file_save, api_fs_explore, api_upload  # noqa: E402, F401
 from .routers.gateway import api_gateway_health, api_gateway_restart  # noqa: E402, F401
-from .routers.heartbeat import api_heartbeat_status, api_heartbeat_trigger  # noqa: E402, F401
+from .routers.heartbeat import api_heartbeat_status, api_heartbeat_trigger  # noqa: E402, F401  (legacy shim)
 from .routers.oauth import (  # noqa: E402, F401
     api_oauth_code,
     api_oauth_job,
