@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.5.1] - 2026-05-28
+## [0.5.2] - 2026-05-28
 
 ### Added
 - **Unified Automation Engine & UI** — Completely refactored the previously disjointed "Cron" and "Heartbeat" systems into a single, unified "Automations" engine. Automations now feature a dedicated, premium modal in the WebUI where users can intuitively create, toggle, and delete background tasks (both interval-based heartbeats and cron-scheduled jobs) from one centralized control center.
