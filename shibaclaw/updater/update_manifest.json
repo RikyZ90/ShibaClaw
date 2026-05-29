@@ -1,21 +1,21 @@
 {
-    "version": "0.5.2",
-    "release_notes": "Major automation rewrite, realtime background job telemetry, and UI polish.",
+    "version": "0.5.3",
+    "release_notes": "Mobile Web UI fixes: chat bubble width, table scrolling, and mobile Enter newline option.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.5.2 release notes."
+            "note": "Added v0.5.3 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.5.2."
+            "note": "Bumped version to 0.5.3."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.5.2."
+            "note": "Updated welcome announcement to v0.5.3."
         },
         {
             "path": "shibaclaw/webui/routers/system.py",
@@ -30,7 +30,7 @@
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.5.2."
+            "note": "Bumped packaged update manifest to v0.5.3."
         }
     ]
 }

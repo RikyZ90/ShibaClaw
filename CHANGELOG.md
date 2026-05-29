@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.3] - 2026-05-29
+
+### Fixed
+- **Mobile Web UI — chat & input polish** — Fixed several mobile layout issues: chat bubbles now expand to a sensible width on small screens, inline Markdown tables are horizontally scrollable to avoid overflow, and the message input honors a new per-user mobile setting that allows Enter to insert a newline instead of sending the message.
+- **Settings layout** — Aligned settings toggles and descriptions in the settings modal for consistent spacing and typography on mobile and desktop.
+
 ## [0.5.2] - 2026-05-28
 
 ### Added
