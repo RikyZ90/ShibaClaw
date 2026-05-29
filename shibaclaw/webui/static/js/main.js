@@ -40,6 +40,16 @@ function initListeners() {
 
     chatInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
+            // Respect per-user mobile Enter->newline override (localStorage)
+            try {
+                const mobileEnter = localStorage.getItem("shibaclaw_mobile_enter_newline") === "true";
+                const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+                if (mobileEnter && isTouch) {
+                    // allow default behavior (insert newline) on touch devices
+                    return;
+                }
+            } catch (err) { }
+
             e.preventDefault();
             sendMessage();
         }
@@ -230,15 +240,15 @@ function initGithubPopup() {
         const popup = document.getElementById('gh-star-popup');
         const dismissBtn = document.getElementById('gh-star-dismiss');
         const starLink = document.getElementById('gh-star-link');
-        
+
         if (popup && dismissBtn && starLink) {
             popup.classList.add('show');
-            
+
             const dismissPopup = () => {
                 popup.classList.remove('show');
                 localStorage.setItem('shibaclaw_gh_star_dismissed', 'true');
             };
-            
+
             dismissBtn.addEventListener('click', dismissPopup);
             starLink.addEventListener('click', dismissPopup);
         }

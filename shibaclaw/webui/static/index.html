@@ -612,17 +612,28 @@
 
                         <div class="field-row">
                             <label>Thought Blocks (Reasoning Models)</label>
-                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
-                                        id="s-ui-hide-thoughts"><span class="toggle-slider"></span></label>
-                                <span style="font-size:13px;color:var(--text-muted);margin-left:6px">Hide reasoning
-                                    content (&lt;think&gt; tags)</span>
+                            <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+                                <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                                    <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
+                                            id="s-ui-hide-thoughts"><span class="toggle-slider"></span></label>
+                                    <span class="settings-note">Hide reasoning content (&lt;think&gt; tags)</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                                    <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
+                                            class="toggle-slider"></span></label>
+                                    <span class="settings-note">Collapse Thought Blocks</span>
+                                </div>
                             </div>
                         </div>
+
                         <div class="field-row">
-                            <label>Collapse Thought Blocks</label>
-                            <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
-                                    class="toggle-slider"></span></label>
+                            <label>Mobile: Enter inserts newline</label>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <label class="toggle"><input type="checkbox" id="s-ui-mobile-enter-newline"><span
+                                        class="toggle-slider"></span></label>
+                                <span class="settings-note" style="margin-left:6px">On mobile devices, pressing Enter
+                                    inserts a newline instead of sending the message</span>
+                            </div>
                         </div>
 
                     </div>

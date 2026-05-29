@@ -1447,6 +1447,16 @@ function populateSettings(cfg) {
         }
     } catch (e) { }
 
+    // Mobile Enter behavior (per-user local override)
+    try {
+        const mobileEnter = localStorage.getItem("shibaclaw_mobile_enter_newline");
+        if (mobileEnter !== null && document.getElementById("s-ui-mobile-enter-newline")) {
+            document.getElementById("s-ui-mobile-enter-newline").checked = (mobileEnter === "true");
+        } else if (document.getElementById("s-ui-mobile-enter-newline")) {
+            document.getElementById("s-ui-mobile-enter-newline").checked = !!(cfg.ui && cfg.ui.mobile_enter_newline);
+        }
+    } catch (e) { }
+
     const prov = cfg.providers || {};
     const list = $("providers-list");
     list.innerHTML = "";
@@ -1911,6 +1921,7 @@ window.saveSettings = async function () {
     try {
         if (document.getElementById("s-ui-hide-thoughts")) localStorage.setItem("shibaclaw_hide_thoughts", document.getElementById("s-ui-hide-thoughts").checked ? "true" : "false");
         if (document.getElementById("s-ui-collapse-thoughts")) localStorage.setItem("shibaclaw_collapse_thoughts", document.getElementById("s-ui-collapse-thoughts").checked ? "true" : "false");
+        if (document.getElementById("s-ui-mobile-enter-newline")) localStorage.setItem("shibaclaw_mobile_enter_newline", document.getElementById("s-ui-mobile-enter-newline").checked ? "true" : "false");
     } catch (e) { }
 
     try {
