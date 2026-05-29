@@ -19,6 +19,7 @@ function _finalizeStreamBubble(msgId) {
         if (state._streamBuffers && state._streamBuffers[mid]) {
             bubble.innerHTML = renderMarkdown(state._streamBuffers[mid]);
             enhanceCodeBlocks(bubble);
+            try { bubble.setAttribute('data-raw-content', state._streamBuffers[mid] || ''); } catch (e) { }
         }
         bubble.removeAttribute("id");
     }
@@ -44,6 +45,13 @@ function _scheduleStreamRender(msgId, bubble) {
         if (!target) return;
         target.innerHTML = renderMarkdown(state._streamBuffers[mid] || "");
         enhanceCodeBlocks(target);
+        try {
+            if (state._streamBuffers && state._streamBuffers[mid]) {
+                target.setAttribute('data-raw-content', state._streamBuffers[mid]);
+            } else {
+                target.removeAttribute('data-raw-content');
+            }
+        } catch (e) { }
         scrollToBottom();
     });
 }
@@ -119,7 +127,7 @@ function initSocket() {
         // We no longer add a destructive GEN block if we have a stream bubble,
         // we just finalize it so it stays natively on screen.
         _finalizeStreamBubble(data.id);
-        
+
         // Only fallback to showThinking if there was no stream bubble at all
         // to avoid duplicating text.
         showThinking("Sto riflettendo...");
@@ -156,6 +164,7 @@ function initSocket() {
             bubble.className = "message-bubble";
             bubble.id = "stream-bubble-" + mid;
             group.querySelector(".message-content").appendChild(bubble);
+            try { bubble.setAttribute('data-raw-content', state._streamBuffers[mid] || ''); } catch (e) { }
             addTimestamp(group);
             chatHistory.appendChild(group);
         }
@@ -181,6 +190,7 @@ function initSocket() {
             if (data.content) {
                 streamBubble.innerHTML = renderMarkdown(data.content);
                 enhanceCodeBlocks(streamBubble);
+                try { streamBubble.setAttribute('data-raw-content', data.content || ''); } catch (e) { }
             }
             streamBubble.removeAttribute("id"); // Remove stream id marker
 
@@ -193,7 +203,7 @@ function initSocket() {
         } else {
             addAgentMessage(data.id, data.content, data.attachments || []);
         }
-        
+
         // Play text-to-speech if enabled
         if (window.speechTTS && window.speechTTS.enabled && data.content) {
             window.speechTTS.play(data.content);
@@ -261,14 +271,14 @@ function initSocket() {
         if (data.processing) {
             state.processing = true;
             setWorkingState(true);
-            
+
             if (data.msg_id && state.processGroups[data.msg_id]) {
                 const pg = state.processGroups[data.msg_id];
                 if (pg.timer) clearInterval(pg.timer);
                 if (pg.el) pg.el.remove();
                 delete state.processGroups[data.msg_id];
             }
-            
+
             const events = data.events || [];
             for (const evt of events) {
                 if (evt.type === "agent_thinking" || evt.type === "thinking") {
@@ -328,12 +338,12 @@ async function fetchStatus() {
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;
 
             const isConfigured = (data.agent_configured || data.oauth_configured) && data.model;
-            
+
             // Popola il mini-widget in basso
             const chEl = document.getElementById("summary-channels");
             const prEl = document.getElementById("summary-provider");
             const resEl = document.getElementById("summary-restrict-badge");
-            
+
             const chDot = document.getElementById("summary-ch-dot");
             const prDot = document.getElementById("summary-provider-dot");
             const resDot = document.getElementById("summary-restrict-dot");
@@ -353,7 +363,7 @@ async function fetchStatus() {
                 if (prEl) prEl.textContent = "N/A";
                 if (prDot) prDot.className = "status-dot disconnected";
             }
-            
+
             if (resEl) {
                 const isRestricted = data.restrict_workspace;
                 resEl.textContent = isRestricted ? "ON" : "OFF";
@@ -375,7 +385,7 @@ async function fetchStatus() {
                 }
             }
         }
-    } catch(e) {
+    } catch (e) {
         setStatusIndicator("disconnected");
     }
 }
@@ -399,7 +409,7 @@ async function checkGatewayHealth() {
         const data = await res.json();
         reachable = data.reachable === true;
         providerReady = data.provider_ready !== false;
-    } catch(e) {
+    } catch (e) {
         reachable = false;
         providerReady = true;
     }
@@ -413,7 +423,7 @@ async function checkGatewayHealth() {
                 const jobs = jobsData.jobs || [];
                 anyJobRunning = jobs.some(j => (j.state || {}).last_status === "running" || (j.state || {}).lastStatus === "running");
             }
-        } catch(e) {}
+        } catch (e) { }
     }
 
     state.gatewayKnown = true;
@@ -467,7 +477,7 @@ function updateUIFromHealthState() {
 }
 
 function setStatusIndicator(mode) {
-    switch(mode) {
+    switch (mode) {
         case "ready":
             statusDot.className = "status-dot connected";
             statusText.textContent = "Shiba ready";
@@ -511,7 +521,7 @@ function setWorkingState(working) {
 
 
 // ── Gateway Restart ───────────────────────────────────────────
-window.restartGateway = async function() {
+window.restartGateway = async function () {
     const btn = $("btn-restart");
     if (btn.classList.contains("restarting")) return;
 
@@ -537,14 +547,14 @@ window.restartGateway = async function() {
                     fetchStatus();
                     return;
                 }
-            } catch(e) {}
+            } catch (e) { }
             if (tries > 15) {
                 clearInterval(poll);
                 btn.classList.remove("restarting");
                 setStatusIndicator("gateway-down");
             }
         }, 2000);
-    } catch(e) {
+    } catch (e) {
         btn.classList.remove("restarting");
         setStatusIndicator("gateway-down");
         console.error("Restart error:", e);

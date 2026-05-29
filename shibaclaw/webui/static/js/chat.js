@@ -22,12 +22,13 @@ function addUserMessage(content, attachments = []) {
     const group = createMessageGroup("user");
     const bubble = document.createElement("div");
     bubble.className = "message-bubble";
-    
+
     if (content) {
         bubble.innerHTML = renderMarkdown(content);
+        try { bubble.setAttribute("data-raw-content", typeof content === "string" ? content : JSON.stringify(content)); } catch (e) { }
         enhanceCodeBlocks(bubble);
     }
-    
+
     attachments.forEach(file => {
         const isImage = typeof file.type === "string" && file.type.startsWith("image/");
         if (isImage) {
@@ -57,6 +58,7 @@ function addAgentMessage(id, content, attachments = []) {
     bubble.className = "message-bubble";
 
     bubble.innerHTML = renderMarkdown(content);
+    try { bubble.setAttribute("data-raw-content", typeof content === "string" ? content : JSON.stringify(content)); } catch (e) { }
     enhanceCodeBlocks(bubble);
 
     attachments.forEach(file => {
@@ -278,21 +280,33 @@ function createMessageGroup(type, targetContainer = chatHistory) {
 }
 
 function addTimestamp(group, dateStr) {
+    const d = dateStr ? new Date(dateStr) : new Date();
     const time = document.createElement("div");
     time.className = "message-time";
-    const d = dateStr ? new Date(dateStr) : new Date();
-    time.textContent = d.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-    group.querySelector(".message-content").appendChild(time);
+    time.textContent = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    const meta = document.createElement("div");
+    meta.className = "message-meta";
+    meta.appendChild(time);
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn-copy-msg";
+    copyBtn.type = "button";
+    copyBtn.setAttribute('aria-label', 'Copy message');
+    copyBtn.title = "Copy message";
+    copyBtn.innerHTML = '<span class="material-icons-round" style="font-size:14px">content_copy</span>';
+    copyBtn.addEventListener('click', (e) => { e.stopPropagation(); window.copyMessage(copyBtn); });
+    meta.appendChild(copyBtn);
+
+    const contentEl = group.querySelector(".message-content");
+    contentEl.appendChild(meta);
 }
 
 
 // ── Markdown Rendering ────────────────────────────────────────
 function renderMarkdown(text) {
     if (!text) return "";
-    
+
     let content = text;
 
     if (typeof content === "string" && content.trim().startsWith("[") && content.trim().endsWith("]")) {
@@ -318,39 +332,49 @@ function renderMarkdown(text) {
             let processedContent = content;
             const codeBlocks = [];
             const inlineCodes = [];
-            
+
             processedContent = processedContent.replace(/```[\s\S]*?```/g, (match) => {
                 codeBlocks.push(match);
                 return `__CODE_BLOCK_PLACEHOLDER_${codeBlocks.length - 1}__`;
             });
-            
+
             processedContent = processedContent.replace(/`[^`]+`/g, (match) => {
                 inlineCodes.push(match);
                 return `__INLINE_CODE_PLACEHOLDER_${inlineCodes.length - 1}__`;
             });
-            
+
+            // Respect per-user UI preferences for thought blocks
+            let hideThoughts = false;
+            let collapseThoughts = false;
+            try { hideThoughts = localStorage.getItem("shibaclaw_hide_thoughts") === "true"; } catch (e) { }
+            try { collapseThoughts = localStorage.getItem("shibaclaw_collapse_thoughts") === "true"; } catch (e) { }
+
             processedContent = processedContent.replace(/<think>([\s\S]*?)<\/think>/gi, (match, p1) => {
                 let restoredP1 = p1;
                 restoredP1 = restoredP1.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (m, idx) => inlineCodes[parseInt(idx, 10)]);
                 restoredP1 = restoredP1.replace(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g, (m, idx) => codeBlocks[parseInt(idx, 10)]);
+                if (hideThoughts) return "";
                 const innerParsed = marked.parse(restoredP1.trim());
-                return `<details class="thought-block" open><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento concluso</summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
+                const detailsOpen = collapseThoughts ? "" : " open";
+                return `<details class="thought-block"${detailsOpen}><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento concluso</summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
             });
-            
+
             if (processedContent.match(/<think>([\s\S]*)$/i) && !processedContent.match(/<\/think>/i)) {
                 processedContent = processedContent.replace(/<think>([\s\S]*)$/i, (match, p1) => {
+                    if (hideThoughts) return "";
                     let restoredP1 = p1;
                     restoredP1 = restoredP1.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (m, idx) => inlineCodes[parseInt(idx, 10)]);
                     restoredP1 = restoredP1.replace(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g, (m, idx) => codeBlocks[parseInt(idx, 10)]);
                     const innerParsed = marked.parse(restoredP1.trim());
-                    return `<details class="thought-block" open><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento in corso...<span class="typing-dots-inline" style="margin-left:8px"><span></span><span></span><span></span></span></summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
+                    const detailsOpen = collapseThoughts ? "" : " open";
+                    return `<details class="thought-block"${detailsOpen}><summary><span class="material-icons-round" style="font-size:14px">psychology</span>Ragionamento in corso...<span class="typing-dots-inline" style="margin-left:8px"><span></span><span></span><span></span></span></summary><div class="thought-content">${innerParsed}</div></details>\n\n`;
                 });
             }
-            
+
             processedContent = processedContent.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (match, p1) => {
                 return inlineCodes[parseInt(p1, 10)];
             });
-            
+
             processedContent = processedContent.replace(/__CODE_BLOCK_PLACEHOLDER_(\d+)__/g, (match, p1) => {
                 return codeBlocks[parseInt(p1, 10)];
             });
@@ -360,7 +384,7 @@ function renderMarkdown(text) {
             console.error("Markdown parse error:", e);
         }
     }
-    
+
     return escapeHtml(content).replace(/\n/g, "<br>");
 }
 
@@ -461,7 +485,7 @@ function sendMessage() {
     try {
         const attachments = [...state.stagedFiles];
         addUserMessage(content, attachments);
-        
+
         const sent = realtime.emit("message", {
             content,
             attachments: attachments.map(a => ({
@@ -479,7 +503,7 @@ function sendMessage() {
         state.stagedFiles = [];
         updateStagingUI();
         autoResizeInput();
-    } catch(e) {
+    } catch (e) {
         console.error("Send error:", e);
         addAgentMessage("error", `⚠️ ${e.message || "Failed to send message."}`);
         state.processing = false;

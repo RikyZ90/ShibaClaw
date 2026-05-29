@@ -708,6 +708,7 @@ async function loadSession(sessionId) {
 
                     if (msg.content) {
                         bubble.innerHTML = renderMarkdown(msg.content);
+                        try { bubble.setAttribute("data-raw-content", typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)); } catch (e) { }
                         enhanceCodeBlocks(bubble);
                     }
 
@@ -765,6 +766,7 @@ async function loadSession(sessionId) {
                         const bubble = document.createElement("div");
                         bubble.className = "message-bubble";
                         bubble.innerHTML = renderMarkdown(msg.content);
+                        try { bubble.setAttribute("data-raw-content", typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)); } catch (e) { }
                         enhanceCodeBlocks(bubble);
 
                         let attachments = msg.metadata?.attachments ? [...msg.metadata.attachments] : [];
@@ -812,6 +814,7 @@ async function loadSession(sessionId) {
                         const bubble = document.createElement("div");
                         bubble.className = "message-bubble";
                         bubble.innerHTML = renderMarkdown(toolContent);
+                        try { bubble.setAttribute("data-raw-content", typeof toolContent === "string" ? toolContent : JSON.stringify(toolContent)); } catch (e) { }
                         enhanceCodeBlocks(bubble);
 
                         let attachments = [];
@@ -1426,6 +1429,24 @@ function populateSettings(cfg) {
     $("tts-toggle").checked = ttsFromConfig;
     if (window.speechTTS) window.speechTTS.enabled = ttsFromConfig;
 
+    // UI toggles for thought blocks (per-user local overrides)
+    try {
+        const hide = localStorage.getItem("shibaclaw_hide_thoughts");
+        if (hide !== null && document.getElementById("s-ui-hide-thoughts")) {
+            document.getElementById("s-ui-hide-thoughts").checked = (hide === "true");
+        } else if (document.getElementById("s-ui-hide-thoughts")) {
+            document.getElementById("s-ui-hide-thoughts").checked = !!(cfg.ui && cfg.ui.hide_thoughts);
+        }
+    } catch (e) { }
+    try {
+        const coll = localStorage.getItem("shibaclaw_collapse_thoughts");
+        if (coll !== null && document.getElementById("s-ui-collapse-thoughts")) {
+            document.getElementById("s-ui-collapse-thoughts").checked = (coll === "true");
+        } else if (document.getElementById("s-ui-collapse-thoughts")) {
+            document.getElementById("s-ui-collapse-thoughts").checked = !!(cfg.ui && cfg.ui.collapse_thoughts);
+        }
+    } catch (e) { }
+
     const prov = cfg.providers || {};
     const list = $("providers-list");
     list.innerHTML = "";
@@ -1885,6 +1906,12 @@ window.saveSettings = async function () {
         }
         patch.channels[name][key] = val;
     });
+
+    // Persist UI-only preferences locally so changes are immediate
+    try {
+        if (document.getElementById("s-ui-hide-thoughts")) localStorage.setItem("shibaclaw_hide_thoughts", document.getElementById("s-ui-hide-thoughts").checked ? "true" : "false");
+        if (document.getElementById("s-ui-collapse-thoughts")) localStorage.setItem("shibaclaw_collapse_thoughts", document.getElementById("s-ui-collapse-thoughts").checked ? "true" : "false");
+    } catch (e) { }
 
     try {
         const res = await authFetch("/api/settings", {

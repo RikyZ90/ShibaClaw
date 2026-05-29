@@ -123,7 +123,7 @@ async function refreshTokenBadge() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.tokens) updateTokenBadge(data.tokens);
-    } catch(e) { /* silent */ }
+    } catch (e) { /* silent */ }
 }
 
 
@@ -137,6 +137,45 @@ window.copyCode = function (btn) {
             setTimeout(() => (btn.textContent = "Copy"), 2000);
         });
     }
+};
+
+
+function fallbackCopy(text, onSuccess) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text || "";
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (typeof onSuccess === 'function') onSuccess();
+    } catch (e) { console.error('fallbackCopy failed', e); }
+}
+
+window.copyMessage = function (btn) {
+    try {
+        const group = (btn && btn.closest) ? btn.closest('.message-group') : null;
+        const bubble = group ? group.querySelector('.message-bubble') : null;
+        let raw = bubble ? bubble.getAttribute('data-raw-content') : null;
+        if (!raw && bubble) raw = bubble.textContent || '';
+        if (!raw) return;
+
+        const giveFeedback = () => {
+            const prev = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round">check</span>';
+            setTimeout(() => { try { btn.innerHTML = prev; } catch (e) { } }, 1200);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(raw).then(giveFeedback).catch(() => fallbackCopy(raw, giveFeedback));
+        } else {
+            fallbackCopy(raw, giveFeedback);
+        }
+    } catch (e) { console.error('copyMessage', e); }
 };
 
 

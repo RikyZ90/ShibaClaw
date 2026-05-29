@@ -67,7 +67,8 @@
                             <div class="status-micro" id="status-card">
                                 <div class="status-dot disconnected" id="status-dot"></div>
                                 <span class="status-text" id="status-text">Connecting...</span>
-                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()" title="Restart Gateway" tabindex="-1">
+                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()"
+                                    title="Restart Gateway" tabindex="-1">
                                     <span class="material-icons-round">refresh</span>
                                 </button>
                             </div>
@@ -110,7 +111,8 @@
             </div>
 
             <!-- Workspace Summary -->
-            <div class="sidebar-section workspace-summary-section" id="workspace-summary" style="margin-top:auto; padding-top:16px; margin-bottom: 8px; border-top:1px solid var(--border-color); font-size:12px; color:var(--text-secondary);">
+            <div class="sidebar-section workspace-summary-section" id="workspace-summary"
+                style="margin-top:auto; padding-top:16px; margin-bottom: 8px; border-top:1px solid var(--border-color); font-size:12px; color:var(--text-secondary);">
                 <div style="display:flex; align-items:center; margin-bottom:8px;" title="Active Channels">
                     <div class="status-dot disconnected" id="summary-ch-dot" style="margin-right:8px;"></div>
                     <span>Channel: <strong id="summary-channels" style="color:var(--text-primary)">--</strong></span>
@@ -121,7 +123,8 @@
                 </div>
                 <div style="display:flex; align-items:center;" title="Restrict agent to workspace directory">
                     <div class="status-dot disconnected" id="summary-restrict-dot" style="margin-right:8px;"></div>
-                    <span>Restrict WP: <strong id="summary-restrict-badge" style="color:var(--text-primary)">--</strong></span>
+                    <span>Restrict WP: <strong id="summary-restrict-badge"
+                            style="color:var(--text-primary)">--</strong></span>
                 </div>
             </div>
 
@@ -330,8 +333,10 @@
                     <span id="automation-status-text">Loading...</span>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center">
-                    <button class="btn-secondary btn-sm" id="btn-auto-clear-completed" onclick="clearCompletedJobs()" style="display:none">
-                        <span class="material-icons-round" style="font-size:15px;vertical-align:middle">delete_sweep</span>
+                    <button class="btn-secondary btn-sm" id="btn-auto-clear-completed" onclick="clearCompletedJobs()"
+                        style="display:none">
+                        <span class="material-icons-round"
+                            style="font-size:15px;vertical-align:middle">delete_sweep</span>
                         Clear Completed
                     </button>
                     <button class="btn-primary btn-sm" onclick="openJobForm()">
@@ -408,8 +413,11 @@
                         </div>
 
                         <details style="margin-top: 24px;">
-                            <summary style="cursor: pointer; color: var(--text-muted); font-size: 13px; user-select: none; font-weight: 500;">Advanced Options</summary>
-                            <div style="margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <summary
+                                style="cursor: pointer; color: var(--text-muted); font-size: 13px; user-select: none; font-weight: 500;">
+                                Advanced Options</summary>
+                            <div
+                                style="margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--border-color);">
                                 <!-- Delivery -->
                                 <div class="field-row">
                                     <label>Deliver result</label>
@@ -431,7 +439,8 @@
                                     </div>
                                     <div class="field-row">
                                         <label>Target ID</label>
-                                        <input type="text" id="ajf-target-id" class="form-input" placeholder="chat_id / channel">
+                                        <input type="text" id="ajf-target-id" class="form-input"
+                                            placeholder="chat_id / channel">
                                     </div>
                                 </div>
 
@@ -576,7 +585,7 @@
                                         <span class="settings-model-button-label"
                                             id="s-agent-consolidationModel-display">Same as default session model</span>
                                         <span
-                                             class="settings-model-button-provider settings-model-button-provider-placeholder"
+                                            class="settings-model-button-provider settings-model-button-provider-placeholder"
                                             id="s-agent-consolidationModel-provider">Inherits</span>
                                     </span>
                                     <span class="material-icons-round">arrow_drop_down</span>
@@ -600,6 +609,21 @@
                                 id="s-agent-maxIter" class="form-input" value="40"></div>
                         <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning"
                                 class="form-input" placeholder="null (not set)"></div>
+
+                        <div class="field-row">
+                            <label>Thought Blocks (Reasoning Models)</label>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
+                                        id="s-ui-hide-thoughts"><span class="toggle-slider"></span></label>
+                                <span style="font-size:13px;color:var(--text-muted);margin-left:6px">Hide reasoning
+                                    content (&lt;think&gt; tags)</span>
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <label>Collapse Thought Blocks</label>
+                            <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
 
                     </div>
 
@@ -691,8 +715,8 @@
                     <div class="settings-panel" id="panel-channels" style="display:none">
                         <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox"
                                     id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input type="checkbox"
-                                    id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
+                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input
+                                    type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
                         </div>
                         <div id="channels-detail"></div>
                     </div>
@@ -986,7 +1010,8 @@
         </div>
         <div class="gh-star-content">
             <div class="gh-star-title">Support ShibaClaw</div>
-            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!</div>
+            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!
+            </div>
         </div>
         <div class="gh-star-actions">
             <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" class="gh-star-btn" id="gh-star-link">
