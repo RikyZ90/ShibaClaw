@@ -17,7 +17,7 @@
 ---
 
 
-📢 **Welcome to ShibaClaw v0.4.8!**
+📢 **Welcome to ShibaClaw v0.5.3!**
 This release brings:
 - **Code Block Copy Fix** — Fixed an issue where the "Copy" button inside code blocks would silently fail on non-HTTPS environments by adding a robust fallback clipboard mechanism.
 - **Message Copy Feature** — Added a new "Copy Message" button next to the timestamp on every message bubble to easily copy the raw text content of an entire message.

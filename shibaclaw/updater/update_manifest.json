@@ -1,21 +1,21 @@
 {
-    "version": "0.4.8",
-    "release_notes": "v0.4.8 — Fix copy button, add message copy, fix thought blocks UI, restore GEN steps.",
+    "version": "0.5.3",
+    "release_notes": "v0.5.3 — Fix copy button, add message copy, fix thought blocks UI, restore GEN steps.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.4.8 release notes."
+            "note": "Added v0.5.3 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.4.8."
+            "note": "Bumped version to 0.5.3."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.4.8."
+            "note": "Updated welcome announcement to v0.5.3."
         },
         {
             "path": "shibaclaw/webui/routers/system.py",
@@ -30,7 +30,7 @@
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.4.8."
+            "note": "Bumped packaged update manifest to v0.5.3."
         },
         {
             "path": "shibaclaw/webui/static/index.html",

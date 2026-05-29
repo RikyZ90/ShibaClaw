@@ -30,7 +30,7 @@ Auth: when a WebUI token is configured, send it in the `hello` handshake (WS) or
 {
   "type": "hello",
   "token": "<optional-bearer-token>",
-  "version": "0.4.8"
+  "version": "0.5.3"
 }
 ```
 
@@ -39,7 +39,7 @@ Auth: when a WebUI token is configured, send it in the `hello` handshake (WS) or
 ```json
 {
   "type": "hello_ok",
-  "version": "0.4.8",
+  "version": "0.5.3",
   "provider_ready": true,
   "uptime": 1234
 }
@@ -318,4 +318,4 @@ The WebUI server translates gateway events internally via `gateway_client.chat_s
 
 ---
 
-*Derived from source — ShibaClaw v0.4.8. Fixes [#26](https://github.com/RikyZ90/ShibaClaw/issues/26).*
+*Derived from source — ShibaClaw v0.5.3. Fixes [#26](https://github.com/RikyZ90/ShibaClaw/issues/26).*

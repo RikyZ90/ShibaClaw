@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.4.8] - 2026-05-27
+## [0.5.3] - 2026-05-29
 
 ### Fixed
 - **Code Block Copy Fix** — Fixed an issue where the "Copy" button inside code blocks would silently fail on non-HTTPS environments by adding a robust fallback clipboard mechanism. (Issue #40)
