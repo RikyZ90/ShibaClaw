@@ -29,6 +29,8 @@ import json
 import re
 import time
 import uuid
+import os
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
@@ -231,6 +233,9 @@ class AutomationService:
 
         self._jobs: dict[str, AutomationJob] = {}
         self._save_lock = asyncio.Lock()
+        # Protect actual filesystem writes so sync and async paths don't clobber
+        # each other. Async callers also use `_save_lock` to sequence writes.
+        self._io_lock = threading.Lock()
         self._timer_task: asyncio.Task | None = None
         self._wake = asyncio.Event()
         self._running = False
@@ -273,6 +278,18 @@ class AutomationService:
                 p = d.get("payload", {})
                 st = d.get("state", {})
                 now = _now_ms()
+                # Infer schedule kind if missing/invalid in legacy payload
+                kind = s.get("kind")
+                if kind not in ("at", "every", "cron"):
+                    if s.get("expr"):
+                        kind = "cron"
+                    elif s.get("everyMs") or s.get("every_ms"):
+                        kind = "every"
+                    elif s.get("atMs") or s.get("at_ms"):
+                        kind = "at"
+                    else:
+                        kind = "cron"
+
                 job = AutomationJob(
                     id=d.get("id", str(uuid.uuid4())[:8]),
                     name=d.get("name", "Migrated job"),
@@ -281,7 +298,7 @@ class AutomationService:
                     created_at_ms=d.get("createdAtMs", now),
                     updated_at_ms=d.get("updatedAtMs", now),
                     schedule=AutomationSchedule(
-                        kind=s.get("kind", "every"),
+                        kind=kind,
                         at_ms=s.get("atMs"),
                         every_ms=s.get("everyMs"),
                         expr=s.get("expr"),
@@ -317,12 +334,23 @@ class AutomationService:
         try:
             self._store_path.parent.mkdir(parents=True, exist_ok=True)
             data = {"jobs": [self._job_to_dict(j) for j in self._jobs.values()]}
-            self._store_path.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-            self._last_mtime = self._store_path.stat().st_mtime
+            # Use a temporary file + atomic replace to avoid partial writes
+            tmp_path = self._store_path.with_suffix(".tmp")
+            with self._io_lock:
+                tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+                os.replace(str(tmp_path), str(self._store_path))
+                self._last_mtime = self._store_path.stat().st_mtime
         except Exception as exc:
             logger.warning("AutomationService: failed to save store: {}", exc)
+
+    async def _save(self) -> None:
+        """Async-safe save: acquire async lock and perform write in executor."""
+        try:
+            loop = asyncio.get_running_loop()
+            async with self._save_lock:
+                await loop.run_in_executor(None, self._save_unlocked)
+        except Exception as exc:
+            logger.warning("AutomationService: failed async save: {}", exc)
 
     # ------------------------------------------------------------------
     # Serialisation
@@ -365,10 +393,25 @@ class AutomationService:
         }
 
     @staticmethod
+    def _infer_schedule_kind(s: dict) -> str:
+        """Infer a schedule kind from serialized schedule dict when missing/invalid."""
+        k = s.get("kind")
+        if k in ("at", "every", "cron"):
+            return k
+        if s.get("expr"):
+            return "cron"
+        if s.get("everyMs") or s.get("every_ms"):
+            return "every"
+        if s.get("atMs") or s.get("at_ms"):
+            return "at"
+        return "cron"
+
+    @staticmethod
     def _job_from_dict(d: dict) -> AutomationJob:
         s = d.get("schedule", {})
         p = d.get("payload", {})
         st = d.get("state", {})
+        kind = AutomationService._infer_schedule_kind(s)
         return AutomationJob(
             id=d["id"],
             name=d.get("name", ""),
@@ -377,7 +420,7 @@ class AutomationService:
             created_at_ms=d.get("createdAtMs", 0),
             updated_at_ms=d.get("updatedAtMs", 0),
             schedule=AutomationSchedule(
-                kind=s.get("kind", "every"),
+                kind=kind,
                 at_ms=s.get("atMs"),
                 every_ms=s.get("everyMs"),
                 expr=s.get("expr"),
@@ -659,15 +702,14 @@ class AutomationService:
                 job.state.next_run_at_ms = 0
             else:
                 job.state.next_run_at_ms = _compute_next_run(job.schedule, now) or 0
-        self._save_unlocked()
+        await self._save()
         self._rearm()
         for job in due:
             asyncio.create_task(self._run_job_bg(job))
 
     async def _run_job_bg(self, job: AutomationJob, force: bool = False) -> None:
         await self._execute(job, force=force)
-        async with self._save_lock:
-            self._save_unlocked()
+        await self._save()
         if self._running:
             self._rearm()
 
@@ -683,8 +725,7 @@ class AutomationService:
         )
         
         job.state.last_status = "running"
-        async with self._save_lock:
-            self._save_unlocked()
+        await self._save()
             
         try:
             if job.payload.kind == "scheduled":
