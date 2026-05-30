@@ -116,6 +116,17 @@ def _validate_schedule(schedule: AutomationSchedule) -> None:
             raise ValueError(f"unknown timezone '{schedule.tz}'") from None
 
 
+def _parse_schedule_kind(raw_kind: Any, job_name: str) -> str:
+    if raw_kind in {"at", "every", "cron"}:
+        return raw_kind
+    logger.warning(
+        "AutomationService: job '{}' has invalid or missing schedule kind '{}'; defaulting to 'cron'",
+        job_name,
+        raw_kind,
+    )
+    return "cron"
+
+
 # ---------------------------------------------------------------------------
 # Heartbeat file helpers (ported from heartbeat/service.py)
 # ---------------------------------------------------------------------------
@@ -281,7 +292,7 @@ class AutomationService:
                     created_at_ms=d.get("createdAtMs", now),
                     updated_at_ms=d.get("updatedAtMs", now),
                     schedule=AutomationSchedule(
-                        kind=s.get("kind", "every"),
+                        kind=_parse_schedule_kind(s.get("kind"), d.get("name", "Migrated job")),
                         at_ms=s.get("atMs"),
                         every_ms=s.get("everyMs"),
                         expr=s.get("expr"),
@@ -377,7 +388,7 @@ class AutomationService:
             created_at_ms=d.get("createdAtMs", 0),
             updated_at_ms=d.get("updatedAtMs", 0),
             schedule=AutomationSchedule(
-                kind=s.get("kind", "every"),
+                kind=_parse_schedule_kind(s.get("kind"), d.get("name", "")),
                 at_ms=s.get("atMs"),
                 every_ms=s.get("everyMs"),
                 expr=s.get("expr"),
