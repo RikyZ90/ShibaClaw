@@ -118,6 +118,17 @@ def _validate_schedule(schedule: AutomationSchedule) -> None:
             raise ValueError(f"unknown timezone '{schedule.tz}'") from None
 
 
+def _parse_schedule_kind(raw_kind: Any, job_name: str) -> str:
+    if raw_kind in {"at", "every", "cron"}:
+        return raw_kind
+    logger.warning(
+        "AutomationService: job '{}' has invalid or missing schedule kind '{}'; defaulting to 'cron'",
+        job_name,
+        raw_kind,
+    )
+    return "cron"
+
+
 # ---------------------------------------------------------------------------
 # Heartbeat file helpers (ported from heartbeat/service.py)
 # ---------------------------------------------------------------------------
@@ -278,17 +289,10 @@ class AutomationService:
                 p = d.get("payload", {})
                 st = d.get("state", {})
                 now = _now_ms()
-                # Infer schedule kind if missing/invalid in legacy payload
-                kind = s.get("kind")
-                if kind not in ("at", "every", "cron"):
-                    if s.get("expr"):
-                        kind = "cron"
-                    elif s.get("everyMs") or s.get("every_ms"):
-                        kind = "every"
-                    elif s.get("atMs") or s.get("at_ms"):
-                        kind = "at"
-                    else:
-                        kind = "cron"
+                # Determine schedule kind robustly (accepts missing or invalid kind)
+                kind = AutomationService._parse_schedule_kind(
+                    s.get("kind"), s, d.get("name", "Migrated job")
+                )
 
                 job = AutomationJob(
                     id=d.get("id", str(uuid.uuid4())[:8]),
@@ -298,7 +302,7 @@ class AutomationService:
                     created_at_ms=d.get("createdAtMs", now),
                     updated_at_ms=d.get("updatedAtMs", now),
                     schedule=AutomationSchedule(
-                        kind=kind,
+                        kind=s.get("kind", "every"),
                         at_ms=s.get("atMs"),
                         every_ms=s.get("everyMs"),
                         expr=s.get("expr"),
@@ -393,17 +397,28 @@ class AutomationService:
         }
 
     @staticmethod
-    def _infer_schedule_kind(s: dict) -> str:
-        """Infer a schedule kind from serialized schedule dict when missing/invalid."""
-        k = s.get("kind")
-        if k in ("at", "every", "cron"):
-            return k
+    def _parse_schedule_kind(raw_kind: Any, s: dict, job_name: str) -> str:
+        """Parse or infer a schedule kind from serialized data; warn on invalid kinds.
+
+        - `raw_kind`: value read from the serialized `kind` field (may be None)
+        - `s`: the raw schedule dict (used to infer kind from fields)
+        - `job_name`: used for logging context
+        """
+        if raw_kind in ("at", "every", "cron"):
+            return raw_kind
+        # Infer from schedule fields when `kind` is missing or non-standard
         if s.get("expr"):
             return "cron"
         if s.get("everyMs") or s.get("every_ms"):
             return "every"
         if s.get("atMs") or s.get("at_ms"):
             return "at"
+        if raw_kind is not None:
+            logger.warning(
+                "AutomationService: job '{}' has invalid or missing schedule kind '{}'; defaulting to 'cron'",
+                job_name,
+                raw_kind,
+            )
         return "cron"
 
     @staticmethod
@@ -411,7 +426,7 @@ class AutomationService:
         s = d.get("schedule", {})
         p = d.get("payload", {})
         st = d.get("state", {})
-        kind = AutomationService._infer_schedule_kind(s)
+        kind = AutomationService._parse_schedule_kind(s.get("kind"), s, d.get("name", ""))
         return AutomationJob(
             id=d["id"],
             name=d.get("name", ""),
