@@ -302,7 +302,7 @@ class AutomationService:
                     created_at_ms=d.get("createdAtMs", now),
                     updated_at_ms=d.get("updatedAtMs", now),
                     schedule=AutomationSchedule(
-                        kind=s.get("kind", "every"),
+                        kind=kind,
                         at_ms=s.get("atMs"),
                         every_ms=s.get("everyMs"),
                         expr=s.get("expr"),

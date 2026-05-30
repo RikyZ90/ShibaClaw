@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.4] - 2026-05-30
+
+### Fixed
+- **Automation — schedule kind inference** — When deserialising jobs the schedule `kind` is now inferred correctly from the stored fields (`expr`, `everyMs`, `atMs`) instead of defaulting to `every`, preventing cron jobs from being treated as intervals.
+- **Automation — atomic & async-safe persistence** — Hardened automation persistence: writes are now atomic (temporary file + replace) and async-safe (`_save()` wraps I/O in the event loop executor and serialises saves), eliminating race conditions when multiple jobs save concurrently.
+- **Automation — force-run behaviour** — Running one-shot `at` jobs with `force=True` now consistently clears `next_run_at_ms` and disables the job when appropriate, avoiding accidental re-scheduling of one-shot jobs.
+- **Migration & startup** — Legacy job migration and overdue `at` job firing are now robust to missing/invalid schedule kinds, and startup execution of overdue jobs is deterministic and single-shot.
+- **Tests** — Added and updated focused tests to cover legacy migration and overdue `at` job behaviour.
+
 ## [0.5.3] - 2026-05-29
 
 ### Fixed
