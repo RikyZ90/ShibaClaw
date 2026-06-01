@@ -27,8 +27,14 @@
         grid-template-columns: 1fr;
     }
 
-    .message-group {
-        max-width: 95%;
+    .chat-history {
+        padding: 18px 12px 70px;
+    }
+
+    .message-group,
+    .message-group.user,
+    .message-group.agent {
+        max-width: 98%;
     }
 
     /* Width toggle is useless on mobile (chat is already full-width) */
@@ -65,7 +71,7 @@
 
     /* Reduce bottom padding to reclaim space */
     .chat-history {
-        padding-bottom: 60px;
+        padding-bottom: 70px;
     }
 
     /* Sidebar: ensure session list is scrollable */
@@ -169,6 +175,11 @@
     .chat-header {
         gap: 6px;
         padding: 0 8px;
+    }
+
+    .chat-history {
+        padding-left: 8px;
+        padding-right: 8px;
     }
 
     /* Even more compact profile label */
