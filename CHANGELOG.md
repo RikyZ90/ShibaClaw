@@ -5,8 +5,21 @@ All notable changes to this project are documented in this file.
 ## [0.5.5] - 2026-06-01
 
 ### Fixed
+- **Automation Notifications** — Fixed a bug where completion notifications for scheduled jobs and cron tasks were not reaching the WebUI by implementing a dedicated delivery bridge in the gateway.
 - **Automation / Heartbeat duplicate executions** — Prevented the global 30-minute heartbeat from re-executing tasks already managed by scheduled automations. Managed `TASK.md` sections are now ignored by the generic heartbeat resolver, and scheduled jobs are no longer mirrored back into `TASK.md` from the WebUI, so disabled or already-completed jobs are not triggered again unintentionally.
 - **Tests** — Added regression coverage for global heartbeat filtering of automation-managed task sections and for named heartbeat jobs keeping their exact `TASK.md` section.
+
+### Optimized
+- **WebUI WebSocket Fan-out** — Optimized session message delivery from $O(N)$ to $O(1)$ using a subscriber index (`_session_subscribers`) and `collections.deque` for message queues.
+- **Gateway Backpressure** — Decoupled event handlers into separate tasks and implemented bounded stream queues in `gateway_client.py` to prevent head-of-line blocking.
+- **Automation I/O Reduction** — Implemented `TASK.md` parsing cache and debounced/batched persistence in `automation/service.py` to reduce disk writes.
+- **HTTP Client Reuse** — Implemented `httpx.AsyncClient` reuse in `agent/tools/web.py` to eliminate repeated TCP/TLS handshakes.
+- **Token Estimation Cache** — Refined cache invalidation logic in `agent/memory.py` for more efficient prompt token estimation.
+- **Multimodal Encoding Cache** — Added an LRU cache for base64 image encoding in `agent/context.py` to reduce RAM spikes during prompt assembly.
+- **Session Persistence** — Optimized session saving in `brain/manager.py` to use append-only writes for messages, avoiding full-file rewrites.
+
+### Removed
+- **Obsolete Code** — Deleted `shibaclaw/webui/socket_io.py` as it was superseded by the new WebSocket architecture.
 
 ## [0.5.4] - 2026-05-30
 
