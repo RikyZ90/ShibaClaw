@@ -22,12 +22,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.5.4</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.5.5</b> — Click to see what's new</summary>
 
-- **Automation — schedule kind inference** — When deserialising jobs the schedule `kind` is now inferred correctly from the stored fields (`expr`, `everyMs`, `atMs`) instead of defaulting to `every`, preventing cron jobs from being treated as intervals.
-- **Automation — atomic & async-safe persistence** — Hardened automation persistence: writes are now atomic (temporary file + replace) and async-safe (`_save()` wraps I/O in the event loop executor and serialises saves), eliminating race conditions when multiple jobs save concurrently.
-- **Automation — force-run behaviour** — Running one-shot `at` jobs with `force=True` now consistently clears `next_run_at_ms` and disables the job when appropriate, avoiding accidental re-scheduling of one-shot jobs.
-- **Migration & startup** — Legacy job migration and overdue `at` job firing are now robust to missing/invalid schedule kinds, and startup execution of overdue jobs is deterministic and single-shot.
+- **Performance Overhaul** — Massive optimizations across the board: WebSocket fan-out reduced from $O(N)$ to $O(1)$, bounded stream queues in the gateway to prevent blocking, and `httpx.AsyncClient` reuse for faster web tools.
+- **I/O & Memory Efficiency** — Implemented append-only session writes, debounced automation saves, `TASK.md` parsing cache, and an LRU cache for multimodal image encoding to eliminate RAM spikes.
+- **Automation Fixes** — Fixed missing completion notifications for scheduled jobs and prevented duplicate executions between the global heartbeat and managed automations.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
