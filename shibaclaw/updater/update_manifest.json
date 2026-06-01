@@ -1,5 +1,5 @@
 {
-    "version": "0.5.4",
+    "version": "0.5.5",
     "release_notes": "Automation fixes: schedule kind inference, atomic/async-safe persistence, and correct force-run behaviour for one-shot jobs.",
     "changes": [
         {
