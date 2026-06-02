@@ -1028,6 +1028,15 @@ input[type="number"].form-input {
     border-radius: var(--radius-full);
     transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.update-progress-track.indeterminate .update-progress-fill {
+    width: 30% !important;
+    animation: indeterminateProgress 1.5s infinite linear;
+    background: linear-gradient(90deg, transparent, var(--shiba-gold), transparent);
+}
+@keyframes indeterminateProgress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(333%); }
+}
 .update-progress-status {
     font-size: 0.82rem;
     color: var(--text-secondary);

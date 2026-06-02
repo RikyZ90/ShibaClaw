@@ -2218,6 +2218,8 @@ window.runUpdateAction = async function () {
     if (!confirmed) return;
 
     _updateState.busy = true;
+    const isPip = update.install_method === "pip";
+    
     panel.innerHTML = `
         <div class="update-progress-card">
             <div class="update-progress-icon-wrap">
@@ -2225,13 +2227,13 @@ window.runUpdateAction = async function () {
             </div>
             <div class="update-progress-container">
                 <div class="update-progress-header">
-                    <span class="update-progress-title">Downloading Update</span>
-                    <span class="update-progress-percent" id="update-progress-percent">0%</span>
+                    <span class="update-progress-title">${isPip ? "Installing Update via pip" : "Downloading Update"}</span>
+                    ${isPip ? "" : '<span class="update-progress-percent" id="update-progress-percent">0%</span>'}
                 </div>
-                <div class="update-progress-track">
-                    <div id="update-progress-fill" class="update-progress-fill" style="width: 0%;"></div>
+                <div class="update-progress-track ${isPip ? "indeterminate" : ""}">
+                    <div id="update-progress-fill" class="update-progress-fill" style="${isPip ? "width: 100%;" : "width: 0%;"}"></div>
                 </div>
-                <div class="update-progress-status" id="update-progress-text">Preparing update...</div>
+                <div class="update-progress-status" id="update-progress-text">${isPip ? "Running pip upgrade in background, this may take a few minutes..." : "Preparing update..."}</div>
             </div>
         </div>`;
 

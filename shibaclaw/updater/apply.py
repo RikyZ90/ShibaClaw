@@ -34,7 +34,7 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
             cmd,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=600,
             check=False,
         )
     except Exception as exc:
