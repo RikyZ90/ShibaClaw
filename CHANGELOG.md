@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.0] - 2026-06-02
+
+### Added
+- **Major Version Update** — Updated to version 0.6.0 with enhanced features and improvements.
+
 ## [0.5.8] - 2026-06-02
 
 ### Fixed

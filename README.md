@@ -22,7 +22,7 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.5.9</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.6.0</b> — Click to see what's new</summary>
 
 - **Windows Console Window Hidden** — The background gateway console window is now hidden when using the desktop shortcut.
 - **Windows Taskbar Icon Fixed** — The application icon is now correctly rendered in the Windows taskbar for the desktop UI.
