@@ -37,6 +37,12 @@ def get_assets_dir() -> Path:
     bundled_assets = get_runtime_root() / "assets"
     if bundled_assets.exists():
         return bundled_assets
+        
+    # Try inside shibaclaw for pip/hatch wheel installations
+    package_assets = Path(__file__).resolve().parents[1] / "assets"
+    if package_assets.exists():
+        return package_assets
+        
     return get_app_root() / "assets"
 
 

@@ -1,56 +1,36 @@
 {
-    "version": "0.5.6",
-    "release_notes": "Installer script enhancements, pip update cache invalidation, Uvicorn server restart hardening, and mobile UI responsiveness polish.",
+    "version": "0.5.7",
+    "release_notes": "Fixed Windows shortcut icons and added Shiba-themed installer logs.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.5.6 release notes."
+            "note": "Added v0.5.7 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.5.6."
+            "note": "Bumped version to 0.5.7 and included assets."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.5.6."
+            "note": "Updated welcome announcement to v0.5.7."
         },
         {
             "path": "scripts/install/install.ps1",
             "overwrite": true,
-            "note": "Added PowerShell installer script."
+            "note": "Fixed shortcut icons and improved install logs."
         },
         {
-            "path": "scripts/install/install.sh",
+            "path": "shibaclaw/config/paths.py",
             "overwrite": true,
-            "note": "Added Bash installer script."
-        },
-        {
-            "path": "shibaclaw/updater/apply.py",
-            "overwrite": true,
-            "note": "Added updater pip cache invalidation."
-        },
-        {
-            "path": "shibaclaw/webui/routers/system.py",
-            "overwrite": true,
-            "note": "Added system updates router and restart management."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/chat.css",
-            "overwrite": true,
-            "note": "Fixed mobile chat layout issues."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/responsive.css",
-            "overwrite": true,
-            "note": "Improved responsive styles for small screens."
+            "note": "Updated asset directory resolution for wheel installs."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.5.6."
+            "note": "Bumped packaged update manifest to v0.5.7."
         }
     ]
 }

@@ -1,6 +1,6 @@
 [project]
 name = "shibaclaw"
-version = "0.5.6"
+version = "0.5.7"
 description = "A lightweight personal AI assistant framework"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.12"
@@ -131,6 +131,7 @@ packages = ["shibaclaw"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "bridge" = "shibaclaw/bridge"
+"assets" = "shibaclaw/assets"
 
 [tool.hatch.build.targets.sdist]
 include = [

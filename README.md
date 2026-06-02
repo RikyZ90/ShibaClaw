@@ -22,7 +22,7 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.5.6</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.5.7</b> — Click to see what's new</summary>
 
 - **New Automated Installers** — Introduced automated installer scripts (`install.ps1` for Windows, `install.sh` for macOS/Linux) that set up ShibaClaw in a clean virtual environment with shortcut creation.
 - **Update Process Hardening** — Improved update restart reliability on Windows, gracefully shut down Uvicorn server to free TCP ports before spawning the new process, and added update cache invalidation to immediately reflect package upgrades.

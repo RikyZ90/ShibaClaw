@@ -2,9 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.5.6] - 2026-06-02
+## [0.5.7] - 2026-06-02
 
-### Added
+### Fixed
+- **Windows Install Icons** — Fixed an issue where the native Windows desktop and tray icons were missing during fresh installations by packaging the `assets` folder directly into the pip wheel and downloading the shortcut icon dynamically in the install script.
+- **Install Logs UI** — Resolved encoding issues in the PowerShell installation script (`????`) and replaced generic logging emojis with a custom, Shiba-themed progress logging experience.
+
+## [0.5.6] - 2026-06-02### Added
 - **New One-Line Script Installers** — Introduced new automated installer scripts (`install.ps1` for Windows, `install.sh` for macOS/Linux) that set up ShibaClaw in a clean virtual environment using pip/pipx, with support for automatically creating desktop and start menu shortcuts.
 - **Pip Update Cache Invalidation** — Added direct cache invalidation inside the updater after a successful pip/pipx upgrade to ensure the UI immediately reflects the update.
 
