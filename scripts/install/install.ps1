@@ -129,72 +129,76 @@ if ($null -eq $desktopExec) {
 
 Write-Host "[OK] Installation complete!" -ForegroundColor Green
 
+# ---------------------------------------------------------------------------
+# Helper: stamp AppUserModelID on a .lnk shortcut via IPropertyStore COM.
+#
+# Why: pip/pipx gui-script stub exes have no icon in their PE header.
+# Windows taskbar reads the icon from the *physical exe* for ungrouped
+# processes, but when a shortcut carries a matching AppUserModelID the
+# taskbar button is tied to that AUMID and uses the shortcut's own
+# IconLocation instead — so the ShibaClaw icon appears correctly without
+# touching (and potentially corrupting) the stub exe.
+#
+# The AUMID must match WINDOWS_APP_USER_MODEL_ID in launcher.py.
+# ---------------------------------------------------------------------------
+function Set-ShortcutAUMID {
+    param(
+        [string]$LnkPath,
+        [string]$AppId
+    )
+    try {
+        $shellObj = New-Object -ComObject Shell.Application
+        $dir  = $shellObj.Namespace((Split-Path $LnkPath -Parent))
+        $item = $dir.ParseName((Split-Path $LnkPath -Leaf))
+        $lnk  = $item.GetLink
+        if ($lnk -and $lnk.PSObject.Methods.Match('SetPropertyValue')) {
+            # PKEY_AppUserModel_ID = {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5
+            $lnk.SetPropertyValue("{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3} 5", $AppId)
+            $lnk.Save()
+        }
+    } catch {
+        # Non-fatal: AUMID not set, taskbar icon falls back to Python icon.
+    }
+}
+
 Write-Host ">> Creating shortcuts on Desktop and Start Menu..." -ForegroundColor Cyan
 try {
     $installDir = "$HOME\.shibaclaw"
-    $assetsDir = "$installDir\assets"
+    $assetsDir  = "$installDir\assets"
     if (!(Test-Path $assetsDir)) {
         New-Item -ItemType Directory -Path $assetsDir | Out-Null
     }
     $icoPath = "$assetsDir\shibaclaw.ico"
     if (!(Test-Path $icoPath)) {
         Write-Host ">> Fetching ShibaClaw icon..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/assets/shibaclaw.ico" -OutFile $icoPath -UseBasicParsing -ErrorAction SilentlyContinue
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/assets/shibaclaw.ico" `
+            -OutFile $icoPath -UseBasicParsing -ErrorAction SilentlyContinue
     }
 
-    # -------------------------------------------------------------------------
-    # Inject the .ico into the pip stub exe PE resources.
-    # pip/pipx-generated console script stubs have NO icon embedded in their PE
-    # header. Windows taskbar reads the icon from the physical .exe file — not
-    # from WM_SETICON or the .lnk IconLocation — so without this step the
-    # taskbar button always shows the generic Python icon.
-    # rcedit is the same tool used by Electron and VS Code for this purpose.
-    # -------------------------------------------------------------------------
-    if (Test-Path $icoPath) {
-        $rceditPath = "$HOME\.shibaclaw\rcedit.exe"
-        if (!(Test-Path $rceditPath)) {
-            Write-Host ">> Downloading rcedit to embed icon into exe (fixes taskbar icon)..." -ForegroundColor Cyan
-            try {
-                Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/latest/download/rcedit-x64.exe" `
-                    -OutFile $rceditPath -UseBasicParsing -ErrorAction Stop
-            } catch {
-                Write-Host "[!] Could not download rcedit; taskbar icon may show Python icon instead of ShibaClaw." -ForegroundColor Yellow
-                $rceditPath = $null
-            }
-        }
+    $WshShell    = New-Object -ComObject WScript.Shell
+    $shibaAUMID  = "RikyZ90.ShibaClaw.Desktop"
 
-        if ($rceditPath -and (Test-Path $rceditPath) -and (Test-Path $desktopExec)) {
-            try {
-                & $rceditPath $desktopExec --set-icon $icoPath
-                Write-Host "[OK] Icon embedded into exe (taskbar will show ShibaClaw icon)." -ForegroundColor Green
-            } catch {
-                Write-Host "[!] rcedit failed to embed icon: $_ — taskbar icon may show Python icon instead of ShibaClaw." -ForegroundColor Yellow
-            }
-        }
-    }
-    # -------------------------------------------------------------------------
-
-    $WshShell = New-Object -ComObject WScript.Shell
-    
     # Desktop shortcut
     $DesktopPath = [System.Environment]::GetFolderPath('Desktop')
-    $Shortcut = $WshShell.CreateShortcut("$DesktopPath\ShibaClaw.lnk")
+    $lnkDesktop  = "$DesktopPath\ShibaClaw.lnk"
+    $Shortcut    = $WshShell.CreateShortcut($lnkDesktop)
     $Shortcut.TargetPath = $desktopExec
-    if ($desktopArgs) { $Shortcut.Arguments = $desktopArgs }
-    if (Test-Path $icoPath) {
-        $Shortcut.IconLocation = $icoPath
-    }
+    if ($desktopArgs)       { $Shortcut.Arguments    = $desktopArgs }
+    if (Test-Path $icoPath) { $Shortcut.IconLocation = $icoPath }
     $Shortcut.Save()
+    Set-ShortcutAUMID -LnkPath $lnkDesktop -AppId $shibaAUMID
 
     # Start Menu shortcut
     $StartMenuPath = [System.Environment]::GetFolderPath('Programs')
-    $Shortcut2 = $WshShell.CreateShortcut("$StartMenuPath\ShibaClaw.lnk")
+    $lnkStartMenu  = "$StartMenuPath\ShibaClaw.lnk"
+    $Shortcut2     = $WshShell.CreateShortcut($lnkStartMenu)
     $Shortcut2.TargetPath = $desktopExec
-    if ($desktopArgs) { $Shortcut2.Arguments = $desktopArgs }
-    if (Test-Path $icoPath) {
-        $Shortcut2.IconLocation = $icoPath
-    }
+    if ($desktopArgs)       { $Shortcut2.Arguments    = $desktopArgs }
+    if (Test-Path $icoPath) { $Shortcut2.IconLocation = $icoPath }
     $Shortcut2.Save()
+    Set-ShortcutAUMID -LnkPath $lnkStartMenu -AppId $shibaAUMID
+
+    Write-Host "[OK] Shortcuts created with ShibaClaw icon." -ForegroundColor Green
 } catch {
     Write-Host "[!] Failed to create shortcuts. You can still run 'shibaclaw' from your terminal." -ForegroundColor Yellow
 }
