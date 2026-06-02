@@ -34,6 +34,14 @@ See the [Changelog](./CHANGELOG.md) for full release history.
 
 ***
 
+<p align="center">
+  <img src="assets/settings.gif" width="420" alt="Settings">
+  <img src="assets/webui_welcome.png" width="380" alt="WebUI Welcome Screen">&nbsp;&nbsp;
+  <img src="assets/webui_chat.png" width="380" alt="WebUI Chat with Agent">
+</p>
+
+***
+
 ## ✨ Everything in One Agent
 
 <table>
@@ -136,6 +144,8 @@ Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
 
 The easiest way to get started. It automatically installs Python, creates an isolated environment, and launches the onboarding wizard.
 
+**Start completely free**: Supports local models (Ollama/LM Studio) or free APIs via OpenRouter. No credit card or paid API key required.
+
 **Windows (PowerShell):**
 ```powershell
 iwr -useb https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1 | iex
@@ -145,6 +155,8 @@ iwr -useb https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/insta
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.sh | bash
 ```
+
+> **Note**: This script securely downloads ShibaClaw, creates an isolated virtual environment, installs dependencies, and automatically launches the UI. It does not modify your global Python environment.
 
 ### Docker
 
