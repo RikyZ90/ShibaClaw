@@ -5,6 +5,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import urllib.parse
 from typing import TYPE_CHECKING
 
@@ -129,6 +130,23 @@ def _exec_restart() -> None:
         os._exit(0)
 
 
+def _schedule_restart_outside_loop(delay: float = 2.0) -> None:
+    """Schedule _exec_restart on a daemon thread so it survives event-loop teardown.
+
+    When Uvicorn receives SIGINT it shuts down the event loop, cancelling all
+    pending asyncio tasks.  Running the delayed exec on a separate thread
+    ensures the replacement process is always started.
+    """
+    import time
+
+    def _restart_thread():
+        time.sleep(delay)
+        _exec_restart()
+
+    t = threading.Thread(target=_restart_thread, daemon=True)
+    t.start()
+
+
 async def api_update_apply(request: Request):
     """Apply a ShibaClaw update or return manual-action guidance."""
     try:
@@ -212,9 +230,8 @@ async def api_update_apply(request: Request):
             elif _restart_callback is not None:
                 _restart_callback()
             else:
+                _schedule_restart_outside_loop(delay=2.0)
                 _graceful_shutdown_server()
-                await asyncio.sleep(1.5)
-                _exec_restart()
 
         asyncio.create_task(_do_restart())
         report["restarting"] = True
@@ -231,9 +248,8 @@ async def api_restart_server(request: Request):
         if _restart_callback is not None:
             _restart_callback()
         else:
+            _schedule_restart_outside_loop(delay=2.0)
             _graceful_shutdown_server()
-            await asyncio.sleep(1.5)
-            _exec_restart()
 
     asyncio.create_task(_do_restart())
     return JSONResponse({"status": "restarting"})
