@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.8] - 2026-06-02
+
+### Fixed
+- **Windows CMD/PowerShell Window** — Fixed an issue where the background gateway console window remained open when launching ShibaClaw via the desktop shortcut by running the subprocess with `CREATE_NO_WINDOW`.
+- **Native Windows Taskbar Icon** — Fixed a bug where the custom application icon was missing in the Windows taskbar for the desktop pywebview UI by explicitly setting the window icon when the page is fully loaded.
+- **WebUI Pip Update Process & Spinner** — Fixed false-positive update timeout errors during slow pip installations by increasing the command timeout to 600 seconds and implementing an indeterminate progress spinner/loading bar to indicate background progress.
+
 ## [0.5.7] - 2026-06-02
 
 ### Fixed

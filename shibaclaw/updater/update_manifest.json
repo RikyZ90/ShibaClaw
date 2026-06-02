@@ -1,36 +1,41 @@
 {
-    "version": "0.5.7",
-    "release_notes": "Fixed Windows shortcut icons and added Shiba-themed installer logs.",
+    "version": "0.5.8",
+    "release_notes": "Fixed background CMD console window, Windows taskbar app icon, and WebUI pip update false timeouts.",
     "changes": [
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.5.7 release notes."
+            "note": "Added v0.5.8 release notes."
         },
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.5.7 and included assets."
+            "note": "Bumped version to 0.5.8."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.5.7."
+            "note": "Updated welcome announcement to v0.5.8."
         },
         {
-            "path": "scripts/install/install.ps1",
+            "path": "shibaclaw/desktop/launcher.py",
             "overwrite": true,
-            "note": "Fixed shortcut icons and improved install logs."
+            "note": "Fixed native Windows taskbar icon setup."
         },
         {
-            "path": "shibaclaw/config/paths.py",
+            "path": "shibaclaw/desktop/runtime.py",
             "overwrite": true,
-            "note": "Updated asset directory resolution for wheel installs."
+            "note": "Hidden background gateway console window using CREATE_NO_WINDOW."
+        },
+        {
+            "path": "shibaclaw/updater/apply.py",
+            "overwrite": true,
+            "note": "Increased subprocess timeout to 600s for pip updates."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.5.7."
+            "note": "Bumped packaged update manifest to v0.5.8."
         }
     ]
 }
