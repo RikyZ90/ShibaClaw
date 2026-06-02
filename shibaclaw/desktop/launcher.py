@@ -152,6 +152,11 @@ def run(
             logger.debug("window.destroy() failed during quit", exc_info=True)
 
     def _on_loaded(*_args: Any) -> None:
+        if get_os_type() == "windows":
+            icon_path = _get_windows_icon_path()
+            if icon_path:
+                _apply_windows_window_icon(window, icon_path)
+        
         if window_config["start_hidden"] or initial_show_complete.is_set():
             return
         initial_show_complete.set()

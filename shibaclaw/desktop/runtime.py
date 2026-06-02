@@ -188,7 +188,10 @@ class DesktopRuntime:
 
         extra_kwargs: dict = {}
         if get_os_type() == "windows":
-            extra_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+            # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW to prevent the CMD window from appearing
+            flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+            create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            extra_kwargs["creationflags"] = flags | create_no_window
 
         gateway_env = os.environ.copy()
         gateway_env["SHIBACLAW_SILENT"] = "true"
