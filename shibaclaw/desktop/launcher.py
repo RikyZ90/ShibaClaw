@@ -350,6 +350,11 @@ def _set_windows_app_user_model_id() -> None:
     """Set a stable Windows AppUserModelID for taskbar grouping and icon lookup."""
     import ctypes
 
+    # If running via a pip-generated wrapper script, forcing a custom AppUserModelID 
+    # detaches the process from the shortcut's icon and falls back to the python icon.
+    if not is_running_as_exe():
+        return
+
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(  # type: ignore[attr-defined]
             WINDOWS_APP_USER_MODEL_ID

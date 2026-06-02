@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import io
+import os
 import sys
 
-# Force UTF-8 encoding for standard streams to prevent crashes on Windows when printing emojis
 if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
     try:
         if sys.stdout is not None:
-            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         if sys.stderr is not None:
-            sys.stderr.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, io.UnsupportedOperation):
         pass
 

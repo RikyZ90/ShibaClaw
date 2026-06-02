@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 
 [console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-Write-Host "🐕🐾 Starting ShibaClaw installation..." -ForegroundColor Cyan
+Write-Host ">> Starting ShibaClaw installation..." -ForegroundColor Cyan
 
 # 1. Check/Install Python
 $pyVersion = $null
@@ -27,14 +27,14 @@ else {
 }
 
 if ($null -eq $pyVersion) {
-    Write-Host "🐶❓ Python not found. Attempting to install via winget..." -ForegroundColor Yellow
+    Write-Host "[?] Python not found. Attempting to install via winget..." -ForegroundColor Yellow
     try {
         if (!(Get-Command winget -ErrorAction SilentlyContinue)) {
             Write-Error "winget is not installed. Please install Python 3.12+ manually from python.org"
             exit 1
         }
         winget install -e --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
-        Write-Host "🦴✅ Python installed successfully." -ForegroundColor Green
+        Write-Host "[OK] Python installed successfully." -ForegroundColor Green
 
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
@@ -46,7 +46,7 @@ if ($null -eq $pyVersion) {
         }
 
         if ($null -eq $pythonCmd) {
-            Write-Host "🐕⚠️ Python installed but not yet in PATH. Please restart your terminal and run this script again." -ForegroundColor Yellow
+            Write-Host "[!] Python installed but not yet in PATH. Please restart your terminal and run this script again." -ForegroundColor Yellow
             exit 1
         }
     }
@@ -56,7 +56,7 @@ if ($null -eq $pyVersion) {
     }
 }
 
-Write-Host "🦴✅ Found Python: $pyVersion" -ForegroundColor Green
+Write-Host "[OK] Found Python: $pyVersion" -ForegroundColor Green
 
 $installedVersion = & $pythonCmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1
 if ([version]$installedVersion -lt [version]"3.12") {
@@ -66,29 +66,29 @@ if ([version]$installedVersion -lt [version]"3.12") {
 
 # 2. Installation Method (Prefer pipx, fallback to venv+pip)
 if (Get-Command pipx -ErrorAction SilentlyContinue) {
-    Write-Host "🐾 pipx detected. Using pipx for a cleaner installation..." -ForegroundColor Cyan
+    Write-Host ">> pipx detected. Using pipx for a cleaner installation..." -ForegroundColor Cyan
     pipx install "shibaclaw[windows-native]"
     $shibaExec = "shibaclaw"
 }
 else {
-    Write-Host "🐾 pipx not found. Falling back to manual venv + pip..." -ForegroundColor Cyan
+    Write-Host ">> pipx not found. Falling back to manual venv + pip..." -ForegroundColor Cyan
     $installDir = "$HOME\.shibaclaw"
     $venvDir = "$installDir\venv"
     if (!(Test-Path $installDir)) {
         New-Item -ItemType Directory -Path $installDir | Out-Null
     }
 
-    Write-Host "🐾 Creating virtual environment in $venvDir..." -ForegroundColor Cyan
+    Write-Host ">> Creating virtual environment in $venvDir..." -ForegroundColor Cyan
     & $pythonCmd -m venv $venvDir
 
-    Write-Host "🐕💨 Installing shibaclaw from PyPI..." -ForegroundColor Cyan
+    Write-Host ">> Installing shibaclaw from PyPI..." -ForegroundColor Cyan
     & "$venvDir\Scripts\pip.exe" install --upgrade pip
     & "$venvDir\Scripts\pip.exe" install "shibaclaw[windows-native]"
 
     $scriptsPath = "$venvDir\Scripts"
     $currentPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
     if ($currentPath -notlike "*$scriptsPath*") {
-        Write-Host "🦴 Adding ShibaClaw to User PATH..." -ForegroundColor Cyan
+        Write-Host ">> Adding ShibaClaw to User PATH..." -ForegroundColor Cyan
         [System.Environment]::SetEnvironmentVariable("Path", "$currentPath;$scriptsPath", "User")
         $env:Path += ";$scriptsPath"
     }
@@ -120,16 +120,16 @@ if (Test-Path $desktopCandidate) {
 }
 
 if ($null -eq $desktopExec) {
-    Write-Host "🐕⚠️ shibaclaw-desktop.exe not found; shortcuts will use console mode." -ForegroundColor Yellow
+    Write-Host "[!] shibaclaw-desktop.exe not found; shortcuts will use console mode." -ForegroundColor Yellow
     $desktopExec = $absExec
     $desktopArgs = "desktop"
 } else {
     $desktopArgs = $null
 }
 
-Write-Host "🐕🎉 Installation complete! Woof!" -ForegroundColor Green
+Write-Host "[OK] Installation complete!" -ForegroundColor Green
 
-Write-Host "🐾 Creating shortcuts on Desktop and Start Menu..." -ForegroundColor Cyan
+Write-Host ">> Creating shortcuts on Desktop and Start Menu..." -ForegroundColor Cyan
 try {
     $installDir = "$HOME\.shibaclaw"
     $assetsDir = "$installDir\assets"
@@ -138,7 +138,7 @@ try {
     }
     $icoPath = "$assetsDir\shibaclaw.ico"
     if (!(Test-Path $icoPath)) {
-        Write-Host "🐕📥 Fetching ShibaClaw icon..." -ForegroundColor Cyan
+        Write-Host ">> Fetching ShibaClaw icon..." -ForegroundColor Cyan
         Invoke-WebRequest -Uri "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/assets/shibaclaw.ico" -OutFile $icoPath -UseBasicParsing -ErrorAction SilentlyContinue
     }
 
@@ -164,9 +164,9 @@ try {
     }
     $Shortcut2.Save()
 } catch {
-    Write-Host "🐕⚠️ Failed to create shortcuts. You can still run 'shibaclaw' from your terminal." -ForegroundColor Yellow
+    Write-Host "[!] Failed to create shortcuts. You can still run 'shibaclaw' from your terminal." -ForegroundColor Yellow
 }
 
-Write-Host "🐕✨ Launching ShibaClaw..." -ForegroundColor Cyan
+Write-Host ">> Launching ShibaClaw..." -ForegroundColor Cyan
 
 Start-Process $desktopExec -ArgumentList $desktopArgs
