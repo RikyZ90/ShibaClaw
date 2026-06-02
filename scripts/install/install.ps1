@@ -108,11 +108,29 @@ if ($absExec -eq "shibaclaw") {
     }
 }
 
+# Resolve shibaclaw-desktop.exe (gui-script: no console window)
+$desktopExec = $null
+$absExecDir = Split-Path $absExec -Parent
+$desktopCandidate = Join-Path $absExecDir "shibaclaw-desktop.exe"
+if (Test-Path $desktopCandidate) {
+    $desktopExec = $desktopCandidate
+} else {
+    $cmdPath = Get-Command shibaclaw-desktop -ErrorAction SilentlyContinue
+    if ($cmdPath) { $desktopExec = $cmdPath.Source }
+}
+
+if ($null -eq $desktopExec) {
+    Write-Host "🐕⚠️ shibaclaw-desktop.exe not found; shortcuts will use console mode." -ForegroundColor Yellow
+    $desktopExec = $absExec
+    $desktopArgs = "desktop"
+} else {
+    $desktopArgs = $null
+}
+
 Write-Host "🐕🎉 Installation complete! Woof!" -ForegroundColor Green
 
 Write-Host "🐾 Creating shortcuts on Desktop and Start Menu..." -ForegroundColor Cyan
 try {
-    # Ensure icon exists for the shortcuts
     $installDir = "$HOME\.shibaclaw"
     $assetsDir = "$installDir\assets"
     if (!(Test-Path $assetsDir)) {
@@ -129,8 +147,8 @@ try {
     # Desktop shortcut
     $DesktopPath = [System.Environment]::GetFolderPath('Desktop')
     $Shortcut = $WshShell.CreateShortcut("$DesktopPath\ShibaClaw.lnk")
-    $Shortcut.TargetPath = $absExec
-    $Shortcut.Arguments = "desktop"
+    $Shortcut.TargetPath = $desktopExec
+    if ($desktopArgs) { $Shortcut.Arguments = $desktopArgs }
     if (Test-Path $icoPath) {
         $Shortcut.IconLocation = $icoPath
     }
@@ -139,8 +157,8 @@ try {
     # Start Menu shortcut
     $StartMenuPath = [System.Environment]::GetFolderPath('Programs')
     $Shortcut2 = $WshShell.CreateShortcut("$StartMenuPath\ShibaClaw.lnk")
-    $Shortcut2.TargetPath = $absExec
-    $Shortcut2.Arguments = "desktop"
+    $Shortcut2.TargetPath = $desktopExec
+    if ($desktopArgs) { $Shortcut2.Arguments = $desktopArgs }
     if (Test-Path $icoPath) {
         $Shortcut2.IconLocation = $icoPath
     }
@@ -151,5 +169,4 @@ try {
 
 Write-Host "🐕✨ Launching ShibaClaw..." -ForegroundColor Cyan
 
-# Launch the application in a new window
-Start-Process $absExec -ArgumentList "desktop"
+Start-Process $desktopExec -ArgumentList $desktopArgs

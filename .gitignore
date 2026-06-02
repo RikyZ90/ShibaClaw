@@ -24,6 +24,7 @@ nano.*.save
 uv.lock
 
 # Local data & research
+.vscode/
 .shibaclaw/
 scratch/
 ROADMAP.md
