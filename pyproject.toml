@@ -88,6 +88,7 @@ windows-native = [
     "pywebview>=5.3,<7.0",
     "pystray>=0.19.5,<1.0.0",
     "pillow>=11.0.0,<13.0.0",
+    "pythonnet>=3.0,<4.0",
 ]
 all-channels = [
     "shibaclaw[telegram,slack,dingtalk,feishu,qq,wecom,matrix]",
@@ -156,4 +157,3 @@ filterwarnings = [
     "ignore::DeprecationWarning:websockets.*",
     "ignore::DeprecationWarning:uvicorn.*",
 ]
-
