@@ -154,7 +154,7 @@
 .message-group {
     display: flex;
     gap: 12px;
-    max-width: 88%;
+    max-width: 92%;
     animation: msgFadeIn 0.2s ease-out;
     flex-shrink: 0;
     padding: 2px 0;
@@ -186,12 +186,12 @@
 .message-group.user {
     align-self: flex-end;
     flex-direction: row-reverse;
-    max-width: 72%;
+    max-width: 82%;
 }
 
 .message-group.agent {
     align-self: flex-start;
-    max-width: 88%;
+    max-width: 92%;
 }
 
 /* Avatar — compact, shown only on first in group via .show-avatar */
@@ -281,6 +281,7 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+    max-width: 100%;
 }
 
 .message-bubble {
@@ -290,6 +291,7 @@
     line-height: 1.7;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 /* User: minimal — just a subtle right-side accent, no heavy background */
@@ -826,10 +828,20 @@
 }
 
 /* Tables */
-.message-bubble table {
-    width: 100%;
-    border-collapse: collapse;
+.message-bubble .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
     margin: 10px 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    -webkit-overflow-scrolling: touch;
+}
+
+.message-bubble table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    margin: 0;
     font-size: 13px;
     display: block;
     overflow-x: auto;

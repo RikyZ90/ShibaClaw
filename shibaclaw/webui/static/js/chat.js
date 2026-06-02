@@ -388,7 +388,20 @@ function renderMarkdown(text) {
     return escapeHtml(content).replace(/\n/g, "<br>");
 }
 
+function enhanceMarkdownTables(container) {
+    container.querySelectorAll("table").forEach((table) => {
+        if (table.parentElement && table.parentElement.classList.contains("table-scroll")) return;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-scroll";
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+    });
+}
+
 function enhanceCodeBlocks(container) {
+    enhanceMarkdownTables(container);
+
     container.querySelectorAll("pre").forEach((pre) => {
         const code = pre.querySelector("code");
         if (!code) return;
