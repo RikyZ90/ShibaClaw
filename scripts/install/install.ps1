@@ -142,6 +142,38 @@ try {
         Invoke-WebRequest -Uri "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/assets/shibaclaw.ico" -OutFile $icoPath -UseBasicParsing -ErrorAction SilentlyContinue
     }
 
+    # -------------------------------------------------------------------------
+    # Inject the .ico into the pip stub exe PE resources.
+    # pip/pipx-generated console script stubs have NO icon embedded in their PE
+    # header. Windows taskbar reads the icon from the physical .exe file — not
+    # from WM_SETICON or the .lnk IconLocation — so without this step the
+    # taskbar button always shows the generic Python icon.
+    # rcedit is the same tool used by Electron and VS Code for this purpose.
+    # -------------------------------------------------------------------------
+    if (Test-Path $icoPath) {
+        $rceditPath = "$HOME\.shibaclaw\rcedit.exe"
+        if (!(Test-Path $rceditPath)) {
+            Write-Host ">> Downloading rcedit to embed icon into exe (fixes taskbar icon)..." -ForegroundColor Cyan
+            try {
+                Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/latest/download/rcedit-x64.exe" `
+                    -OutFile $rceditPath -UseBasicParsing -ErrorAction Stop
+            } catch {
+                Write-Host "[!] Could not download rcedit; taskbar icon may show Python icon instead of ShibaClaw." -ForegroundColor Yellow
+                $rceditPath = $null
+            }
+        }
+
+        if ($rceditPath -and (Test-Path $rceditPath) -and (Test-Path $desktopExec)) {
+            try {
+                & $rceditPath $desktopExec --set-icon $icoPath
+                Write-Host "[OK] Icon embedded into exe (taskbar will show ShibaClaw icon)." -ForegroundColor Green
+            } catch {
+                Write-Host "[!] rcedit failed to embed icon: $_ — taskbar icon may show Python icon instead of ShibaClaw." -ForegroundColor Yellow
+            }
+        }
+    }
+    # -------------------------------------------------------------------------
+
     $WshShell = New-Object -ComObject WScript.Shell
     
     # Desktop shortcut
