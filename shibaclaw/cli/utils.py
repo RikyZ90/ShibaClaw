@@ -26,7 +26,7 @@ _supports_unicode = False
 try:
     # Check if the stream encoding is UTF-8 or if we're on Windows (where we force it)
     encoding = getattr(sys.stderr, "encoding", "") or ""
-    if encoding.lower() in ("utf-8", "utf8", "cp65001") or sys.platform == "win32":
+    if encoding.lower() in ("utf-8", "utf8", "cp65001"):
         _supports_unicode = True
 except Exception:
     pass

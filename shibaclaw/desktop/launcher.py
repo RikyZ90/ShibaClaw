@@ -156,7 +156,7 @@ def run(
             icon_path = _get_windows_icon_path()
             if icon_path:
                 _apply_windows_window_icon(window, icon_path)
-        
+
         if window_config["start_hidden"] or initial_show_complete.is_set():
             return
         initial_show_complete.set()
@@ -224,7 +224,7 @@ def run(
             height=height,
             x=window.x,
             y=window.y,
-            # maximized=window.maximized # pywebview might not expose this easily on all platforms
+            # maximized=window.Maximized # pywebview might not expose this easily on all platforms
         ))
 
     def _on_moved(x, y):
@@ -241,7 +241,8 @@ def run(
     window.events.moved += _on_moved
 
     if get_os_type() == "windows":
-        window.events.before_show += _on_before_show
+        # Use a lambda to pass the window object to the handler
+        window.events.shown += lambda *args: _on_shown(window, *args)
 
     # ------------------------------------------------------------------
     # Start the webview event loop (blocks until quit_event or window.destroy)
@@ -258,6 +259,9 @@ def run(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             "--disable-gpu-compositing",
         )
+
+    if get_os_type() == "windows":
+        _set_windows_app_user_model_id()
 
     try:
         webview.start(
@@ -277,6 +281,37 @@ def run(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _refresh_taskbar_icon(window: Any) -> None:
+    """Force Windows to refresh the taskbar icon for the given window."""
+    import ctypes
+    from ctypes import wintypes
+
+    hwnd = _resolve_windows_window_handle(window)
+    if not hwnd:
+        return
+
+    user32 = ctypes.windll.user32
+    SWP_FRAMECHANGED = 0x0020
+    SWP_NOMOVE = 0x0002
+    SWP_NOSIZE = 0x0001
+    SWP_NOZORDER = 0x0004
+    SWP_NOACTIVATE = 0x0010
+
+    user32.SetWindowPos(
+        hwnd, None, 0, 0, 0, 0,
+        SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+    )
+
+
+def _on_shown(window: Any, *_args: Any) -> None:
+    """Callback when the window is shown; ensure taskbar icon is set."""
+    if get_os_type() == "windows":
+        icon_path = _get_windows_icon_path()
+        if icon_path:
+            _apply_windows_window_icon(window, icon_path)
+            _refresh_taskbar_icon(window)
+
 
 def _window_show(window: Any) -> None:
     try:
@@ -349,16 +384,13 @@ def _get_windows_icon_path() -> str | None:
 def _set_windows_app_user_model_id() -> None:
     """Set a stable Windows AppUserModelID for taskbar grouping and icon lookup."""
     import ctypes
-
-    # If running via a pip-generated wrapper script, forcing a custom AppUserModelID 
-    # detaches the process from the shortcut's icon and falls back to the python icon.
-    if not is_running_as_exe():
-        return
+    from ctypes import wintypes
 
     try:
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(  # type: ignore[attr-defined]
-            WINDOWS_APP_USER_MODEL_ID
-        )
+        shell32 = ctypes.windll.shell32
+        shell32.SetCurrentProcessExplicitAppUserModelID.argtypes = [wintypes.LPCWSTR]
+        shell32.SetCurrentProcessExplicitAppUserModelID.restype = ctypes.c_int
+        shell32.SetCurrentProcessExplicitAppUserModelID(WINDOWS_APP_USER_MODEL_ID)
     except Exception as exc:
         logger.debug("Could not set Windows AppUserModelID: {}", exc)
 
@@ -366,6 +398,7 @@ def _set_windows_app_user_model_id() -> None:
 def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
     """Apply small and large icons to the native Windows window handle."""
     import ctypes
+    from ctypes import wintypes
 
     wm_seticon = 0x0080
     icon_small = 0
@@ -375,11 +408,33 @@ def _apply_windows_window_icon(window: Any, icon_path: str) -> None:
     sm_cxsmicon = 49
     sm_cysmicon = 50
 
-    user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+    # 1. Try .NET approach (most effective for Taskbar)
+    try:
+        import clr
+        clr.AddReference("System.Drawing")
+        import System.Drawing
+        native_window = getattr(window, "native", None)
+        if native_window is not None:
+            native_window.Icon = System.Drawing.Icon(icon_path)
+    except ImportError:
+        logger.warning("pythonnet (clr) not installed; cannot use .NET icon set. Taskbar icon may be missing.")
+    except Exception as exc:
+        logger.warning("Failed to set window icon via .NET: {}", exc)
+
+    # 2. Fallback to Win32 API (effective for Title Bar / Alt+Tab)
+    user32 = ctypes.windll.user32
     hwnd = _resolve_windows_window_handle(window)
     if not hwnd:
-        logger.debug("Could not resolve a native window handle for the taskbar icon")
         return
+
+    user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
+    user32.LoadImageW.restype = wintypes.HANDLE
+
+    user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user32.SendMessageW.restype = wintypes.LPARAM
+
+    user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+    user32.GetSystemMetrics.restype = ctypes.c_int
 
     big_icon = user32.LoadImageW(None, icon_path, image_icon, 256, 256, lr_loadfromfile)
     small_icon = user32.LoadImageW(
@@ -411,14 +466,20 @@ def _resolve_windows_window_handle(window: Any) -> int | None:
                     value = to_int64()
                     return value if isinstance(value, int) else int(str(value))
                 return int(handle)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as e:
+                logger.debug("Failed resolving handle attribute {}: {}", attr_name, e)
                 continue
 
     title = getattr(window, "title", None)
     if title:
         import ctypes
+        from ctypes import wintypes
 
-        hwnd = ctypes.windll.user32.FindWindowW(None, title)  # type: ignore[attr-defined]
+        user32 = ctypes.windll.user32
+        user32.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
+        user32.FindWindowW.restype = wintypes.HWND
+
+        hwnd = user32.FindWindowW(None, title)
         if hwnd:
             return int(hwnd)
 

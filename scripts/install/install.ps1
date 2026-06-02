@@ -169,4 +169,5 @@ try {
 
 Write-Host ">> Launching ShibaClaw..." -ForegroundColor Cyan
 
+$env:PYTHONIOENCODING = "utf-8"
 Start-Process $desktopExec -ArgumentList $desktopArgs
