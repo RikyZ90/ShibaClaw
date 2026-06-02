@@ -285,22 +285,21 @@ def run(
 def _refresh_taskbar_icon(window: Any) -> None:
     """Force Windows to refresh the taskbar icon for the given window."""
     import ctypes
-    from ctypes import wintypes
 
     hwnd = _resolve_windows_window_handle(window)
     if not hwnd:
         return
 
     user32 = ctypes.windll.user32
-    SWP_FRAMECHANGED = 0x0020
-    SWP_NOMOVE = 0x0002
-    SWP_NOSIZE = 0x0001
-    SWP_NOZORDER = 0x0004
-    SWP_NOACTIVATE = 0x0010
+    swp_framechanged = 0x0020
+    swp_nomove = 0x0002
+    swp_nosize = 0x0001
+    swp_nozorder = 0x0004
+    swp_noactivate = 0x0010
 
     user32.SetWindowPos(
         hwnd, None, 0, 0, 0, 0,
-        SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        swp_framechanged | swp_nomove | swp_nosize | swp_nozorder | swp_noactivate
     )
 
 
