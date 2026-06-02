@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.6] - 2026-06-02
+
+### Added
+- **New One-Line Script Installers** — Introduced new automated installer scripts (`install.ps1` for Windows, `install.sh` for macOS/Linux) that set up ShibaClaw in a clean virtual environment using pip/pipx, with support for automatically creating desktop and start menu shortcuts.
+- **Pip Update Cache Invalidation** — Added direct cache invalidation inside the updater after a successful pip/pipx upgrade to ensure the UI immediately reflects the update.
+
+### Fixed
+- **Windows Update Process Lock & Duplicate Processes** — Hardened the update restart sequence. Implemented graceful Uvicorn server shutdown to release TCP ports before spawning the new process, preventing duplicate processes or failed port bindings post-update.
+- **Mobile UI Polish** — Fixed styling/rendering issues for chat bubbles and tables on mobile screens to improve readability and layout responsiveness.
+
 ## [0.5.5] - 2026-06-01
 
 ### Fixed

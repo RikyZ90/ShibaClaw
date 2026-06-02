@@ -40,8 +40,13 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
     except Exception as exc:
         return {"ok": False, "output": str(exc), "command": " ".join(cmd)}
 
+    success = result.returncode == 0
+    if success:
+        from shibaclaw.updater.checker import invalidate_cache
+        invalidate_cache()
+        
     return {
-        "ok": result.returncode == 0,
+        "ok": success,
         "output": result.stdout + result.stderr,
         "command": " ".join(cmd),
     }

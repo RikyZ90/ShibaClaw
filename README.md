@@ -132,6 +132,20 @@ Full disclosure policy and supported versions: [SECURITY.md](./SECURITY.md)
 
 ## ⚡ Quick Start
 
+### 🚀 Auto-Installer (Recommended)
+
+The easiest way to get started. It automatically installs Python, creates an isolated environment, and launches the onboarding wizard.
+
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1 | iex
+```
+
+**Linux / macOS (Terminal):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.sh | bash
+```
+
 ### Docker
 
 ```bash

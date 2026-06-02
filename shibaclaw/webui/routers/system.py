@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import signal
+import subprocess
+import sys
+import threading
 import urllib.parse
 from typing import TYPE_CHECKING
 
@@ -92,6 +96,57 @@ def _safe_argv() -> list[str]:
         return [sys.executable] + list(sys.argv)
 
 
+def _graceful_shutdown_server() -> None:
+    """Ask Uvicorn to shut down so TCP ports are released before respawn."""
+    try:
+        if sys.platform == "win32":
+            os.kill(os.getpid(), signal.CTRL_C_EVENT)
+        else:
+            os.kill(os.getpid(), signal.SIGINT)
+    except Exception:
+        pass
+
+
+def _exec_restart() -> None:
+    """Replace the current process with a fresh one.
+
+    On POSIX this is atomic (same PID, ports released automatically).
+    On Windows os.execv does not truly replace the PID, so we spawn a
+    new detached process and then exit.
+    """
+    argv = _safe_argv()
+    if sys.platform != "win32":
+        os.execv(argv[0], argv)
+    else:
+        creationflags = (
+            subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.DETACHED_PROCESS
+        )
+        subprocess.Popen(
+            argv,
+            creationflags=creationflags,
+            close_fds=True,
+        )
+        os._exit(0)
+
+
+def _schedule_restart_outside_loop(delay: float = 2.0) -> None:
+    """Schedule _exec_restart on a daemon thread so it survives event-loop teardown.
+
+    When Uvicorn receives SIGINT it shuts down the event loop, cancelling all
+    pending asyncio tasks.  Running the delayed exec on a separate thread
+    ensures the replacement process is always started.
+    """
+    import time
+
+    def _restart_thread():
+        time.sleep(delay)
+        _exec_restart()
+
+    t = threading.Thread(target=_restart_thread, daemon=True)
+    t.start()
+
+
 async def api_update_apply(request: Request):
     """Apply a ShibaClaw update or return manual-action guidance."""
     try:
@@ -160,33 +215,23 @@ async def api_update_apply(request: Request):
 
     if pip_result.get("ok") or exe_result.get("ok"):
         async def _do_restart():
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.0)
+
+            from shibaclaw.updater.checker import invalidate_cache
+            invalidate_cache()
+
             if exe_result.get("ok"):
                 if _shutdown_callback is not None:
                     try:
-                        from shibaclaw.updater.checker import invalidate_cache
-                        invalidate_cache()
-                        # Instead of just calling _shutdown_callback which does a graceful wait(timeout=5),
-                        # we kill the gateway child process immediately to prevent the batch script race condition.
-                        import psutil
-                        current_proc = psutil.Process()
-                        for child in current_proc.children(recursive=True):
-                            try:
-                                child.kill()
-                            except psutil.NoSuchProcess:
-                                pass
-                        
                         _shutdown_callback()
                     except Exception:
                         pass
-                import os
                 os._exit(0)
             elif _restart_callback is not None:
                 _restart_callback()
             else:
-                import subprocess
-                subprocess.Popen(_safe_argv())
-                os._exit(0)
+                _schedule_restart_outside_loop(delay=2.0)
+                _graceful_shutdown_server()
 
         asyncio.create_task(_do_restart())
         report["restarting"] = True
@@ -203,9 +248,8 @@ async def api_restart_server(request: Request):
         if _restart_callback is not None:
             _restart_callback()
         else:
-            import subprocess
-            subprocess.Popen(_safe_argv())
-            os._exit(0)
+            _schedule_restart_outside_loop(delay=2.0)
+            _graceful_shutdown_server()
 
     asyncio.create_task(_do_restart())
     return JSONResponse({"status": "restarting"})

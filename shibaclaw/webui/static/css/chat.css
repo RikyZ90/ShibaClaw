@@ -843,6 +843,8 @@
     border-collapse: collapse;
     margin: 0;
     font-size: 13px;
+    display: block;
+    overflow-x: auto;
 }
 
 .message-bubble th {
