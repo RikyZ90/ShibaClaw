@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.1] - 2026-06-05
+
+### Fixed
+- **Security Update** — Updated `starlette` to v1.2.1 to resolve a known vulnerability.
+
 ## [0.6.0] - 2026-06-02
 
 ### Added
