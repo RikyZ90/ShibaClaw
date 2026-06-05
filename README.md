@@ -23,11 +23,9 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.6.0</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.6.1</b> — Click to see what's new</summary>
 
-- **Windows Console Window Hidden** — The background gateway console window is now hidden when using the desktop shortcut.
-- **Windows Taskbar Icon Fixed** — The application icon is now correctly rendered in the Windows taskbar for the desktop UI.
-- **Pip Update UI and Timeout** — Upgraded the updater timeout to handle slower environments and introduced an indeterminate progress bar in the WebUI to prevent false "Error" notifications.
+- **Security Update** — Updated `starlette` to v1.2.1 to resolve a known vulnerability.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
