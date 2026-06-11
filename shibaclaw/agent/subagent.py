@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import uuid
 from pathlib import Path
 from typing import Any
