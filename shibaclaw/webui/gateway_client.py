@@ -257,11 +257,11 @@ class GatewayClient:
             self._pending.pop(request_id, None)
             return None
 
-    async def chat_stream(self, payload: dict) -> AsyncIterator[dict]:
+    async def chat_stream(self, payload: dict, request_id: str | None = None) -> AsyncIterator[dict]:
         """Send a chat request and yield progress events, then the final result.
 
         Yields dicts: {"t":"p","c":text,"h":bool} for progress,
-                      {"t":"r","content":str,"media":list} for final result,
+                      {"t":"r","content":str,"media":list,"finish_reason":str} for final result,
                       {"t":"e","error":str} on error.
         """
         if not self._connected or not self._ws:
@@ -270,7 +270,7 @@ class GatewayClient:
                 yield event
             return
 
-        request_id = str(uuid.uuid4())[:8]
+        request_id = request_id or str(uuid.uuid4())[:8]
         queue: asyncio.Queue = asyncio.Queue()
         queue = asyncio.Queue(maxsize=self._STREAM_QUEUE_MAXSIZE)
         self._stream_queues[request_id] = queue
@@ -308,6 +308,7 @@ class GatewayClient:
                             "t": "r",
                             "content": p.get("content", ""),
                             "media": p.get("media", []),
+                            "finish_reason": p.get("finish_reason"),
                         }
                     else:
                         yield {"t": "e", "error": item.get("error", "gateway error")}
@@ -319,6 +320,11 @@ class GatewayClient:
             yield {"t": "e", "error": str(e)}
         finally:
             self._stream_queues.pop(request_id, None)
+
+    async def cancel_request(self, request_id: str) -> bool:
+        """Cancel an ongoing chat request by its request_id."""
+        res = await self.request("cancel", {"request_id": request_id})
+        return bool(res and res.get("cancelled"))
 
     # ── HTTP fallbacks (used when WS is not connected) ──────────────
 

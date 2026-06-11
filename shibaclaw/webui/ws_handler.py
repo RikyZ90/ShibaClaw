@@ -185,6 +185,9 @@ async def ws_endpoint(websocket: WebSocket):
             elif msg_type == "stop":
                 await _handle_stop(ws_id)
 
+            elif msg_type == "cancel":
+                await _handle_cancel(ws_id, websocket, data)
+
             elif msg_type == "new_session":
                 await _handle_new_session(ws_id, websocket, data)
 
@@ -340,8 +343,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
             response_content = ""
             response_media: list[str] = []
+            finish_reason = None
 
-            async for event in gateway_client.chat_stream(payload):
+            async for event in gateway_client.chat_stream(payload, request_id=message["id"]):
                 if event.get("t") == "p":
                     event_type = "tool" if event.get("h") else "thinking"
                     evt = {
@@ -377,6 +381,7 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 elif event.get("t") == "r":
                     response_content = event.get("content", "")
                     response_media = event.get("media", [])
+                    finish_reason = event.get("finish_reason")
                 elif event.get("t") == "e":
                     raise RuntimeError(event.get("error", "Gateway error"))
 
@@ -397,6 +402,7 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                     "content": response_content,
                     "attachments": final_atts,
                     "session_key": session_key,
+                    "finish_reason": finish_reason,
                 },
             )
 
@@ -447,6 +453,13 @@ async def _handle_stop(ws_id: str):
             "session_key": sk,
         },
     )
+
+
+async def _handle_cancel(ws_id: str, ws: WebSocket, data: dict):
+    """Handle granular request cancellation."""
+    request_id = data.get("id")
+    if request_id:
+        await gateway_client.cancel_request(request_id)
 
 
 async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):

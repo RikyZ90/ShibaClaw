@@ -44,8 +44,6 @@ class ShibaBrain:
 
     _TOOL_RESULT_MAX_CHARS = 16_000
     _TOOL_RESULT_LOOP_MAX_CHARS = 8_000
-    _TOOL_EXECUTION_TIMEOUT = 660  # seconds – safety net (ExecTool max is 600)
-    _LOOP_WALL_TIMEOUT = 600  # seconds – hard wall-clock cap on entire loop
 
     def __init__(
         self,
@@ -85,6 +83,9 @@ class ShibaBrain:
         self.automation_service = automation_service
         self.restrict_to_workspace = restrict_to_workspace
         self.session_router = session_router
+        self.tool_timeout = config.agents.defaults.tool_timeout if config else int(os.getenv("SHIBACLAW_TOOL_TIMEOUT", "660"))
+        self.loop_wall_timeout = config.agents.defaults.loop_wall_timeout if config else int(os.getenv("SHIBACLAW_LOOP_WALL_TIMEOUT", "600"))
+        subagent_timeout = config.agents.defaults.subagent_timeout if config else int(os.getenv("SHIBACLAW_SUBAGENT_TIMEOUT", "600"))
 
         self.context = ScentBuilder(workspace)
         self.sessions = session_manager or PackManager(workspace)
@@ -98,6 +99,7 @@ class ShibaBrain:
             web_proxy=web_proxy,
             exec_config=self.exec_config,
             restrict_to_workspace=restrict_to_workspace,
+            timeout=subagent_timeout,
         )
 
         self._running = False
@@ -163,6 +165,8 @@ class ShibaBrain:
         self.web_proxy = new_cfg.tools.web.proxy
         self.web_search_config = new_cfg.tools.web.search
         self.exec_config = new_cfg.tools.exec
+        self.tool_timeout = new_cfg.agents.defaults.tool_timeout
+        self.loop_wall_timeout = new_cfg.agents.defaults.loop_wall_timeout
         self.channels_config = new_cfg.channels
         self._available_channels = self._extract_enabled_channels()
         self._provider_cache.clear()
@@ -387,11 +391,12 @@ class ShibaBrain:
         while iteration < self.max_iterations:
             # Wall-clock safety: abort if the loop has been running too long
             elapsed = time.monotonic() - loop_start
-            if elapsed > self._LOOP_WALL_TIMEOUT:
-                logger.warning("Agent loop wall-clock timeout after {:.0f}s", elapsed)
+            if elapsed > self.loop_wall_timeout:
+                logger.warning(f"Session wall timeout ({self.loop_wall_timeout}s) reached after {elapsed:.1f}s.")
                 final_content = (
-                    "I reached the maximum time limit for processing. "
-                    "Try breaking the task into smaller steps."
+                    f"I reached the maximum time limit for processing "
+                    f"(elapsed: {elapsed:.0f}s, cap: {self.loop_wall_timeout}s). "
+                    f"Try breaking the task into smaller steps."
                 )
                 break
             iteration += 1
@@ -449,11 +454,11 @@ class ShibaBrain:
                             try:
                                 await asyncio.wait_for(
                                     asyncio.shield(tool_future),
-                                    timeout=min(_heartbeat, self._TOOL_EXECUTION_TIMEOUT - _waited),
+                                    timeout=min(_heartbeat, self.tool_timeout - _waited),
                                 )
                             except asyncio.TimeoutError:
                                 _waited += _heartbeat
-                                if _waited >= self._TOOL_EXECUTION_TIMEOUT:
+                                if _waited >= self.tool_timeout:
                                     break
                                 if on_progress:
                                     await on_progress(
@@ -466,7 +471,7 @@ class ShibaBrain:
                             tool_future.cancel()
                             result = (
                                 f"Error: Tool '{tool_call.name}' timed out after "
-                                f"{self._TOOL_EXECUTION_TIMEOUT}s"
+                                f"{_waited}s (cap: {self.tool_timeout}s)"
                             )
                         else:
                             result = tool_future.result()

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ class SubagentManager:
         web_proxy: str | None = None,
         exec_config: "ExecToolConfig | None" = None,
         restrict_to_workspace: bool = False,
+        timeout: int = 600,
     ):
         from shibaclaw.config.schema import ExecToolConfig, WebSearchConfig
 
@@ -44,6 +46,7 @@ class SubagentManager:
         self.web_proxy = web_proxy
         self.exec_config = exec_config or ExecToolConfig()
         self.restrict_to_workspace = restrict_to_workspace
+        self.timeout = timeout
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
         self._session_tasks: dict[str, set[str]] = {}  # session_key -> {task_id, ...}
 
@@ -59,6 +62,7 @@ class SubagentManager:
         self.web_proxy = new_cfg.tools.web.proxy
         self.exec_config = new_cfg.tools.exec or ExecToolConfig()
         self.restrict_to_workspace = new_cfg.tools.restrict_to_workspace
+        self.timeout = new_cfg.agents.defaults.subagent_timeout
 
     async def spawn(
         self,
@@ -95,7 +99,6 @@ class SubagentManager:
         return f"Subagent [{display_label}] started (id: {task_id}). I'll notify you when it completes."
 
     _TOOL_RESULT_MAX_CHARS = 8_000
-    _SUBAGENT_TIMEOUT = 600  # seconds – wall-clock cap for a single subagent
 
     async def _run_subagent(
         self,
@@ -110,15 +113,15 @@ class SubagentManager:
         try:
             return await asyncio.wait_for(
                 self._run_subagent_inner(task_id, task, label, origin),
-                timeout=self._SUBAGENT_TIMEOUT,
+                timeout=self.timeout,
             )
         except asyncio.TimeoutError:
-            logger.warning("Subagent [{}] timed out after {}s", task_id, self._SUBAGENT_TIMEOUT)
+            logger.warning("Subagent [{}] timed out after {}s", task_id, self.timeout)
             await self._announce_result(
                 task_id,
                 label,
                 task,
-                f"Subagent timed out after {self._SUBAGENT_TIMEOUT}s",
+                f"Subagent timed out after {self.timeout}s",
                 origin,
                 "error",
             )

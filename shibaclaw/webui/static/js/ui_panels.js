@@ -1416,6 +1416,9 @@ function populateSettings(cfg) {
     $("s-agent-maxTokens").value = d.maxTokens ?? 8192;
     $("s-agent-ctxTokens").value = d.contextWindowTokens ?? 65536;
     $("s-agent-maxIter").value = d.maxToolIterations ?? 40;
+    $("s-agent-toolTimeout").value = d.toolTimeout ?? 660;
+    $("s-agent-loopWallTimeout").value = d.loopWallTimeout ?? 600;
+    $("s-agent-subagentTimeout").value = d.subagentTimeout ?? 600;
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
 
@@ -1826,6 +1829,9 @@ window.saveSettings = async function () {
                 maxTokens: parseInt($("s-agent-maxTokens").value),
                 contextWindowTokens: parseInt($("s-agent-ctxTokens").value),
                 maxToolIterations: parseInt($("s-agent-maxIter").value),
+                toolTimeout: parseInt($("s-agent-toolTimeout").value),
+                loopWallTimeout: parseInt($("s-agent-loopWallTimeout").value),
+                subagentTimeout: parseInt($("s-agent-subagentTimeout").value),
                 workspace: $("s-agent-workspace").value,
                 reasoningEffort: $("s-agent-reasoning").value || null,
                 pinnedSkills: window._skillsPinnedList || [],

@@ -23,9 +23,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.6.1</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.6.2</b> — Click to see what's new</summary>
 
-- **Security Update** — Updated `starlette` to v1.2.1 to resolve a known vulnerability.
+- **Configurable Agent Timeouts** — Made agent loop, tool, and subagent timeouts configurable in WebUI Settings.
+- **Granular Request Cancellation** — Cancel single WebSocket request streams using request IDs without terminating the session.
+- **Baileys Vulnerability Fix** — Patched message spoofing and app state corruption in WhatsApp bridge by upgrading `@whiskeysockets/baileys` to `7.0.0-rc13`.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 

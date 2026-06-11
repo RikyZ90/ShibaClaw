@@ -652,6 +652,7 @@ async def gateway_command(
 
     # ── WebSocket server ─────────────────────────────────────────────────
     _ws_clients: set[websockets.ServerConnection] = set()
+    _chat_tasks: dict[str, asyncio.Task] = {}
     _ws_start_time = time.time()
 
     async def _ws_handler(websocket: websockets.ServerConnection):
@@ -821,6 +822,24 @@ async def gateway_command(
                                 }
                             )
                         )
+                    except asyncio.CancelledError:
+                        try:
+                            await ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "response",
+                                        "id": request_id,
+                                        "ok": True,
+                                        "payload": {
+                                            "content": "",
+                                            "media": [],
+                                            "finish_reason": "cancelled"
+                                        },
+                                    }
+                                )
+                            )
+                        except websockets.ConnectionClosed:
+                            pass
                     except Exception as e:
                         try:
                             await ws.send(
@@ -836,7 +855,18 @@ async def gateway_command(
                         except websockets.ConnectionClosed:
                             pass
 
-                asyncio.create_task(_run_chat(ws, request_id, payload))
+                task = asyncio.create_task(_run_chat(ws, request_id, payload))
+                _chat_tasks[request_id] = task
+                task.add_done_callback(lambda t: _chat_tasks.pop(request_id, None))
+
+            elif action == "cancel":
+                target_id = payload.get("request_id", "")
+                task = _chat_tasks.get(target_id)
+                if task and not task.done():
+                    task.cancel()
+                    await ws.send(_ok({"cancelled": True, "request_id": target_id}))
+                else:
+                    await ws.send(_ok({"cancelled": False, "request_id": target_id}))
 
             elif action == "restart":
                 await ws.send(_ok({"status": "restarting"}))

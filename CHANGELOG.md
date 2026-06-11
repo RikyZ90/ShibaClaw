@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.2] - 2026-06-11
+
+### Added
+- **Configurable Agent Runtime Timeouts** — Made agent loop, tool, and subagent timeouts fully configurable under Settings -> Agent in the WebUI.
+- **Granular Request Cancellation** — Added support for canceling individual active requests/streams via WebSocket request ID without affecting the rest of the session.
+
+### Fixed
+- **Timeout Messages** — Improved warning/error messages to display elapsed execution times and maximum allowed cap times.
+- **Baileys Vulnerability Fix** — Patched message spoofing and app state corruption vulnerabilities (CVE-2026-48063) in the WhatsApp bridge by upgrading `@whiskeysockets/baileys` to `7.0.0-rc13` and adding input validation to drop spoofed `messages.upsert` events.
+
 ## [0.6.1] - 2026-06-05
 
 ### Fixed

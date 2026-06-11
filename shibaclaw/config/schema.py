@@ -43,6 +43,9 @@ class AgentDefaults(Base):
     context_window_tokens: int = 65_536
     temperature: float = 0.1
     max_tool_iterations: int = 40
+    tool_timeout: int = 660  # Maximum time in seconds for all tool executions combined
+    loop_wall_timeout: int = 600  # Maximum time in seconds for the entire agent loop
+    subagent_timeout: int = 600  # Maximum time in seconds for a single subagent
     reasoning_effort: str | None = None  # low / medium / high - enables LLM thinking mode
     learning_enabled: bool = True  # Periodically update long-term memory in background
     learning_interval: int = 10  # Number of new messages before triggering background learning

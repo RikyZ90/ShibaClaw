@@ -1,26 +1,26 @@
 {
-    "version": "0.6.1",
-    "release_notes": "Security update: updated starlette to v1.2.1 to resolve a vulnerability.",
+    "version": "0.6.2",
+    "release_notes": "Features: Configurable agent runtime timeouts in WebUI settings, granular request cancellation support, and WhatsApp bridge Baileys vulnerability mitigation.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.6.1 and updated starlette dependency."
+            "note": "Bumped version to 0.6.2."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.6.1 release notes."
+            "note": "Added v0.6.2 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.6.1."
+            "note": "Updated welcome announcement to v0.6.2."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.6.1."
+            "note": "Bumped packaged update manifest to v0.6.2."
         }
     ]
 }
