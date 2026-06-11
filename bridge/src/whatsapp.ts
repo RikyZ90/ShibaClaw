@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WhatsApp client wrapper using Baileys.
  * Based on OpenClaw's working implementation.
  */
@@ -67,6 +67,7 @@ export class WhatsAppClient {
       browser: ['shibaclaw', 'cli', VERSION],
       syncFullHistory: false,
       markOnlineOnConnect: false,
+      shouldSyncHistoryMessage: () => false,
     });
 
     // Handle WebSocket errors
@@ -112,7 +113,10 @@ export class WhatsAppClient {
     this.sock.ev.on('creds.update', saveCreds);
 
     // Handle incoming messages
-    this.sock.ev.on('messages.upsert', async ({ messages, type }: { messages: any[]; type: string }) => {
+    this.sock.ev.on('messages.upsert', async ({ messages, type, requestId }: { messages: any[]; type: string; requestId?: string }) => {
+      // Mitigation for Baileys vulnerability (message spoofing) #12 / #13
+      if (requestId) return;
+
       if (type !== 'notify') return;
 
       for (const msg of messages) {
