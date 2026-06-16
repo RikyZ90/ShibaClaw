@@ -23,11 +23,10 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.6.3</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.6.4</b> — Click to see what's new</summary>
 
-- **Telegram Channel Security** — Moved authorization verification before media downloads, protecting server resources and disk space.
-- **Telegram Bug Fixes** — Fixed URL ampersand escaping corruption, handled edited messages, and resolved slow memory leaks.
-- **CLI Dependency Reporting** — Enhanced `channels status` command to explicitly report missing optional channel dependencies.
+- **Default Telegram Dependencies** — Moved Telegram libraries directly to the default project dependencies list, enabling Telegram to work out-of-the-box on standard `pipx`/`pip` installations.
+- **Telegram Fixes (v0.6.3)** — Included early auth checks, URL ampersand escaping fixes, edited message support, and memory leak prevention.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 

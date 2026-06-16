@@ -1,6 +1,6 @@
 [project]
 name = "shibaclaw"
-version = "0.6.3"
+version = "0.6.4"
 description = "A lightweight personal AI assistant framework"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.12"
@@ -49,13 +49,12 @@ dependencies = [
     "pywebview>=5.3,<7.0",
     "pystray>=0.19.5,<1.0.0",
     "pillow>=11.0.0,<13.0.0",
-]
-
-[project.optional-dependencies]
-telegram = [
     "python-telegram-bot[socks]>=22.6,<23.0",
     "python-socks[asyncio]>=2.8.0,<3.0.0",
 ]
+
+[project.optional-dependencies]
+telegram = []
 slack = [
     "slack-sdk>=3.39.0,<4.0.0",
     "slackify-markdown>=0.2.0,<1.0.0",

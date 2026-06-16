@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.4] - 2026-06-16
+
+### Changed
+- **Default Dependencies** — Moved Telegram integration dependencies (`python-telegram-bot` and `python-socks`) to the default dependencies list to ensure the channel works out-of-the-box on all standard installations (such as default `pipx` or `pip` without extras).
+
 ## [0.6.3] - 2026-06-16
 
 ### Fixed
