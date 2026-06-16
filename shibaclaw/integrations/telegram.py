@@ -379,12 +379,7 @@ class TelegramChannel(BaseChannel):
         ) & ~filters.COMMAND
         self._app.add_handler(MessageHandler(_content_filter, self._on_message))
         self._app.add_handler(
-            MessageHandler(_content_filter, self._on_message),
-            group=1,
-        )
-        from telegram.ext import MessageHandler as _MH  # noqa: F811
-        self._app.add_handler(
-            _MH(filters.UpdateType.EDITED_MESSAGE & _content_filter, self._on_message)
+            MessageHandler(filters.UpdateType.EDITED_MESSAGE & _content_filter, self._on_message)
         )
 
         logger.info("Starting Telegram bot (polling mode)...")
