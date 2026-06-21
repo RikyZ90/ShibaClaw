@@ -12,7 +12,6 @@ from typing import Any, Callable
 import httpx
 from shibaclaw.updater.detector import PYPI_PACKAGE, get_installation_method
 from shibaclaw.updater.manifest import normalize_manifest_path
-from shibaclaw.config.paths import get_app_root
 
 
 def _old_dir(workspace_root: Path, new_version: str) -> Path:
@@ -53,104 +52,62 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
 
 
 def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, int], None] | None = None) -> dict[str, Any]:
-    """Download the Windows release, extract it, and execute a replacement batch script."""
-    import zipfile
-    import os
+    """Download the Windows installer script and execute it in background."""
+    import tempfile
+    from shibaclaw.config.paths import get_runtime_root
 
-    if not download_url:
-        return {"ok": False, "output": "No download URL provided for EXE update."}
+    installer_url = "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1"
+    temp_ps1 = Path(tempfile.gettempdir()) / f"shibaclaw_install_{version}.ps1"
 
-    temp_dir = get_app_root() / "_update_temp"
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir, ignore_errors=True)
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    
-    zip_path = temp_dir / "update.zip"
-    
+    downloaded = False
     try:
-        with httpx.stream("GET", download_url, follow_redirects=True, timeout=60.0) as response:
+        with httpx.Client(follow_redirects=True, timeout=15.0) as client:
+            response = client.get(installer_url)
             response.raise_for_status()
-            total_bytes = int(response.headers.get("Content-Length", 0))
-            downloaded = 0
-            with open(zip_path, "wb") as f:
-                for chunk in response.iter_bytes(chunk_size=8192):
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if progress_cb and total_bytes:
-                        progress_cb(downloaded, total_bytes)
-                        
-        with zipfile.ZipFile(zip_path, 'r') as zf:
-            zf.extractall(temp_dir)
-            
-        extracted_exe_path = None
-        for root, dirs, files in os.walk(temp_dir):
-            if "ShibaClaw.exe" in files:
-                extracted_exe_path = Path(root)
-                break
-                
-        if not extracted_exe_path:
-            return {"ok": False, "output": "ShibaClaw.exe not found in downloaded zip."}
-            
-        current_exe_dir = Path(sys.executable).parent
-        
-        needs_admin = False
-        test_file = current_exe_dir / ".update_test"
-        try:
-            test_file.touch()
-            test_file.unlink()
-        except PermissionError:
-            needs_admin = True
-        except Exception:
-            pass
-            
-        import tempfile
-        import time
-        bat_path = Path(tempfile.gettempdir()) / f"shibaclaw_update_{int(time.time())}.bat"
-        
-        bat_content = [
-            "@echo off",
-        ]
-        
-        if needs_admin:
-            bat_content.extend([
-                "net session >nul 2>&1",
-                "if %errorLevel% neq 0 (",
-                "    powershell -Command \"Start-Process '%~f0' -Verb RunAs\"",
-                "    exit /b",
-                ")"
-            ])
-            
-        bat_content.extend([
-            "ping 127.0.0.1 -n 9 >nul",
-            "set /a retry=0",
-            ":loop",
-            f'xcopy /S /Y /E /I "{extracted_exe_path}\\*" "{current_exe_dir}\\" >nul 2>&1',
-            "if %errorlevel% neq 0 (",
-            "    set /a retry+=1",
-            "    if %retry% lss 15 (",
-            "        ping 127.0.0.1 -n 2 >nul",
-            "        goto loop",
-            "    )",
-            ")",
-            f'rmdir /S /Q "{temp_dir}"',
-            f'start "" "{current_exe_dir}\\ShibaClaw.exe"',
-            'del "%~f0"'
-        ])
-        
-        bat_path.write_text("\n".join(bat_content), encoding="utf-8")
-        
+            temp_ps1.write_text(response.text, encoding="utf-8")
+            downloaded = True
+    except Exception:
+        pass
+
+    if not downloaded:
+        bundled_ps1 = get_runtime_root() / "scripts" / "install" / "install.ps1"
+        if bundled_ps1.exists():
+            try:
+                shutil.copy2(str(bundled_ps1), str(temp_ps1))
+                downloaded = True
+            except Exception:
+                pass
+
+    if not downloaded:
+        return {"ok": False, "output": "Could not download or locate install.ps1 script."}
+
+    try:
         detached_process = 0x00000008
         create_new_process_group = 0x00000200
+        
+        cmd = [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", str(temp_ps1),
+            "-Version", version
+        ]
+
+        current_exe = Path(sys.executable).resolve()
+        if len(current_exe.parts) >= 4 and current_exe.parts[-3] == "app" and current_exe.parts[-4].lower() == ".shibaclaw":
+            install_dir = current_exe.parents[2]
+            cmd.extend(["-InstallDir", str(install_dir)])
+
         subprocess.Popen(
-            [str(bat_path)],
+            cmd,
             creationflags=detached_process | create_new_process_group,
             close_fds=True,
             cwd=tempfile.gettempdir()
         )
         
-        return {"ok": True, "output": "Update downloaded, batch script started."}
+        return {"ok": True, "output": "Installer script launched successfully."}
     except Exception as exc:
-        return {"ok": False, "output": f"Update failed: {exc}"}
+        return {"ok": False, "output": f"Failed to launch installer: {exc}"}
 
 
 def _backup_personal_files(
@@ -198,20 +155,22 @@ def _normalize_update_request(
     normalized.setdefault("install_method", install_method)
     normalized.setdefault("latest", latest)
     
-    if install_method == "pip" or install_method == "exe":
+    if install_method in ("pip", "exe"):
         normalized.setdefault("action_kind", "automatic")
     else:
         normalized.setdefault("action_kind", "manual-command")
     normalized.setdefault(
         "action_label",
-        "Update now" if install_method == "pip" else "Run suggested update command",
+        "Update now" if install_method in ("pip", "exe") else "Run suggested update command",
     )
-    normalized.setdefault(
-        "action_command",
-        "pip install --upgrade shibaclaw"
-        if install_method == "pip"
-        else "git pull --ff-only && pip install -e .",
-    )
+    
+    default_cmd = "git pull --ff-only && pip install -e ."
+    if install_method == "pip":
+        default_cmd = "pip install --upgrade shibaclaw"
+    elif install_method == "exe":
+        default_cmd = 'powershell -c "irm https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1 | iex"'
+        
+    normalized.setdefault("action_command", default_cmd)
     return normalized
 
 

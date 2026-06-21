@@ -1,11 +1,18 @@
-# ShibaClaw Automated Installer for Windows
-# Downloads the latest pre-built release from GitHub and sets up shortcuts.
+[CmdletBinding()]
+param(
+    [string]$Version = "",
+    [string]$InstallDir = ""
+)
 
 $ErrorActionPreference = "Stop"
 
 [console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$installDir = "$HOME\.shibaclaw"
+if ($InstallDir) {
+    $installDir = [System.IO.Path]::GetFullPath($InstallDir)
+} else {
+    $installDir = "$HOME\.shibaclaw"
+}
 $appDir     = "$installDir\app"
 $shibaDir   = "$appDir\ShibaClaw"
 $shibaExe   = "$shibaDir\ShibaClaw.exe"
@@ -59,16 +66,24 @@ if (Test-Path $installLog) {
 
 Write-Host ">> Starting ShibaClaw installation..." -ForegroundColor Cyan
 
-# ── 1. Resolve latest release from GitHub ────────────────────────────────────
-
 Show-InstallProgress -Message "Fetching latest release info..." -Step 1 -Total 6
 
-$apiUrl = "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest"
+$versionClean = $Version.Trim()
+if ($versionClean -and $versionClean -notlike "v*") {
+    $versionClean = "v$versionClean"
+}
+
+$apiUrl = if ($versionClean) {
+    "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/$versionClean"
+} else {
+    "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest"
+}
+
 try {
     $releaseInfo = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -Headers @{ Accept = "application/vnd.github+json" }
 }
 catch {
-    Write-Error "Failed to fetch latest release from GitHub. Check your internet connection and try again."
+    Write-Error "Failed to fetch release info from GitHub. Check your internet connection and try again."
     exit 1
 }
 
@@ -77,7 +92,7 @@ $displayVersion = $tagName -replace '^v', ''
 
 $asset = $releaseInfo.assets | Where-Object { $_.name -eq "ShibaClaw-windows.zip" } | Select-Object -First 1
 if ($null -eq $asset) {
-    Write-Error "Could not find ShibaClaw-windows.zip in release $tagName. The release may not include a Windows build yet."
+    Write-Error "Could not find ShibaClaw-windows.zip in release $tagName."
     exit 1
 }
 
@@ -97,6 +112,17 @@ Write-Host "[OK] Download complete." -ForegroundColor Green
 # ── 3. Extract and unblock ───────────────────────────────────────────────────
 
 Invoke-LoggedStep -Message "Extracting files..." -Step 3 -Total 6 -Action {
+    $elapsed = 0
+    while ((Get-Process -Name "ShibaClaw" -ErrorAction SilentlyContinue) -and ($elapsed -lt 30)) {
+        Start-Sleep -Seconds 1
+        $elapsed++
+    }
+    $runningProcesses = Get-Process -Name "ShibaClaw" -ErrorAction SilentlyContinue
+    if ($runningProcesses) {
+        $runningProcesses | Stop-Process -Force
+        Start-Sleep -Seconds 1
+    }
+
     if (Test-Path $appDir) {
         Remove-Item -Path $appDir -Recurse -Force
     }
