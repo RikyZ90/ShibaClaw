@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **PowerShell Installer Parameters** — Added support for optional `-Version` and `-InstallDir` parameters in the PowerShell installation script `install.ps1`.
+- **Packaged Installer Script** — Added `install.ps1` to the bundled PyInstaller package for local execution fallback.
+
+### Fixed
+- **Windows EXE Automatic Updates** — Transitioned `apply.py` to execute the official `install.ps1` installer in a detached background process for EXE updates, rather than manually extracting zip files and writing batch files.
+- **Windows Process Lock Handling** — Handled locked executables in `install.ps1` by checking and waiting up to 30 seconds for any running `ShibaClaw` processes to exit, force-terminating them as a fallback.
+- **Plugin Installation on Packaged EXE** — Prevented dynamic pip-based plugin installations and uninstallations in `plugins.py` when running from a packaged EXE, returning a clean error instead of failing.
+- **Duplicate Desktop GUI Spawns** — Configured `__main__.py` to block launching python modules (e.g. `-m pip`) when compiled by PyInstaller, printing a stderr message and exiting instead of spawning duplicate GUI windows.
+
 ## [0.7.2] - 2026-06-21
 
 ### Changed
