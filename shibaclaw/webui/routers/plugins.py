@@ -66,7 +66,11 @@ async def api_install_plugin(request: Request) -> JSONResponse:
     if not package.startswith("shibaclaw-"):
         return JSONResponse({"error": "Only shibaclaw official plugins can be installed"}, status_code=400)
 
-    cmd = [sys.executable, "-m", "pip", "install", package]
+    from pathlib import Path
+    local_path = Path(__file__).resolve().parent.parent.parent.parent / package
+    install_target = str(local_path) if local_path.is_dir() else package
+
+    cmd = [sys.executable, "-m", "pip", "install", install_target]
     logger.info("Installing plugin: {}", " ".join(cmd))
     
     try:
