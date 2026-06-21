@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [0.7.1] - 2026-06-21
+## [0.7.2] - 2026-06-21
 
 ### Changed
 - **Provider Settings Panel Restyling** — Redesigned the Provider settings accordion list into a highly compact, responsive card grid supporting up to a 5-column layout on larger viewports. Improved the visual hierarchy by scaling down the icons, text labels, and card padding, and added keyword-based real-time filtering and inline expands.
@@ -10,6 +10,10 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 - **Plugins Tab Cleanup** — Updated the `/api/plugins` endpoint to exclude built-in channel integrations (e.g. WhatsApp, Telegram, Discord) from the "Installed Plugins" list, ensuring only actual external/installable plugins (like Supertonic TTS) are listed.
+- **Plugin Installation Fallback** — Resolved local plugin path installation issues by resolving package names to absolute directory paths locally, and added a fallback to official GitHub repository subdirectories for remote users who don't have a local checkout.
+
+### Added
+- **Plugin Development Guide** — Added a comprehensive plugin development guide explaining how to develop both custom Channels and TTS engines for ShibaClaw, and linked it in the README.
 
 ## [0.7.0] - 2026-06-21
 

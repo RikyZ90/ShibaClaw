@@ -22,10 +22,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.7.1</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.7.2</b> — Click to see what's new</summary>
 
 - **Provider & Channels Settings Restyling** — Redesigned the Settings interface with a responsive compact card grid for Providers (up to 5 columns with inline expands) and a split-pane list-detail layout for Channels.
-- **Clean Installed Plugins Tab** — Filtered out built-in channel integrations from the Plugins tab to only list actual dynamic/optional plugins like Supertonic TTS, avoiding confusion.
+- **Clean Plugins Management & Fallback** — Excluded built-in channels from the Plugins tab, resolved local plugin installation issues, and added an automatic GitHub fallback for remote plugin installations.
+- **Plugin Development Guide** — Published a comprehensive guide for building custom communication Channels and TTS engines.
 - **Windows EXE Update & Uninstaller Improvements (v0.7.0)** — Added full support for Windows EXE automatic updates with process lock fixes, lock-free clean uninstallation logic, and fixed critical memory leaks, WebUI multi-tab race conditions, and raw HTTP client parsing.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
