@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [0.7.3] - 2026-06-21
 
 ### Added
 - **PowerShell Installer Parameters** — Added support for optional `-Version` and `-InstallDir` parameters in the PowerShell installation script `install.ps1`.
@@ -14,8 +14,6 @@ All notable changes to this project are documented in this file.
 - **Plugin Installation on Packaged EXE** — Prevented dynamic pip-based plugin installations and uninstallations in `plugins.py` when running from a packaged EXE, returning a clean error instead of failing.
 - **Duplicate Desktop GUI Spawns** — Configured `__main__.py` to block launching python modules (e.g. `-m pip`) when compiled by PyInstaller, printing a stderr message and exiting instead of spawning duplicate GUI windows.
 - **Desktop pywebview Freeze on Gateway Restart** — Resolved window freeze on plugin install/uninstall by waiting for the gateway to report a fully ready `"ok"` status before reloading the page, retrying configured port binding to prevent falling back to random ports, and thread-safely reconnecting the WebSocket gateway client.
-
-## [0.7.2] - 2026-06-21
 
 ### Changed
 - **Provider Settings Panel Restyling** — Redesigned the Provider settings accordion list into a highly compact, responsive card grid supporting up to a 5-column layout on larger viewports. Improved the visual hierarchy by scaling down the icons, text labels, and card padding, and added keyword-based real-time filtering and inline expands.

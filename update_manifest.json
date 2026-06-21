@@ -1,26 +1,26 @@
 {
-    "version": "0.7.2",
-    "release_notes": "Provider and Channels settings restyling: responsive Provider grid layout (up to 5 columns with inline expands) and split-pane Channels layout; clean Plugins tab showing only external plugins (excluded built-in channels) with automatic installation path resolution and GitHub repository fallback.",
+    "version": "0.7.3",
+    "release_notes": "Added automatic updates for Windows EXE via PowerShell installer, duplicate process launches prevention, and pywebview thread freeze fixes during gateway restarts.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.7.2."
+            "note": "Bumped version to 0.7.3."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.7.2 release notes."
+            "note": "Added v0.7.3 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.7.2."
+            "note": "Updated welcome announcement to v0.7.3."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.7.2."
+            "note": "Bumped packaged update manifest to v0.7.3."
         }
     ]
 }

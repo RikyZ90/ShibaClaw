@@ -22,12 +22,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.7.2</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.7.3</b> — Click to see what's new</summary>
 
-- **Provider & Channels Settings Restyling** — Redesigned the Settings interface with a responsive compact card grid for Providers (up to 5 columns with inline expands) and a split-pane list-detail layout for Channels.
-- **Clean Plugins Management & Fallback** — Excluded built-in channels from the Plugins tab, resolved local plugin installation issues, and added an automatic GitHub fallback for remote plugin installations.
-- **Plugin Development Guide** — Published a comprehensive guide for building custom communication Channels and TTS engines.
-- **Windows EXE Update & Uninstaller Improvements (v0.7.0)** — Added full support for Windows EXE automatic updates with process lock fixes, lock-free clean uninstallation logic, and fixed critical memory leaks, WebUI multi-tab race conditions, and raw HTTP client parsing.
+- **Automatic Windows EXE Updates** — Transitioned updating packaged Windows EXE builds to execute the official `install.ps1` installer in a detached background process with check-and-wait loop and force-terminate fallbacks for locked files.
+- **Desktop pywebview Freeze Fixed** — Resolved window freeze on plugin install/uninstall by waiting for the gateway to report a fully ready `"ok"` status before reloading, retrying configured port binding, and thread-safely reconnecting the WebSocket gateway client.
+- **Duplicate Process Prevention** — Blocked launching python modules (e.g. `-m pip`) when compiled by PyInstaller to prevent duplicate GUI spawns.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
