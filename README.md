@@ -310,6 +310,12 @@ All channels route through the same message bus. WhatsApp uses a Node.js bridge 
 
 If you are upgrading from an older release, `HEARTBEAT.md` has been deprecated and removed. Your tasks and schedules should be migrated to `TASK.md` and the new Automations UI.
 
+### 🔌 Plugins & TTS (Text-to-Speech)
+
+- **Installable Plugin System** — Extend the agent's capabilities with dynamic, installable Python plugins (e.g., speech synthesis, custom integrations) managed directly from the WebUI settings.
+- **Free Offline Local TTS (Supertonic)** — Get high-quality, zero-cost, fully offline text-to-speech out of the box with the **Supertonic TTS** plugin (ONNX-based speech synthesis). Supporting 31 languages, custom voices (`F1` / `M1`), and adjustable speech speed, it automatically synthesizes voice responses.
+- **In-Browser Audio Player** — Plays back the agent's voice messages directly within the chat UI via a custom glassmorphic audio widget featuring a seekable timeline and duration control.
+
 ***
 
 ## 🔌 MCP Ecosystem
