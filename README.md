@@ -312,7 +312,7 @@ If you are upgrading from an older release, `HEARTBEAT.md` has been deprecated a
 
 ### 🔌 Plugins & TTS (Text-to-Speech)
 
-- **Installable Plugin System** — Extend the agent's capabilities with dynamic, installable Python plugins (e.g., speech synthesis, custom integrations) managed directly from the WebUI settings.
+- **Installable Plugin System** — Extend the agent's capabilities with dynamic, installable Python plugins (e.g., speech synthesis, custom integrations) managed directly from the WebUI settings. See [`docs/PLUGINS_DEVELOPMENT_GUIDE.md`](./docs/PLUGINS_DEVELOPMENT_GUIDE.md) for how to build your own.
 - **Free Offline Local TTS (Supertonic)** — Get high-quality, zero-cost, fully offline text-to-speech out of the box with the **Supertonic TTS** plugin (ONNX-based speech synthesis). Supporting 31 languages, custom voices (`F1` / `M1`), and adjustable speech speed, it automatically synthesizes voice responses.
 - **In-Browser Audio Player** — Plays back the agent's voice messages directly within the chat UI via a custom glassmorphic audio widget featuring a seekable timeline and duration control.
 
@@ -469,7 +469,7 @@ shibaclaw desktop           # Launch Windows desktop app
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) — PRs welcome.
 
-Channels are extensible via Python entry points (`shibaclaw.integrations`). Skill creation is documented in [`docs/CHANNEL_PLUGIN_GUIDE.md`](./docs/CHANNEL_PLUGIN_GUIDE.md) and the built-in `skill-creator` skill.
+Plugins (both channels and TTS engines) are extensible via Python entry points. See [`docs/PLUGINS_DEVELOPMENT_GUIDE.md`](./docs/PLUGINS_DEVELOPMENT_GUIDE.md) for a comprehensive guide on building custom plugins. Skill creation is documented in [`docs/CHANNEL_PLUGIN_GUIDE.md`](./docs/CHANNEL_PLUGIN_GUIDE.md) and the built-in `skill-creator` skill.
 
 Gateway integrators: see [`docs/GATEWAY_PROTOCOL.md`](./docs/GATEWAY_PROTOCOL.md) for the WebSocket contract on port `19998`.
 
