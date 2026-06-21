@@ -33,7 +33,7 @@ function Resolve-ShibaClawInstallDir {
     foreach ($candidate in $candidates) {
         $candidatePath = [System.IO.Path]::GetFullPath($candidate)
         if ($candidatePath) {
-            if ($candidatePath -match '[\\/]\.shibaclaw$') {
+            if ($candidatePath -match '[\\\/]\.shibaclaw$') {
                 return $candidatePath
             }
             return (Join-Path $candidatePath ".shibaclaw")
@@ -83,10 +83,10 @@ $desktopPath = [Environment]::GetFolderPath('Desktop')
 $startMenuPath = [Environment]::GetFolderPath('Programs')
 $desktopShortcut = Join-Path $desktopPath "ShibaClaw.lnk"
 $startMenuShortcut = Join-Path $startMenuPath "ShibaClaw.lnk"
-$venvScriptsPath = Join-Path $installDir "venv\Scripts"
 
+# Remove pipx installation if present (legacy)
 if (Get-Command pipx -ErrorAction SilentlyContinue) {
-    Write-Step "Removing pipx installation..."
+    Write-Step "Checking for pipx installation..."
     Log-Message "Attempting pipx uninstall"
     if ($PSCmdlet.ShouldProcess("pipx", "uninstall shibaclaw")) {
         try {
@@ -94,18 +94,24 @@ if (Get-Command pipx -ErrorAction SilentlyContinue) {
             Log-Message "pipx uninstall completed"
         }
         catch {
-            Log-Message "pipx uninstall failed: $($_.Exception.Message)"
+            Log-Message "pipx uninstall skipped: $($_.Exception.Message)"
         }
     }
 }
 
-$targets = @($installDir, $desktopShortcut, $startMenuShortcut)
+# Remove app directory (new layout) and venv (legacy layout)
+$removeDirs = @(
+    (Join-Path $installDir "app"),
+    (Join-Path $installDir "venv")
+)
+
+$targets = @($desktopShortcut, $startMenuShortcut) + $removeDirs
 foreach ($target in $targets) {
     if (Test-Path $target) {
         if ($PSCmdlet.ShouldProcess($target, "remove")) {
             try {
                 Remove-Item -Path $target -Recurse -Force -ErrorAction Stop
-                Log-Message "Removed target: ${target}"
+                Log-Message "Removed: ${target}"
             }
             catch {
                 Log-Message "Failed to remove ${target}: $($_.Exception.Message)"
@@ -113,10 +119,11 @@ foreach ($target in $targets) {
         }
     }
     else {
-        Log-Message "Target not found: $target"
+        Log-Message "Not found (skipped): $target"
     }
 }
 
+# Clean legacy executables from PATH-accessible locations
 $commandsToRemove = @()
 $shibaclawCommand = Get-Command shibaclaw -ErrorAction SilentlyContinue
 if ($shibaclawCommand) { $commandsToRemove += $shibaclawCommand.Source }
@@ -141,19 +148,37 @@ foreach ($commandPath in $commandsToRemove | Select-Object -Unique) {
     }
 }
 
+# Clean PATH entries (both new app/ layout and legacy venv/ layout)
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath) {
-    $entries = $userPath -split ';' | Where-Object { $_ -and $_ -ne $venvScriptsPath }
+    $shibaPatterns = @(
+        (Join-Path $installDir "app\ShibaClaw"),
+        (Join-Path $installDir "venv\Scripts")
+    )
+    $entries = $userPath -split ';' | Where-Object {
+        $entry = $_
+        $keep = $true
+        foreach ($pat in $shibaPatterns) {
+            if ($entry -eq $pat -or $entry -eq "$pat\") { $keep = $false; break }
+        }
+        $keep
+    }
     $newPath = $entries -join ';'
 
     if ($newPath -ne $userPath) {
-        if ($PSCmdlet.ShouldProcess("User PATH", "remove ShibaClaw venv entry")) {
-            [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
-            Log-Message "Updated user PATH to remove venv entry"
+        if ($PSCmdlet.ShouldProcess("User PATH", "remove ShibaClaw entries")) {
+            try {
+                [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+                Log-Message "Cleaned ShibaClaw entries from user PATH"
+            }
+            catch {
+                Log-Message "Failed to update user PATH: $($_.Exception.Message)"
+            }
         }
     }
 }
 
+# Remove registry uninstall entry
 $registryKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ShibaClaw'
 if (Test-Path $registryKey) {
     if ($PSCmdlet.ShouldProcess($registryKey, "remove uninstall registry entry")) {
@@ -166,6 +191,10 @@ if (Test-Path $registryKey) {
         }
     }
 }
+
+# Clean up install.log
+$installLog = Join-Path $installDir "install.log"
+Remove-Item -Path $installLog -Force -ErrorAction SilentlyContinue
 
 Write-Success "ShibaClaw has been removed."
 Write-Host "Please close and reopen your terminal to refresh PATH."

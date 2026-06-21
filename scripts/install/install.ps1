@@ -1,21 +1,15 @@
 # ShibaClaw Automated Installer for Windows
-# This script installs Python (via winget), creates a venv, and installs shibaclaw via PyPI.
+# Downloads the latest pre-built release from GitHub and sets up shortcuts.
 
 $ErrorActionPreference = "Stop"
 
 [console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$scriptDir = $null
-if ($MyInvocation.MyCommand.Path) {
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-}
-if ([string]::IsNullOrEmpty($scriptDir)) {
-    $scriptDir = (Get-Location).Path
-}
-$registerScript = Join-Path $scriptDir "register_windows_uninstall.ps1"
-$uninstallScript = Join-Path $scriptDir "uninstall.ps1"
-
 $installDir = "$HOME\.shibaclaw"
+$appDir     = "$installDir\app"
+$shibaDir   = "$appDir\ShibaClaw"
+$shibaExe   = "$shibaDir\ShibaClaw.exe"
+
 if (!(Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
@@ -47,7 +41,7 @@ function Invoke-LoggedStep {
 
     try {
         & $Action 2>&1 | Out-File -FilePath $installLog -Append -Encoding utf8
-        if ($LASTEXITCODE -ne 0) {
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
             throw "Step failed: $Message"
         }
     }
@@ -65,166 +59,87 @@ if (Test-Path $installLog) {
 
 Write-Host ">> Starting ShibaClaw installation..." -ForegroundColor Cyan
 
-# 1. Check/Install Python
-$pyVersion = $null
-$pythonCmd = $null
+# ── 1. Resolve latest release from GitHub ────────────────────────────────────
 
-function Test-PythonCommand($cmd) {
-    if (Get-Command $cmd -ErrorAction SilentlyContinue) {
-        $out = & $cmd --version 2>&1
-        if ($out -match "Python \d") { return $out }
-    }
-    return $null
+Show-InstallProgress -Message "Fetching latest release info..." -Step 1 -Total 6
+
+$apiUrl = "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest"
+try {
+    $releaseInfo = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -Headers @{ Accept = "application/vnd.github+json" }
+}
+catch {
+    Write-Error "Failed to fetch latest release from GitHub. Check your internet connection and try again."
+    exit 1
 }
 
-Show-InstallProgress -Message "Checking Python runtime..." -Step 1 -Total 7
+$tagName = $releaseInfo.tag_name
+$displayVersion = $tagName -replace '^v', ''
 
-$pyVersion = Test-PythonCommand "python"
-if ($pyVersion) { $pythonCmd = "python" }
-else {
-    $pyVersion = Test-PythonCommand "py"
-    if ($pyVersion) { $pythonCmd = "py" }
+$asset = $releaseInfo.assets | Where-Object { $_.name -eq "ShibaClaw-windows.zip" } | Select-Object -First 1
+if ($null -eq $asset) {
+    Write-Error "Could not find ShibaClaw-windows.zip in release $tagName. The release may not include a Windows build yet."
+    exit 1
 }
 
-if ($null -eq $pyVersion) {
-    try {
-        if (!(Get-Command winget -ErrorAction SilentlyContinue)) {
-            Write-Error "winget is not installed. Please install Python 3.12+ manually from python.org"
-            exit 1
-        }
+$downloadUrl = $asset.browser_download_url
+Write-Host "[OK] Found release $tagName" -ForegroundColor Green
 
-        Invoke-LoggedStep -Message "Installing Python via winget..." -Step 2 -Total 7 -Action {
-            winget install -e --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
-        }
-        Write-Host "[OK] Python installed successfully." -ForegroundColor Green
+# ── 2. Download the zip ──────────────────────────────────────────────────────
 
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+$zipPath = Join-Path $env:TEMP "ShibaClaw-windows.zip"
 
-        $pyVersion = Test-PythonCommand "python"
-        if ($pyVersion) { $pythonCmd = "python" }
-        else {
-            $pyVersion = Test-PythonCommand "py"
-            if ($pyVersion) { $pythonCmd = "py" }
-        }
+Invoke-LoggedStep -Message "Downloading ShibaClaw $tagName..." -Step 2 -Total 6 -Action {
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+}
 
-        if ($null -eq $pythonCmd) {
-            Write-Host "[!] Python installed but not yet in PATH. Please restart your terminal and run this script again." -ForegroundColor Yellow
-            exit 1
-        }
+Write-Host "[OK] Download complete." -ForegroundColor Green
+
+# ── 3. Extract and unblock ───────────────────────────────────────────────────
+
+Invoke-LoggedStep -Message "Extracting files..." -Step 3 -Total 6 -Action {
+    if (Test-Path $appDir) {
+        Remove-Item -Path $appDir -Recurse -Force
     }
-    catch {
-        Write-Error "Failed to install Python via winget. Please install Python 3.12+ manually from python.org"
+    New-Item -ItemType Directory -Path $appDir -Force | Out-Null
+    Expand-Archive -Path $zipPath -DestinationPath $appDir -Force
+}
+
+Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
+
+if (!(Test-Path $shibaExe)) {
+    $nested = Get-ChildItem -Path $appDir -Filter "ShibaClaw.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($nested) {
+        $shibaDir = $nested.DirectoryName
+        $shibaExe = $nested.FullName
+    }
+    else {
+        Write-Error "ShibaClaw.exe not found after extraction. The archive may be corrupted."
         exit 1
     }
 }
 
-Show-InstallProgress -Message "Verifying Python version..." -Step 3 -Total 7 -Detail "$pyVersion"
+Get-ChildItem -Path $shibaDir -Recurse -Include '*.exe', '*.dll' | Unblock-File
 
-$installedVersion = & $pythonCmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1
-Write-Host "[OK] Found Python: $pyVersion" -ForegroundColor Green
-if ([version]$installedVersion -lt [version]"3.12") {
-    Write-Error "Python $installedVersion detected, but ShibaClaw requires Python 3.12+. Please upgrade from python.org"
-    exit 1
+Write-Host "[OK] Extracted to $shibaDir" -ForegroundColor Green
+
+# ── 4. Add to PATH ──────────────────────────────────────────────────────────
+
+Show-InstallProgress -Message "Configuring PATH..." -Step 4 -Total 6
+
+$currentPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+if ($currentPath -notlike "*$shibaDir*") {
+    [System.Environment]::SetEnvironmentVariable("Path", "$currentPath;$shibaDir", "User")
+    $env:Path += ";$shibaDir"
+    Write-Host "[OK] Added ShibaClaw to User PATH." -ForegroundColor Green
 }
+
+# ── 5. Shortcuts + uninstall registration ────────────────────────────────────
+
+Show-InstallProgress -Message "Creating shortcuts..." -Step 5 -Total 6
 
 $uninstallScript = Join-Path $installDir "uninstall.ps1"
 
-function Register-ShibaClawUninstallEntry {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$UninstallScriptPath,
-
-        [Parameter(Mandatory = $true)]
-        [string]$InstallDir,
-
-        [string]$DisplayVersion = "unknown",
-        [string]$DisplayIcon = $null
-    )
-
-    $displayName = "ShibaClaw"
-    $publisher = "RikyZ90"
-    $urlInfoAbout = "https://github.com/RikyZ90/ShibaClaw"
-    $appKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ShibaClaw"
-    $uninstallCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScriptPath`" -Force -InstallDir `"$InstallDir`""
-
-    New-Item -Path $appKeyPath -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "DisplayName" -Value $displayName -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "DisplayVersion" -Value $DisplayVersion -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "Publisher" -Value $publisher -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "UninstallString" -Value $uninstallCommand -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "QuietUninstallString" -Value $uninstallCommand -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "EstimatedSize" -Value 1024 -PropertyType DWord -Force | Out-Null
-    New-ItemProperty -Path $appKeyPath -Name "URLInfoAbout" -Value $urlInfoAbout -PropertyType String -Force | Out-Null
-    if ($DisplayIcon) {
-        New-ItemProperty -Path $appKeyPath -Name "DisplayIcon" -Value $DisplayIcon -PropertyType String -Force | Out-Null
-    }
-}
-
-# 2. Installation Method (Prefer pipx, fallback to venv+pip)
-if (Get-Command pipx -ErrorAction SilentlyContinue) {
-    Invoke-LoggedStep -Message "Installing ShibaClaw package via pipx..." -Step 4 -Total 7 -Action {
-        pipx install "shibaclaw[windows-native]"
-    }
-    $shibaExec = "shibaclaw"
-}
-else {
-    $venvDir = "$installDir\venv"
-
-    Invoke-LoggedStep -Message "Setting up ShibaClaw virtual environment..." -Step 4 -Total 7 -Action {
-        & $pythonCmd -m venv $venvDir
-        & "$venvDir\Scripts\python.exe" -m pip install --upgrade pip --disable-pip-version-check
-        & "$venvDir\Scripts\python.exe" -m pip install "shibaclaw[windows-native]" --disable-pip-version-check
-    }
-
-    $scriptsPath = "$venvDir\Scripts"
-    $currentPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
-    if ($currentPath -notlike "*$scriptsPath*") {
-        Write-Host ">> Adding ShibaClaw to User PATH..." -ForegroundColor Cyan
-        [System.Environment]::SetEnvironmentVariable("Path", "$currentPath;$scriptsPath", "User")
-        $env:Path += ";$scriptsPath"
-    }
-    $shibaExec = "$venvDir\Scripts\shibaclaw.exe"
-}
-
-$absExec = $shibaExec
-if ($absExec -eq "shibaclaw") {
-    $cmdPath = Get-Command shibaclaw -ErrorAction SilentlyContinue
-    if ($cmdPath) {
-        $absExec = $cmdPath.Source
-    }
-    else {
-        $pipxDefault = "$HOME\.local\bin\shibaclaw.exe"
-        if (Test-Path $pipxDefault) {
-            $absExec = $pipxDefault
-        }
-    }
-}
-
-# Resolve shibaclaw-desktop.exe (gui-script: no console window)
-$desktopExec = $null
-$desktopArgs = $null
-$absExecDir = Split-Path $absExec -Parent
-$desktopCandidate = Join-Path $absExecDir "shibaclaw-desktop.exe"
-if (Test-Path $desktopCandidate) {
-    $desktopExec = $desktopCandidate
-}
-else {
-    $cmdPath = Get-Command shibaclaw-desktop -ErrorAction SilentlyContinue
-    if ($cmdPath) { $desktopExec = $cmdPath.Source }
-}
-
-if ($null -eq $desktopExec) {
-    Write-Host "[!] shibaclaw-desktop.exe not found; shortcuts will use console mode." -ForegroundColor Yellow
-    $desktopExec = $absExec
-    $desktopArgs = "desktop"
-}
-
-Write-Host "[OK] Installation complete!" -ForegroundColor Green
-
-# ---------------------------------------------------------------------------
+# ── Write embedded uninstall script ──────────────────────────────────────────
 
 $uninstallContent = @'
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -236,6 +151,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $logPath = Join-Path $env:TEMP 'ShibaClaw-uninstall.log'
+
 function Log-Message {
     param([string]$Message)
     $entry = "$(Get-Date -Format o) $Message"
@@ -260,7 +176,7 @@ function Resolve-ShibaClawInstallDir {
     foreach ($candidate in $candidates) {
         $candidatePath = [System.IO.Path]::GetFullPath($candidate)
         if ($candidatePath) {
-            if ($candidatePath -match '[\\/]\.shibaclaw$') {
+            if ($candidatePath -match '[\\\/]\.shibaclaw$') {
                 return $candidatePath
             }
             return (Join-Path $candidatePath ".shibaclaw")
@@ -285,7 +201,7 @@ function Write-Warn([string]$Message) {
 function Confirm-Uninstall {
     if ($Force) { return $true }
     try {
-        $answer = Read-Host "This will remove ShibaClaw installation and shortcuts. Continue? [y/N]"
+        $answer = Read-Host "This will remove the ShibaClaw installation, shortcuts, and local app files. Continue? [y/N]"
         return $answer -match '^(y|yes)$'
     }
     catch {
@@ -308,62 +224,63 @@ Log-Message "Resolved install dir: $installDir"
 $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) "ShibaClaw.lnk"
 $startMenuShortcut = Join-Path ([Environment]::GetFolderPath('Programs')) "ShibaClaw.lnk"
 
+# Remove pipx installation if present (legacy)
 if (Get-Command pipx -ErrorAction SilentlyContinue) {
-    Write-Step "Removing pipx installation..."
+    Write-Step "Checking for pipx installation..."
     Log-Message "Attempting pipx uninstall"
     try {
-        pipx uninstall shibaclaw -q
+        pipx uninstall shibaclaw -q 2>$null
         Log-Message "pipx uninstall completed"
     }
     catch {
-        Log-Message "pipx uninstall failed: $($_.Exception.Message)"
+        Log-Message "pipx uninstall skipped: $($_.Exception.Message)"
     }
 }
 
-foreach ($target in @($desktopShortcut, $startMenuShortcut, $installDir)) {
+# Remove app directory (new layout) and venv (legacy layout)
+$removeDirs = @(
+    (Join-Path $installDir "app"),
+    (Join-Path $installDir "venv")
+)
+
+foreach ($target in @($desktopShortcut, $startMenuShortcut) + $removeDirs) {
     if (Test-Path $target) {
         try {
             Remove-Item -Path $target -Recurse -Force -ErrorAction Stop
-            Log-Message "Removed target: ${target}"
+            Log-Message "Removed: ${target}"
         }
         catch {
             Log-Message "Failed to remove ${target}: $($_.Exception.Message)"
         }
     }
     else {
-        Log-Message "Target not found: ${target}"
+        Log-Message "Not found (skipped): ${target}"
     }
 }
 
-$commandsToRemove = @()
-$shibaclawCommand = Get-Command shibaclaw -ErrorAction SilentlyContinue
-if ($shibaclawCommand) { $commandsToRemove += $shibaclawCommand.Source }
-$desktopCommand = Get-Command shibaclaw-desktop -ErrorAction SilentlyContinue
-if ($desktopCommand) { $commandsToRemove += $desktopCommand.Source }
-
-foreach ($commandPath in $commandsToRemove | Select-Object -Unique) {
-    $userBinPattern = "${HOME}\.local\bin*"
-    $installPattern = "${HOME}\.shibaclaw*"
-    $venvPattern = "*\venv\Scripts\*"
-    if ($commandPath -and ($commandPath -like $userBinPattern -or $commandPath -like $installPattern -or $commandPath -like $venvPattern)) {
-        try {
-            Remove-Item -Path $commandPath -Force -ErrorAction Stop
-            Log-Message "Removed executable: ${commandPath}"
-        }
-        catch {
-            Log-Message "Failed to remove executable ${commandPath}: $($_.Exception.Message)"
-        }
-    }
-}
-
+# Clean PATH entries
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath) {
-    $entries = $userPath -split ';' | Where-Object { $_ -and $_ -ne (Join-Path $installDir "venv\Scripts") }
+    $shibaPatterns = @(
+        (Join-Path $installDir "app\ShibaClaw"),
+        (Join-Path $installDir "app\ShibaClaw\"),
+        (Join-Path $installDir "venv\Scripts"),
+        (Join-Path $installDir "venv\Scripts\")
+    )
+    $entries = $userPath -split ';' | Where-Object {
+        $entry = $_
+        $keep = $true
+        foreach ($pat in $shibaPatterns) {
+            if ($entry -eq $pat) { $keep = $false; break }
+        }
+        $keep
+    }
     $newPath = $entries -join ';'
+
     if ($newPath -ne $userPath) {
         try {
             [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
-            Log-Message "Updated user PATH to remove venv entry"
+            Log-Message "Cleaned ShibaClaw entries from user PATH"
         }
         catch {
             Log-Message "Failed to update user PATH: $($_.Exception.Message)"
@@ -371,6 +288,7 @@ if ($userPath) {
     }
 }
 
+# Remove registry uninstall entry
 $registryKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ShibaClaw'
 if (Test-Path $registryKey) {
     try {
@@ -382,69 +300,77 @@ if (Test-Path $registryKey) {
     }
 }
 
-Write-Success "ShibaClaw has been removed. Please close and reopen your terminal to refresh PATH."
+# Remove install.log and uninstall script itself
+$selfPath = $MyInvocation.MyCommand.Path
+$installLog = Join-Path $installDir "install.log"
+Remove-Item -Path $installLog -Force -ErrorAction SilentlyContinue
+
+Write-Success "ShibaClaw has been removed."
+Write-Host "Please close and reopen your terminal to refresh PATH."
 Log-Message "Uninstall completed."
 '@
 
 $uninstallContent | Set-Content -Path $uninstallScript -Encoding UTF8 -Force
 
-Show-InstallProgress -Message "Registering uninstall entry..." -Step 5 -Total 7
+# ── Register in Apps & Features ──────────────────────────────────────────────
+
 try {
-    $displayIcon = Join-Path $installDir "assets\shibaclaw.ico"
-    Register-ShibaClawUninstallEntry -UninstallScriptPath $uninstallScript -InstallDir $installDir -DisplayVersion "0.6.6" -DisplayIcon $displayIcon
+    $appKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ShibaClaw"
+    $uninstallCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$uninstallScript`" -Force -InstallDir `"$installDir`""
+
+    New-Item -Path $appKeyPath -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "DisplayName"          -Value "ShibaClaw"           -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "DisplayVersion"       -Value $displayVersion       -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "Publisher"             -Value "RikyZ90"             -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "InstallLocation"      -Value $shibaDir             -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "UninstallString"      -Value $uninstallCommand     -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "QuietUninstallString" -Value $uninstallCommand     -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "DisplayIcon"          -Value "$shibaExe,0"         -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "NoModify"             -Value 1                     -PropertyType DWord  -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "NoRepair"             -Value 1                     -PropertyType DWord  -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "EstimatedSize"        -Value 1024                  -PropertyType DWord  -Force | Out-Null
+    New-ItemProperty -Path $appKeyPath -Name "URLInfoAbout"         -Value "https://github.com/RikyZ90/ShibaClaw" -PropertyType String -Force | Out-Null
+
+    Write-Host "[OK] Registered in Apps & Features." -ForegroundColor Green
 }
 catch {
     Write-Warning "Could not register uninstall entry: $($_.Exception.Message)"
 }
 
-Show-InstallProgress -Message "Creating shortcuts..." -Step 6 -Total 7
-try {
-    $assetsDir = "$installDir\assets"
-    if (!(Test-Path $assetsDir)) {
-        New-Item -ItemType Directory -Path $assetsDir | Out-Null
-    }
-    $icoPath = "$assetsDir\shibaclaw.ico"
-    if (!(Test-Path $icoPath)) {
-        Write-Host ">> Fetching ShibaClaw icon..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/assets/shibaclaw.ico" `
-            -OutFile $icoPath -UseBasicParsing -ErrorAction SilentlyContinue
-    }
+# ── Create shortcuts ─────────────────────────────────────────────────────────
 
+try {
     $WshShell = New-Object -ComObject WScript.Shell
 
-    # Desktop shortcut
     $DesktopPath = [System.Environment]::GetFolderPath('Desktop')
     $lnkDesktop = "$DesktopPath\ShibaClaw.lnk"
     $Shortcut = $WshShell.CreateShortcut($lnkDesktop)
-    $Shortcut.TargetPath = $desktopExec
-    $Shortcut.WorkingDirectory = Split-Path $desktopExec -Parent
-    if ($desktopArgs) { $Shortcut.Arguments = $desktopArgs }
-    if (Test-Path $icoPath) { $Shortcut.IconLocation = "$icoPath,0" }
+    $Shortcut.TargetPath = $shibaExe
+    $Shortcut.WorkingDirectory = $shibaDir
+    $Shortcut.IconLocation = "$shibaExe,0"
     $Shortcut.Save()
 
-    # Start Menu shortcut
     $StartMenuPath = [System.Environment]::GetFolderPath('Programs')
     $lnkStartMenu = "$StartMenuPath\ShibaClaw.lnk"
     $Shortcut2 = $WshShell.CreateShortcut($lnkStartMenu)
-    $Shortcut2.TargetPath = $desktopExec
-    $Shortcut2.WorkingDirectory = Split-Path $desktopExec -Parent
-    if ($desktopArgs) { $Shortcut2.Arguments = $desktopArgs }
-    if (Test-Path $icoPath) { $Shortcut2.IconLocation = "$icoPath,0" }
+    $Shortcut2.TargetPath = $shibaExe
+    $Shortcut2.WorkingDirectory = $shibaDir
+    $Shortcut2.IconLocation = "$shibaExe,0"
     $Shortcut2.Save()
 
-    Write-Host "[OK] Shortcuts created with ShibaClaw icon." -ForegroundColor Green
+    Write-Host "[OK] Shortcuts created (Desktop + Start Menu)." -ForegroundColor Green
 }
 catch {
-    Write-Host "[!] Failed to create shortcuts. You can still run 'shibaclaw' from your terminal." -ForegroundColor Yellow
+    Write-Host "[!] Failed to create shortcuts. You can still run ShibaClaw.exe directly from $shibaDir" -ForegroundColor Yellow
 }
 
-$env:PYTHONIOENCODING = "utf-8"
-if ($desktopArgs) {
-    Start-Process $desktopExec -ArgumentList $desktopArgs
-}
-else {
-    Start-Process $desktopExec
-}
+# ── 6. Launch ────────────────────────────────────────────────────────────────
 
-Show-InstallProgress -Message "ShibaClaw is opening..." -Step 7 -Total 7
+Show-InstallProgress -Message "Launching ShibaClaw..." -Step 6 -Total 6
+
+Start-Process $shibaExe
+
 Write-Progress -Activity "ShibaClaw installation" -Completed
+Write-Host ""
+Write-Host "[OK] Installation complete! ShibaClaw $tagName is ready." -ForegroundColor Green
+Write-Host "     You can also launch it from your Desktop shortcut or Start Menu." -ForegroundColor Gray

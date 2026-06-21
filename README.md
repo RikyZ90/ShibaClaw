@@ -46,7 +46,7 @@ See the [Changelog](./CHANGELOG.md) for full release history.
 
 ### 🚀 Auto-Installer (Recommended)
 
-The easiest way to get started. It automatically installs Python, creates an isolated environment, and launches the onboarding wizard.
+The easiest way to get started. One command downloads the latest release, sets up shortcuts, and launches the UI.
 
 **Bring your own model**: Seamlessly connect to local endpoints (Ollama, LM Studio) or use free API tiers via OpenRouter to start chatting at zero cost.
 
@@ -60,7 +60,7 @@ iwr -useb https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/insta
 curl -fsSL https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.sh | bash
 ```
 
-> **Note**: This script securely downloads ShibaClaw, creates an isolated virtual environment, installs dependencies, and automatically launches the UI. It does not modify your global Python environment.
+> **Note**: On Windows, this downloads the pre-built desktop app from the latest GitHub Release — no Python required. Desktop and Start Menu shortcuts are created automatically, and the app appears in Apps & Features for clean uninstall. On Linux/macOS, the script installs via pip in an isolated virtual environment.
 
 ### Docker
 
