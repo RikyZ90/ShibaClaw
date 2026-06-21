@@ -358,6 +358,9 @@
                     <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
                         <span class="material-icons-round">menu_book</span><span>Skills</span>
                     </button>
+                    <button class="settings-sidebar-item" data-tab="plugins" onclick="switchSettingsTab('plugins')">
+                        <span class="material-icons-round">extension</span><span>Plugins</span>
+                    </button>
                     <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
                         <span class="material-icons-round">system_update</span><span>Update</span>
                     </button>
@@ -435,6 +438,14 @@
                             <div class="dash-content">
                                 <div class="dash-title">Skills</div>
                                 <div class="dash-desc">Browse, pin & import workspace skills</div>
+                            </div>
+                            <span class="material-icons-round dash-arrow">chevron_right</span>
+                        </button>
+                        <button class="dashboard-card" onclick="switchSettingsTab('plugins')">
+                            <span class="material-icons-round dash-icon">extension</span>
+                            <div class="dash-content">
+                                <div class="dash-title">Plugins</div>
+                                <div class="dash-desc">Manage custom extensions and TTS voice engines</div>
                             </div>
                             <span class="material-icons-round dash-arrow">chevron_right</span>
                         </button>
@@ -565,9 +576,16 @@
                     </div>
 
 
-                    <!-- Tab: Providers (dynamic collapsible) -->
+                    <!-- Tab: Providers (card grid) -->
                     <div class="settings-panel" id="panel-providers" style="display:none">
-                        <div id="providers-list"></div>
+                        <div class="provider-stats-bar">
+                            <div class="provider-search-wrap">
+                                <span class="material-icons-round">search</span>
+                                <input type="text" id="provider-search" class="provider-search-input" placeholder="Filter providers...">
+                            </div>
+                            <div class="provider-stats-count" id="provider-stats"></div>
+                        </div>
+                        <div class="provider-grid" id="providers-list"></div>
                     </div>
 
 
@@ -597,6 +615,36 @@
                                 class="form-input" placeholder="whisper-large-v3-turbo"></div>
                         <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input
                                     type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
+                        <div class="field-row" id="tts-provider-row" style="display:none">
+                            <label>TTS Provider</label>
+                            <select id="s-audio-ttsProvider" class="form-input">
+                                <option value="browser">Browser Native Synthesis</option>
+                                <option value="supertonic">Supertonic TTS (Local ONNX)</option>
+                            </select>
+                        </div>
+                        <div class="field-row" id="tts-voice-row" style="display:none">
+                            <label>TTS Voice</label>
+                            <select id="s-audio-ttsVoice" class="form-input">
+                                <option value="F1">Female 1 (en_female)</option>
+                                <option value="M1">Male 1 (en_male)</option>
+                            </select>
+                        </div>
+                        <div class="field-row" id="tts-lang-row" style="display:none">
+                            <label>TTS Language</label>
+                            <select id="s-audio-ttsLang" class="form-input">
+                                <option value="en">English (en)</option>
+                                <option value="it">Italiano (it)</option>
+                                <option value="es">Español (es)</option>
+                                <option value="fr">Français (fr)</option>
+                                <option value="de">Deutsch (de)</option>
+                                <option value="ja">日本語 (ja)</option>
+                                <option value="na">Auto-detect (na)</option>
+                            </select>
+                        </div>
+                        <div class="field-row" id="tts-speed-row" style="display:none">
+                            <label>TTS Speed</label>
+                            <input type="number" id="s-audio-ttsSpeed" class="form-input" min="0.5" max="2.0" step="0.1" value="1.0">
+                        </div>
                     </div>
 
                     <!-- Tab: Tools -->
@@ -648,14 +696,29 @@
                         <input type="hidden" id="s-hb-target-id" value="">
                     </div>
 
-                    <!-- Tab: Channels -->
+                    <!-- Tab: Channels (split layout) -->
                     <div class="settings-panel" id="panel-channels" style="display:none">
-                        <div class="field-row"><label>Send Progress</label><label class="toggle"><input type="checkbox"
-                                    id="s-ch-sendProgress"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row"><label>Send Tool Hints</label><label class="toggle"><input
-                                    type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
+                        <div class="channel-top-bar">
+                            <div class="channel-top-chip">
+                                <span>Send Progress</span>
+                                <label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span class="toggle-slider"></span></label>
+                            </div>
+                            <div class="channel-top-chip">
+                                <span>Send Tool Hints</span>
+                                <label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
+                            </div>
+                            <div class="channel-top-stats" id="channel-stats"></div>
                         </div>
-                        <div id="channels-detail"></div>
+                        <div class="channel-split">
+                            <div class="channel-list" id="channel-list"></div>
+                            <div class="channel-detail-pane" id="channel-detail-pane">
+                                <div class="channel-detail-empty">
+                                    <span class="material-icons-round">touch_app</span>
+                                    Select a channel to configure
+                                </div>
+                            </div>
+                        </div>
+                        <div id="channels-detail" style="display:none"></div>
                     </div>
 
                     <!-- Tab: Skills -->
@@ -723,6 +786,33 @@
                                 </button>
                             </div>
                             <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
+                        </div>
+                    </div>
+
+                    <div class="settings-panel" id="panel-plugins" style="display:none">
+                        <div class="skills-toolbar">
+                            <input type="text" id="plugin-install-name" class="form-input"
+                                placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL...">
+                            <div class="skills-toolbar-actions">
+                                <button type="button" class="btn-primary" onclick="installPlugin()">
+                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">download</span> Install
+                                </button>
+                            </div>
+                        </div>
+                        <div id="plugin-action-log" class="console-box" style="display:none; font-family:var(--font-mono); font-size:0.75rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:16px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--text-secondary)"></div>
+                        <div class="skills-browse-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">extension</span>
+                                <span>Installed Plugins</span>
+                            </div>
+                            <div id="installed-plugins-list" class="skills-list"></div>
+                        </div>
+                        <div class="skills-browse-section" style="margin-top: 1.5rem;">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">cloud_download</span>
+                                <span>Available Plugins</span>
+                            </div>
+                            <div id="available-plugins-list" class="skills-list"></div>
                         </div>
                     </div>
 

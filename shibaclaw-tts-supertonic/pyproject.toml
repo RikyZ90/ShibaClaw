@@ -1,0 +1,14 @@
+[project]
+name = "shibaclaw-tts-supertonic"
+version = "0.1.0"
+dependencies = [
+    "supertonic",
+    "onnxruntime"
+]
+
+[project.entry-points."shibaclaw.tts"]
+supertonic = "shibaclaw_tts_supertonic.engine:SupertonicTTS"
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"

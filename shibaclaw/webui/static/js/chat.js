@@ -1,5 +1,95 @@
 // ── Message Rendering ─────────────────────────────────────────
 
+function createAudioPlayer(file, autoPlay = false) {
+    const container = document.createElement("div");
+    container.className = "custom-audio-player";
+    
+    const audio = document.createElement("audio");
+    audio.src = file.url;
+    audio.preload = "metadata";
+    container.appendChild(audio);
+    
+    const playBtn = document.createElement("button");
+    playBtn.className = "audio-play-btn";
+    playBtn.innerHTML = '<span class="material-icons-round">play_arrow</span>';
+    container.appendChild(playBtn);
+    
+    const progressContainer = document.createElement("div");
+    progressContainer.className = "audio-progress-container";
+    
+    const progress = document.createElement("input");
+    progress.type = "range";
+    progress.className = "audio-progress-slider";
+    progress.min = 0;
+    progress.max = 100;
+    progress.value = 0;
+    progressContainer.appendChild(progress);
+    container.appendChild(progressContainer);
+    
+    const timeLabel = document.createElement("span");
+    timeLabel.className = "audio-time-label";
+    timeLabel.textContent = "0:00 / 0:00";
+    container.appendChild(timeLabel);
+    
+    function formatTime(secs) {
+        if (isNaN(secs)) return "0:00";
+        const m = Math.floor(secs / 60);
+        const s = Math.floor(secs % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+    
+    audio.addEventListener("loadedmetadata", () => {
+        timeLabel.textContent = `0:00 / ${formatTime(audio.duration)}`;
+    });
+    
+    audio.addEventListener("timeupdate", () => {
+        if (!audio.duration) return;
+        const pct = (audio.currentTime / audio.duration) * 100;
+        progress.value = pct;
+        timeLabel.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+    });
+    
+    progress.addEventListener("input", (e) => {
+        if (!audio.duration) return;
+        const seekTo = (e.target.value / 100) * audio.duration;
+        audio.currentTime = seekTo;
+    });
+    
+    playBtn.addEventListener("click", () => {
+        if (audio.paused) {
+            document.querySelectorAll("audio").forEach(otherAudio => {
+                if (otherAudio !== audio) otherAudio.pause();
+            });
+            audio.play().catch(err => console.debug("Play error:", err));
+            playBtn.innerHTML = '<span class="material-icons-round">pause</span>';
+        } else {
+            audio.pause();
+            playBtn.innerHTML = '<span class="material-icons-round">play_arrow</span>';
+        }
+    });
+    
+    audio.addEventListener("ended", () => {
+        playBtn.innerHTML = '<span class="material-icons-round">play_arrow</span>';
+        progress.value = 0;
+    });
+    
+    if (autoPlay) {
+        audio.addEventListener("canplaythrough", () => {
+            const ttsToggle = document.getElementById("tts-toggle");
+            if (ttsToggle && ttsToggle.checked) {
+                if (window.speechTTS) window.speechTTS.stop();
+                document.querySelectorAll("audio").forEach(otherAudio => {
+                    if (otherAudio !== audio) otherAudio.pause();
+                });
+                audio.play().catch(err => console.debug("Autoplay blocked by browser policy"));
+                playBtn.innerHTML = '<span class="material-icons-round">pause</span>';
+            }
+        }, { once: true });
+    }
+    
+    return container;
+}
+
 async function downloadAttachment(url, fileName) {
     try {
         const res = await authFetch(url);
@@ -31,11 +121,15 @@ function addUserMessage(content, attachments = []) {
 
     attachments.forEach(file => {
         const isImage = typeof file.type === "string" && file.type.startsWith("image/");
+        const isAudio = typeof file.type === "string" && file.type.startsWith("audio/");
         if (isImage) {
             const img = document.createElement("img");
             img.src = file.url;
             img.onclick = () => window.open(file.url, "_blank");
             bubble.appendChild(img);
+        } else if (isAudio) {
+            const player = createAudioPlayer(file, false);
+            bubble.appendChild(player);
         } else {
             const link = buildFileAttachmentLink(file, () => {
                 downloadAttachment(file.url, file.name || "attachment");
@@ -62,12 +156,17 @@ function addAgentMessage(id, content, attachments = []) {
     enhanceCodeBlocks(bubble);
 
     attachments.forEach(file => {
-        if (file.type && file.type.startsWith("image/")) {
+        const isImage = typeof file.type === "string" && file.type.startsWith("image/");
+        const isAudio = typeof file.type === "string" && file.type.startsWith("audio/");
+        if (isImage) {
             const img = document.createElement("img");
             img.src = file.url;
             img.onload = () => { if (typeof scrollToBottom === 'function') scrollToBottom(); };
             img.onclick = () => window.open(file.url, "_blank");
             bubble.appendChild(img);
+        } else if (isAudio) {
+            const player = createAudioPlayer(file, true);
+            bubble.appendChild(player);
         } else {
             const link = buildFileAttachmentLink(file, () => {
                 downloadAttachment(file.url, file.name || "file");

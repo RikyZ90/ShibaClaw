@@ -74,6 +74,9 @@ from .api import (
     api_update_check,
     api_update_manifest,
     api_upload,
+    api_list_plugins,
+    api_install_plugin,
+    api_uninstall_plugin,
 )
 from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
 from .gateway_client import gateway_client
@@ -150,6 +153,9 @@ def create_app(
         ),
         Route("/api/oauth/openrouter/callback", api_oauth_openrouter_callback, methods=["GET"]),
         Route("/api/upload", api_upload, methods=["POST"]),
+        Route("/api/plugins", api_list_plugins, methods=["GET"]),
+        Route("/api/plugins/install", api_install_plugin, methods=["POST"]),
+        Route("/api/plugins/uninstall", api_uninstall_plugin, methods=["POST"]),
         Route("/api/file-get", api_file_get, methods=["GET"]),
         Route("/api/file-save", api_file_save, methods=["POST"]),
         Route("/api/fs/explore", api_fs_explore, methods=["GET"]),

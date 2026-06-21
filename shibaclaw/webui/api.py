@@ -261,6 +261,11 @@ from .routers.skills import (  # noqa: E402, F401
     api_skills_list,
     api_skills_pin,
 )
+from .routers.plugins import (  # noqa: E402, F401
+    api_list_plugins,
+    api_install_plugin,
+    api_uninstall_plugin,
+)
 from .routers.system import (  # noqa: E402, F401
     api_restart_server,
     api_update_apply,

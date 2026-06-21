@@ -223,6 +223,13 @@ class MicrophoneInput {
                 } else if (response.text) {
                     const txt = response.text.trim();
                     if (txt) {
+                        if (response.audio_url) {
+                            state.stagedFiles.push({
+                                name: "Voice Message",
+                                url: response.audio_url,
+                                type: "audio/wav"
+                            });
+                        }
                         if (this.updateCallback) this.updateCallback(txt);
                         if (this.sendCallback) this.sendCallback();
                     }

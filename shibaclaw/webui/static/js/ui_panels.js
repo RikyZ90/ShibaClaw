@@ -1045,6 +1045,7 @@ window.switchSettingsTab = function (tab, options = {}) {
     if (tab === "oauth") loadOAuthPanel();
     if (tab === "update") loadUpdatePanel();
     if (tab === "skills") loadSkillsPanel();
+    if (tab === "plugins") loadPluginsPanel();
     if (tab === "heartbeat") loadHeartbeatSettingsPanel();
     try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch (e) { }
 
@@ -1495,10 +1496,29 @@ function populateSettings(cfg) {
     $("s-audio-providerUrl").value = au.providerUrl || "";
     $("s-audio-apiKey").value = au.apiKey || "";
     $("s-audio-model").value = au.model || "";
-    // sync TTS toggle with config value (with localStorage as fallback)
+
+    const providerSelect = document.getElementById("s-audio-ttsProvider");
+    const voiceSelect = document.getElementById("s-audio-ttsVoice");
+    const langSelect = document.getElementById("s-audio-ttsLang");
+    const speedInput = document.getElementById("s-audio-ttsSpeed");
+    if (providerSelect) providerSelect.value = au.ttsProvider || "browser";
+    if (voiceSelect) voiceSelect.value = au.ttsVoice || "F1";
+    if (langSelect) langSelect.value = au.ttsLang || "en";
+    if (speedInput) speedInput.value = au.ttsSpeed ?? 1.0;
+
     const ttsFromConfig = au.ttsEnabled !== undefined ? au.ttsEnabled : (localStorage.getItem("shibaclaw_tts_enabled") === "true");
-    $("tts-toggle").checked = ttsFromConfig;
+    const toggleEl = $("tts-toggle");
+    toggleEl.checked = ttsFromConfig;
     if (window.speechTTS) window.speechTTS.enabled = ttsFromConfig;
+
+    toggleEl.onchange = (e) => {
+        if (window.speechTTS) window.speechTTS.enabled = e.target.checked;
+        localStorage.setItem("shibaclaw_tts_enabled", e.target.checked);
+        if (!e.target.checked && window.speechTTS) window.speechTTS.stop();
+        updateTtsSettingsVisibility();
+    };
+    if (providerSelect) providerSelect.onchange = updateTtsSettingsVisibility;
+    setTimeout(() => { if (typeof updateTtsSettingsVisibility === "function") updateTtsSettingsVisibility(); }, 50);
 
     // UI toggles for thought blocks (per-user local overrides)
     try {
@@ -1531,23 +1551,61 @@ function populateSettings(cfg) {
     const prov = cfg.providers || {};
     const list = $("providers-list");
     list.innerHTML = "";
-    for (const [name, pc] of Object.entries(prov)) {
+
+    const PROV_ICONS = {
+        custom: "tune", azureOpenai: "cloud", anthropic: "psychology", openai: "auto_awesome",
+        openrouter: "route", deepseek: "explore", groq: "speed", zhipu: "translate",
+        dashscope: "dashboard", vllm: "memory", ollama: "dns", gemini: "diamond",
+        moonshot: "dark_mode", minimax: "compress", aihubmix: "hub", siliconflow: "waves",
+        volcengine: "volcano", volcentineCodingPlan: "code", byteplus: "add_box",
+        byteplusCodingPlan: "code", openaiCodex: "terminal", githubCopilot: "code",
+    };
+
+    const provEntries = Object.entries(prov);
+    let configuredCount = 0;
+    let expandedProv = null;
+
+    const provTiles = new Map();
+
+    for (const [name, pc] of provEntries) {
         const hasKey = !!(pc.apiKey);
+        if (hasKey) configuredCount++;
         const displayName = name.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase());
-        const card = document.createElement("div");
-        card.className = "accordion";
-        card.innerHTML = `
-            <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
-                <div class="accordion-title">
-                    <span class="material-icons-round" style="font-size:18px">key</span>
-                    ${displayName}
+        const icon = PROV_ICONS[name] || "key";
+
+        const tile = document.createElement("div");
+        tile.className = "provider-tile" + (hasKey ? " configured" : "");
+        tile.dataset.provName = name;
+        tile.dataset.displayName = displayName.toLowerCase();
+        tile.innerHTML = `
+            <div class="provider-tile-icon"><span class="material-icons-round">${icon}</span></div>
+            <div class="provider-tile-name">${displayName}</div>
+            <span class="provider-tile-badge ${hasKey ? 'on' : 'off'}">${hasKey ? '✓ Configured' : 'Not set'}</span>`;
+
+        tile.addEventListener("click", () => {
+            const wasExpanded = tile.classList.contains("expanded");
+
+            list.querySelectorAll(".provider-tile").forEach(t => t.classList.remove("expanded"));
+            const oldExpand = list.querySelector(".provider-tile-expand");
+            if (oldExpand) oldExpand.remove();
+
+            if (wasExpanded) { expandedProv = null; return; }
+
+            tile.classList.add("expanded");
+            expandedProv = name;
+
+            const expandPanel = document.createElement("div");
+            expandPanel.className = "provider-tile-expand";
+            expandPanel.innerHTML = `
+                <div class="provider-expand-header">
+                    <div class="provider-expand-title">
+                        <span class="material-icons-round" style="font-size:18px">${icon}</span>
+                        ${displayName}
+                    </div>
+                    <button class="provider-expand-close" title="Close">
+                        <span class="material-icons-round" style="font-size:18px">close</span>
+                    </button>
                 </div>
-                <div class="accordion-right">
-                    <span class="acc-badge ${hasKey ? 'on' : 'off'}">${hasKey ? 'Configured' : 'Not set'}</span>
-                    <span class="material-icons-round accordion-arrow">expand_more</span>
-                </div>
-            </div>
-            <div class="accordion-body">
                 <div class="field-row">
                     <label>API Key</label>
                     <input type="password" class="form-input prov-key" data-prov="${name}" value="${pc.apiKey || ""}" placeholder="${providerKeyPlaceholder(name)}">
@@ -1555,9 +1613,47 @@ function populateSettings(cfg) {
                 <div class="field-row">
                     <label>API Base URL</label>
                     <input type="text" class="form-input prov-base" data-prov="${name}" value="${pc.apiBase || ""}" placeholder="(default)">
-                </div>
-            </div>`;
-        list.appendChild(card);
+                </div>`;
+
+            expandPanel.querySelector(".provider-expand-close").addEventListener("click", (e) => {
+                e.stopPropagation();
+                tile.classList.remove("expanded");
+                expandPanel.remove();
+                expandedProv = null;
+            });
+
+            expandPanel.addEventListener("click", (e) => e.stopPropagation());
+
+            tile.after(expandPanel);
+        });
+
+        list.appendChild(tile);
+        provTiles.set(name, tile);
+    }
+
+    const statsEl = $("provider-stats");
+    if (statsEl) {
+        statsEl.innerHTML = `<span class="stat-configured">${configuredCount} Configured</span><span class="stat-dot"></span><span>${provEntries.length} Total</span>`;
+    }
+
+    const searchInput = document.getElementById("provider-search");
+    if (searchInput) {
+        searchInput.addEventListener("input", () => {
+            const q = searchInput.value.toLowerCase().trim();
+            for (const [name, tile] of provTiles) {
+                const matches = !q || name.toLowerCase().includes(q) || tile.dataset.displayName.includes(q);
+                tile.style.display = matches ? "" : "none";
+            }
+            const expandPanel = list.querySelector(".provider-tile-expand");
+            if (expandPanel && expandedProv) {
+                const parentTile = provTiles.get(expandedProv);
+                if (parentTile && parentTile.style.display === "none") {
+                    expandPanel.remove();
+                    parentTile.classList.remove("expanded");
+                    expandedProv = null;
+                }
+            }
+        });
     }
 
     const tw = cfg.tools?.web || {};
@@ -1622,6 +1718,13 @@ function populateSettings(cfg) {
     detail.innerHTML = "";
     const skip = ["sendProgress", "sendToolHints"];
 
+    const CH_ICON_MAP = {
+        telegram: "send", discord: "forum", slack: "tag", whatsapp: "chat",
+        webui: "language", cli: "terminal", email: "email", dingtalk: "notifications",
+        feishu: "chat_bubble", matrix: "grid_view", mochat: "sms", qq: "forum",
+        wecom: "business",
+    };
+
     const EMAIL_FIELD_CONFIG = {
         imapHost: { label: "IMAP Server", section: "inbound", type: "text", placeholder: "imap.gmail.com" },
         imapPort: { label: "IMAP Port", section: "inbound", type: "number", placeholder: "993" },
@@ -1644,85 +1747,68 @@ function populateSettings(cfg) {
         allowFrom: { label: "Allowed Senders", section: "general", type: "array", placeholder: "email1@test.com, email2@test.com" },
     };
 
+    const channelEntries = [];
     for (const [name, cc] of Object.entries(ch)) {
         if (skip.includes(name) || typeof cc !== "object") continue;
-        const enabled = cc.enabled === true;
-        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-        const card = document.createElement("div");
-        card.className = "accordion";
+        channelEntries.push([name, cc]);
+    }
 
+    const channelListEl = document.getElementById("channel-list");
+    const channelDetailPane = document.getElementById("channel-detail-pane");
+    if (channelListEl) channelListEl.innerHTML = "";
+
+    let activeCount = 0;
+    let selectedChannel = null;
+
+    function buildChannelFields(name, cc) {
+        const enabled = cc.enabled === true;
         let fieldsHtml = `
             <div class="field-row">
                 <label>Enabled</label>
                 <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
             </div>
         `;
+
         if (name === "email") {
             fieldsHtml += `
             <div class="field-row">
                 <label>Authorize IMAP/SMTP access</label>
                 <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="consentGranted" data-type="boolean" ${(cc.consentGranted || cc.consent_granted) ? "checked" : ""}><span class="toggle-slider"></span></label>
-                <span style="font-size:11px;color:var(--text-muted);margin-left:4px">Required to allow ShibaClaw to read and send emails on your behalf</span>
             </div>
             `;
         }
 
         if (name === "email" && EMAIL_FIELD_CONFIG) {
             const sections = { inbound: [], outbound: [], general: [] };
-
             for (const [key, val] of Object.entries(cc)) {
                 if (key === "enabled" || key === "consentGranted" || key === "consent_granted") continue;
-
-                const fieldConfig = EMAIL_FIELD_CONFIG[key] || EMAIL_FIELD_CONFIG[key.replace(/([A-Z])/g, (m) => m.toLowerCase())] || null;
+                const fieldConfig = EMAIL_FIELD_CONFIG[key] || null;
                 const section = fieldConfig?.section || "general";
                 const label = fieldConfig?.label || key;
-                const inputType = fieldConfig?.type || "text";
                 const placeholder = fieldConfig?.placeholder || "";
 
                 let valStr = "";
                 let originalType = typeof val;
-                if (Array.isArray(val)) {
-                    originalType = "array";
-                    valStr = val.join(", ");
-                } else if (val !== null && originalType === "object") {
-                    originalType = "object";
-                    valStr = JSON.stringify(val);
-                } else {
-                    if (val === null) originalType = "string";
-                    valStr = val === null ? "" : String(val);
-                }
+                if (Array.isArray(val)) { originalType = "array"; valStr = val.join(", "); }
+                else if (val !== null && originalType === "object") { originalType = "object"; valStr = JSON.stringify(val); }
+                else { if (val === null) originalType = "string"; valStr = val === null ? "" : String(val); }
 
                 let inputHtml = "";
                 if (originalType === "boolean" || fieldConfig?.type === "boolean") {
-                    inputHtml = `
-                        <div class="field-row">
-                            <label>${label}</label>
-                            <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${valStr === "true" || val === true ? "checked" : ""}><span class="toggle-slider"></span></label>
-                        </div>`;
+                    inputHtml = `<div class="field-row"><label>${label}</label><label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${valStr === "true" || val === true ? "checked" : ""}><span class="toggle-slider"></span></label></div>`;
                 } else {
                     const isPassword = fieldConfig?.type === "password" || key.toLowerCase().includes("password") || key.toLowerCase().includes("secret");
                     const safeVal = String(valStr).replace(/"/g, '&quot;');
-                    inputHtml = `
-                        <div class="field-row">
-                            <label>${label}</label>
-                            <input type="${isPassword ? "password" : (fieldConfig?.type || "text")}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}" placeholder="${placeholder}">
-                        </div>
-                    `;
+                    inputHtml = `<div class="field-row"><label>${label}</label><input type="${isPassword ? "password" : (fieldConfig?.type || "text")}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}" placeholder="${placeholder}"></div>`;
                 }
-
                 if (!sections[section]) sections[section] = [];
                 sections[section].push(inputHtml);
             }
 
-            const sectionLabels = {
-                inbound: '📥 Email IN (IMAP)',
-                outbound: '📤 Email OUT (SMTP)',
-                general: '⚙️ General'
-            };
-
+            const sectionLabels = { inbound: '📥 Email IN (IMAP)', outbound: '📤 Email OUT (SMTP)', general: '⚙️ General' };
             for (const [sectionKey, sectionFields] of Object.entries(sections)) {
                 if (sectionFields.length > 0) {
-                    fieldsHtml += `<div style="padding: 8px 0 4px; font-weight: 600; color: var(--text-muted); font-size: 13px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">${sectionLabels[sectionKey] || sectionKey}</div>`;
+                    fieldsHtml += `<div class="channel-detail-section-label">${sectionLabels[sectionKey] || sectionKey}</div>`;
                     fieldsHtml += sectionFields.join("");
                 }
             }
@@ -1732,67 +1818,134 @@ function populateSettings(cfg) {
                 let inputType = "text";
                 let valStr = "";
                 let originalType = typeof val;
-                if (Array.isArray(val)) {
-                    originalType = "array";
-                    valStr = val.join(", ");
-                } else if (val !== null && originalType === "object") {
-                    originalType = "object";
-                    valStr = JSON.stringify(val);
-                } else {
-                    if (val === null) originalType = "string";
-                    valStr = val === null ? "" : String(val);
-                }
+                if (Array.isArray(val)) { originalType = "array"; valStr = val.join(", "); }
+                else if (val !== null && originalType === "object") { originalType = "object"; valStr = JSON.stringify(val); }
+                else { if (val === null) originalType = "string"; valStr = val === null ? "" : String(val); }
 
                 if (originalType === "boolean") {
-                    fieldsHtml += `
-                        <div class="field-row">
-                            <label>${key}</label>
-                            <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label>
-                        </div>`;
+                    fieldsHtml += `<div class="field-row"><label>${key}</label><label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label></div>`;
                     continue;
                 }
 
                 const lowerKey = key.toLowerCase();
-                if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
-                    inputType = "password";
-                }
+                if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) inputType = "password";
 
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
-                fieldsHtml += `
-                    <div class="field-row">
-                        <label>${key}</label>
-                        <input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}">
-                    </div>
-                `;
+                fieldsHtml += `<div class="field-row"><label>${key}</label><input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}"></div>`;
             }
         }
+        return fieldsHtml;
+    }
 
-        const iconMap = {
-            telegram: "send",
-            discord: "forum",
-            slack: "tag",
-            whatsapp: "chat",
-            webui: "language",
-            cli: "terminal",
-            email: "email",
-        };
-        const iconName = iconMap[name] || "chat";
+    function selectChannel(name, cc) {
+        if (!channelDetailPane || !channelListEl) return;
+        selectedChannel = name;
 
-        card.innerHTML = `
-            <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
-                <div class="accordion-title">
-                    <span class="material-icons-round" style="font-size:18px">${iconName}</span>
-                    ${displayName}
-                </div>
-                <div class="accordion-right">
-                    <span class="acc-badge ${enabled ? 'on' : 'off'}">${enabled ? 'ON' : 'OFF'}</span>
-                    <span class="material-icons-round accordion-arrow">expand_more</span>
-                </div>
+        channelListEl.querySelectorAll(".channel-list-item").forEach(el => {
+            el.classList.toggle("active", el.dataset.ch === name);
+        });
+
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+        const iconName = CH_ICON_MAP[name] || "chat";
+        const fieldsHtml = buildChannelFields(name, cc);
+
+        channelDetailPane.innerHTML = `
+            <div class="channel-detail-header">
+                <div class="channel-detail-icon"><span class="material-icons-round">${iconName}</span></div>
+                <div class="channel-detail-title">${displayName}</div>
             </div>
-            <div class="accordion-body">
-                ${fieldsHtml}
-            </div>`;
-        detail.appendChild(card);
+            ${fieldsHtml}`;
+
+        const hiddenInputs = detail.querySelectorAll(`input[data-ch="${name}"]`);
+        const hiddenInputMap = new Map();
+        hiddenInputs.forEach(el => {
+            const k = el.classList.contains("ch-enabled") ? "__enabled__" : el.dataset.key;
+            hiddenInputMap.set(k, el);
+        });
+
+        const paneInputs = channelDetailPane.querySelectorAll(`input[data-ch="${name}"]`);
+        paneInputs.forEach(paneEl => {
+            const k = paneEl.classList.contains("ch-enabled") ? "__enabled__" : paneEl.dataset.key;
+            const hiddenEl = hiddenInputMap.get(k);
+            if (!hiddenEl) return;
+
+            if (hiddenEl.type === "checkbox") {
+                paneEl.checked = hiddenEl.checked;
+            } else {
+                paneEl.value = hiddenEl.value;
+            }
+
+            if (paneEl.type === "checkbox") {
+                paneEl.addEventListener("change", () => { hiddenEl.checked = paneEl.checked; });
+            } else {
+                paneEl.addEventListener("input", () => { hiddenEl.value = paneEl.value; });
+            }
+        });
+
+        const enabledToggle = channelDetailPane.querySelector(`input.ch-enabled[data-ch="${name}"]`);
+        if (enabledToggle) {
+            enabledToggle.addEventListener("change", () => {
+                const item = channelListEl.querySelector(`.channel-list-item[data-ch="${name}"]`);
+                const dot = item?.querySelector(".channel-list-status");
+                if (item) item.classList.toggle("enabled", enabledToggle.checked);
+                if (dot) {
+                    dot.className = "channel-list-status " + (enabledToggle.checked ? "on" : "off");
+                }
+                updateChannelStats();
+            });
+        }
+    }
+
+    function updateChannelStats() {
+        const statsEl = document.getElementById("channel-stats");
+        if (!statsEl) return;
+        let active = 0;
+        channelListEl.querySelectorAll(".channel-list-item").forEach(el => {
+            if (el.classList.contains("enabled")) active++;
+        });
+        statsEl.innerHTML = `<span class="stat-active">${active} Active</span><span class="stat-dot"></span><span>${channelEntries.length} Total</span>`;
+    }
+
+    for (const [name, cc] of channelEntries) {
+        const enabled = cc.enabled === true;
+        if (enabled) activeCount++;
+
+        const fieldsHtml = buildChannelFields(name, cc);
+        const hiddenBlock = document.createElement("div");
+        hiddenBlock.innerHTML = fieldsHtml;
+        detail.appendChild(hiddenBlock);
+    }
+
+    let firstActive = null;
+    for (const [name, cc] of channelEntries) {
+        const enabled = cc.enabled === true;
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+        const iconName = CH_ICON_MAP[name] || "chat";
+
+        if (channelListEl) {
+            const item = document.createElement("div");
+            item.className = "channel-list-item" + (enabled ? " enabled" : "");
+            item.dataset.ch = name;
+            item.innerHTML = `
+                <span class="material-icons-round channel-list-icon">${iconName}</span>
+                <span class="channel-list-name">${displayName}</span>
+                <span class="channel-list-status ${enabled ? 'on' : 'off'}"></span>`;
+            item.addEventListener("click", () => selectChannel(name, cc));
+            channelListEl.appendChild(item);
+
+            if (!firstActive && enabled) firstActive = [name, cc];
+        }
+    }
+
+    const chStatsEl = document.getElementById("channel-stats");
+    if (chStatsEl) {
+        chStatsEl.innerHTML = `<span class="stat-active">${activeCount} Active</span><span class="stat-dot"></span><span>${channelEntries.length} Total</span>`;
+    }
+
+    if (firstActive) {
+        selectChannel(firstActive[0], firstActive[1]);
+    } else if (channelEntries.length > 0) {
+        selectChannel(channelEntries[0][0], channelEntries[0][1]);
     }
 
     const mcpServers = cfg.tools?.mcpServers || {};
@@ -1950,6 +2103,10 @@ window.saveSettings = async function () {
             apiKey: $("s-audio-apiKey").value || null,
             model: $("s-audio-model").value || "whisper-large-v3-turbo",
             ttsEnabled: $("tts-toggle").checked,
+            ttsProvider: $("s-audio-ttsProvider").value || "browser",
+            ttsVoice: $("s-audio-ttsVoice").value || "F1",
+            ttsLang: $("s-audio-ttsLang").value || "en",
+            ttsSpeed: parseFloat($("s-audio-ttsSpeed").value) || 1.0,
         }
     };
 
@@ -1965,12 +2122,13 @@ window.saveSettings = async function () {
         patch.providers[name].apiBase = value || null;
     });
 
-    document.querySelectorAll(".ch-enabled").forEach(el => {
+    const chDetailRoot = document.getElementById("channels-detail") || document;
+    chDetailRoot.querySelectorAll(".ch-enabled").forEach(el => {
         const name = el.dataset.ch;
         if (!patch.channels[name]) patch.channels[name] = {};
         patch.channels[name].enabled = el.checked;
     });
-    document.querySelectorAll(".ch-field").forEach(el => {
+    chDetailRoot.querySelectorAll(".ch-field").forEach(el => {
         const name = el.dataset.ch;
         const key = el.dataset.key;
         const type = el.dataset.type;
@@ -3175,3 +3333,173 @@ async function loadHeartbeatSettingsPanel() {
         console.error("loadHeartbeatSettingsPanel profiles fetch failed", e);
     }
 }
+
+window.loadPluginsPanel = async function () {
+    const installedList = document.getElementById("installed-plugins-list");
+    const availableList = document.getElementById("available-plugins-list");
+    if (!installedList || !availableList) return;
+
+    installedList.innerHTML = `<div class="settings-loader"><span class="material-icons-round spin">progress_activity</span> Loading plugins...</div>`;
+    availableList.innerHTML = "";
+
+    try {
+        const res = await authFetch("/api/plugins");
+        const data = await res.json();
+        
+        installedList.innerHTML = "";
+        availableList.innerHTML = "";
+
+        if (data.plugins && data.plugins.length > 0) {
+            data.plugins.forEach(p => {
+                const card = document.createElement("div");
+                card.className = "skill-card";
+                card.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border-color); border-radius:8px; margin-bottom:8px; background:var(--bg-secondary)";
+                card.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px">
+                        <span class="material-icons-round" style="color:var(--shiba-gold)">${p.type === 'tts' ? 'volume_up' : 'forum'}</span>
+                        <div>
+                            <div style="font-weight:600; font-size:0.9rem">${escapeHtml(p.display_name)}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted)">${escapeHtml(p.name)} (${escapeHtml(p.type)})</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px">
+                        <span class="acc-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? 'Enabled' : 'Disabled'}</span>
+                        ${p.name === 'supertonic' ? `
+                        <button class="btn-icon" onclick="uninstallPlugin('shibaclaw-tts-supertonic')" title="Uninstall" style="background:transparent; border:none; cursor:pointer">
+                            <span class="material-icons-round" style="color:var(--accent-red); font-size:18px">delete</span>
+                        </button>` : ''}
+                    </div>
+                `;
+                installedList.appendChild(card);
+            });
+        } else {
+            installedList.innerHTML = `<div style="color:var(--text-muted); font-size:0.85rem">No external plugins installed.</div>`;
+        }
+
+        if (data.available && data.available.length > 0) {
+            data.available.forEach(p => {
+                const card = document.createElement("div");
+                card.className = "skill-card";
+                card.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border-color); border-radius:8px; margin-bottom:8px; background:var(--bg-secondary)";
+                card.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0">
+                        <span class="material-icons-round" style="color:var(--text-muted)">cloud_download</span>
+                        <div style="min-width:0; flex:1">
+                            <div style="font-weight:600; font-size:0.9rem">${escapeHtml(p.display_name)}</div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${escapeHtml(p.description)}</div>
+                        </div>
+                    </div>
+                    <button class="btn-primary btn-sm" onclick="installPlugin('${escapeHtml(p.name)}')" style="white-space:nowrap; margin-left:12px">
+                        <span class="material-icons-round" style="font-size:14px; vertical-align:middle">download</span> Install
+                    </button>
+                `;
+                availableList.appendChild(card);
+            });
+        } else {
+            availableList.innerHTML = `<div style="color:var(--text-muted); font-size:0.85rem">No available plugins to show.</div>`;
+        }
+    } catch (e) {
+        installedList.innerHTML = `<div style="color:var(--accent-red); font-size:0.85rem">Error loading plugins list: ${escapeHtml(e.message || e)}</div>`;
+    }
+};
+
+window.installPlugin = async function (explicitName) {
+    const input = document.getElementById("plugin-install-name");
+    const name = (explicitName || (input ? input.value : "")).trim();
+    if (!name) return;
+
+    const logEl = document.getElementById("plugin-action-log");
+    if (logEl) {
+        logEl.style.display = "block";
+        logEl.textContent = `Installing ${name}... please wait.\nThis runs pip install and will automatically restart the server.`;
+    }
+
+    try {
+        const res = await authFetch("/api/plugins/install", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ package: name })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+            if (logEl) logEl.textContent = `Error: ${data.error || "Installation failed"}\n\n${data.stdout || ""}`;
+            return;
+        }
+
+        if (logEl) logEl.textContent = `${data.stdout || "Success!"}\n\nPlugin installed! Restarting server to apply changes...`;
+        if (input) input.value = "";
+        
+        await pollForServerRestart();
+    } catch (e) {
+        if (logEl) logEl.textContent = `Error: ${e.message || e}`;
+    }
+};
+
+window.uninstallPlugin = async function (name) {
+    const confirmed = await shibaDialog("confirm", "Uninstall Plugin", `Are you sure you want to uninstall ${name}?`, { confirmText: "Uninstall", danger: true });
+    if (!confirmed) return;
+
+    const logEl = document.getElementById("plugin-action-log");
+    if (logEl) {
+        logEl.style.display = "block";
+        logEl.textContent = `Uninstalling ${name}... please wait.\nThis will automatically restart the server.`;
+    }
+
+    try {
+        const res = await authFetch("/api/plugins/uninstall", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ package: name })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            if (logEl) logEl.textContent = `Error: ${data.error || "Uninstallation failed"}\n\n${data.stdout || ""}`;
+            return;
+        }
+
+        if (logEl) logEl.textContent = `${data.stdout || "Success!"}\n\nPlugin uninstalled! Restarting server to apply...`;
+        
+        await pollForServerRestart();
+    } catch (e) {
+        if (logEl) logEl.textContent = `Error: ${e.message || e}`;
+    }
+};
+
+async function pollForServerRestart() {
+    let tries = 0;
+    const interval = setInterval(async () => {
+        tries++;
+        try {
+            const h = await authFetch("/api/status?_t=" + Date.now());
+            if (h.ok) {
+                clearInterval(interval);
+                window.location.reload();
+            }
+        } catch (e) { }
+        if (tries > 20) {
+            clearInterval(interval);
+            alert("Server took too long to restart. Please reload manually.");
+        }
+    }, 2000);
+}
+
+window.updateTtsSettingsVisibility = function () {
+    const toggle = document.getElementById("tts-toggle");
+    const provSelect = document.getElementById("s-audio-ttsProvider");
+    const voiceRow = document.getElementById("tts-voice-row");
+    const langRow = document.getElementById("tts-lang-row");
+    const speedRow = document.getElementById("tts-speed-row");
+    const provRow = document.getElementById("tts-provider-row");
+
+    if (!toggle || !provSelect) return;
+    const checked = toggle.checked;
+    const provider = provSelect.value;
+
+    const showSupertonic = (checked && provider === "supertonic");
+    if (provRow) provRow.style.display = checked ? "flex" : "none";
+    if (voiceRow) voiceRow.style.display = showSupertonic ? "flex" : "none";
+    if (langRow) langRow.style.display = showSupertonic ? "flex" : "none";
+    if (speedRow) speedRow.style.display = showSupertonic ? "flex" : "none";
+};

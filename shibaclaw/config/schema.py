@@ -174,6 +174,11 @@ class AudioConfig(Base):
     api_key: str | None = None
     model: str = "whisper-large-v3-turbo"  # default STT model for Groq
     tts_enabled: bool = False
+    tts_provider: str = "browser"
+    tts_voice: str = "en_female"
+    tts_speed: float = 1.0
+    tts_lang: str = "en"
+    tts_model_path: str | None = None
 
 
 class WebToolsConfig(Base):

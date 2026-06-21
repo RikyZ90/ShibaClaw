@@ -386,7 +386,34 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 elif event.get("t") == "e":
                     raise RuntimeError(event.get("error", "Gateway error"))
 
+            config = agent_manager.config
             final_atts = _build_attachments(response_media)
+
+            if config and config.audio.tts_enabled and config.audio.tts_provider == "supertonic":
+                try:
+                    from shibaclaw.tts.registry import discover_tts_plugins
+                    tts_engines = discover_tts_plugins()
+                    if "supertonic" in tts_engines:
+                        tts_cls = tts_engines["supertonic"]
+                        tts_cfg = {
+                            "tts_voice": config.audio.tts_voice,
+                            "tts_speed": config.audio.tts_speed,
+                            "tts_lang": config.audio.tts_lang,
+                        }
+                        tts_engine = tts_cls(tts_cfg)
+                        uploads_dir = config.workspace_path / "uploads"
+                        uploads_dir.mkdir(parents=True, exist_ok=True)
+                        file_name = f"voice_agent_{uuid.uuid4().hex[:8]}.wav"
+                        output_path = uploads_dir / file_name
+                        await tts_engine.synthesize(response_content, output_path)
+                        audio_url = f"/api/file-get?path={urllib.parse.quote(str(output_path.absolute()))}"
+                        final_atts.append({
+                            "name": "voice_response.wav",
+                            "url": audio_url,
+                            "type": "audio/wav"
+                        })
+                except Exception as e:
+                    logger.error("Backend TTS synthesis failed: {}", e)
 
 
             if not response_content and not final_atts:
@@ -518,6 +545,13 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
 
     try:
         audio_bytes = base64.b64decode(raw)
+        uploads_dir = config.workspace_path / "uploads"
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        file_name = f"voice_user_{uuid.uuid4().hex[:8]}.wav"
+        file_path = uploads_dir / file_name
+        file_path.write_bytes(audio_bytes)
+        audio_url = f"/api/file-get?path={urllib.parse.quote(str(file_path.absolute()))}"
+
         audio_file = io.BytesIO(audio_bytes)
         audio_file.name = "audio.wav"
 
@@ -542,7 +576,12 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
         )
 
         await _emit_to_ws(
-            ws, {"type": "transcribe_result", "id": request_id, "text": str(res).strip()}
+            ws, {
+                "type": "transcribe_result",
+                "id": request_id,
+                "text": str(res).strip(),
+                "audio_url": audio_url
+            }
         )
     except Exception as e:
         logger.exception("Audio transcription failed")

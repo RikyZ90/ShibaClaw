@@ -72,6 +72,12 @@ function _appendAgentAttachment(container, file) {
         return;
     }
 
+    if (file.type && file.type.startsWith("audio/")) {
+        const player = createAudioPlayer(file, true);
+        container.appendChild(player);
+        return;
+    }
+
     const link = buildFileAttachmentLink(file, () => {
         downloadAttachment(file.url, file.name || "file");
     });
@@ -204,8 +210,9 @@ function initSocket() {
             addAgentMessage(data.id, data.content, data.attachments || []);
         }
 
-        // Play text-to-speech if enabled
-        if (window.speechTTS && window.speechTTS.enabled && data.content) {
+        // Play text-to-speech if enabled and no audio file is attached
+        const hasAudioAttachment = data.attachments && data.attachments.some(file => typeof file.type === "string" && file.type.startsWith("audio/"));
+        if (window.speechTTS && window.speechTTS.enabled && data.content && !hasAudioAttachment) {
             window.speechTTS.play(data.content);
         }
 
