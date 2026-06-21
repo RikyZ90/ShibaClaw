@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file.
 - **Code Cleanups** — Removed redundant queue allocation in `_handle_stream` and cleaned up unused session retrieval code in `ws_handler.py`.
 
 ### Changed
+- **Settings Menu Redesign & Premium UX** — Transformed the Settings interface into a dedicated, clean full-screen layout with vertical sidebar navigation, cohesive tab panels, and a mobile-optimized category dashboard.
 - **Uninstaller Relocation & Lock-Free Execution** — Relocated `uninstall.ps1` from the `.shibaclaw` root to the `app\ShibaClaw\` directory next to `ShibaClaw.exe` to keep the root directory clean. The uninstaller now copies itself to the Windows `Temp` directory and delegates execution to that copy, allowing clean deletion of the `app` folder while preserving user files in the `.shibaclaw` root.
 
 ### Added

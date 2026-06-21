@@ -24,6 +24,7 @@
 <details open>
 <summary>📢 <b>Latest Release: v0.7.0</b> — Click to see what's new</summary>
 
+- **Settings Menu Redesign & Premium UX** — Transformed the Settings interface into a dedicated, clean full-screen layout with vertical sidebar navigation, cohesive tab panels, and a mobile-optimized category dashboard.
 - **Windows EXE Update & Uninstaller Improvements** — Added full support for Windows EXE automatic updates with process lock fixes, lock-free clean uninstallation logic, and fixed critical memory leaks, WebUI multi-tab race conditions, and raw HTTP client parsing.
 - **Native Windows Taskbar Icon (v0.6.6)** — Fixed an issue where the packaged Windows `.exe` displayed the generic Python icon in the taskbar. The application now naturally groups by its main executable to retain the embedded custom icon, and the `.NET` fallback dependencies have been explicitly added to the PyInstaller build.
 
