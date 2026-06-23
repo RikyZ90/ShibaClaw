@@ -27,16 +27,22 @@ from .auth import _auth_enabled, verify_token_value
 from .gateway_client import gateway_client
 
 # ── Shared state ─────────────────────────────────────────────
-sessions: Dict[str, Dict[str, Any]] = {}  # ws_id → session state
-processing_state: Dict[str, Dict[str, Any]] = {}  # session_key → processing info
-_ws_clients: Dict[str, WebSocket] = {}  # ws_id → WebSocket instance
+sessions: dict[str, dict[str, Any]] = {}  # ws_id → session state
+processing_state: dict[str, dict[str, Any]] = {}  # session_key → processing info
+_ws_clients: dict[str, WebSocket] = {}  # ws_id → WebSocket instance
 _session_subscribers: dict[str, set[str]] = defaultdict(set)
+_session_queues: dict[str, deque[dict[str, Any]]] = defaultdict(deque)
+_session_tasks: dict[str, asyncio.Task[None]] = {}
 
 _MAX_SESSION_EVENTS = 200
 
 
-def _make_session_state(session_key: str) -> Dict[str, Any]:
-    return {"session_key": session_key, "processing": False, "queue": deque()}
+def _make_session_state(session_key: str) -> dict[str, Any]:
+    return {
+        "session_key": session_key,
+        "processing": False,
+        "queue": _session_queues.setdefault(session_key, deque()),
+    }
 
 
 def _unsubscribe_ws(ws_id: str) -> None:
@@ -90,7 +96,7 @@ def _build_attachments(media_paths: list[str]) -> list[Dict[str, str]]:
     return atts
 
 
-async def _emit_to_session(session_key: str, msg: dict, *, exclude: str | None = None):
+async def _emit_to_session(session_key: str, msg: dict[str, Any], *, exclude: str | None = None) -> None:
     """Send a message to all WebSocket clients subscribed to a session."""
     raw = json.dumps(msg)
     for ws_id in list(_session_subscribers.get(session_key, ())):
@@ -104,7 +110,7 @@ async def _emit_to_session(session_key: str, msg: dict, *, exclude: str | None =
                 pass
 
 
-async def _emit_to_ws(ws: WebSocket, msg: dict):
+async def _emit_to_ws(ws: WebSocket, msg: dict[str, Any]) -> None:
     """Send a message to a specific WebSocket client."""
     try:
         await ws.send_text(json.dumps(msg))
@@ -208,7 +214,7 @@ async def ws_endpoint(websocket: WebSocket):
         logger.info("🌐 WebUI client disconnected: {}", ws_id)
 
 
-async def _emit_session_status(ws: WebSocket, session_key: str):
+async def _emit_session_status(ws: WebSocket, session_key: str) -> None:
     """Send processing status for a session."""
     ps = processing_state.get(session_key)
     if ps and ps.get("processing"):
@@ -234,7 +240,7 @@ async def _emit_session_status(ws: WebSocket, session_key: str):
         )
 
 
-async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
+async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:
     """Handle an incoming user message."""
     if not agent_manager.config:
         agent_manager.load_latest_config()
@@ -248,6 +254,10 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
     )
     session_key = session["session_key"]
     cached_profile_id = session.get("profile_id")
+
+    shared_q = _session_queues.setdefault(session_key, deque())
+    if session.get("queue") is not shared_q:
+        session["queue"] = shared_q
 
     media_paths = []
     attachments_data = []
@@ -275,7 +285,31 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
 
     ps = processing_state.get(session_key)
     if ps and ps.get("processing"):
-        session.setdefault("queue", deque()).append(msg)
+        try:
+            res = await gateway_client.request(
+                "steer",
+                {
+                    "session_key": session_key,
+                    "content": content,
+                    "media": media_paths if media_paths else None,
+                    "attachments": attachments_data,
+                },
+            )
+            if res and res.get("injected"):
+                await _emit_to_session(
+                    session_key,
+                    {
+                        "type": "message_ack",
+                        "id": msg["id"],
+                        "content": content,
+                        "session_key": session_key,
+                    },
+                )
+                return
+        except Exception as e:
+            logger.debug("Failed to steer agent: {}", e)
+
+        shared_q.append(msg)
         await _emit_to_session(
             session_key,
             {
@@ -290,21 +324,26 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
             {
                 "type": "message_queued",
                 "id": msg["id"],
-                "position": len(session["queue"]),
+                "position": len(shared_q),
                 "session_key": session_key,
             },
         )
         return
 
-    session["processing"] = True
+    processing_state[session_key] = {
+        "processing": True,
+        "msg_id": msg["id"],
+        "events": deque(maxlen=_MAX_SESSION_EVENTS),
+        "started_at": time.time(),
+    }
+
     await _emit_to_session(
         session_key,
         {"type": "message_ack", "id": msg["id"], "content": content, "session_key": session_key},
     )
-    # Emit session status to update UI about processing state
     await _emit_session_status_all(session_key)
 
-    async def run_agent_job(message):
+    async def run_agent_job(message: dict[str, Any]) -> None:
         processing_state[session_key] = {
             "processing": True,
             "msg_id": message["id"],
@@ -313,7 +352,7 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
         }
 
         try:
-            payload = {
+            payload: dict[str, Any] = {
                 "content": message["content"],
                 "session_key": session_key,
                 "channel": "webui",
@@ -355,9 +394,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                         "content": event.get("c", ""),
                         "tool_hint": event.get("h", False),
                     }
-                    ps = processing_state.get(session_key)
-                    if ps:
-                        ps["events"].append(evt)
+                    curr_ps = processing_state.get(session_key)
+                    if curr_ps:
+                        curr_ps["events"].append(evt)
                     await _emit_to_session(
                         session_key,
                         {
@@ -415,13 +454,6 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 except Exception as e:
                     logger.error("Backend TTS synthesis failed: {}", e)
 
-
-            if not response_content and not final_atts:
-                # Even when content is empty, we must send a response event
-                # so the browser finalises any streaming bubble and resets
-                # processing state.  Only skip if nothing was streamed either.
-                pass
-
             await _emit_to_session(
                 session_key,
                 {
@@ -442,17 +474,16 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict):
                 session_key, {"type": "error", "message": f"Error: {e}", "session_key": session_key}
             )
         finally:
-            q = session.get("queue") or []
+            q = _session_queues.get(session_key)
             if q:
                 next_msg = q.popleft()
-                session["task"] = asyncio.create_task(run_agent_job(next_msg))
+                _session_tasks[session_key] = asyncio.create_task(run_agent_job(next_msg))
             else:
-                session["processing"] = False
-                session.pop("task", None)
+                _session_tasks.pop(session_key, None)
                 processing_state.pop(session_key, None)
                 await _emit_session_status_all(session_key)
 
-    session["task"] = asyncio.create_task(run_agent_job(msg))
+    _session_tasks[session_key] = asyncio.create_task(run_agent_job(msg))
 
 
 async def _emit_session_status_all(session_key: str):
@@ -463,34 +494,37 @@ async def _emit_session_status_all(session_key: str):
             await _emit_session_status(ws, session_key)
 
 
-async def _handle_stop(ws_id: str):
+async def _handle_stop(ws_id: str) -> None:
     """Handle stop_agent request."""
     session = sessions.get(ws_id, {})
-    if "task" in session:
-        session["task"].cancel()
-    session["queue"] = deque()
-    session["processing"] = False
     sk = session.get("session_key", "")
-    processing_state.pop(sk, None)
-    await _emit_to_session(
-        sk,
-        {
-            "type": "response",
-            "id": "stop",
-            "content": "🐕 Halted the hunt.",
-            "session_key": sk,
-        },
-    )
+    if sk:
+        _session_queues.pop(sk, None)
+        task = _session_tasks.get(sk)
+        if task:
+            task.cancel()
+        else:
+            processing_state.pop(sk, None)
+            await _emit_session_status_all(sk)
+        await _emit_to_session(
+            sk,
+            {
+                "type": "response",
+                "id": "stop",
+                "content": "🐕 Halted the hunt.",
+                "session_key": sk,
+            },
+        )
 
 
-async def _handle_cancel(ws_id: str, ws: WebSocket, data: dict):
+async def _handle_cancel(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:
     """Handle granular request cancellation."""
     request_id = data.get("id")
     if request_id:
         await gateway_client.cancel_request(request_id)
 
 
-async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):
+async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:
     """Handle new_session request."""
     new_key = f"webui:{uuid.uuid4().hex[:8]}"
     if ws_id in sessions:
@@ -512,7 +546,7 @@ async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict):
     )
 
 
-async def _handle_switch_session(ws_id: str, ws: WebSocket, data: dict):
+async def _handle_switch_session(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:
     """Handle switch_session request."""
     session_id = (data or {}).get("session_id", "").strip()
     if not session_id:
@@ -524,7 +558,7 @@ async def _handle_switch_session(ws_id: str, ws: WebSocket, data: dict):
         await _emit_session_status(ws, session_id)
 
 
-async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict):
+async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:
     """Handle audio transcription request."""
     from openai import AsyncOpenAI
 

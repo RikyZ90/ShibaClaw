@@ -868,6 +868,19 @@ async def gateway_command(
                 else:
                     await ws.send(_ok({"cancelled": False, "request_id": target_id}))
 
+            elif action == "steer":
+                session_key = payload.get("session_key")
+                content = payload.get("content")
+                media = payload.get("media")
+                attachments = payload.get("attachments")
+                injected = agent.inject_steering_message(
+                    session_key=session_key,
+                    content=content,
+                    media=media,
+                    attachments=attachments,
+                )
+                await ws.send(_ok({"injected": injected}))
+
             elif action == "restart":
                 await ws.send(_ok({"status": "restarting"}))
                 _state["restart"] = True

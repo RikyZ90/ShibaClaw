@@ -22,11 +22,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.7.3</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.7.4</b> — Click to see what's new</summary>
 
-- **Automatic Windows EXE Updates** — Transitioned updating packaged Windows EXE builds to execute the official `install.ps1` installer in a detached background process with check-and-wait loop and force-terminate fallbacks for locked files.
-- **Desktop pywebview Freeze Fixed** — Resolved window freeze on plugin install/uninstall by waiting for the gateway to report a fully ready `"ok"` status before reloading, retrying configured port binding, and thread-safely reconnecting the WebSocket gateway client.
-- **Duplicate Process Prevention** — Blocked launching python modules (e.g. `-m pip`) when compiled by PyInstaller to prevent duplicate GUI spawns.
+- **Agent Steering Mode** — Guide or steer the agent dynamically during its execution loop. The WebUI no longer blocks user input when the agent is working; instead, you can send new guidance messages that are safely injected into the active agent loop context.
+- **MCP Lazy Tool Loading** — Optimized MCP server connections using a lazy loading/discovery strategy, significantly reducing token context overhead.
+- **Steering Icon Visuals** — Adapted the send button icon and tooltips to dynamically reflect the steering state.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 

@@ -5,7 +5,7 @@ function createAudioPlayer(file, autoPlay = false) {
     container.className = "custom-audio-player";
     
     const audio = document.createElement("audio");
-    audio.src = file.url;
+    audio.src = authUrl(file.url);
     audio.preload = "metadata";
     container.appendChild(audio);
     
@@ -124,8 +124,8 @@ function addUserMessage(content, attachments = []) {
         const isAudio = typeof file.type === "string" && file.type.startsWith("audio/");
         if (isImage) {
             const img = document.createElement("img");
-            img.src = file.url;
-            img.onclick = () => window.open(file.url, "_blank");
+            img.src = authUrl(file.url);
+            img.onclick = () => window.open(authUrl(file.url), "_blank");
             bubble.appendChild(img);
         } else if (isAudio) {
             const player = createAudioPlayer(file, false);
@@ -160,9 +160,9 @@ function addAgentMessage(id, content, attachments = []) {
         const isAudio = typeof file.type === "string" && file.type.startsWith("audio/");
         if (isImage) {
             const img = document.createElement("img");
-            img.src = file.url;
+            img.src = authUrl(file.url);
             img.onload = () => { if (typeof scrollToBottom === 'function') scrollToBottom(); };
-            img.onclick = () => window.open(file.url, "_blank");
+            img.onclick = () => window.open(authUrl(file.url), "_blank");
             bubble.appendChild(img);
         } else if (isAudio) {
             const player = createAudioPlayer(file, true);
@@ -563,7 +563,18 @@ function scrollToBottom() {
 
 function updateSendButton() {
     const hasText = chatInput.value.trim().length > 0;
-    btnSend.disabled = !hasText || state.processing;
+    btnSend.disabled = !hasText;
+    
+    const iconSpan = btnSend.querySelector(".material-icons-round");
+    if (iconSpan) {
+        if (state.processing) {
+            iconSpan.textContent = "navigation";
+            btnSend.title = "Steer the agent";
+        } else {
+            iconSpan.textContent = "send";
+            btnSend.title = "Send message";
+        }
+    }
 }
 
 function autoResizeInput() {
@@ -575,22 +586,27 @@ function autoResizeInput() {
 // ── Send Message ─────────────────────────────────────────────
 function sendMessage() {
     const content = chatInput.value.trim();
-    if ((!content && state.stagedFiles.length === 0) || state.processing) return;
+    if (!content && state.stagedFiles.length === 0) return;
 
     if (!realtime.connected) {
         addAgentMessage("error", "⚠️ WebSocket disconnected. Wait for reconnect or reload the window.");
-        state.processing = false;
-        updateSendButton();
+        if (!state.processing) {
+            state.processing = false;
+            updateSendButton();
+        }
         return;
     }
 
     if (state.gatewayKnown && !state.gatewayUp) {
         addAgentMessage("error", "⚠️ Gateway offline or unreachable. Restart the desktop app or the gateway.");
-        state.processing = false;
-        updateSendButton();
+        if (!state.processing) {
+            state.processing = false;
+            updateSendButton();
+        }
         return;
     }
 
+    const wasProcessing = state.processing;
     state.processing = true;
     updateSendButton();
 
@@ -615,10 +631,13 @@ function sendMessage() {
         state.stagedFiles = [];
         updateStagingUI();
         autoResizeInput();
+        updateSendButton();
     } catch (e) {
         console.error("Send error:", e);
         addAgentMessage("error", `⚠️ ${e.message || "Failed to send message."}`);
-        state.processing = false;
+        if (!wasProcessing) {
+            state.processing = false;
+        }
         updateSendButton();
     }
 }

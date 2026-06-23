@@ -60,4 +60,12 @@ async function authFetch(url, opts = {}) {
     return res;
 }
 
+function authUrl(url) {
+    if (!url || !url.startsWith("/api/file-get")) return url;
+    const token = getStoredToken();
+    if (!token) return url;
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}token=${encodeURIComponent(token)}`;
+}
+
 

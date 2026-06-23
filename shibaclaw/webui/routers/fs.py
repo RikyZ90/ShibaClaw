@@ -69,6 +69,21 @@ async def api_file_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
 
+    from shibaclaw.webui.auth import _auth_enabled, verify_token_value
+
+    if _auth_enabled():
+        token_candidate = None
+        q_token = request.query_params.get("token")
+        if q_token:
+            token_candidate = q_token.strip()
+        else:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token_candidate = auth_header[7:].strip()
+        
+        if not verify_token_value(token_candidate):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
     resolved = _resolve_workspace_path(path_str)
     if not resolved:
         return JSONResponse({"error": "Forbidden"}, status_code=403)

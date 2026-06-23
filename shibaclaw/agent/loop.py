@@ -113,6 +113,7 @@ class ShibaBrain:
             weakref.WeakValueDictionary()
         )
         self._provider_cache: dict[str, Thinker] = {}
+        self._steering_queues: dict[str, list[dict]] = {}
         self.memory_consolidator = PackMemory(
             workspace=workspace,
             provider=cast(Thinker, provider),
@@ -283,6 +284,26 @@ class ShibaBrain:
         if self.automation_service:
             self.tools.register(AutomationTool(self.automation_service))
 
+    def inject_steering_message(
+        self,
+        session_key: str,
+        content: str,
+        media: list[str] | None = None,
+        attachments: list[dict] | None = None,
+    ) -> bool:
+        if session_key in self._steering_queues:
+            self._steering_queues[session_key].append(
+                {
+                    "role": "user",
+                    "content": content,
+                    "media": media,
+                    "attachments": attachments,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+            return True
+        return False
+
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
         if self._mcp_connected or self._mcp_connecting or not self._mcp_servers:
@@ -360,6 +381,7 @@ class ShibaBrain:
         skill_names: list[str] | None = None,
         profile_id: str | None = None,
         model: str | None = None,
+        session_key: str | None = None,
     ) -> tuple[str | None, list[str], list[dict]]:
         """Run the agent iteration loop.
 
@@ -388,7 +410,29 @@ class ShibaBrain:
         # Tool definitions don't change mid-loop; compute once.
         tool_defs = self.tools.get_definitions()
 
+        if session_key:
+            self._steering_queues[session_key] = []
+
         while iteration < self.max_iterations:
+            if session_key and session_key in self._steering_queues:
+                steer_msgs = self._steering_queues[session_key]
+                if steer_msgs:
+                    logger.info("Steering loop with {} new messages", len(steer_msgs))
+                    for msg in steer_msgs:
+                        entry = {
+                            "role": "user",
+                            "content": msg["content"],
+                            "timestamp": msg.get("timestamp")
+                        }
+                        metadata = {}
+                        if msg.get("media"):
+                            metadata["media"] = msg["media"]
+                        if msg.get("attachments"):
+                            metadata["attachments"] = msg["attachments"]
+                        if metadata:
+                            entry["metadata"] = metadata
+                        messages.append(entry)
+                    self._steering_queues[session_key] = []
             # Wall-clock safety: abort if the loop has been running too long
             elapsed = time.monotonic() - loop_start
             if elapsed > self.loop_wall_timeout:
@@ -515,6 +559,9 @@ class ShibaBrain:
                 f"I reached the maximum number of tool call iterations ({self.max_iterations}) "
                 "without completing the task. You can try breaking the task into smaller steps."
             )
+
+        if session_key:
+            self._steering_queues.pop(session_key, None)
 
         return final_content, tools_used, messages
 
@@ -649,6 +696,11 @@ class ShibaBrain:
             except (RuntimeError, BaseExceptionGroup):
                 pass  # MCP SDK cancel scope cleanup is noisy but harmless
             self._mcp_stack = None
+        try:
+            from shibaclaw.agent.tools.mcp import clear_mcp_sessions
+            clear_mcp_sessions()
+        except Exception:
+            pass
 
     def _schedule_background(self, coro) -> None:
         task = asyncio.create_task(coro)
@@ -712,6 +764,7 @@ class ShibaBrain:
                 channel=channel,
                 chat_id=chat_id,
                 profile_id=profile_id,
+                session_key=key,
             )
             self._save_turn(session, all_msgs, 1 + len(history))
             self.sessions.save(session)
@@ -835,6 +888,7 @@ class ShibaBrain:
             chat_id=msg.chat_id,
             profile_id=profile_id,
             model=session.metadata.get("model") or None,
+            session_key=key,
         )
 
         if final_content is None:

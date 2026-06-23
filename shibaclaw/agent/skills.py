@@ -21,6 +21,8 @@ class SkillsLoader:
     specific tools or perform certain tasks.
     """
 
+    _metadata_cache: dict[Path, tuple[float, dict | None]] = {}
+
     def __init__(self, workspace: Path, builtin_skills_dir: Path | None = None):
         self.workspace = workspace
         self.workspace_skills = workspace / "skills"
@@ -368,30 +370,50 @@ class SkillsLoader:
         Returns:
             Metadata dict or None.
         """
-        content = self.load_skill(name)
-        if not content:
+        workspace_skill = self.workspace_skills / name / "SKILL.md"
+        if workspace_skill.exists():
+            file_path = workspace_skill
+        elif self.builtin_skills:
+            builtin_skill = self.builtin_skills / name / "SKILL.md"
+            if builtin_skill.exists():
+                file_path = builtin_skill
+            else:
+                return None
+        else:
             return None
 
+        try:
+            mtime = file_path.stat().st_mtime
+            if file_path in self._metadata_cache:
+                cached_mtime, cached_meta = self._metadata_cache[file_path]
+                if cached_mtime == mtime:
+                    return cached_meta
+        except OSError:
+            return None
+
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+
+        parsed_meta = None
         if content.startswith("---"):
             match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
             if match:
                 raw_yaml = match.group(1)
-                # Try proper YAML parsing first, fall back to simple split
                 try:
                     import yaml
-
                     parsed = yaml.safe_load(raw_yaml)
                     if isinstance(parsed, dict):
-                        # Stringify values for backward compatibility
-                        return {k: str(v) if v is not None else "" for k, v in parsed.items()}
+                        parsed_meta = {k: str(v) if v is not None else "" for k, v in parsed.items()}
                 except Exception:
                     pass
-                # Fallback: simple line-by-line parsing
-                metadata = {}
-                for line in raw_yaml.split("\n"):
-                    if ":" in line:
-                        key, value = line.split(":", 1)
-                        metadata[key.strip()] = value.strip().strip("\"'")
-                return metadata
+                if parsed_meta is None:
+                    parsed_meta = {}
+                    for line in raw_yaml.split("\n"):
+                        if ":" in line:
+                            key, value = line.split(":", 1)
+                            parsed_meta[key.strip()] = value.strip().strip("\"'")
 
-        return None
+        self._metadata_cache[file_path] = (mtime, parsed_meta)
+        return parsed_meta

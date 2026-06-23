@@ -1,26 +1,26 @@
 {
-    "version": "0.7.3",
-    "release_notes": "Added automatic updates for Windows EXE via PowerShell installer, duplicate process launches prevention, and pywebview thread freeze fixes during gateway restarts.",
+    "version": "0.7.4",
+    "release_notes": "Added agent steering mode to dynamically guide the agent during execution, and optimized MCP server connections using a lazy loading strategy.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.7.3."
+            "note": "Bumped version to 0.7.4."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.7.3 release notes."
+            "note": "Added v0.7.4 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.7.3."
+            "note": "Updated welcome announcement to v0.7.4."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.7.3."
+            "note": "Bumped packaged update manifest to v0.7.4."
         }
     ]
 }

@@ -124,3 +124,18 @@ def test_shibabrain_ignores_forced_global_provider_for_session_override(monkeypa
 
     assert resolved == "provider:openrouter/google/gemma-4-31b-it"
     assert created_models == ["openrouter/google/gemma-4-31b-it"]
+
+
+def test_shibabrain_steering_message_injection():
+    brain = object.__new__(ShibaBrain)
+    brain._steering_queues = {}
+    
+    assert brain.inject_steering_message("session_key_1", "Hello") is False
+    assert "session_key_1" not in brain._steering_queues
+
+    brain._steering_queues["session_key_1"] = []
+    assert brain.inject_steering_message("session_key_1", "Steer instruction", media=["img.png"]) is True
+    assert len(brain._steering_queues["session_key_1"]) == 1
+    assert brain._steering_queues["session_key_1"][0]["content"] == "Steer instruction"
+    assert brain._steering_queues["session_key_1"][0]["media"] == ["img.png"]
+

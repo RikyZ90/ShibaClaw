@@ -1,5 +1,7 @@
 """MCP client: connects to MCP servers and wraps their tools as native shibaclaw tools."""
 
+from __future__ import annotations
+
 import asyncio
 from contextlib import AsyncExitStack
 from typing import Any
@@ -10,17 +12,41 @@ from loguru import logger
 from shibaclaw.agent.tools.base import Tool
 from shibaclaw.agent.tools.registry import SkillVault
 
+# Global registry of active MCP sessions and configs
+_mcp_sessions: dict[str, Any] = {}
+_mcp_configs: dict[str, Any] = {}
 
-class MCPToolWrapper(Tool):
-    """Wraps a single MCP server tool as a shibaclaw Tool."""
 
-    def __init__(self, session, server_name: str, tool_def, tool_timeout: int = 30):
-        self._session = session
-        self._original_name = tool_def.name
-        self._name = f"mcp_{server_name}_{tool_def.name}"
-        self._description = tool_def.description or tool_def.name
-        self._parameters = tool_def.inputSchema or {"type": "object", "properties": {}}
-        self._tool_timeout = tool_timeout
+def clear_mcp_sessions() -> None:
+    _mcp_sessions.clear()
+    _mcp_configs.clear()
+
+
+def get_mcp_servers_info() -> str:
+    if not _mcp_sessions:
+        return ""
+    lines = []
+    for name in sorted(_mcp_sessions.keys()):
+        lines.append(f"- **{name}**: Use `mcp_list_tools(server_name=\"{name}\")` to see available tools.")
+    return "\n".join(lines)
+
+
+class MCPListTools(Tool):
+    """List available tools on a connected MCP server."""
+
+    def __init__(self) -> None:
+        self._name = "mcp_list_tools"
+        self._description = "List all tools and their parameter schemas available on a specific connected MCP server."
+        self._parameters = {
+            "type": "object",
+            "properties": {
+                "server_name": {
+                    "type": "string",
+                    "description": "Name of the MCP server to inspect."
+                }
+            },
+            "required": ["server_name"]
+        }
 
     @property
     def name(self) -> str:
@@ -34,29 +60,105 @@ class MCPToolWrapper(Tool):
     def parameters(self) -> dict[str, Any]:
         return self._parameters
 
-    async def execute(self, **kwargs: Any) -> str:
-        from mcp import types
+    async def execute(self, server_name: str) -> str:
+        session = _mcp_sessions.get(server_name)
+        if not session:
+            available = ", ".join(_mcp_sessions.keys())
+            return f"Error: MCP server '{server_name}' is not connected. Connected servers: {available or '(none)'}"
+
+        cfg = _mcp_configs.get(server_name)
+        enabled_tools = set(cfg.enabled_tools) if cfg else {"*"}
+        allow_all = "*" in enabled_tools
 
         try:
+            tools = await session.list_tools()
+            lines = [f"Tools available on MCP server '{server_name}':"]
+            for tool_def in tools.tools:
+                wrapped_name = f"mcp_{server_name}_{tool_def.name}"
+                if not allow_all and tool_def.name not in enabled_tools and wrapped_name not in enabled_tools:
+                    continue
+                lines.append(f"- Name: {tool_def.name}")
+                if tool_def.description:
+                    lines.append(f"  Description: {tool_def.description}")
+                lines.append(f"  Schema: {tool_def.inputSchema}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error listing tools for MCP server '{server_name}': {str(e)}"
+
+
+class MCPCallTool(Tool):
+    """Execute a tool on a connected MCP server."""
+
+    def __init__(self) -> None:
+        self._name = "mcp_call_tool"
+        self._description = "Execute a tool on an MCP server with the specified arguments."
+        self._parameters = {
+            "type": "object",
+            "properties": {
+                "server_name": {
+                    "type": "string",
+                    "description": "Name of the MCP server."
+                },
+                "tool_name": {
+                    "type": "string",
+                    "description": "Name of the tool to execute."
+                },
+                "arguments": {
+                    "type": "object",
+                    "description": "Key-value arguments to pass to the tool."
+                }
+            },
+            "required": ["server_name", "tool_name"]
+        }
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return self._parameters
+
+    async def execute(self, server_name: str, tool_name: str, arguments: dict[str, Any] | None = None) -> str:
+        from mcp import types
+        session = _mcp_sessions.get(server_name)
+        if not session:
+            available = ", ".join(_mcp_sessions.keys())
+            return f"Error: MCP server '{server_name}' is not connected. Connected servers: {available or '(none)'}"
+
+        cfg = _mcp_configs.get(server_name)
+        enabled_tools = set(cfg.enabled_tools) if cfg else {"*"}
+        allow_all = "*" in enabled_tools
+        wrapped_name = f"mcp_{server_name}_{tool_name}"
+
+        if not allow_all and tool_name not in enabled_tools and wrapped_name not in enabled_tools:
+            return f"Error: Tool '{tool_name}' is not enabled on MCP server '{server_name}'."
+
+        args = arguments or {}
+        timeout = cfg.tool_timeout if cfg else 30
+        try:
             result = await asyncio.wait_for(
-                self._session.call_tool(self._original_name, arguments=kwargs),
-                timeout=self._tool_timeout,
+                session.call_tool(tool_name, arguments=args),
+                timeout=timeout,
             )
         except asyncio.TimeoutError:
-            logger.warning("MCP tool '{}' timed out after {}s", self._name, self._tool_timeout)
-            return f"(MCP tool call timed out after {self._tool_timeout}s)"
+            logger.warning("MCP tool '{}' on server '{}' timed out after {}s", tool_name, server_name, timeout)
+            return f"(MCP tool call timed out after {timeout}s)"
         except asyncio.CancelledError:
-            # MCP SDK's anyio cancel scopes can leak CancelledError on timeout/failure.
-            # Re-raise only if our task was externally cancelled (e.g. /stop).
             task = asyncio.current_task()
             if task is not None and task.cancelling() > 0:
                 raise
-            logger.warning("MCP tool '{}' was cancelled by server/SDK", self._name)
+            logger.warning("MCP tool '{}' on server '{}' was cancelled", tool_name, server_name)
             return "(MCP tool call was cancelled)"
         except Exception as exc:
             logger.exception(
-                "MCP tool '{}' failed: {}: {}",
-                self._name,
+                "MCP tool '{}' on server '{}' failed: {}: {}",
+                tool_name,
+                server_name,
                 type(exc).__name__,
                 exc,
             )
@@ -74,12 +176,15 @@ class MCPToolWrapper(Tool):
 async def connect_mcp_servers(
     mcp_servers: dict, registry: SkillVault, stack: AsyncExitStack
 ) -> None:
-    """Connect to configured MCP servers and register their tools."""
+    """Connect to configured MCP servers and register their sessions."""
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.sse import sse_client
     from mcp.client.stdio import stdio_client
     from mcp.client.streamable_http import streamable_http_client
 
+    clear_mcp_sessions()
+
+    connected_any = False
     for name, cfg in mcp_servers.items():
         try:
             transport_type = cfg.type
@@ -87,7 +192,6 @@ async def connect_mcp_servers(
                 if cfg.command:
                     transport_type = "stdio"
                 elif cfg.url:
-                    # Convention: URLs ending with /sse use SSE transport; others use streamableHttp
                     transport_type = (
                         "sse" if cfg.url.rstrip("/").endswith("/sse") else "streamableHttp"
                     )
@@ -119,8 +223,6 @@ async def connect_mcp_servers(
                     sse_client(cfg.url, httpx_client_factory=httpx_client_factory)
                 )
             elif transport_type == "streamableHttp":
-                # Always provide an explicit httpx client so MCP HTTP transport does not
-                # inherit httpx's default 5s timeout and preempt the higher-level tool timeout.
                 http_client = await stack.enter_async_context(
                     httpx.AsyncClient(
                         headers=cfg.headers or None,
@@ -138,48 +240,13 @@ async def connect_mcp_servers(
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
 
-            tools = await session.list_tools()
-            enabled_tools = set(cfg.enabled_tools)
-            allow_all_tools = "*" in enabled_tools
-            registered_count = 0
-            matched_enabled_tools: set[str] = set()
-            available_raw_names = [tool_def.name for tool_def in tools.tools]
-            available_wrapped_names = [f"mcp_{name}_{tool_def.name}" for tool_def in tools.tools]
-            for tool_def in tools.tools:
-                wrapped_name = f"mcp_{name}_{tool_def.name}"
-                if (
-                    not allow_all_tools
-                    and tool_def.name not in enabled_tools
-                    and wrapped_name not in enabled_tools
-                ):
-                    logger.debug(
-                        "MCP: skipping tool '{}' from server '{}' (not in enabledTools)",
-                        wrapped_name,
-                        name,
-                    )
-                    continue
-                wrapper = MCPToolWrapper(session, name, tool_def, tool_timeout=cfg.tool_timeout)
-                registry.register(wrapper)
-                logger.debug("MCP: registered tool '{}' from server '{}'", wrapper.name, name)
-                registered_count += 1
-                if enabled_tools:
-                    if tool_def.name in enabled_tools:
-                        matched_enabled_tools.add(tool_def.name)
-                    if wrapped_name in enabled_tools:
-                        matched_enabled_tools.add(wrapped_name)
-
-            if enabled_tools and not allow_all_tools:
-                unmatched_enabled_tools = sorted(enabled_tools - matched_enabled_tools)
-                if unmatched_enabled_tools:
-                    logger.warning(
-                        "MCP server '{}': enabledTools entries not found: {}. Available raw names: {}. "
-                        "Available wrapped names: {}",
-                        name,
-                        ", ".join(unmatched_enabled_tools),
-                        ", ".join(available_raw_names) or "(none)",
-                        ", ".join(available_wrapped_names) or "(none)",
-                    )
-
-            logger.info("MCP server '{}': connected, {} tools registered", name, registered_count)
+            _mcp_sessions[name] = session
+            _mcp_configs[name] = cfg
+            logger.info("MCP server '{}': connected and session registered", name)
+            connected_any = True
         except Exception as e:
             logger.error("MCP server '{}': failed to connect: {}", name, e)
+
+    if connected_any:
+        registry.register(MCPListTools())
+        registry.register(MCPCallTool())

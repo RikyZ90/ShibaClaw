@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.4] - 2026-06-23
+
+### Added
+- **Agent Steering Mode** — Added capability to guide or steer the agent dynamically during its execution loop. The WebUI no longer blocks user input when the agent is processing; instead, sending a message will inject it directly into the current execution loop's context at the start of the next LLM iteration.
+- **Steering Icon and Tooltip** — Adapted the WebUI send button icon to a navigation pointer (`navigation`) and updated the tooltip to "Steer the agent" when processing, showing visual feedback of the active steering state.
+- **MCP Lazy Tool Loading** — Optimized MCP server connections to use a lazy loading/discovery strategy. Instead of registering every single tool natively, the agent registers generic `mcp_list_tools` and `mcp_call_tool` helpers and lists active servers in the system prompt, dramatically reducing token context overhead.
+
+### Fixed
+- **Authorized File Access Endpoint** — Hardened `/api/file-get` in `fs.py` by requiring either standard `Authorization` Bearer token headers or a `?token=` query parameter fallback.
+- **WebUI Token-based Media Rendering** — Updated `chat.js` and `ui_panels.js` to route all image, audio, and attachment links through an `authUrl` query parameter helper, preventing unauthorized file disclosure.
+- **Multi-Tab Session Queueing** — Resolved queue starvation in multi-tab configurations by unifying connection-level message queues under a single global `_session_queues` structure mapped by `session_key`.
+
+### Optimized
+- **Skills Metadata Cache** — Added an `st_mtime`-aware class-level metadata cache to `SkillsLoader` in `skills.py` to prevent reading and parsing YAML frontmatter from disk repeatedly.
+- **Dependency Security Patches** — Upgraded `msgpack` to `>=1.2.1`, `pydantic-settings` to `>=2.14.2`, and `starlette` to `>=1.3.1` to resolve known CVE vulnerabilities.
+
 ## [0.7.3] - 2026-06-21
 
 ### Added

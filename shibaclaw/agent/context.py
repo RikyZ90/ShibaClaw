@@ -81,6 +81,17 @@ Skills with available="false" need dependencies installed first - you can try in
 
 {skills_summary}""")
 
+        try:
+            from shibaclaw.agent.tools.mcp import get_mcp_servers_info
+            mcp_info = get_mcp_servers_info()
+            if mcp_info:
+                parts.append(f"""# Connected MCP Servers
+The following MCP servers are connected. You can list their tools using the `mcp_list_tools` tool, and execute their tools using the `mcp_call_tool` tool.
+
+{mcp_info}""")
+        except Exception:
+            pass
+
         return "\n\n---\n\n".join(parts)
 
     def build_system_prompt(
