@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, AsyncMock
 import pytest
 from starlette.testclient import TestClient
 
@@ -25,7 +25,7 @@ def client(mock_config):
 
 
 def test_whatsapp_default_config():
-    from shibaclaw_channel_whatsapp.channel import WhatsAppChannel, WhatsAppConfig
+    from shibaclaw_channel_whatsapp.channel import WhatsAppChannel
     cfg = WhatsAppChannel.default_config()
     assert cfg["bridgeUrl"] == "ws://localhost:3001"
     assert cfg["enabled"] is False
