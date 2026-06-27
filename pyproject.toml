@@ -130,13 +130,11 @@ packages = ["shibaclaw"]
 "shibaclaw" = "shibaclaw"
 
 [tool.hatch.build.targets.wheel.force-include]
-"bridge" = "shibaclaw/bridge"
 "assets" = "shibaclaw/assets"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "shibaclaw/",
-    "bridge/",
     "README.md",
     "LICENSE",
 ]

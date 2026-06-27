@@ -9,9 +9,11 @@ from shibaclaw.tts.registry import discover_tts_plugins
 from shibaclaw.config.loader import load_config
 
 async def api_list_plugins(request: Request) -> JSONResponse:
-    integrations = []
     cfg = load_config()
-    for name, cls in discover_plugins().items():
+    installed_channels = discover_plugins()
+
+    integrations = []
+    for name, cls in installed_channels.items():
         enabled = False
         section = getattr(cfg.channels, name, None)
         if isinstance(section, dict):
@@ -39,6 +41,7 @@ async def api_list_plugins(request: Request) -> JSONResponse:
         })
 
     available = []
+
     if "supertonic" not in installed_tts:
         available.append({
             "name": "shibaclaw-tts-supertonic",
@@ -48,10 +51,20 @@ async def api_list_plugins(request: Request) -> JSONResponse:
             "installed": False
         })
 
+    if "whatsapp" not in installed_channels:
+        available.append({
+            "name": "shibaclaw-channel-whatsapp",
+            "display_name": "WhatsApp",
+            "type": "channel",
+            "description": "WhatsApp channel integration using a Node.js bridge (Baileys).",
+            "installed": False
+        })
+
     return JSONResponse({
         "plugins": integrations + tts,
         "available": available
     })
+
 
 async def api_install_plugin(request: Request) -> JSONResponse:
     from shibaclaw.helpers.system import is_running_as_exe

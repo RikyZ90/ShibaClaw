@@ -1,4 +1,4 @@
-"""WhatsApp channel implementation using Node.js bridge."""
+"""WhatsApp channel plugin using a Node.js bridge."""
 
 import asyncio
 import json
@@ -16,8 +16,6 @@ from shibaclaw.integrations.base import BaseChannel
 
 
 class WhatsAppConfig(Base):
-    """WhatsApp channel configuration."""
-
     enabled: bool = False
     bridge_url: str = "ws://localhost:3001"
     bridge_token: str = ""
@@ -48,16 +46,12 @@ class WhatsAppChannel(BaseChannel):
         self._processed_message_ids: OrderedDict[str, None] = OrderedDict()
 
     async def start(self) -> None:
-        """Start the WhatsApp channel by connecting to the bridge."""
         import websockets
+        from urllib.parse import urlparse as _urlparse
 
         bridge_url = self.config.bridge_url
 
-        # Security: warn if the bridge is reachable over a non-loopback address
-        # because the bridge_token is sent in cleartext over the WebSocket.
         try:
-            from urllib.parse import urlparse as _urlparse
-
             _parsed = _urlparse(bridge_url)
             _host = (_parsed.hostname or "").lower()
             if _host not in ("localhost", "127.0.0.1", "::1", ""):
@@ -78,7 +72,6 @@ class WhatsAppChannel(BaseChannel):
             try:
                 async with websockets.connect(bridge_url) as ws:
                     self._ws = ws
-                    # Send auth token if configured
                     if self.config.bridge_token:
                         await ws.send(
                             json.dumps({"type": "auth", "token": self.config.bridge_token})
@@ -86,7 +79,6 @@ class WhatsAppChannel(BaseChannel):
                     self._connected = True
                     logger.info("Connected to WhatsApp bridge")
 
-                    # Listen for messages
                     async for message in ws:
                         try:
                             await self._handle_bridge_message(message)
@@ -105,7 +97,6 @@ class WhatsAppChannel(BaseChannel):
                     await asyncio.sleep(5)
 
     async def stop(self) -> None:
-        """Stop the WhatsApp channel."""
         self._running = False
         self._connected = False
 
@@ -114,7 +105,6 @@ class WhatsAppChannel(BaseChannel):
             self._ws = None
 
     async def send(self, msg: OutboundMessage) -> None:
-        """Send a message through WhatsApp."""
         if not self._ws or not self._connected:
             logger.warning("WhatsApp bridge not connected")
             return
@@ -147,7 +137,6 @@ class WhatsAppChannel(BaseChannel):
             logger.error("Error sending WhatsApp message: {}", e)
 
     async def _handle_bridge_message(self, raw: str) -> None:
-        """Handle a message from the bridge."""
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -157,10 +146,9 @@ class WhatsAppChannel(BaseChannel):
         msg_type = data.get("type")
 
         if msg_type == "message":
-            # Incoming message from WhatsApp
-            # Deprecated by whatsapp: old phone number style typically: <phone>@s.whatspp.net
+            # pn: old phone number style <phone>@s.whatsapp.net (deprecated)
             pn = data.get("pn", "")
-            # New LID sytle typically:
+            # sender: new LID style
             sender = data.get("sender", "")
             content = data.get("content", "")
             message_id = data.get("id", "")
@@ -172,12 +160,10 @@ class WhatsAppChannel(BaseChannel):
                 while len(self._processed_message_ids) > 1000:
                     self._processed_message_ids.popitem(last=False)
 
-            # Extract just the phone number or lid as chat_id
             user_id = pn if pn else sender
             sender_id = user_id.split("@")[0] if "@" in user_id else user_id
             logger.info("Sender {}", sender)
 
-            # Handle voice transcription if it's a voice message
             if content == "[Voice Message]":
                 logger.info(
                     "Voice message received from {}, but direct download from bridge is not yet supported.",
@@ -185,10 +171,8 @@ class WhatsAppChannel(BaseChannel):
                 )
                 content = "[Voice Message: Transcription not available for WhatsApp yet]"
 
-            # Extract media paths (images/documents/videos downloaded by the bridge)
             media_paths = data.get("media") or []
 
-            # Build content tags matching Telegram's pattern: [image: /path] or [file: /path]
             if media_paths:
                 for p in media_paths:
                     mime, _ = mimetypes.guess_type(p)
@@ -198,7 +182,7 @@ class WhatsAppChannel(BaseChannel):
 
             await self._handle_message(
                 sender_id=sender_id,
-                chat_id=sender,  # Use full LID for replies
+                chat_id=sender,
                 content=content,
                 media=media_paths,
                 metadata={
@@ -209,7 +193,6 @@ class WhatsAppChannel(BaseChannel):
             )
 
         elif msg_type == "status":
-            # Connection status update
             status = data.get("status")
             logger.info("WhatsApp status: {}", status)
 
@@ -219,7 +202,6 @@ class WhatsAppChannel(BaseChannel):
                 self._connected = False
 
         elif msg_type == "qr":
-            # QR code for authentication
             logger.info("Scan QR code in the bridge terminal to connect WhatsApp")
 
         elif msg_type == "error":

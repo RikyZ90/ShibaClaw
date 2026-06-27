@@ -113,7 +113,6 @@ hiddenimports = [
     "shibaclaw.integrations.feishu",
     "shibaclaw.integrations.qq",
     "shibaclaw.integrations.mochat",
-    "shibaclaw.integrations.whatsapp",
     # webview / tray (windows-native extras)
     "webview",
     "webview.platforms.winforms",

@@ -1,0 +1,24 @@
+[project]
+name = "shibaclaw-channel-whatsapp"
+version = "0.1.0"
+description = "WhatsApp channel plugin for ShibaClaw using a Node.js bridge (Baileys)"
+dependencies = [
+    "shibaclaw",
+    "websockets>=16.0,<17.0",
+]
+
+[project.entry-points."shibaclaw.integrations"]
+whatsapp = "shibaclaw_channel_whatsapp:WhatsAppChannel"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+    "shibaclaw_channel_whatsapp/**/*.py",
+    "shibaclaw_channel_whatsapp/bridge/**/*",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["shibaclaw_channel_whatsapp"]
