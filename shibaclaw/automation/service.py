@@ -82,6 +82,7 @@ OnNotifyCallback = Callable[..., Awaitable[None]]
 # Schedule helpers (ported verbatim from cron/service.py)
 # ---------------------------------------------------------------------------
 
+
 def _now_ms() -> int:
     return int(time.time() * 1000)
 
@@ -97,6 +98,7 @@ def _compute_next_run(schedule: AutomationSchedule, now_ms: int) -> int | None:
         try:
             from zoneinfo import ZoneInfo
             from croniter import croniter
+
             tz = ZoneInfo(schedule.tz) if schedule.tz else datetime.now().astimezone().tzinfo
             base_dt = datetime.fromtimestamp(now_ms / 1000, tz=tz)
             cron = croniter(schedule.expr, base_dt)
@@ -113,6 +115,7 @@ def _validate_schedule(schedule: AutomationSchedule) -> None:
     if schedule.kind == "cron" and schedule.tz:
         try:
             from zoneinfo import ZoneInfo
+
             ZoneInfo(schedule.tz)
         except Exception:
             raise ValueError(f"unknown timezone '{schedule.tz}'") from None
@@ -132,6 +135,7 @@ def _parse_schedule_kind(raw_kind: Any, job_name: str) -> str:
 # ---------------------------------------------------------------------------
 # Heartbeat file helpers (ported from heartbeat/service.py)
 # ---------------------------------------------------------------------------
+
 
 def _strip_comments(content: str) -> str:
     return re.sub(r"<!--.*?-->", "", content, flags=re.DOTALL)
@@ -156,10 +160,10 @@ def _find_task_section(content: str, job_name: str) -> str | None:
     for pattern in patterns:
         match = re.search(pattern, content)
         if match:
-            body = content[match.end():]
+            body = content[match.end() :]
             next_section = re.search(r"(?im)^(?:##\s+|###\s+Task:)", body)
             if next_section:
-                body = body[:next_section.start()]
+                body = body[: next_section.start()]
             return body
     return None
 
@@ -172,10 +176,10 @@ def _extract_named_task_sections(content: str) -> list[tuple[str, str]]:
     cleaned = _strip_comments(content)
     active_match = re.search(r"(?im)^##\s+Active Tasks\s*$", cleaned)
     if active_match:
-        relevant = cleaned[active_match.end():]
+        relevant = cleaned[active_match.end() :]
         boundary = re.search(r"(?im)^##\s+(Completed|Notes)\s*$", relevant)
         if boundary:
-            relevant = relevant[:boundary.start()]
+            relevant = relevant[: boundary.start()]
     else:
         relevant = cleaned
 
@@ -189,10 +193,7 @@ def _extract_named_task_sections(content: str) -> list[tuple[str, str]]:
         body_start = match.end()
         body_end = matches[index + 1].start() if index + 1 < len(matches) else len(relevant)
         section_name = (
-            match.group("h2_task")
-            or match.group("h3_task")
-            or match.group("h2_name")
-            or ""
+            match.group("h2_task") or match.group("h3_task") or match.group("h2_name") or ""
         ).strip()
         if not section_name:
             continue
@@ -210,10 +211,10 @@ def _extract_active_tasks(content: str, job_name: str | None = None) -> str:
     cleaned = _strip_comments(content)
     active_match = re.search(r"(?im)^##\s+Active Tasks\s*$", cleaned)
     if active_match:
-        relevant = cleaned[active_match.end():]
+        relevant = cleaned[active_match.end() :]
         boundary = re.search(r"(?im)^##\s+(Completed|Notes)\s*$", relevant)
         if boundary:
-            relevant = relevant[:boundary.start()]
+            relevant = relevant[: boundary.start()]
     else:
         relevant = cleaned
 
@@ -383,7 +384,9 @@ class AutomationService:
             # Use a temporary file + atomic replace to avoid partial writes
             tmp_path = self._store_path.with_suffix(".tmp")
             with self._io_lock:
-                tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+                tmp_path.write_text(
+                    json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
                 os.replace(str(tmp_path), str(self._store_path))
                 self._last_mtime = self._store_path.stat().st_mtime
         except Exception as exc:
@@ -550,9 +553,7 @@ class AutomationService:
             updated_at_ms=now,
             schedule=schedule,
             payload=payload,
-            state=AutomationJobState(
-                next_run_at_ms=_compute_next_run(schedule, now) or 0
-            ),
+            state=AutomationJobState(next_run_at_ms=_compute_next_run(schedule, now) or 0),
         )
         self._jobs[job.id] = job
         self._save_unlocked()
@@ -618,7 +619,9 @@ class AutomationService:
             if isinstance(p, dict):
                 kind = p.get("kind", job.payload.kind)
                 message = p.get("message", job.payload.message)
-                heartbeat_file = p.get("heartbeatFile", p.get("heartbeat_file", job.payload.heartbeat_file))
+                heartbeat_file = p.get(
+                    "heartbeatFile", p.get("heartbeat_file", job.payload.heartbeat_file)
+                )
                 deliver = p.get("deliver", job.payload.deliver)
                 channel = p.get("channel", job.payload.channel)
                 to = p.get("to", job.payload.to)
@@ -665,15 +668,25 @@ class AutomationService:
         return self._jobs.get(job_id)
 
     def status(self) -> dict:
-        jobs = list(self._jobs.values())
-        scheduled = [j for j in jobs if j.payload.kind == "scheduled"]
-        heartbeats = [j for j in jobs if j.payload.kind == "heartbeat"]
+        jobs = self._jobs.values()
+        enabled_count = 0
+        scheduled_count = 0
+        heartbeats_count = 0
+
+        for j in jobs:
+            if j.enabled:
+                enabled_count += 1
+            if j.payload.kind == "scheduled":
+                scheduled_count += 1
+            elif j.payload.kind == "heartbeat":
+                heartbeats_count += 1
+
         return {
             "running": self._running,
-            "jobs": len(jobs),
-            "enabled": sum(1 for j in jobs if j.enabled),
-            "scheduled": len(scheduled),
-            "heartbeats": len(heartbeats),
+            "jobs": len(self._jobs),
+            "enabled": enabled_count,
+            "scheduled": scheduled_count,
+            "heartbeats": heartbeats_count,
             "next_wake_at_ms": self._get_next_wake_ms(),
         }
 
@@ -691,14 +704,14 @@ class AutomationService:
         if self._running:
             return
         self._running = True
-        
+
         now = _now_ms()
         # Fast-forward missed cron/interval jobs so they don't fire immediately on boot
         for j in self._jobs.values():
             if j.enabled and j.schedule.kind != "at":
                 if j.state.next_run_at_ms and j.state.next_run_at_ms < now:
                     j.state.next_run_at_ms = _compute_next_run(j.schedule, now) or 0
-        
+
         await self._fire_overdue_at_jobs()
         self._rearm()
         logger.info(
@@ -770,7 +783,8 @@ class AutomationService:
         for job in overdue:
             logger.info(
                 "AutomationService: firing overdue job '{}' (was scheduled at {})",
-                job.name, job.schedule.at_ms,
+                job.name,
+                job.schedule.at_ms,
             )
             tasks.append(asyncio.create_task(self._run_job_bg(job, force=True)))
 
@@ -780,7 +794,8 @@ class AutomationService:
     async def _on_timer(self) -> None:
         now = _now_ms()
         due = [
-            j for j in self._jobs.values()
+            j
+            for j in self._jobs.values()
             if j.enabled and j.state.next_run_at_ms and now >= j.state.next_run_at_ms
         ]
         # Advance next_run before dispatching so we don't double-fire
@@ -823,8 +838,7 @@ class AutomationService:
     def _is_managed_task_section(self, task_name: str) -> bool:
         normalized = _normalize_task_name(task_name)
         return any(
-            _normalize_task_name(candidate.name) == normalized
-            for candidate in self._jobs.values()
+            _normalize_task_name(candidate.name) == normalized for candidate in self._jobs.values()
         )
 
     def _resolve_heartbeat_tasks(
@@ -860,17 +874,19 @@ class AutomationService:
         start_ms = _now_ms()
         logger.info(
             "AutomationService: executing '{}' [{}] ({})",
-            job.name, job.payload.kind, job.id,
+            job.name,
+            job.payload.kind,
+            job.id,
         )
-        
+
         job.state.last_status = "running"
-            
+
         try:
             if job.payload.kind == "scheduled":
                 await self._execute_scheduled(job)
             else:
                 await self._execute_heartbeat(job)
-            
+
             if job.state.last_status != "skipped":
                 job.state.last_status = "ok"
                 job.state.last_error = ""
@@ -894,14 +910,10 @@ class AutomationService:
     async def _execute_scheduled(self, job: AutomationJob) -> None:
         """Run a scheduled job: send a fixed message through the agent."""
         if not self._on_scheduled:
-            logger.debug(
-                "AutomationService: no on_scheduled callback, skipping '{}'", job.name
-            )
+            logger.debug("AutomationService: no on_scheduled callback, skipping '{}'", job.name)
             return
         if not job.payload.message.strip():
-            logger.info(
-                "AutomationService: job '{}' skipped — empty message", job.name
-            )
+            logger.info("AutomationService: job '{}' skipped — empty message", job.name)
             job.state.last_status = "skipped"
             return
         await self._on_scheduled(job)
@@ -920,25 +932,22 @@ class AutomationService:
 
         hb_path = self._workspace / (job.payload.heartbeat_file or "TASK.md")
         if not hb_path.exists():
-            logger.debug(
-                "AutomationService: heartbeat file '{}' not found, skipping", hb_path
-            )
+            logger.debug("AutomationService: heartbeat file '{}' not found, skipping", hb_path)
             job.state.last_status = "skipped"
             return
 
         try:
             raw_content, sections = self._load_task_document(hb_path)
         except Exception as exc:
-            logger.warning(
-                "AutomationService: cannot read '{}': {}", hb_path, exc
-            )
+            logger.warning("AutomationService: cannot read '{}': {}", hb_path, exc)
             return
 
         active_tasks = self._resolve_heartbeat_tasks(job, raw_content, sections=sections)
         if not active_tasks:
             logger.debug(
                 "AutomationService: heartbeat '{}' — no active tasks in '{}'",
-                job.name, hb_path.name,
+                job.name,
+                hb_path.name,
             )
             job.state.last_status = "skipped"
             return
@@ -946,15 +955,11 @@ class AutomationService:
         # --- Phase 1: decide (via virtual tool call) ---
         action, tasks = await self._heartbeat_decide(active_tasks)
         if action != "run":
-            logger.info(
-                "AutomationService: heartbeat '{}' → skip (LLM decision)", job.name
-            )
+            logger.info("AutomationService: heartbeat '{}' → skip (LLM decision)", job.name)
             job.state.last_status = "skipped"
             return
 
-        logger.info(
-            "AutomationService: heartbeat '{}' → run: {}", job.name, tasks[:80]
-        )
+        logger.info("AutomationService: heartbeat '{}' → run: {}", job.name, tasks[:80])
 
         # --- Phase 2: execute ---
         if not self._on_heartbeat:
@@ -973,6 +978,7 @@ class AutomationService:
             should_notify = True
             try:
                 from shibaclaw.helpers.evaluator import evaluate_response
+
                 should_notify = await evaluate_response(
                     response, tasks, self._provider, self._model
                 )
@@ -981,9 +987,7 @@ class AutomationService:
                     "AutomationService: evaluate_response failed for '{}': {}", job.name, exc
                 )
             if should_notify:
-                logger.info(
-                    "AutomationService: heartbeat '{}' — delivering response", job.name
-                )
+                logger.info("AutomationService: heartbeat '{}' — delivering response", job.name)
                 await self._on_notify(
                     response,
                     targets=job.payload.targets or None,
@@ -1001,6 +1005,7 @@ class AutomationService:
         """Phase 1 of heartbeat: ask LLM via tool call → (action, tasks)."""
         try:
             from shibaclaw.helpers.helpers import current_time_str
+
             response = await self._provider.chat_with_retry(
                 messages=[
                     {
