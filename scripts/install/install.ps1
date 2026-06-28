@@ -1,12 +1,15 @@
 [CmdletBinding()]
 param(
     [string]$Version = "",
-    [string]$InstallDir = ""
+    [string]$InstallDir = "",
+    [string]$LocalZipPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 [console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
 if ($InstallDir) {
     $installDir = [System.IO.Path]::GetFullPath($InstallDir)
@@ -60,58 +63,126 @@ function Invoke-LoggedStep {
     }
 }
 
+function Invoke-RobustRename {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$NewName
+    )
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    $retryCount = 10
+    for ($i = 0; $i -lt $retryCount; $i++) {
+        try {
+            Rename-Item -Path $resolvedPath -NewName $NewName -Force -ErrorAction Stop
+            return
+        }
+        catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    throw "Failed to rename $Path to $NewName after $retryCount attempts. Error: $_"
+}
+
+function Invoke-RobustDelete {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if (!(Test-Path $resolvedPath)) { return }
+    $retryCount = 10
+    for ($i = 0; $i -lt $retryCount; $i++) {
+        try {
+            Remove-Item -Path $resolvedPath -Recurse -Force -ErrorAction Stop
+            if (!(Test-Path $resolvedPath)) { return }
+        }
+        catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    throw "Failed to delete $Path after $retryCount attempts. Error: $_"
+}
+
 if (Test-Path $installLog) {
     Remove-Item $installLog -Force
 }
 
 Write-Host ">> Starting ShibaClaw installation..." -ForegroundColor Cyan
 
-Show-InstallProgress -Message "Fetching latest release info..." -Step 1 -Total 6
+$tagName = ""
+$displayVersion = ""
+$downloadUrl = ""
 
-$versionClean = $Version.Trim()
-if ($versionClean -and $versionClean -notlike "v*") {
-    $versionClean = "v$versionClean"
-}
-
-$apiUrl = if ($versionClean) {
-    "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/$versionClean"
+if ($LocalZipPath -and (Test-Path $LocalZipPath)) {
+    Show-InstallProgress -Message "Using pre-downloaded package..." -Step 1 -Total 6
+    $tagName = if ($Version.StartsWith("v")) { $Version } else { "v$Version" }
+    $displayVersion = $Version.TrimStart("v")
 } else {
-    "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest"
-}
+    Show-InstallProgress -Message "Fetching latest release info..." -Step 1 -Total 6
 
-try {
-    $releaseInfo = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -Headers @{ Accept = "application/vnd.github+json" }
-}
-catch {
-    Write-Error "Failed to fetch release info from GitHub. Check your internet connection and try again."
-    exit 1
-}
+    $versionClean = $Version.Trim()
+    if ($versionClean -and $versionClean -notlike "v*") {
+        $versionClean = "v$versionClean"
+    }
 
-$tagName = $releaseInfo.tag_name
-$displayVersion = $tagName -replace '^v', ''
+    $apiUrl = if ($versionClean) {
+        "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/tags/$versionClean"
+    } else {
+        "https://api.github.com/repos/RikyZ90/ShibaClaw/releases/latest"
+    }
 
-$asset = $releaseInfo.assets | Where-Object { $_.name -eq "ShibaClaw-windows.zip" } | Select-Object -First 1
-if ($null -eq $asset) {
-    Write-Error "Could not find ShibaClaw-windows.zip in release $tagName."
-    exit 1
+    try {
+        $releaseInfo = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing -Headers @{ Accept = "application/vnd.github+json" }
+    }
+    catch {
+        Write-Error "Failed to fetch release info from GitHub. Check your internet connection and try again."
+        exit 1
+    }
+
+    $tagName = $releaseInfo.tag_name
+    $displayVersion = $tagName -replace '^v', ''
+
+    $asset = $releaseInfo.assets | Where-Object { $_.name -eq "ShibaClaw-windows.zip" } | Select-Object -First 1
+    if ($null -eq $asset) {
+        Write-Error "Could not find ShibaClaw-windows.zip in release $tagName."
+        exit 1
+    }
+
+    $downloadUrl = $asset.browser_download_url
+    Write-Host "[OK] Found release $tagName" -ForegroundColor Green
 }
-
-$downloadUrl = $asset.browser_download_url
-Write-Host "[OK] Found release $tagName" -ForegroundColor Green
 
 # ── 2. Download the zip ──────────────────────────────────────────────────────
 
-$zipPath = Join-Path $env:TEMP "ShibaClaw-windows.zip"
-
-Invoke-LoggedStep -Message "Downloading ShibaClaw $tagName..." -Step 2 -Total 6 -Action {
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+$zipPath = ""
+if ($LocalZipPath -and (Test-Path $LocalZipPath)) {
+    $zipPath = $LocalZipPath
+    Show-InstallProgress -Message "Using pre-downloaded package..." -Step 2 -Total 6
+} else {
+    $zipPath = Join-Path $env:TEMP "ShibaClaw-windows.zip"
+    Invoke-LoggedStep -Message "Downloading ShibaClaw $tagName..." -Step 2 -Total 6 -Action {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+    }
 }
-
-Write-Host "[OK] Download complete." -ForegroundColor Green
 
 # ── 3. Extract and unblock ───────────────────────────────────────────────────
 
 Invoke-LoggedStep -Message "Extracting files..." -Step 3 -Total 6 -Action {
+    $stageDir = Join-Path $env:TEMP "shibaclaw_stage"
+    if (Test-Path $stageDir) {
+        Invoke-RobustDelete -Path $stageDir
+    }
+    New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
+    Expand-Archive -Path $zipPath -DestinationPath $stageDir -Force
+
+    $extractedShibaDir = Join-Path $stageDir "ShibaClaw"
+    if (!(Test-Path $extractedShibaDir)) {
+        $nested = Get-ChildItem -Path $stageDir -Filter "ShibaClaw.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($nested) {
+            $extractedShibaDir = $nested.DirectoryName
+        } else {
+            throw "ShibaClaw.exe not found in extracted archive."
+        }
+    }
+
     $elapsed = 0
     while ((Get-Process -Name "ShibaClaw" -ErrorAction SilentlyContinue) -and ($elapsed -lt 30)) {
         Start-Sleep -Seconds 1
@@ -123,25 +194,48 @@ Invoke-LoggedStep -Message "Extracting files..." -Step 3 -Total 6 -Action {
         Start-Sleep -Seconds 1
     }
 
-    if (Test-Path $appDir) {
-        Remove-Item -Path $appDir -Recurse -Force
+    $oldShibaDir = Join-Path $appDir "ShibaClaw.old"
+    if (Test-Path $oldShibaDir) {
+        Invoke-RobustDelete -Path $oldShibaDir
     }
-    New-Item -ItemType Directory -Path $appDir -Force | Out-Null
-    Expand-Archive -Path $zipPath -DestinationPath $appDir -Force
+    if (Test-Path $shibaDir) {
+        Invoke-RobustRename -Path $shibaDir -NewName "ShibaClaw.old"
+    }
+
+    if (!(Test-Path $appDir)) {
+        New-Item -ItemType Directory -Path $appDir -Force | Out-Null
+    }
+
+    $moved = $false
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            Move-Item -Path $extractedShibaDir -Destination $shibaDir -Force -ErrorAction Stop
+            $moved = $true
+            break
+        }
+        catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    if (-not $moved) {
+        throw "Failed to move extracted files to $shibaDir."
+    }
+
+    if (Test-Path $stageDir) {
+        Invoke-RobustDelete -Path $stageDir
+    }
+    if (Test-Path $oldShibaDir) {
+        try {
+            Invoke-RobustDelete -Path $oldShibaDir
+        }
+        catch {}
+    }
 }
 
-Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
-
-if (!(Test-Path $shibaExe)) {
-    $nested = Get-ChildItem -Path $appDir -Filter "ShibaClaw.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($nested) {
-        $shibaDir = $nested.DirectoryName
-        $shibaExe = $nested.FullName
-    }
-    else {
-        Write-Error "ShibaClaw.exe not found after extraction. The archive may be corrupted."
-        exit 1
-    }
+if ($LocalZipPath) {
+    Remove-Item -Path $LocalZipPath -Force -ErrorAction SilentlyContinue
+} else {
+    Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
 }
 
 Get-ChildItem -Path $shibaDir -Recurse -Include '*.exe', '*.dll' | Unblock-File

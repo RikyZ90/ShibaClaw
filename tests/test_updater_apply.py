@@ -88,3 +88,72 @@ def test_apply_update_runs_exe_for_exe(tmp_path, monkeypatch):
     assert report["exe"]["ok"] is True
     assert "https://example.com/ShibaClaw.zip" in report["exe"]["output"]
 
+
+def test_exe_upgrade_downloads_and_launches(tmp_path, monkeypatch):
+    import sys
+    from shibaclaw.updater import apply
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    bundled_dir = tmp_path / "scripts" / "install"
+    bundled_dir.mkdir(parents=True)
+    bundled_ps1 = bundled_dir / "install.ps1"
+    bundled_ps1.write_text("param($Version, $InstallDir, $LocalZipPath)\n", encoding="utf-8")
+
+    class MockResponse:
+        def __init__(self, content):
+            self.content = content
+            self.text = content.decode("utf-8")
+            self.headers = {"content-length": str(len(content))}
+        def raise_for_status(self):
+            pass
+        def iter_bytes(self, chunk_size=8192):
+            yield self.content
+
+    class MockStreamContext:
+        def __init__(self, response):
+            self.response = response
+        def __enter__(self):
+            return self.response
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class MockClient:
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+        def get(self, url):
+            return MockResponse(b"mock_ps1_script")
+        def stream(self, method, url):
+            return MockStreamContext(MockResponse(b"mock_zip_content"))
+
+    import httpx
+    monkeypatch.setattr(httpx, "Client", lambda *args, **kwargs: MockClient())
+
+    launched_cmd = []
+    class MockPopen:
+        def __init__(self, cmd, **kwargs):
+            nonlocal launched_cmd
+            launched_cmd = cmd
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "Popen", MockPopen)
+
+    progress_calls = []
+    def progress_cb(current, total):
+        progress_calls.append((current, total))
+
+    res = apply._exe_upgrade(
+        version="0.3.8",
+        download_url="https://example.com/ShibaClaw.zip",
+        progress_cb=progress_cb
+    )
+
+    assert res["ok"] is True
+    assert "launched successfully" in res["output"]
+    assert len(progress_calls) > 0
+    assert progress_calls[-1][0] == progress_calls[-1][1]
+    assert "-LocalZipPath" in launched_cmd
+

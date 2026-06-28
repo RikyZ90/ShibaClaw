@@ -52,9 +52,11 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
 
 
 def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, int], None] | None = None) -> dict[str, Any]:
-    """Download the Windows installer script and execute it in background."""
     import tempfile
     from shibaclaw.config.paths import get_runtime_root
+
+    if not download_url:
+        return {"ok": False, "output": "No download URL provided."}
 
     installer_url = "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1"
     temp_ps1 = Path(tempfile.gettempdir()) / f"shibaclaw_install_{version}.ps1"
@@ -81,6 +83,30 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
     if not downloaded:
         return {"ok": False, "output": "Could not download or locate install.ps1 script."}
 
+    zip_path = Path(tempfile.gettempdir()) / f"shibaclaw_release_{version}.zip"
+    try:
+        with httpx.Client(follow_redirects=True, timeout=30.0) as client:
+            with client.stream("GET", download_url) as response:
+                response.raise_for_status()
+                total = int(response.headers.get("content-length", 0))
+                current = 0
+                with open(zip_path, "wb") as f:
+                    for chunk in response.iter_bytes(chunk_size=8192):
+                        f.write(chunk)
+                        current += len(chunk)
+                        if progress_cb:
+                            try:
+                                progress_cb(current, total)
+                            except Exception:
+                                pass
+    except Exception as exc:
+        if zip_path.exists():
+            try:
+                zip_path.unlink()
+            except Exception:
+                pass
+        return {"ok": False, "output": f"Failed to download update package: {exc}"}
+
     try:
         detached_process = 0x00000008
         create_new_process_group = 0x00000200
@@ -90,7 +116,8 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
             "-File", str(temp_ps1),
-            "-Version", version
+            "-Version", version,
+            "-LocalZipPath", str(zip_path)
         ]
 
         current_exe = Path(sys.executable).resolve()
