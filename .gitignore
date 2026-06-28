@@ -27,8 +27,8 @@ uv.lock
 .vscode/
 .shibaclaw/
 .agents
-.vscode
-.jules
+.vscode/
+.jules/
 scratch/
 ROADMAP.md
 docker-compose.build.yml
