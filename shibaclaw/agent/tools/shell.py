@@ -18,7 +18,6 @@ _WINDOWS_DENY_PATTERNS: list[str] = [
     r"\biex\b",                          # alias for Invoke-Expression
     r"\bSet-ExecutionPolicy\b",          # policy bypass
     r"\bInvoke-WebRequest\b.*\|.*powershell",  # download-and-run
-    r"\bStart-Process\b.*-Verb\s+RunAs",      # UAC elevation
 ]
 
 
