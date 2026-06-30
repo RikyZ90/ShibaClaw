@@ -383,6 +383,40 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         strip_model_prefix=False,
         model_overrides=(),
     ),
+
+
+    # Qwen Cloud
+    ProviderSpec(
+        name="qwen_cloud",
+        keywords=("qwen-cloud", "alibaba-plan"),
+        env_key="QWEN_CLOUD_API_KEY",
+        display_name="Qwen Cloud",
+        env_extras=(),
+        is_gateway=False,
+        is_local=False,
+        detect_by_key_prefix="",
+        detect_by_base_keyword="",
+        default_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
+
+    # Xiaomi AI
+    ProviderSpec(
+        name="xiaomi",
+        keywords=("xiaomi", "mi-ai"),
+        env_key="XIAOMI_API_KEY",
+        display_name="Xiaomi AI",
+        env_extras=(),
+        is_gateway=False,
+        is_local=False,
+        detect_by_key_prefix="",
+        detect_by_base_keyword="",
+        default_api_base="https://api.mi-ai.com/v1",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
+
     # === Auxiliary (not a primary LLM provider) ============================
     # Groq: mainly used for Whisper voice transcription, also usable for LLM.
     # Needs "groq/" prefix for routing. Placed last — it rarely wins fallback.
