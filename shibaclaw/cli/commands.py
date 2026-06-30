@@ -330,5 +330,31 @@ def provider_login_cmd(provider: str = typer.Argument(..., help="OAuth provider"
     provider_login(provider)
 
 
+@provider_app.command("list")
+def provider_list_cmd():
+    """List all supported providers with their integration details."""
+    from rich.table import Table
+    from shibaclaw.cli.utils import safe_print
+
+    table = Table(title="Supported Providers Summary")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Abbonamento Flat", style="magenta")
+    table.add_column("Metodo di Integrazione", style="green")
+    table.add_column("OAuth?", style="yellow")
+    table.add_column("Note di Implementazione per ShibaClaw")
+
+    table.add_row("OpenAI (ChatGPT)", "Plus / Pro / Codex", "OAuth 2.0 (PKCE)", "SÌ", "Avvia un server di loopback locale per catturare il callback da auth.openai.com. Gestisce access_token e refresh_token.")
+    table.add_row("GitHub Copilot", "Individual / Business", "Device Flow / CLI Scraping", "SÌ", "Sfrutta il Device Flow di GitHub o estrae il token chiamando gh auth token tramite subprocess.")
+    table.add_row("Anthropic (Claude)", "Claude Pro / Team", "CLI Reuse / Session Scraping", "NO", "Legge la sessione locale di Claude Code (claude -p) o accetta il paste-token manuale estratto dai cookie del browser.")
+    table.add_row("Gemini CLI", "AI Premium / Advanced", "CLI Mirroring", "NO", "Si aggancia ai token di sessione locali generati da gcloud o dai tool CLI ufficiali di Google.")
+    table.add_row("Z.ai / GLM", "Coding Plan Flat", "Token Paste (Session Token)", "NO", "Inserimento manuale di una stringa di autenticazione a lunga durata salvata nel profilo dell'agente.")
+    table.add_row("Qwen Cloud", "Alibaba Coding Plan", "Token Paste / Cookie", "NO", "Passaggio dei token o dei cookie del piano flat direttamente negli header HTTP per simulare il gateway web.")
+    table.add_row("MiniMax", "Coding Flat Plan", "Token Paste / Credenziali", "NO", "Autenticazione flat basata su credenziali dedicate salvate nel database dei profili di ShibaClaw.")
+    table.add_row("Xiaomi AI", "Mi AI Framework Flat", "Quota Hook", "NO", "Tracciamento locale della quota basato sui token di autenticazione dell'ecosistema del brand.")
+
+    safe_print(table)
+
+
+
 if __name__ == "__main__":
     app()

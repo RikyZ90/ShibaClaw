@@ -335,6 +335,18 @@ Configure your MCP servers directly in the **Settings** panel to start expanding
 
 ShibaClaw uses native SDKs (no LiteLLM proxy) and resolves the active provider from the selected model or canonical provider-prefixed model ID. In the WebUI, all configured provider catalogs are merged into a single searchable list, while each session keeps its own chosen model.
 
+
+| Provider | Abbonamento Flat | Metodo di Integrazione | OAuth? | Note di Implementazione per ShibaClaw |
+|---|---|---|---|---|
+| **OpenAI** (ChatGPT) | Plus / Pro / Codex | OAuth 2.0 (PKCE) | **SÌ** | Avvia un server di loopback locale per catturare il callback da auth.openai.com. Gestisce access_token e refresh_token. |
+| **GitHub Copilot** | Individual / Business | Device Flow / CLI Scraping | **SÌ** | Sfrutta il Device Flow di GitHub o estrae il token chiamando gh auth token tramite subprocess. |
+| **Anthropic** (Claude) | Claude Pro / Team | CLI Reuse / Session Scraping | **NO** | Legge la sessione locale di **Claude Code** (claude -p) o accetta il paste-token manuale estratto dai cookie del browser. |
+| **Gemini CLI** | AI Premium / Advanced | CLI Mirroring | **NO** | Si aggancia ai token di sessione locali generati da gcloud o dai tool CLI ufficiali di Google. |
+| **Z.ai / GLM** | Coding Plan Flat | Token Paste (Session Token) | **NO** | Inserimento manuale di una stringa di autenticazione a lunga durata salvata nel profilo dell'agente. |
+| **Qwen Cloud** | Alibaba Coding Plan | Token Paste / Cookie | **NO** | Passaggio dei token o dei cookie del piano flat direttamente negli header HTTP per simulare il gateway web. |
+| **MiniMax** | Coding Flat Plan | Token Paste / Credenziali | **NO** | Autenticazione flat basata su credenziali dedicate salvate nel database dei profili di ShibaClaw. |
+| **Xiaomi AI** | Mi AI Framework Flat | Quota Hook | **NO** | Tracciamento locale della quota basato sui token di autenticazione dell'ecosistema del brand. |
+
 ### API Key
 
 | Provider | Env Variable |
