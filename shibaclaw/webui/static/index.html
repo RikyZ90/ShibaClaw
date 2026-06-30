@@ -337,6 +337,9 @@
                     <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
                         <span class="material-icons-round">key</span><span>Provider</span>
                     </button>
+                                        <button class="settings-sidebar-item" data-tab="provider-summary" onclick="switchSettingsTab('provider-summary')">
+                        <span class="material-icons-round">table_chart</span> Summary
+                    </button>
                     <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
                         <span class="material-icons-round">lock_open</span><span>OAuth</span>
                     </button>
@@ -588,6 +591,86 @@
                         <div class="provider-grid" id="providers-list"></div>
                     </div>
 
+
+
+                    <!-- Tab: Provider Summary -->
+                    <div class="settings-panel" id="panel-provider-summary" style="display:none">
+                        <div class="settings-header">
+                            <h2>Provider Integration Summary</h2>
+                            <p class="settings-desc">Supported models, subscription capabilities and token mechanics.</p>
+                        </div>
+                        <div class="settings-card">
+                            <table class="shiba-table" style="width:100%; border-collapse: collapse; margin-top: 15px; color: var(--text-primary); text-align: left; font-size: 13px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <th style="padding: 10px;">Provider</th>
+                                        <th style="padding: 10px;">Abbonamento Flat</th>
+                                        <th style="padding: 10px;">Metodo di Integrazione</th>
+                                        <th style="padding: 10px;">OAuth?</th>
+                                        <th style="padding: 10px;">Note di Implementazione per ShibaClaw</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>OpenAI</strong> (ChatGPT)</td>
+                                        <td style="padding: 10px;">Plus / Pro / Codex</td>
+                                        <td style="padding: 10px;">OAuth 2.0 (PKCE)</td>
+                                        <td style="padding: 10px;"><strong>SÌ</strong></td>
+                                        <td style="padding: 10px;">Avvia un server di loopback locale per catturare il callback da auth.openai.com. Gestisce access_token e refresh_token.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>GitHub Copilot</strong></td>
+                                        <td style="padding: 10px;">Individual / Business</td>
+                                        <td style="padding: 10px;">Device Flow / CLI Scraping</td>
+                                        <td style="padding: 10px;"><strong>SÌ</strong></td>
+                                        <td style="padding: 10px;">Sfrutta il Device Flow di GitHub o estrae il token chiamando gh auth token tramite subprocess.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>Anthropic</strong> (Claude)</td>
+                                        <td style="padding: 10px;">Claude Pro / Team</td>
+                                        <td style="padding: 10px;">CLI Reuse / Session Scraping</td>
+                                        <td style="padding: 10px;"><strong>NO</strong></td>
+                                        <td style="padding: 10px;">Legge la sessione locale di <strong>Claude Code</strong> (claude -p) o accetta il paste-token manuale estratto dai cookie del browser.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>Gemini CLI</strong></td>
+                                        <td style="padding: 10px;">AI Premium / Advanced</td>
+                                        <td style="padding: 10px;">CLI Mirroring</td>
+                                        <td style="padding: 10px;"><strong>NO</strong></td>
+                                        <td style="padding: 10px;">Si aggancia ai token di sessione locali generati da gcloud o dai tool CLI ufficiali di Google.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>Z.ai / GLM</strong></td>
+                                        <td style="padding: 10px;">Coding Plan Flat</td>
+                                        <td style="padding: 10px;">Token Paste (Session Token)</td>
+                                        <td style="padding: 10px;"><strong>NO</strong></td>
+                                        <td style="padding: 10px;">Inserimento manuale di una stringa di autenticazione a lunga durata salvata nel profilo dell'agente.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>Qwen Cloud</strong></td>
+                                        <td style="padding: 10px;">Alibaba Coding Plan</td>
+                                        <td style="padding: 10px;">Token Paste / Cookie</td>
+                                        <td style="padding: 10px;"><strong>NO</strong></td>
+                                        <td style="padding: 10px;">Passaggio dei token o dei cookie del piano flat direttamente negli header HTTP per simulare il gateway web.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>MiniMax</strong></td>
+                                        <td style="padding: 10px;">Coding Flat Plan</td>
+                                        <td style="padding: 10px;">Token Paste / Credenziali</td>
+                                        <td style="padding: 10px;"><strong>NO</strong></td>
+                                        <td style="padding: 10px;">Autenticazione flat basata su credenziali dedicate salvate nel database dei profili di ShibaClaw.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <td style="padding: 10px;"><strong>Xiaomi AI</strong></td>
+                                        <td style="padding: 10px;">Mi AI Framework Flat</td>
+                                        <td style="padding: 10px;">Quota Hook</td>
+                                        <td style="padding: 10px;"><strong>NO</strong></td>
+                                        <td style="padding: 10px;">Tracciamento locale della quota basato sui token di autenticazione dell'ecosistema del brand.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
                     <!-- Tab: OAuth Providers -->
                     <div class="settings-panel" id="panel-oauth" style="display:none">
