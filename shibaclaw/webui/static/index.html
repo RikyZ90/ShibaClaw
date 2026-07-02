@@ -155,7 +155,7 @@
         <main class="chat-area" id="chat-area">
             <!-- Top Bar -->
             <header class="chat-header">
-                <button class="mobile-menu-btn" id="mobile-menu-btn">
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open mobile menu">
                     <span class="material-icons-round">menu</span>
                 </button>
                 <div class="chat-header-info">
@@ -193,7 +193,7 @@
                     </div>
                 </div>
                 <div class="width-toggle-wrapper">
-                    <button class="btn-width-toggle" id="btn-width-toggle" title="Adjust chat width">
+                    <button class="btn-width-toggle" id="btn-width-toggle" title="Adjust chat width" aria-label="Adjust chat width">
                         <span class="material-icons-round">view_column</span>
                     </button>
                     <div class="width-popover" id="width-popover">
@@ -254,16 +254,16 @@
                         <!-- Staged files appear here -->
                     </div>
                     <div class="input-container">
-                        <button class="btn-attach" id="btn-mic" title="Voice Message (Auto-Stop on silence)">
+                        <button class="btn-attach" id="btn-mic" title="Voice Message (Auto-Stop on silence)" aria-label="Record voice message">
                             <span class="material-icons-round">mic</span>
                         </button>
-                        <button class="btn-attach" id="btn-attach" title="Attach files or images">
+                        <button class="btn-attach" id="btn-attach" title="Attach files or images" aria-label="Attach files or images">
                             <span class="material-icons-round">attach_file</span>
                         </button>
                         <input type="file" id="file-input" multiple style="display:none">
                         <textarea id="chat-input" placeholder="Send a message to ShibaClaw..." rows="1"
                             autofocus></textarea>
-                        <button class="btn-send" id="btn-send" disabled>
+                        <button class="btn-send" id="btn-send" disabled aria-label="Send message">
                             <span class="material-icons-round">send</span>
                         </button>
                     </div>
