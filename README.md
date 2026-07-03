@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <b>22 Providers · 11 Chat Channels · Built-in WebUI · Security-First Core · MCP Ready</b>
+  <b>23 Providers · 11 Chat Channels · Built-in WebUI · Security-First Core · MCP Ready</b>
 </p>
 
 <h3 align="center">Built on three pillars: <b>Simplicity · Security · Privacy</b></h3>
@@ -103,7 +103,7 @@ CVE audit, prompt-injection wrap,<br>SSRF guard — <b>on by default</b>
 </td>
 <td align="center" width="33%">
 
-### 🌐 22 Providers
+### 🌐 23 Providers
 Native SDKs, no LiteLLM proxy<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -141,7 +141,7 @@ Most AI agent frameworks treat security as an afterthought, leave you wrestling 
 
 What makes ShibaClaw different:
 - **Security layers built into the core** — CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection
-- **Native provider support** — 22 providers via their official SDKs, no proxy layer to debug
+- **Native provider support** — 23 providers via their official SDKs, no proxy layer to debug
 - **One-command setup** — Docker or pip, follow the wizard, you're chatting in about a minute
 - **Runs everywhere** — Terminal, WebUI, Discord, Telegram, WhatsApp, Windows desktop app, and more
 
