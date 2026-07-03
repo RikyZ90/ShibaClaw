@@ -1,26 +1,26 @@
 {
-    "version": "0.7.6",
+    "version": "0.7.7",
     "release_notes": "Hardened Windows updater mechanism against process locks and extraction failures, enabled TLS 1.2+ protocol support, and integrated real-time WebUI update progress bars.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.7.6."
+            "note": "Bumped version to 0.7.7."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.7.6 release notes."
+            "note": "Added v0.7.7 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.7.6."
+            "note": "Updated welcome announcement to v0.7.7."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.7.6."
+            "note": "Bumped packaged update manifest to v0.7.7."
         }
     ]
 }

@@ -22,9 +22,14 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.7.6</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.7.7</b> — Click to see what's new</summary>
 
-- **Windows Updater Safety & UI Progress** — Hardened the Windows update mechanism against process lock race conditions and destructive folder deletions, forced TLS 1.2+ compatibility, and enabled real-time update download progress bars in the WebUI.
+- **Sentinel SSRF Protection** — Fixed server-side request forgery in `web_fetch` and `mcp` tool redirect handling by validating every resolved outbound URL before execution.
+- **Palette Accessibility** — Added ARIA labels and titles to icon-only buttons to improve screen reader support and accessible interaction.
+- **SOUL Template Update** — Updated the `shibaclaw/templates/SOUL.md` system prompt template to reflect the latest guidance and persona behavior.
+
+### Optimized
+- **Cache System Helpers** — Improved cache system helper performance to speed up repeated system lookups and reduce response latency.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
