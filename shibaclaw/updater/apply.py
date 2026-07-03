@@ -22,6 +22,35 @@ def _old_dir(workspace_root: Path, new_version: str) -> Path:
     return folder
 
 
+def _get_exe_install_dir() -> Path | None:
+    """Return the .shibaclaw install root by walking up from sys.executable.
+
+    Expected layout:  <install_dir>/.shibaclaw/app/ShibaClaw/ShibaClaw.exe
+    We walk upward from the exe directory looking for a parent whose name is
+    '.shibaclaw'.  If not found we fall back to $HOME/.shibaclaw so that
+    install.ps1 always receives an explicit -InstallDir argument.
+    """
+    try:
+        exe_path = Path(sys.executable).resolve()
+        # Walk up at most 6 levels to find a directory named ".shibaclaw"
+        candidate = exe_path.parent
+        for _ in range(6):
+            if candidate.name.lower() == ".shibaclaw":
+                return candidate
+            parent = candidate.parent
+            if parent == candidate:
+                break
+            candidate = parent
+    except Exception:
+        pass
+
+    # Fallback: use the standard default location
+    try:
+        return Path.home() / ".shibaclaw"
+    except Exception:
+        return None
+
+
 def _pip_upgrade(version: str | None) -> dict[str, Any]:
     """Run a pip upgrade for the requested ShibaClaw version."""
     target = f"{PYPI_PACKAGE}=={version}" if version else PYPI_PACKAGE
@@ -43,7 +72,7 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
     if success:
         from shibaclaw.updater.checker import invalidate_cache
         invalidate_cache()
-        
+
     return {
         "ok": success,
         "output": result.stdout + result.stderr,
@@ -51,14 +80,20 @@ def _pip_upgrade(version: str | None) -> dict[str, Any]:
     }
 
 
-def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, int], None] | None = None) -> dict[str, Any]:
+def _exe_upgrade(
+    version: str,
+    download_url: str,
+    progress_cb: Callable[[int, int], None] | None = None,
+) -> dict[str, Any]:
     import tempfile
     from shibaclaw.config.paths import get_runtime_root
 
     if not download_url:
         return {"ok": False, "output": "No download URL provided."}
 
-    installer_url = "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1"
+    installer_url = (
+        "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1"
+    )
     temp_ps1 = Path(tempfile.gettempdir()) / f"shibaclaw_install_{version}.ps1"
 
     downloaded = False
@@ -107,31 +142,41 @@ def _exe_upgrade(version: str, download_url: str, progress_cb: Callable[[int, in
                 pass
         return {"ok": False, "output": f"Failed to download update package: {exc}"}
 
+    # Resolve install_dir robustly — always pass it explicitly to the PS1 script
+    install_dir = _get_exe_install_dir()
+    install_dir_str = str(install_dir) if install_dir else ""
+
     try:
         detached_process = 0x00000008
         create_new_process_group = 0x00000200
-        
+
         cmd = [
             "powershell.exe",
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
             "-File", str(temp_ps1),
             "-Version", version,
-            "-LocalZipPath", str(zip_path)
+            "-LocalZipPath", str(zip_path),
         ]
 
-        current_exe = Path(sys.executable).resolve()
-        if len(current_exe.parts) >= 4 and current_exe.parts[-3] == "app" and current_exe.parts[-4].lower() == ".shibaclaw":
-            install_dir = current_exe.parents[2]
-            cmd.extend(["-InstallDir", str(install_dir)])
+        if install_dir_str:
+            cmd.extend(["-InstallDir", install_dir_str])
 
         subprocess.Popen(
             cmd,
             creationflags=detached_process | create_new_process_group,
             close_fds=True,
-            cwd=tempfile.gettempdir()
+            cwd=tempfile.gettempdir(),
         )
-        
+
+        from loguru import logger
+        logger.info(
+            "exe updater: launched installer for v{} | install_dir={} | cmd={}",
+            version,
+            install_dir_str or "(not passed)",
+            " ".join(cmd),
+        )
+
         return {"ok": True, "output": "Installer script launched successfully."}
     except Exception as exc:
         return {"ok": False, "output": f"Failed to launch installer: {exc}"}
@@ -181,7 +226,7 @@ def _normalize_update_request(
 
     normalized.setdefault("install_method", install_method)
     normalized.setdefault("latest", latest)
-    
+
     if install_method in ("pip", "exe"):
         normalized.setdefault("action_kind", "automatic")
     else:
@@ -190,13 +235,15 @@ def _normalize_update_request(
         "action_label",
         "Update now" if install_method in ("pip", "exe") else "Run suggested update command",
     )
-    
+
     default_cmd = "git pull --ff-only && pip install -e ."
     if install_method == "pip":
         default_cmd = "pip install --upgrade shibaclaw"
     elif install_method == "exe":
-        default_cmd = 'powershell -c "irm https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1 | iex"'
-        
+        default_cmd = (
+            'powershell -c "irm https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1 | iex"'
+        )
+
     normalized.setdefault("action_command", default_cmd)
     return normalized
 
@@ -239,13 +286,13 @@ def apply_update(
         return _manual_report(normalized, version)
 
     backup = _backup_personal_files(manifest, workspace_root, version)
-    
+
     if install_method == "exe":
         download_url = normalized.get("action_url") or normalized.get("download_url")
         apply_result = _exe_upgrade(version, download_url, progress_cb)
     else:
         apply_result = _pip_upgrade(version)
-        
+
     message = (
         f"Updated ShibaClaw to {version}."
         if apply_result.get("ok")
