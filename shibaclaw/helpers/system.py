@@ -11,12 +11,14 @@ import os
 import platform
 import socket
 import sys
+from functools import lru_cache
 from typing import Literal
 
 OsType = Literal["windows", "linux", "darwin"]
 InstallMethod = Literal["source", "pip", "docker", "exe"]
 
 
+@lru_cache(maxsize=None)
 def get_os_type() -> OsType:
     """Return the current OS type: 'windows', 'linux', or 'darwin'."""
     system = platform.system().lower()
@@ -27,6 +29,7 @@ def get_os_type() -> OsType:
     return "linux"
 
 
+@lru_cache(maxsize=None)
 def is_running_in_docker() -> bool:
     """Return True if the process is running inside a Docker container.
 
@@ -48,6 +51,7 @@ def is_running_in_docker() -> bool:
     return False
 
 
+@lru_cache(maxsize=None)
 def is_running_in_pip_env() -> bool:
     """Return True if the process is running inside a virtual environment.
 
@@ -60,6 +64,7 @@ def is_running_in_pip_env() -> bool:
     return sys.prefix != sys.base_prefix
 
 
+@lru_cache(maxsize=None)
 def is_running_as_exe() -> bool:
     """Return True when running inside a packaged executable bundle.
 
@@ -75,6 +80,7 @@ def is_running_as_exe() -> bool:
     return False
 
 
+@lru_cache(maxsize=None)
 def get_installation_method() -> InstallMethod:
     """Detect how ShibaClaw was installed / launched.
 
