@@ -211,23 +211,39 @@ async def connect_mcp_servers(
                     timeout: httpx.Timeout | None = None,
                     auth: httpx.Auth | None = None,
                 ) -> httpx.AsyncClient:
+                    from shibaclaw.security.network import validate_resolved_url
+
+                    async def _ssrf_hook(request: httpx.Request):
+                        redir_ok, redir_err = validate_resolved_url(str(request.url))
+                        if not redir_ok:
+                            raise httpx.RequestError(f"Redirect blocked: {redir_err}", request=request)
+
                     merged_headers = {**(cfg.headers or {}), **(headers or {})}
                     return httpx.AsyncClient(
                         headers=merged_headers or None,
                         follow_redirects=True,
                         timeout=timeout,
                         auth=auth,
+                        event_hooks={"request": [_ssrf_hook]},
                     )
 
                 read, write = await stack.enter_async_context(
                     sse_client(cfg.url, httpx_client_factory=httpx_client_factory)
                 )
             elif transport_type == "streamableHttp":
+                from shibaclaw.security.network import validate_resolved_url
+
+                async def _ssrf_hook(request: httpx.Request):
+                    redir_ok, redir_err = validate_resolved_url(str(request.url))
+                    if not redir_ok:
+                        raise httpx.RequestError(f"Redirect blocked: {redir_err}", request=request)
+
                 http_client = await stack.enter_async_context(
                     httpx.AsyncClient(
                         headers=cfg.headers or None,
                         follow_redirects=True,
                         timeout=None,
+                        event_hooks={"request": [_ssrf_hook]},
                     )
                 )
                 read, write, _ = await stack.enter_async_context(

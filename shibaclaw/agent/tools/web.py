@@ -264,10 +264,18 @@ class WebFetchTool(Tool):
 
     def _get_redirect_client(self) -> httpx.AsyncClient:
         if self._redirect_client is None or self._redirect_client.is_closed:
+            from shibaclaw.security.network import validate_resolved_url
+
+            async def _ssrf_hook(request: httpx.Request):
+                redir_ok, redir_err = validate_resolved_url(str(request.url))
+                if not redir_ok:
+                    raise httpx.RequestError(f"Redirect blocked: {redir_err}", request=request)
+
             self._redirect_client = httpx.AsyncClient(
                 follow_redirects=True,
                 max_redirects=MAX_REDIRECTS,
                 proxy=self.proxy,
+                event_hooks={"request": [_ssrf_hook]},
             )
         return self._redirect_client
 
