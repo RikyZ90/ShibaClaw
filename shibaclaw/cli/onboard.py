@@ -30,6 +30,7 @@ _ONBOARD_PROVIDERS = [
     ("anthropic", "Anthropic", "ANTHROPIC_API_KEY", "claude-opus-4-5", False, False),
     ("openai", "OpenAI", "OPENAI_API_KEY", "gpt-4o", False, False),
     ("gemini", "Gemini", "GEMINI_API_KEY", "gemini/gemini-2.0-flash", False, False),
+    ("nvidia", "Nvidia", "NVIDIA_API_KEY", "meta/llama3-70b-instruct", False, False),
     ("deepseek", "DeepSeek", "DEEPSEEK_API_KEY", "deepseek/deepseek-chat", False, False),
     ("groq", "Groq", "GROQ_API_KEY", "groq/llama-3.3-70b-versatile", False, False),
     ("ollama", "Ollama (local)", "", "ollama/llama3.2", True, False),

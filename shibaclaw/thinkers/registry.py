@@ -100,6 +100,21 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         model_overrides=(),
         supports_prompt_caching=True,
     ),
+    # Nvidia: keys usually start with "nvapi-"
+    ProviderSpec(
+        name="nvidia",
+        keywords=("nvidia", "nim"),
+        env_key="NVIDIA_API_KEY",
+        display_name="Nvidia",
+        env_extras=(),
+        is_gateway=False,
+        is_local=False,
+        detect_by_key_prefix="nvapi-",
+        detect_by_base_keyword="nvidia",
+        default_api_base="https://integrate.api.nvidia.com/v1",
+        strip_model_prefix=False,
+        model_overrides=(),
+    ),
     # AiHubMix: global gateway, OpenAI-compatible interface.
     # strip_model_prefix=True: it doesn't understand "anthropic/claude-3",
     # so we strip to bare "claude-3" then re-prefix as "openai/claude-3".

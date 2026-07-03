@@ -1465,6 +1465,7 @@ async function _populateOAuthProviders(sel, current) {
 function providerKeyPlaceholder(name) {
     const placeholders = {
         anthropic: "sk-ant-...",
+        nvidia: "nvapi-...",
         deepseek: "sk-...",
         gemini: "AIza...",
         groq: "gsk_...",
@@ -1554,7 +1555,7 @@ function populateSettings(cfg) {
 
     const PROV_ICONS = {
         custom: "tune", azureOpenai: "cloud", anthropic: "psychology", openai: "auto_awesome",
-        openrouter: "route", deepseek: "explore", groq: "speed", zhipu: "translate",
+        openrouter: "route", nvidia: "developer_board", deepseek: "explore", groq: "speed", zhipu: "translate",
         dashscope: "dashboard", vllm: "memory", ollama: "dns", gemini: "diamond",
         moonshot: "dark_mode", minimax: "compress", aihubmix: "hub", siliconflow: "waves",
         volcengine: "volcano", volcentineCodingPlan: "code", byteplus: "add_box",
@@ -2676,7 +2677,7 @@ function _obRenderGrid() {
     grid.innerHTML = "";
     const ICONS = {
         openrouter: "route", anthropic: "psychology", openai: "auto_awesome", gemini: "diamond",
-        deepseek: "explore", groq: "speed", ollama: "dns", github_copilot: "code"
+        nvidia: "developer_board", deepseek: "explore", groq: "speed", ollama: "dns", github_copilot: "code"
     };
     for (const p of _ob.providers) {
         const card = document.createElement("div");
