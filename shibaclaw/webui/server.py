@@ -80,6 +80,14 @@ from .api import (
 )
 from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
 from .gateway_client import gateway_client
+from .mcp_manager import (
+    api_mcp_servers_list,
+    api_mcp_server_get,
+    api_mcp_server_upsert,
+    api_mcp_server_delete,
+    api_mcp_server_rename,
+    api_mcp_server_test,
+)
 from .ws_handler import ws_endpoint
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -141,6 +149,13 @@ def create_app(
         Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
         Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
         Route("/api/heartbeat/trigger", api_heartbeat_trigger, methods=["POST"]),
+        # ── MCP Server Manager ────────────────────────────────────────────
+        Route("/api/mcp/servers", api_mcp_servers_list, methods=["GET"]),
+        Route("/api/mcp/servers/{name}", api_mcp_server_get, methods=["GET"]),
+        Route("/api/mcp/servers/{name}", api_mcp_server_upsert, methods=["PUT"]),
+        Route("/api/mcp/servers/{name}", api_mcp_server_delete, methods=["DELETE"]),
+        Route("/api/mcp/servers/{name}/rename", api_mcp_server_rename, methods=["PATCH"]),
+        Route("/api/mcp/servers/{name}/test", api_mcp_server_test, methods=["POST"]),
         # ─────────────────────────────────────────────────────────────────
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
         Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
