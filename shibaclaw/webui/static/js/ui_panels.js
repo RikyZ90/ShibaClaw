@@ -1041,12 +1041,12 @@ window.switchSettingsTab = function (tab, options = {}) {
     document.querySelectorAll(".settings-panel").forEach(p => p.style.display = "none");
     const panel = $("panel-" + tab);
     if (panel) panel.style.display = "block";
-    if (tab !== "oauth") _clearOAuthPollsByPrefix("settings:");
     if (tab === "oauth") loadOAuthPanel();
     if (tab === "update") loadUpdatePanel();
     if (tab === "skills") loadSkillsPanel();
     if (tab === "plugins") loadPluginsPanel();
     if (tab === "heartbeat") loadHeartbeatSettingsPanel();
+    if (tab === "mcp") { if (typeof loadMcpManagerPanel === "function") loadMcpManagerPanel(); }
     try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch (e) { }
 
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
@@ -1948,97 +1948,9 @@ function populateSettings(cfg) {
     } else if (channelEntries.length > 0) {
         selectChannel(channelEntries[0][0], channelEntries[0][1]);
     }
-
-    const mcpServers = cfg.tools?.mcpServers || {};
-    const mcpList = $("mcp-servers-list");
-    mcpList.innerHTML = "";
-    const entries = Object.entries(mcpServers);
-
-    if (entries.length === 1 && entries[0][0] === "mcp") {
-        const note = document.createElement("div");
-        note.className = "settings-note";
-        note.innerHTML = "<b>Nota:</b> Questo è un esempio di server MCP. Modifica direttamente questo blocco per configurare il tuo server personalizzato.";
-        mcpList.appendChild(note);
-    }
-    for (const [name, sc] of entries) {
-        mcpList.appendChild(buildMcpServerCard(name, sc));
-    }
-
-    if (entries.length === 0) {
-        const card = buildMcpServerCard("", { args: [], enabled_tools: ["*"], tool_timeout: 30 });
-        card.classList.add("open");
-        mcpList.appendChild(card);
-    }
 }
 
-function buildMcpServerCard(name, sc) {
-    const card = document.createElement("div");
-    card.className = "accordion mcp-server-card";
-    const escName = name.replace(/"/g, "&quot;");
-    card.innerHTML = `
-        <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
-            <div class="accordion-title">
-                <span class="material-icons-round" style="font-size:18px">hub</span>
-                <span class="mcp-server-title">${escName}</span>
-            </div>
-            <div class="accordion-right">
-                <button type="button" class="btn-icon" onclick="event.stopPropagation();removeMcpServer(this)" title="Remove">
-                    <span class="material-icons-round" style="font-size:16px;color:var(--accent-red)">delete</span>
-                </button>
-                <span class="material-icons-round accordion-arrow">expand_more</span>
-            </div>
-        </div>
-        <div class="accordion-body">
-            <div class="field-row"><label>Server Name</label><input type="text" class="form-input mcp-name" value="${escName}" placeholder="my-server"></div>
-            <div class="field-row"><label>Type</label>
-                <select class="form-input mcp-type">
-                    <option value="" ${!sc.type ? "selected" : ""}>Auto-detect</option>
-                    <option value="stdio" ${sc.type === "stdio" ? "selected" : ""}>stdio</option>
-                    <option value="sse" ${sc.type === "sse" ? "selected" : ""}>sse</option>
-                    <option value="streamableHttp" ${sc.type === "streamableHttp" ? "selected" : ""}>streamableHttp</option>
-                </select>
-            </div>
-            <div class="field-row"><label>Command</label><input type="text" class="form-input mcp-command" value="${(sc.command || "").replace(/"/g, "&quot;")}" placeholder="npx, node, python..."></div>
-            <div class="field-row"><label>Args</label><input type="text" class="form-input mcp-args" value="${(sc.args || []).join(", ")}" placeholder="arg1, arg2, ..."></div>
-            <div class="field-row"><label>URL</label><input type="text" class="form-input mcp-url" value="${(sc.url || "").replace(/"/g, "&quot;")}" placeholder="http://localhost:3000/sse"></div>
-            <div class="field-row"><label>Headers (JSON)</label><input type="text" class="form-input mcp-headers" value="${Object.keys(sc.headers || {}).length ? JSON.stringify(sc.headers).replace(/"/g, "&quot;") : ""}" placeholder='{"Authorization": "Bearer ..."}'></div>
-            <div class="field-row"><label>Env Vars (JSON)</label><input type="text" class="form-input mcp-env" value="${Object.keys(sc.env || {}).length ? JSON.stringify(sc.env).replace(/"/g, "&quot;") : ""}" placeholder='{"API_KEY": "..."}'></div>
-            <div class="field-row"><label>Tool Timeout (s)</label><input type="number" class="form-input mcp-timeout" value="${sc.tool_timeout ?? 30}"></div>
-            <div class="field-row"><label>Enabled Tools</label><input type="text" class="form-input mcp-tools" value="${(sc.enabled_tools || ["*"]).join(", ")}" placeholder="*, tool_name, ..."></div>
-        </div>`;
-    return card;
-}
-
-function collectMcpServers() {
-    const result = {};
-    document.querySelectorAll(".mcp-server-card").forEach(card => {
-        const name = card.querySelector(".mcp-name").value.trim();
-        if (!name) return;
-        const parseJson = val => { try { return JSON.parse(val || "{}"); } catch { return {}; } };
-        result[name] = {
-            type: card.querySelector(".mcp-type").value || null,
-            command: card.querySelector(".mcp-command").value,
-            args: card.querySelector(".mcp-args").value ? card.querySelector(".mcp-args").value.split(",").map(s => s.trim()).filter(Boolean) : [],
-            url: card.querySelector(".mcp-url").value,
-            headers: parseJson(card.querySelector(".mcp-headers").value),
-            env: parseJson(card.querySelector(".mcp-env").value),
-            tool_timeout: parseInt(card.querySelector(".mcp-timeout").value) || 30,
-            enabled_tools: card.querySelector(".mcp-tools").value ? card.querySelector(".mcp-tools").value.split(",").map(s => s.trim()).filter(Boolean) : ["*"],
-        };
-    });
-    return result;
-}
-
-window.addMcpServer = function () {
-    const card = buildMcpServerCard("", { args: [], enabled_tools: ["*"], tool_timeout: 30 });
-    card.classList.add("open");
-    $("mcp-servers-list").appendChild(card);
-    card.querySelector(".mcp-name").focus();
-};
-
-window.removeMcpServer = function (btn) {
-    btn.closest(".mcp-server-card").remove();
-};
+/* Legacy MCP accordion card functions removed in favor of MCP Server Manager panel */
 
 window.saveSettings = async function () {
     const patch = {
@@ -2075,7 +1987,6 @@ window.saveSettings = async function () {
                 timeout: parseInt($("s-tool-execTimeout").value),
             },
             restrictToWorkspace: $("s-tool-restrict").checked,
-            mcpServers: collectMcpServers(),
         },
         gateway: {
             host: $("s-gw-host").value,

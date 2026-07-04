@@ -18,13 +18,17 @@ def _get_mcp_servers(cfg: Any) -> dict:
     """Return the mcpServers dict from config, normalised."""
     try:
         tools = cfg.tools
-        if tools and hasattr(tools, "mcpServers"):
-            return tools.mcpServers or {}
-        if tools and hasattr(tools, "model_extra") and tools.model_extra:
-            return tools.model_extra.get("mcpServers") or {}
+        if tools:
+            if hasattr(tools, "mcp_servers") and tools.mcp_servers:
+                return tools.mcp_servers
+            if hasattr(tools, "mcpServers") and tools.mcpServers:
+                return tools.mcpServers
+            if hasattr(tools, "model_extra") and tools.model_extra:
+                return tools.model_extra.get("mcp_servers") or tools.model_extra.get("mcpServers") or {}
     except Exception:
         pass
     return {}
+
 
 
 def _cfg_to_dict(cfg: Any) -> dict:
@@ -91,15 +95,26 @@ async def upsert_mcp_server(request: Request) -> JSONResponse:
         cfg = agent_manager.config
 
     cfg_dict = _cfg_to_dict(cfg)
-    if "tools" not in cfg_dict:
+    if "tools" not in cfg_dict or cfg_dict["tools"] is None:
         cfg_dict["tools"] = {}
-    if "mcpServers" not in cfg_dict["tools"]:
-        cfg_dict["tools"]["mcpServers"] = {}
-
-    cfg_dict["tools"]["mcpServers"][name] = body
+    
+    tools = cfg_dict["tools"]
+    if "mcp_servers" not in tools and "mcpServers" not in tools:
+        tools["mcp_servers"] = {}
+    
+    servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
+    if tools.get(servers_key) is None:
+        tools[servers_key] = {}
+        
+    tools[servers_key][name] = body
 
     try:
-        agent_manager.save_config(cfg_dict)
+        from shibaclaw.config.schema import Config
+        from shibaclaw.config.loader import save_config
+
+        new_cfg = Config.model_validate(cfg_dict)
+        save_config(new_cfg)
+        await agent_manager.reload_config(new_cfg)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -115,15 +130,23 @@ async def delete_mcp_server(request: Request) -> JSONResponse:
         cfg = agent_manager.config
 
     cfg_dict = _cfg_to_dict(cfg)
-    servers = cfg_dict.get("tools", {}).get("mcpServers", {})
+    tools = cfg_dict.get("tools", {})
+    servers = tools.get("mcp_servers") or tools.get("mcpServers") or {}
     if name not in servers:
         return JSONResponse({"error": f"Server '{name}' not found"}, status_code=404)
 
     del servers[name]
-    cfg_dict.setdefault("tools", {})["mcpServers"] = servers
+    servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
+    tools[servers_key] = servers
+    cfg_dict["tools"] = tools
 
     try:
-        agent_manager.save_config(cfg_dict)
+        from shibaclaw.config.schema import Config
+        from shibaclaw.config.loader import save_config
+
+        new_cfg = Config.model_validate(cfg_dict)
+        save_config(new_cfg)
+        await agent_manager.reload_config(new_cfg)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -148,17 +171,25 @@ async def rename_mcp_server(request: Request) -> JSONResponse:
         cfg = agent_manager.config
 
     cfg_dict = _cfg_to_dict(cfg)
-    servers = cfg_dict.get("tools", {}).get("mcpServers", {})
+    tools = cfg_dict.get("tools", {})
+    servers = tools.get("mcp_servers") or tools.get("mcpServers") or {}
     if old_name not in servers:
         return JSONResponse({"error": f"Server '{old_name}' not found"}, status_code=404)
     if new_name in servers and new_name != old_name:
         return JSONResponse({"error": f"Server '{new_name}' already exists"}, status_code=409)
 
     servers[new_name] = servers.pop(old_name)
-    cfg_dict.setdefault("tools", {})["mcpServers"] = servers
+    servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
+    tools[servers_key] = servers
+    cfg_dict["tools"] = tools
 
     try:
-        agent_manager.save_config(cfg_dict)
+        from shibaclaw.config.schema import Config
+        from shibaclaw.config.loader import save_config
+
+        new_cfg = Config.model_validate(cfg_dict)
+        save_config(new_cfg)
+        await agent_manager.reload_config(new_cfg)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
