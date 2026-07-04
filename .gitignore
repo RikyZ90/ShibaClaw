@@ -29,6 +29,7 @@ uv.lock
 .agents
 .vscode/
 .jules/
+.Jules/
 scratch/
 ROADMAP.md
 docker-compose.build.yml
