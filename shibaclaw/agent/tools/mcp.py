@@ -271,8 +271,11 @@ async def connect_mcp_servers(
 
                 def _make_httpx_client_factory(
                     resolved_headers: dict[str, str],
+                    origin_url: str,
                 ) -> Any:
                     """Capture resolved_headers in a closure for the SSE client factory."""
+                    _origin = origin_url.rstrip("/")
+
                     def httpx_client_factory(
                         headers: dict[str, str] | None = None,
                         timeout: httpx.Timeout | None = None,
@@ -281,7 +284,13 @@ async def connect_mcp_servers(
                         from shibaclaw.security.network import validate_resolved_url
 
                         async def _ssrf_hook(request: httpx.Request) -> None:
-                            redir_ok, redir_err = validate_resolved_url(str(request.url))
+                            # Only validate redirect targets, not the
+                            # original configured MCP server URL which
+                            # the user explicitly trusts (may be localhost).
+                            req_url = str(request.url).rstrip("/")
+                            if req_url == _origin or req_url.startswith(_origin + "/") or req_url.startswith(_origin + "?"):
+                                return
+                            redir_ok, redir_err = validate_resolved_url(req_url)
                             if not redir_ok:
                                 raise httpx.RequestError(
                                     f"Redirect blocked: {redir_err}", request=request
@@ -298,7 +307,7 @@ async def connect_mcp_servers(
                     return httpx_client_factory
 
                 read, write = await stack.enter_async_context(
-                    sse_client(cfg.url, httpx_client_factory=_make_httpx_client_factory(auth_headers))
+                    sse_client(cfg.url, httpx_client_factory=_make_httpx_client_factory(auth_headers, cfg.url))
                 )
 
             elif transport_type == "streamableHttp":
@@ -307,8 +316,16 @@ async def connect_mcp_servers(
 
                 from shibaclaw.security.network import validate_resolved_url
 
+                _origin_url = cfg.url.rstrip("/")
+
                 async def _ssrf_hook(request: httpx.Request) -> None:
-                    redir_ok, redir_err = validate_resolved_url(str(request.url))
+                    # Only validate redirect targets, not the original
+                    # configured MCP server URL which the user explicitly
+                    # trusts (may be localhost).
+                    req_url = str(request.url).rstrip("/")
+                    if req_url == _origin_url or req_url.startswith(_origin_url + "/") or req_url.startswith(_origin_url + "?"):
+                        return
+                    redir_ok, redir_err = validate_resolved_url(req_url)
                     if not redir_ok:
                         raise httpx.RequestError(
                             f"Redirect blocked: {redir_err}", request=request
