@@ -62,19 +62,9 @@ class OpenAICodexThinker(Thinker):
         url = DEFAULT_CODEX_URL
 
         try:
-            try:
-                content, tool_calls, finish_reason = await _request_codex(
-                    url, headers, body, verify=True
-                )
-            except Exception as e:
-                if "CERTIFICATE_VERIFY_FAILED" not in str(e):
-                    raise
-                logger.warning(
-                    "SSL certificate verification failed for Codex API; retrying with verify=False"
-                )
-                content, tool_calls, finish_reason = await _request_codex(
-                    url, headers, body, verify=False
-                )
+            content, tool_calls, finish_reason = await _request_codex(
+                url, headers, body
+            )
             return LLMResponse(
                 content=content,
                 tool_calls=tool_calls,
@@ -112,9 +102,8 @@ async def _request_codex(
     url: str,
     headers: dict[str, str],
     body: dict[str, Any],
-    verify: bool,
 ) -> tuple[str, list[ToolCallRequest], str]:
-    async with httpx.AsyncClient(timeout=60.0, verify=verify) as client:
+    async with httpx.AsyncClient(timeout=60.0, verify=True) as client:
         async with client.stream("POST", url, headers=headers, json=body) as response:
             if response.status_code != 200:
                 text = await response.aread()
