@@ -1,6 +1,6 @@
 /* ── MCP Server Manager Panel ─────────────────────────────────────────────
  *  Renders inside #panel-mcp (Settings → MCP Servers tab).
- *  Provides full CRUD + test-connection for MCP servers.
+ *  Provides full CRUD + test-connection + OAuth 2.1 auto-discovery.
  * ───────────────────────────────────────────────────────────────────────── */
 
 (function () {
@@ -11,11 +11,44 @@
     let _editingName = null;    // null = new server, string = existing name
     let _dirty = false;         // unsaved changes in editor
     let _testTimers = {};       // name → timeout id
+    let _oauthPopup = null;     // reference to OAuth popup window
+    let _oauthPollInterval = null;  // setInterval id for OAuth polling
 
     // ── entry point ──────────────────────────────────────────────────────────
     window.loadMcpManagerPanel = async function () {
+        _checkOAuthCallback();
         await _fetchAndRender();
     };
+
+    // ── OAuth callback detection ──────────────────────────────────────────────
+    function _checkOAuthCallback() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("mcp_oauth")) {
+            _toastSuccess("✅ OAuth conectado con éxito!");
+            // Clean URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete("mcp_oauth");
+            window.history.replaceState({}, "", url.toString());
+        } else if (params.has("mcp_oauth_error")) {
+            const err = params.get("mcp_oauth_error") || "unknown error";
+            _toastError(`❌ OAuth error: ${err}`);
+            const url = new URL(window.location.href);
+            url.searchParams.delete("mcp_oauth_error");
+            window.history.replaceState({}, "", url.toString());
+        }
+    }
+
+    // ── safe fetch (no SyntaxError on non-JSON) ───────────────────────────────
+    async function _safeFetch(url, opts) {
+        const res = await authFetch(url, opts);
+        let data = {};
+        try {
+            data = await res.json();
+        } catch (_) {
+            data = {};
+        }
+        return { res, data };
+    }
 
     // ── fetch ─────────────────────────────────────────────────────────────────
     async function _fetchAndRender() {
@@ -23,8 +56,7 @@
         if (!container) return;
         container.innerHTML = `<div class="mcp-loading"><span class="material-icons-round spin">progress_activity</span> Loading…</div>`;
         try {
-            const res = await authFetch("/api/mcp/servers");
-            const data = await res.json();
+            const { data } = await _safeFetch("/api/mcp/servers");
             _servers = data.servers || [];
             _renderList(container);
         } catch (e) {
@@ -61,7 +93,20 @@
             row.querySelector(".mcp-row-edit").addEventListener("click", () => _openEditor(s._name));
             row.querySelector(".mcp-row-delete").addEventListener("click", () => _confirmDelete(s._name));
             row.querySelector(".mcp-row-test").addEventListener("click", () => _testServer(s._name));
+            const connectBtn = row.querySelector(".mcp-row-connect");
+            if (connectBtn) connectBtn.addEventListener("click", () => _startAutoOAuth(s._name));
+            const manualBtn = row.querySelector(".mcp-row-oauth-manual");
+            if (manualBtn) manualBtn.addEventListener("click", () => _openOAuthManualModal(s._name));
         });
+    }
+
+    function _isHttpServer(s) {
+        const t = s.type || "";
+        return !!(s.url || t === "sse" || t === "streamableHttp");
+    }
+
+    function _hasOAuth(s) {
+        return !!(s.oauth && s.oauth.access_token);
     }
 
     function _buildServerRow(s) {
@@ -74,6 +119,22 @@
                 ? `<span class="mcp-endpoint" title="${escapeHtml(s.command)}">${escapeHtml(_truncate(s.command, 48))}</span>`
                 : `<span class="mcp-endpoint muted">—</span>`);
         const toolsCount = (s.enabled_tools || ["*"]).join(", ");
+        const isHttp = _isHttpServer(s);
+        const hasOAuth = _hasOAuth(s);
+
+        const oauthBadge = isHttp
+            ? (hasOAuth
+                ? `<span class="mcp-oauth-badge active" title="OAuth token active">🔒 OAuth</span>`
+                : `<span class="mcp-oauth-badge inactive" title="No OAuth token">🔓 No OAuth</span>`)
+            : "";
+
+        const connectBtn = (isHttp && !hasOAuth)
+            ? `<button class="btn-icon mcp-row-connect mcp-oauth-connect" title="Connect with OAuth"><span class="material-icons-round">login</span></button>`
+            : "";
+
+        const manualBtn = isHttp
+            ? `<button class="btn-icon mcp-row-oauth-manual" title="Manual token"><span class="material-icons-round">key</span></button>`
+            : "";
 
         return `
         <div class="mcp-row" id="mcp-row-${sid}">
@@ -83,16 +144,201 @@
                 <div class="mcp-row-meta">
                     <span class="mcp-type-badge ${typeCls}">${typeLabel}</span>
                     ${endpoint}
+                    ${oauthBadge}
                     <span class="mcp-tools-hint" title="Enabled tools: ${escapeHtml(toolsCount)}">tools: ${escapeHtml(_truncate(toolsCount, 30))}</span>
                 </div>
             </div>
             <div class="mcp-row-status" id="mcp-status-${sid}"></div>
             <div class="mcp-row-actions">
+                ${connectBtn}
+                ${manualBtn}
                 <button class="btn-icon mcp-row-test" title="Test connection"><span class="material-icons-round">bolt</span></button>
                 <button class="btn-icon mcp-row-edit" title="Edit"><span class="material-icons-round">edit</span></button>
                 <button class="btn-icon mcp-row-delete danger" title="Delete"><span class="material-icons-round">delete</span></button>
             </div>
         </div>`;
+    }
+
+    // ── OAuth auto-discovery flow ─────────────────────────────────────────────
+    async function _startAutoOAuth(name) {
+        const toast = _showOAuthToast(`🔄 Discovering OAuth for "${name}"…`);
+        try {
+            const { res, data } = await _safeFetch(
+                `/api/mcp/servers/${encodeURIComponent(name)}/oauth/start`,
+                { method: "POST" }
+            );
+            if (!res.ok) {
+                _removeOAuthToast(toast);
+                const useFallback = confirm(
+                    `Auto-discovery failed: ${data.error || "unknown error"}\n\nWant to enter the token manually?`
+                );
+                if (useFallback) _openOAuthManualModal(name);
+                return;
+            }
+
+            const { auth_url, state } = data;
+            _updateOAuthToast(toast, `🔐 Opening login popup…`);
+
+            const popupWidth = 600, popupHeight = 700;
+            const left = Math.round(window.screenX + (window.outerWidth - popupWidth) / 2);
+            const top = Math.round(window.screenY + (window.outerHeight - popupHeight) / 2);
+            _oauthPopup = window.open(
+                auth_url,
+                "mcp_oauth_popup",
+                `width=${popupWidth},height=${popupHeight},left=${left},top=${top},toolbar=no,menubar=no`
+            );
+
+            if (!_oauthPopup) {
+                _removeOAuthToast(toast);
+                alert("Popup blocked! Please allow popups for this page.");
+                return;
+            }
+
+            _updateOAuthToast(toast, `⏳ Waiting for authorization…`);
+
+            // Poll for completion
+            if (_oauthPollInterval) clearInterval(_oauthPollInterval);
+            _oauthPollInterval = setInterval(async () => {
+                try {
+                    const { data: statusData } = await _safeFetch(
+                        `/api/mcp/oauth/status?state=${encodeURIComponent(state)}`
+                    );
+                    if (statusData.completed) {
+                        clearInterval(_oauthPollInterval);
+                        _oauthPollInterval = null;
+                        if (_oauthPopup && !_oauthPopup.closed) _oauthPopup.close();
+                        _oauthPopup = null;
+                        _removeOAuthToast(toast);
+                        _toastSuccess(`🔒 OAuth connected for "${name}"!`);
+                        await _fetchAndRender();
+                    }
+                } catch (_) {
+                    // ignore polling errors
+                }
+            }, 1500);
+
+            // Timeout after 10 minutes
+            setTimeout(() => {
+                if (_oauthPollInterval) {
+                    clearInterval(_oauthPollInterval);
+                    _oauthPollInterval = null;
+                }
+                if (_oauthPopup && !_oauthPopup.closed) _oauthPopup.close();
+                _removeOAuthToast(toast);
+            }, 600000);
+
+        } catch (e) {
+            _removeOAuthToast(toast);
+            _toastError(`Network error: ${e}`);
+        }
+    }
+
+    // ── manual OAuth modal ────────────────────────────────────────────────────
+    function _openOAuthManualModal(name) {
+        const existing = document.getElementById("mcp-oauth-modal-overlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "mcp-oauth-modal-overlay";
+        overlay.className = "mcp-editor-overlay";
+        overlay.style.display = "flex";
+        overlay.innerHTML = `
+            <div class="mcp-editor-card" style="max-width:420px">
+                <div class="mcp-editor-header">
+                    <span class="mcp-editor-title">🔑 Manual OAuth Token – ${escapeHtml(name)}</span>
+                    <button class="btn-icon" id="mcp-oam-close"><span class="material-icons-round">close</span></button>
+                </div>
+                <div class="mcp-editor-body">
+                    <div class="field-row">
+                        <label>Access Token <span class="req">*</span></label>
+                        <input id="mcp-oam-token" type="text" class="form-input" placeholder="eyJ…">
+                    </div>
+                    <div class="field-row">
+                        <label>Refresh Token <span class="hint">(optional)</span></label>
+                        <input id="mcp-oam-refresh" type="text" class="form-input" placeholder="">
+                    </div>
+                    <div class="field-row">
+                        <label>Expires in <span class="hint">(seconds, optional)</span></label>
+                        <input id="mcp-oam-expires" type="number" class="form-input" placeholder="3600">
+                    </div>
+                    <div class="field-row" style="flex-direction:row;align-items:center;gap:8px">
+                        <input type="checkbox" id="mcp-oam-clear" style="width:auto">
+                        <label for="mcp-oam-clear" style="margin:0">Clear existing token</label>
+                    </div>
+                </div>
+                <div class="mcp-editor-footer">
+                    <div id="mcp-oam-err" class="mcp-editor-err" style="display:none"></div>
+                    <div class="mcp-editor-actions">
+                        <button class="btn-secondary" id="mcp-oam-cancel">Cancel</button>
+                        <button class="btn-primary" id="mcp-oam-save">Save Token</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+        document.getElementById("mcp-oam-close").addEventListener("click", close);
+        document.getElementById("mcp-oam-cancel").addEventListener("click", close);
+        document.getElementById("mcp-oam-save").addEventListener("click", async () => {
+            const errEl = document.getElementById("mcp-oam-err");
+            const clearChk = document.getElementById("mcp-oam-clear").checked;
+
+            if (clearChk) {
+                const { res } = await _safeFetch(
+                    `/api/mcp/servers/${encodeURIComponent(name)}/oauth`,
+                    { method: "DELETE" }
+                );
+                if (res.ok) {
+                    close();
+                    _toastSuccess(`Token cleared for "${name}".`);
+                    await _fetchAndRender();
+                } else {
+                    _showEditorErr(errEl, "Failed to clear token.");
+                }
+                return;
+            }
+
+            const token = (document.getElementById("mcp-oam-token")?.value || "").trim();
+            if (!token) {
+                _showEditorErr(errEl, "Access token is required.");
+                return;
+            }
+            const body = { access_token: token };
+            const refresh = (document.getElementById("mcp-oam-refresh")?.value || "").trim();
+            if (refresh) body.refresh_token = refresh;
+            const expires = parseInt(document.getElementById("mcp-oam-expires")?.value);
+            if (expires > 0) body.expires_in = expires;
+
+            const { res, data } = await _safeFetch(
+                `/api/mcp/servers/${encodeURIComponent(name)}/oauth`,
+                { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+            );
+            if (res.ok) {
+                close();
+                _toastSuccess(`Token saved for "${name}".`);
+                await _fetchAndRender();
+            } else {
+                _showEditorErr(errEl, data.error || "Save failed.");
+            }
+        });
+    }
+
+    // ── OAuth toast helpers ───────────────────────────────────────────────────
+    function _showOAuthToast(msg) {
+        const el = document.createElement("div");
+        el.className = "mcp-oauth-toast";
+        el.innerHTML = `<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> ${escapeHtml(msg)}`;
+        document.body.appendChild(el);
+        return el;
+    }
+
+    function _updateOAuthToast(el, msg) {
+        if (!el) return;
+        el.innerHTML = `<span class="material-icons-round spin" style="font-size:16px;vertical-align:middle">progress_activity</span> ${escapeHtml(msg)}`;
+    }
+
+    function _removeOAuthToast(el) {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
     // ── editor ────────────────────────────────────────────────────────────────
@@ -175,7 +421,6 @@
         document.getElementById("mcp-ed-cancel").addEventListener("click", _closeEditor);
         document.getElementById("mcp-ed-save").addEventListener("click", _saveEditor);
 
-        // Focus name field
         setTimeout(() => {
             const nameInput = document.getElementById("mcp-ed-name");
             if (nameInput) nameInput.focus();
@@ -200,7 +445,6 @@
             return;
         }
 
-        // Conflict check for new servers
         if (!_editingName && _servers.find(x => x._name === name)) {
             _showEditorErr(errEl, `A server named "${name}" already exists.`);
             nameInput?.focus();
@@ -234,21 +478,17 @@
                 .split(",").map(s => s.trim()).filter(Boolean),
         };
 
-        // Clean nulls
         Object.keys(body).forEach(k => { if (body[k] === null) delete body[k]; });
 
         const saveBtn = document.getElementById("mcp-ed-save");
         if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="material-icons-round spin" style="font-size:15px;vertical-align:middle">progress_activity</span> Saving…'; }
 
         try {
-            // If renaming, handle rename first
             if (_editingName && _editingName !== name) {
-                const renameRes = await authFetch(`/api/mcp/servers/${encodeURIComponent(_editingName)}/rename`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ new_name: name }),
-                });
-                const rd = await renameRes.json();
+                const { res: renameRes, data: rd } = await _safeFetch(
+                    `/api/mcp/servers/${encodeURIComponent(_editingName)}/rename`,
+                    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ new_name: name }) }
+                );
                 if (!renameRes.ok) {
                     _showEditorErr(errEl, rd.error || "Rename failed.");
                     if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span> Save'; }
@@ -256,12 +496,10 @@
                 }
             }
 
-            const res = await authFetch(`/api/mcp/servers/${encodeURIComponent(name)}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            const data = await res.json();
+            const { res, data } = await _safeFetch(
+                `/api/mcp/servers/${encodeURIComponent(name)}`,
+                { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+            );
             if (!res.ok) {
                 _showEditorErr(errEl, data.error || "Save failed.");
                 if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span> Save'; }
@@ -270,7 +508,14 @@
 
             _closeEditor();
             _toastSuccess(`Server "${name}" saved.`);
+
+            // Post-save: offer OAuth for HTTP servers without token
             await _fetchAndRender();
+            const saved = _servers.find(x => x._name === name);
+            if (saved && _isHttpServer(saved) && !_hasOAuth(saved)) {
+                const doOAuth = confirm(`"${name}" is an HTTP server.\nConnect with OAuth now?`);
+                if (doOAuth) _startAutoOAuth(name);
+            }
         } catch (e) {
             _showEditorErr(errEl, "Network error: " + e);
             if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span> Save'; }
@@ -287,8 +532,10 @@
         );
         if (!ok) return;
         try {
-            const res = await authFetch(`/api/mcp/servers/${encodeURIComponent(name)}`, { method: "DELETE" });
-            const data = await res.json();
+            const { res, data } = await _safeFetch(
+                `/api/mcp/servers/${encodeURIComponent(name)}`,
+                { method: "DELETE" }
+            );
             if (!res.ok) { _toastError(data.error || "Delete failed."); return; }
             _toastSuccess(`Server "${name}" deleted.`);
             await _fetchAndRender();
@@ -303,14 +550,15 @@
         const statusEl = document.getElementById(`mcp-status-${sid}`);
         if (!statusEl) return;
 
-        // Clear previous timer
         if (_testTimers[name]) { clearTimeout(_testTimers[name]); delete _testTimers[name]; }
 
         statusEl.innerHTML = `<span class="mcp-test-spin"><span class="material-icons-round spin" style="font-size:15px">progress_activity</span></span>`;
 
         try {
-            const res = await authFetch(`/api/mcp/servers/${encodeURIComponent(name)}/test`, { method: "POST" });
-            const data = await res.json();
+            const { res, data } = await _safeFetch(
+                `/api/mcp/servers/${encodeURIComponent(name)}/test`,
+                { method: "POST" }
+            );
             if (data.ok) {
                 statusEl.innerHTML = `<span class="mcp-status-badge ok" title="${escapeHtml(data.detail || "OK")}"><span class="material-icons-round" style="font-size:13px">check_circle</span> OK</span>`;
             } else {
@@ -320,7 +568,6 @@
             statusEl.innerHTML = `<span class="mcp-status-badge err" title="${escapeHtml(String(e))}"><span class="material-icons-round" style="font-size:13px">error_outline</span> Error</span>`;
         }
 
-        // Auto-clear badge after 8s
         _testTimers[name] = setTimeout(() => {
             if (statusEl) statusEl.innerHTML = "";
             delete _testTimers[name];

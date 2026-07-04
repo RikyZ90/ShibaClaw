@@ -84,9 +84,16 @@ from .routers.mcp_manager import (
     delete_mcp_server,
     get_mcp_server,
     list_mcp_servers,
+    oauth_manual_clear,
+    oauth_manual_store,
     rename_mcp_server,
     test_mcp_server,
     upsert_mcp_server,
+)
+from .routers.mcp_oauth import (
+    oauth_callback,
+    oauth_start,
+    oauth_status,
 )
 from .ws_handler import ws_endpoint
 
@@ -156,6 +163,12 @@ def create_app(
         Route("/api/mcp/servers/{name}", delete_mcp_server, methods=["DELETE"]),
         Route("/api/mcp/servers/{name}/rename", rename_mcp_server, methods=["PATCH"]),
         Route("/api/mcp/servers/{name}/test", test_mcp_server, methods=["POST"]),
+        Route("/api/mcp/servers/{name}/oauth", oauth_manual_store, methods=["POST"]),
+        Route("/api/mcp/servers/{name}/oauth", oauth_manual_clear, methods=["DELETE"]),
+        # ── MCP OAuth 2.1 Auto-Discovery ────────────────────────
+        Route("/api/mcp/servers/{name}/oauth/start", oauth_start, methods=["POST"]),
+        Route("/api/mcp/oauth/callback", oauth_callback, methods=["GET"]),
+        Route("/api/mcp/oauth/status", oauth_status, methods=["GET"]),
         # ───────────────────────────────────────────────
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
         Route("/api/oauth/login", api_oauth_login, methods=["POST"]),

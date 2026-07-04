@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from starlette.requests import Request
@@ -39,6 +40,22 @@ def _cfg_to_dict(cfg: Any) -> dict:
         return dict(cfg)
     except Exception:
         return {}
+
+
+def _build_headers(server_config: dict) -> dict[str, str]:
+    """Build HTTP headers for a server, injecting Bearer token if OAuth present."""
+    headers: dict[str, str] = {}
+    # Direct headers from config
+    raw_headers = server_config.get("headers") or {}
+    if isinstance(raw_headers, dict):
+        headers.update({str(k): str(v) for k, v in raw_headers.items()})
+    # OAuth Bearer token takes precedence
+    oauth = server_config.get("oauth") or {}
+    if isinstance(oauth, dict):
+        token = oauth.get("access_token", "")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+    return headers
 
 
 # ── route handlers ────────────────────────────────────────────────────────────
@@ -82,7 +99,6 @@ async def upsert_mcp_server(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
 
-    # Strip internal fields
     body.pop("_name", None)
 
     cfg = agent_manager.config
@@ -165,6 +181,80 @@ async def rename_mcp_server(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "new_name": new_name})
 
 
+async def oauth_manual_store(request: Request) -> JSONResponse:
+    """POST /api/mcp/servers/{name}/oauth – manually save an OAuth token."""
+    name = request.path_params["name"]
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    access_token = (body.get("access_token") or "").strip()
+    if not access_token:
+        return JSONResponse({"error": "access_token is required"}, status_code=400)
+
+    cfg = agent_manager.config
+    if not cfg:
+        agent_manager.load_latest_config()
+        cfg = agent_manager.config
+
+    cfg_dict = _cfg_to_dict(cfg)
+    servers = cfg_dict.get("tools", {}).get("mcpServers", {})
+    if name not in servers:
+        return JSONResponse({"error": f"Server '{name}' not found"}, status_code=404)
+
+    oauth_data: dict = {
+        "access_token": access_token,
+        "token_type": body.get("token_type") or "Bearer",
+    }
+    if body.get("refresh_token"):
+        oauth_data["refresh_token"] = body["refresh_token"]
+    expires_in = body.get("expires_in")
+    if expires_in:
+        try:
+            oauth_data["expires_at"] = time.time() + int(expires_in)
+        except (ValueError, TypeError):
+            pass
+
+    srv = servers[name]
+    if isinstance(srv, dict):
+        srv["oauth"] = oauth_data
+    cfg_dict.setdefault("tools", {})["mcpServers"] = servers
+
+    try:
+        agent_manager.save_config(cfg_dict)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+    return JSONResponse({"ok": True})
+
+
+async def oauth_manual_clear(request: Request) -> JSONResponse:
+    """DELETE /api/mcp/servers/{name}/oauth – remove OAuth token."""
+    name = request.path_params["name"]
+    cfg = agent_manager.config
+    if not cfg:
+        agent_manager.load_latest_config()
+        cfg = agent_manager.config
+
+    cfg_dict = _cfg_to_dict(cfg)
+    servers = cfg_dict.get("tools", {}).get("mcpServers", {})
+    if name not in servers:
+        return JSONResponse({"error": f"Server '{name}' not found"}, status_code=404)
+
+    srv = servers[name]
+    if isinstance(srv, dict):
+        srv.pop("oauth", None)
+    cfg_dict.setdefault("tools", {})["mcpServers"] = servers
+
+    try:
+        agent_manager.save_config(cfg_dict)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+    return JSONResponse({"ok": True})
+
+
 async def test_mcp_server(request: Request) -> JSONResponse:
     """POST /api/mcp/servers/{name}/test – quick connectivity probe."""
     name = request.path_params["name"]
@@ -187,14 +277,15 @@ async def test_mcp_server(request: Request) -> JSONResponse:
     import os
     probe_env = {**os.environ, **{str(k): str(v) for k, v in env_vars.items()}}
 
-    # SSE / streamableHttp – just do a HEAD/GET to the URL
+    # SSE / streamableHttp – just do a GET to the URL with auth headers
     if server_type in ("sse", "streamableHttp") or (url and not command):
         if not url:
             return JSONResponse({"ok": False, "error": "No URL configured for HTTP server"})
         try:
-            import urllib.request
-            req = urllib.request.Request(url, method="GET")
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            import urllib.request as _ureq
+            hdrs = _build_headers(sc_dict)
+            req = _ureq.Request(url, headers=hdrs, method="GET")
+            with _ureq.urlopen(req, timeout=5) as resp:
                 status = resp.status
             return JSONResponse({"ok": True, "detail": f"HTTP {status} from {url}"})
         except Exception as exc:
@@ -215,7 +306,6 @@ async def test_mcp_server(request: Request) -> JSONResponse:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=6)
         except asyncio.TimeoutError:
             proc.kill()
-            # Timeout just means it's running and waiting for stdin – that's fine
             return JSONResponse({"ok": True, "detail": "Process started successfully (stdio, waiting for input)"})
         rc = proc.returncode
         if rc == 0 or (stdout and len(stdout) > 0):
@@ -237,4 +327,6 @@ routes = [
     Route("/api/mcp/servers/{name}", delete_mcp_server, methods=["DELETE"]),
     Route("/api/mcp/servers/{name}/rename", rename_mcp_server, methods=["PATCH"]),
     Route("/api/mcp/servers/{name}/test", test_mcp_server, methods=["POST"]),
+    Route("/api/mcp/servers/{name}/oauth", oauth_manual_store, methods=["POST"]),
+    Route("/api/mcp/servers/{name}/oauth", oauth_manual_clear, methods=["DELETE"]),
 ]
