@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
 
 
 # ── import symbols under test ─────────────────────────────────────────────────
 
 from shibaclaw.webui.routers.connected_apps import (
     CONNECTED_APPS,
-    ConnectedAppDef,
-    _get_apps_cfg,
-    _get_klavis_client_clean,
     _get_app_state,
     _sync_app_to_mcp,
     _remove_app_from_mcp,
@@ -123,11 +119,7 @@ def test_get_app_state_returns_data_when_present():
 
 def test_sync_gmail_to_mcp():
     app_def = CONNECTED_APPS["gmail"]
-    app_state = {
-        "connected": True,
-        "enabled": True,
-        "server_url": "https://strata.klavis.ai/mcp/gmail/",
-    }
+
     cfg = _base_cfg()
 
     _sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
@@ -142,11 +134,7 @@ def test_sync_gmail_to_mcp():
 
 def test_sync_github_to_mcp():
     app_def = CONNECTED_APPS["github"]
-    app_state = {
-        "connected": True,
-        "enabled": True,
-        "server_url": "https://strata.klavis.ai/mcp/github/",
-    }
+
     cfg = _base_cfg()
 
     _sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
