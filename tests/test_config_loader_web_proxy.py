@@ -1,4 +1,3 @@
-import pytest
 from shibaclaw.config.loader import _migrate_config
 
 def test_migrate_config_web_proxy_empty_dict():
