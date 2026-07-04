@@ -133,6 +133,10 @@ def _migrate_config(data: dict) -> dict:
         if isinstance(_ch_cfg, dict) and isinstance(_ch_cfg.get("proxy"), dict):
             _ch_cfg["proxy"] = None
 
+    web_cfg = tools.get("web", {})
+    if isinstance(web_cfg, dict) and isinstance(web_cfg.get("proxy"), dict):
+        web_cfg["proxy"] = None
+
     data["channels"] = channels
 
     # Ensure mcpServers have all default fields without re-adding deleted servers
