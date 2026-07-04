@@ -835,12 +835,6 @@ class AutomationService:
             self._task_cache.pop(next(iter(self._task_cache)))
         return raw_content, sections
 
-    def _is_managed_task_section(self, task_name: str) -> bool:
-        normalized = _normalize_task_name(task_name)
-        return any(
-            _normalize_task_name(candidate.name) == normalized for candidate in self._jobs.values()
-        )
-
     def _resolve_heartbeat_tasks(
         self,
         job: AutomationJob,
@@ -857,13 +851,17 @@ class AutomationService:
             if _normalize_task_name(section_name) == target_name:
                 return body
 
+        # Precompute the set of managed task names for O(1) lookup
+        # This prevents O(M*N) string normalizations when filtering sections
+        managed_tasks = {_normalize_task_name(j.name) for j in self._jobs.values()}
+
         # The global/system heartbeat should only consume ad-hoc task sections.
         # Sections already managed by automation jobs are executed through their
         # own job state and schedule, so including them here causes duplicate runs.
         return "\n\n".join(
             body
             for section_name, body in sections
-            if body and not self._is_managed_task_section(section_name)
+            if body and _normalize_task_name(section_name) not in managed_tasks
         ).strip()
 
     # ------------------------------------------------------------------
