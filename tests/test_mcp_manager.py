@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from starlette.testclient import TestClient
@@ -32,7 +32,7 @@ def app():
         rename_mcp_server, test_mcp_server, oauth_manual_store, oauth_manual_clear,
     )
     from shibaclaw.webui.routers.mcp_oauth import (
-        oauth_start, oauth_callback, oauth_status, _PENDING_OAUTH,
+        oauth_start, oauth_callback, oauth_status,
     )
     routes = [
         Route("/api/mcp/servers", list_mcp_servers, methods=["GET"]),
@@ -252,8 +252,9 @@ class TestOauthCallback:
 
 class TestPkce:
     def test_generate(self):
+        import base64
+        import hashlib
         from shibaclaw.webui.routers.mcp_oauth import _generate_pkce
-        import base64, hashlib
         verifier, challenge = _generate_pkce()
         assert len(verifier) == 128
         expected = base64.urlsafe_b64encode(
