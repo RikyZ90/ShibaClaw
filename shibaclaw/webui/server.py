@@ -80,6 +80,14 @@ from .api import (
 )
 from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
 from .gateway_client import gateway_client
+from .routers.mcp_manager import (
+    delete_mcp_server,
+    get_mcp_server,
+    list_mcp_servers,
+    rename_mcp_server,
+    test_mcp_server,
+    upsert_mcp_server,
+)
 from .ws_handler import ws_endpoint
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -128,7 +136,7 @@ def create_app(
         Route("/api/context", api_context_get),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
-        # ── Automation (unified) ──────────────────────────────────────────
+        # ── Automation (unified) ────────────────────────────────
         Route("/api/automation/status", api_automation_status, methods=["GET"]),
         Route("/api/automation/jobs", api_automation_jobs_list, methods=["GET"]),
         Route("/api/automation/jobs", api_automation_jobs_create, methods=["POST"]),
@@ -136,12 +144,19 @@ def create_app(
         Route("/api/automation/jobs/{job_id}", api_automation_job_update, methods=["PATCH"]),
         Route("/api/automation/jobs/{job_id}", api_automation_job_delete, methods=["DELETE"]),
         Route("/api/automation/jobs/{job_id}/trigger", api_automation_job_trigger, methods=["POST"]),
-        # ── Legacy shims (deprecated, kept for backward compat) ───────────
+        # ── Legacy shims (deprecated, kept for backward compat) ─────
         Route("/api/cron/jobs", api_cron_list, methods=["GET"]),
         Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
         Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
         Route("/api/heartbeat/trigger", api_heartbeat_trigger, methods=["POST"]),
-        # ─────────────────────────────────────────────────────────────────
+        # ── MCP Server Manager ──────────────────────────────────
+        Route("/api/mcp/servers", list_mcp_servers, methods=["GET"]),
+        Route("/api/mcp/servers/{name}", get_mcp_server, methods=["GET"]),
+        Route("/api/mcp/servers/{name}", upsert_mcp_server, methods=["PUT"]),
+        Route("/api/mcp/servers/{name}", delete_mcp_server, methods=["DELETE"]),
+        Route("/api/mcp/servers/{name}/rename", rename_mcp_server, methods=["PATCH"]),
+        Route("/api/mcp/servers/{name}/test", test_mcp_server, methods=["POST"]),
+        # ───────────────────────────────────────────────
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
         Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
         Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),
@@ -259,7 +274,6 @@ async def _start_gateway_client() -> None:
             token = get_auth_token() or ""
             gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, token)
 
-            # Register handler for gateway push notifications
             async def _on_session_notify(msg):
                 payload = msg.get("payload", {})
                 sk = msg.get("session_key", "")
@@ -271,7 +285,7 @@ async def _start_gateway_client() -> None:
                 media = payload.get("media")
                 if content:
                     await agent_manager.deliver_background_notification(
-                        sk,  # may be empty for system broadcasts
+                        sk,
                         content,
                         source=source,
                         persist=persist,
@@ -356,10 +370,6 @@ class ServerManager:
         self._server: uvicorn.Server | None = None
         self._thread: threading.Thread | None = None
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def start(self) -> None:
         """Spawn the server in a background daemon thread."""
         if self._thread and self._thread.is_alive():
@@ -415,10 +425,6 @@ class ServerManager:
     @property
     def base_url(self) -> str:
         return f"http://{self._host}:{self._port}"
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
 
     def _run_in_thread(self) -> None:
         loop = asyncio.new_event_loop()

@@ -21,6 +21,7 @@
 
     <!-- Styles -->
     <link rel="stylesheet" href="/static/index.css?v=2">
+    <link rel="stylesheet" href="/static/css/mcp_manager.css?v=1">
 
     <!-- WebSocket adapter and Marked.js -->
     <script src="/static/js/realtime.js"></script>
@@ -630,7 +631,7 @@
                             </select>
                         </div>
                         <div class="field-row" id="tts-lang-row" style="display:none">
-                            <label>TTS Language</label>
+                            <label>TTS Lang</label>
                             <select id="s-audio-ttsLang" class="form-input">
                                 <option value="en">English (en)</option>
                                 <option value="it">Italiano (it)</option>
@@ -669,13 +670,7 @@
 
                     <!-- Tab: MCP Servers -->
                     <div class="settings-panel" id="panel-mcp" style="display:none">
-                        <div id="mcp-servers-list"></div>
-                        <div style="padding:0.5rem 0">
-                            <button type="button" class="btn-secondary" onclick="addMcpServer()">
-                                <span class="material-icons-round"
-                                    style="font-size:16px;vertical-align:middle">add</span> Add MCP Server
-                            </button>
-                        </div>
+                        <div id="mcp-manager-container"></div>
                     </div>
 
                     <!-- Tab: Gateway -->
@@ -1236,6 +1231,7 @@
     <script src="/static/js/profiles.js?v=2"></script>
     <script src="/static/js/speech.js?v=2"></script>
     <script src="/static/select_session.js?v=2"></script>
+    <script src="/static/js/mcp_manager.js?v=1"></script>
 </body>
 
 </html>
