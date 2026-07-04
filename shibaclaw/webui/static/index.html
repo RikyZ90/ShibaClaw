@@ -476,10 +476,10 @@
 
                     <!-- Tab: Agent -->
                     <div class="settings-panel" id="panel-agent">
-                        <div class="field-row"><label>Workspace</label><input type="text" id="s-agent-workspace"
+                        <div class="field-row"><label for="s-agent-workspace">Workspace</label><input type="text" id="s-agent-workspace"
                                 class="form-input" placeholder="~/.shibaclaw/workspace"></div>
                         <div class="field-row field-row-stack">
-                            <label>Default Model For New Sessions</label>
+                            <label for="s-agent-model-button">Default Model For New Sessions</label>
                             <p class="settings-note">Used when you create a new chat. Provider routing is inferred
                                 automatically from the selected model.</p>
                             <div class="settings-model-picker" id="s-agent-model-picker">
@@ -503,7 +503,7 @@
                             </div>
                         </div>
                         <div class="field-row field-row-stack">
-                            <label>Memory / Consolidation Model</label>
+                            <label for="s-agent-consolidationModel-button">Memory / Consolidation Model</label>
                             <p class="settings-note">Optional. Leave it empty to reuse the default session model for
                                 proactive learning and long-term memory consolidation.</p>
                             <div class="settings-model-picker" id="s-agent-consolidationModel-picker">
@@ -528,28 +528,28 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="field-row"><label>Max Tokens</label><input type="number" id="s-agent-maxTokens"
+                        <div class="field-row"><label for="s-agent-maxTokens">Max Tokens</label><input type="number" id="s-agent-maxTokens"
                                 class="form-input" value="8192"></div>
-                        <div class="field-row"><label>Context Window Tokens</label><input type="number"
+                        <div class="field-row"><label for="s-agent-ctxTokens">Context Window Tokens</label><input type="number"
                                 id="s-agent-ctxTokens" class="form-input" value="65536"></div>
-                        <div class="field-row"><label>Temperature</label><input type="text" id="s-agent-temp"
+                        <div class="field-row"><label for="s-agent-temp">Temperature</label><input type="text" id="s-agent-temp"
                                 class="form-input" value="0.1"></div>
-                        <div class="field-row"><label>Max Tool Iterations</label><input type="number"
+                        <div class="field-row"><label for="s-agent-maxIter">Max Tool Iterations</label><input type="number"
                                 id="s-agent-maxIter" class="form-input" value="40"></div>
-                        <div class="field-row"><label>Tool Timeout (s)</label><input type="number"
+                        <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s)</label><input type="number"
                                 id="s-agent-toolTimeout" class="form-input" value="660" min="10"
                                 title="Max seconds for all tool executions combined"></div>
-                        <div class="field-row"><label>Agent Loop Timeout (s)</label><input type="number"
+                        <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s)</label><input type="number"
                                 id="s-agent-loopWallTimeout" class="form-input" value="600" min="10"
                                 title="Max seconds for the entire agent loop"></div>
-                        <div class="field-row"><label>Subagent Timeout (s)</label><input type="number"
+                        <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s)</label><input type="number"
                                 id="s-agent-subagentTimeout" class="form-input" value="600" min="10"
                                 title="Max seconds for a single subagent execution"></div>
-                        <div class="field-row"><label>Reasoning Effort</label><input type="text" id="s-agent-reasoning"
+                        <div class="field-row"><label for="s-agent-reasoning">Reasoning Effort</label><input type="text" id="s-agent-reasoning"
                                 class="form-input" placeholder="null (not set)"></div>
 
                         <div class="field-row">
-                            <label>Thought Blocks (Reasoning Models)</label>
+                            <label for="s-ui-hide-thoughts">Thought Blocks (Reasoning Models)</label>
                             <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
                                 <div style="display:flex;align-items:center;gap:8px;min-width:0">
                                     <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
@@ -565,7 +565,7 @@
                         </div>
 
                         <div class="field-row">
-                            <label>Mobile: Enter inserts newline</label>
+                            <label for="s-ui-mobile-enter-newline">Mobile: Enter inserts newline</label>
                             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                                 <label class="toggle"><input type="checkbox" id="s-ui-mobile-enter-newline"><span
                                         class="toggle-slider"></span></label>
@@ -601,7 +601,7 @@
                     <!-- Tab: Audio -->
                     <div class="settings-panel" id="panel-audio" style="display:none">
                         <div class="field-row field-row-stack">
-                            <label>STT Provider URL</label>
+                            <label for="s-audio-providerUrl">STT Provider URL</label>
                             <p class="settings-note">
                                 Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier,
                                 ultra-fast)
@@ -610,28 +610,28 @@
                             <input type="text" id="s-audio-providerUrl" class="form-input"
                                 placeholder="https://api.groq.com/openai/v1">
                         </div>
-                        <div class="field-row"><label>STT API Key</label><input type="password" id="s-audio-apiKey"
+                        <div class="field-row"><label for="s-audio-apiKey">STT API Key</label><input type="password" id="s-audio-apiKey"
                                 class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
-                        <div class="field-row"><label>STT Model</label><input type="text" id="s-audio-model"
+                        <div class="field-row"><label for="s-audio-model">STT Model</label><input type="text" id="s-audio-model"
                                 class="form-input" placeholder="whisper-large-v3-turbo"></div>
-                        <div class="field-row"><label>Text-To-Speech (Bot Voice)</label><label class="toggle"><input
+                        <div class="field-row"><label for="tts-toggle">Text-To-Speech (Bot Voice)</label><label class="toggle"><input
                                     type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
                         <div class="field-row" id="tts-provider-row" style="display:none">
-                            <label>TTS Provider</label>
+                            <label for="s-audio-ttsProvider">TTS Provider</label>
                             <select id="s-audio-ttsProvider" class="form-input">
                                 <option value="browser">Browser Native Synthesis</option>
                                 <option value="supertonic">Supertonic TTS (Local ONNX)</option>
                             </select>
                         </div>
                         <div class="field-row" id="tts-voice-row" style="display:none">
-                            <label>TTS Voice</label>
+                            <label for="s-audio-ttsVoice">TTS Voice</label>
                             <select id="s-audio-ttsVoice" class="form-input">
                                 <option value="F1">Female 1 (en_female)</option>
                                 <option value="M1">Male 1 (en_male)</option>
                             </select>
                         </div>
                         <div class="field-row" id="tts-lang-row" style="display:none">
-                            <label>TTS Lang</label>
+                            <label for="s-audio-ttsLang">TTS Language</label>
                             <select id="s-audio-ttsLang" class="form-input">
                                 <option value="en">English (en)</option>
                                 <option value="it">Italiano (it)</option>
@@ -643,27 +643,27 @@
                             </select>
                         </div>
                         <div class="field-row" id="tts-speed-row" style="display:none">
-                            <label>TTS Speed</label>
+                            <label for="s-audio-ttsSpeed">TTS Speed</label>
                             <input type="number" id="s-audio-ttsSpeed" class="form-input" min="0.5" max="2.0" step="0.1" value="1.0">
                         </div>
                     </div>
 
                     <!-- Tab: Tools -->
                     <div class="settings-panel" id="panel-tools" style="display:none">
-                        <div class="field-row"><label>Search Provider</label><input type="text"
+                        <div class="field-row"><label for="s-tool-searchProvider">Search Provider</label><input type="text"
                                 id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
-                        <div class="field-row"><label>Search API Key</label><input type="password" id="s-tool-searchKey"
+                        <div class="field-row"><label for="s-tool-searchKey">Search API Key</label><input type="password" id="s-tool-searchKey"
                                 class="form-input" placeholder="API key"></div>
-                        <div class="field-row"><label>Max Search Results</label><input type="number"
+                        <div class="field-row"><label for="s-tool-searchMax">Max Search Results</label><input type="number"
                                 id="s-tool-searchMax" class="form-input" value="5"></div>
-                        <div class="field-row"><label>Proxy URL</label><input type="text" id="s-tool-proxy"
+                        <div class="field-row"><label for="s-tool-proxy">Proxy URL</label><input type="text" id="s-tool-proxy"
                                 class="form-input" placeholder="(optional)"></div>
-                        <div class="field-row"><label>Shell Exec Enabled</label><label class="toggle"><input
+                        <div class="field-row"><label for="s-tool-execEnable">Shell Exec Enabled</label><label class="toggle"><input
                                     type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label>
                         </div>
-                        <div class="field-row"><label>Exec Timeout (s)</label><input type="number"
+                        <div class="field-row"><label for="s-tool-execTimeout">Exec Timeout (s)</label><input type="number"
                                 id="s-tool-execTimeout" class="form-input" value="60"></div>
-                        <div class="field-row"><label>Restrict to Workspace</label><label class="toggle"><input
+                        <div class="field-row"><label for="s-tool-restrict">Restrict to Workspace</label><label class="toggle"><input
                                     type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label>
                         </div>
                     </div>
@@ -675,9 +675,9 @@
 
                     <!-- Tab: Gateway -->
                     <div class="settings-panel" id="panel-gateway" style="display:none">
-                        <div class="field-row"><label>Host</label><input type="text" id="s-gw-host" class="form-input"
+                        <div class="field-row"><label for="s-gw-host">Host</label><input type="text" id="s-gw-host" class="form-input"
                                 placeholder="127.0.0.1"></div>
-                        <div class="field-row"><label>Port</label><input type="number" id="s-gw-port" class="form-input"
+                        <div class="field-row"><label for="s-gw-port">Port</label><input type="number" id="s-gw-port" class="form-input"
                                 value="19999"></div>
                         <!--
                             Legacy heartbeat fields — kept hidden so saveSettings() still collects them
@@ -901,12 +901,12 @@
 
                     <div class="automation-form-body">
                         <div class="field-row">
-                            <label>Name</label>
+                            <label for="ajf-name">Name</label>
                             <input type="text" id="ajf-name" class="form-input" placeholder="e.g. Daily Report">
                         </div>
 
                         <div class="field-row field-row-stack">
-                            <label>Message to agent</label>
+                            <label for="ajf-message">Message to agent</label>
                             <p class="settings-note">What should the agent do when this job runs?</p>
                             <textarea id="ajf-message" class="form-input" rows="3"
                                 placeholder="E.g. Check my latest emails and summarize them..."></textarea>
@@ -914,7 +914,7 @@
 
                         <!-- Schedule -->
                         <div class="field-row">
-                            <label>Schedule</label>
+                            <label for="ajf-sched-kind">Schedule</label>
                             <select id="ajf-sched-kind" class="form-input" onchange="onSchedKindChange()">
                                 <option value="every">Every N minutes</option>
                                 <option value="cron">Cron expression</option>
@@ -922,19 +922,19 @@
                             </select>
                         </div>
                         <div id="ajf-sched-every" class="field-row">
-                            <label>Interval (min)</label>
+                            <label for="ajf-every-min">Interval (min)</label>
                             <input type="number" id="ajf-every-min" class="form-input" value="30" min="1">
                         </div>
                         <div id="ajf-sched-cron" class="field-row" style="display:none">
-                            <label>Cron expr</label>
+                            <label for="ajf-cron-expr">Cron expr</label>
                             <input type="text" id="ajf-cron-expr" class="form-input" placeholder="0 9 * * 1-5">
                         </div>
                         <div id="ajf-tz-row" class="field-row" style="display:none">
-                            <label>Timezone</label>
+                            <label for="ajf-tz">Timezone</label>
                             <input type="text" id="ajf-tz" class="form-input" placeholder="Europe/Rome (optional)">
                         </div>
                         <div id="ajf-sched-at" class="field-row" style="display:none">
-                            <label>Run at</label>
+                            <label for="ajf-at-dt">Run at</label>
                             <input type="datetime-local" id="ajf-at-dt" class="form-input">
                         </div>
 
@@ -946,7 +946,7 @@
                                 style="margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--border-color);">
                                 <!-- Delivery -->
                                 <div class="field-row">
-                                    <label>Deliver result</label>
+                                    <label for="ajf-deliver">Deliver result</label>
                                     <label class="toggle">
                                         <input type="checkbox" id="ajf-deliver" onchange="onDeliverChange()">
                                         <span class="toggle-slider"></span>
@@ -954,7 +954,7 @@
                                 </div>
                                 <div id="ajf-delivery-fields" style="display:none">
                                     <div class="field-row">
-                                        <label>Channel</label>
+                                        <label for="ajf-channel">Channel</label>
                                         <select id="ajf-channel" class="form-input">
                                             <option value="">Auto-detect</option>
                                             <option value="webui">Web UI</option>
@@ -964,7 +964,7 @@
                                         </select>
                                     </div>
                                     <div class="field-row">
-                                        <label>Target ID</label>
+                                        <label for="ajf-target-id">Target ID</label>
                                         <input type="text" id="ajf-target-id" class="form-input"
                                             placeholder="chat_id / channel">
                                     </div>
@@ -972,24 +972,24 @@
 
                                 <!-- Other Advanced -->
                                 <div class="field-row">
-                                    <label>Session key</label>
+                                    <label for="ajf-session-key">Session key</label>
                                     <input type="text" id="ajf-session-key" class="form-input" placeholder="(auto)">
                                 </div>
                                 <div class="field-row">
-                                    <label>Agent profile</label>
+                                    <label for="ajf-profile">Agent profile</label>
                                     <select id="ajf-profile" class="form-input">
                                         <option value="">Default</option>
                                     </select>
                                 </div>
                                 <div class="field-row">
-                                    <label>Delete after run</label>
+                                    <label for="ajf-delete-after">Delete after run</label>
                                     <label class="toggle">
                                         <input type="checkbox" id="ajf-delete-after">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
                                 <div class="field-row">
-                                    <label>Enabled</label>
+                                    <label for="ajf-enabled">Enabled</label>
                                     <label class="toggle">
                                         <input type="checkbox" id="ajf-enabled" checked>
                                         <span class="toggle-slider"></span>
