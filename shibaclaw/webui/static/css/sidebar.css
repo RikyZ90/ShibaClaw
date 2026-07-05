@@ -287,6 +287,12 @@
     animation: spin 1s linear infinite;
 }
 
+.status-dot.starting {
+    background: #3b82f6;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+    animation: pulse-blue 1.5s infinite;
+}
+
 /* Restart button */
 .btn-restart {
     margin-left: auto;
@@ -360,6 +366,18 @@
 }
 
 @keyframes pulse-yellow {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes pulse-blue {
 
     0%,
     100% {

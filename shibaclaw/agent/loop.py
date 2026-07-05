@@ -316,6 +316,12 @@ class ShibaBrain:
         if self.automation_service:
             self.tools.register(AutomationTool(self.automation_service))
 
+        try:
+            from shibaclaw.agent.tools.mcp import register_active_mcp_tools
+            register_active_mcp_tools(self.tools)
+        except Exception as e:
+            logger.error("Failed to restore active MCP tools on registry rebuild: {}", e)
+
     def inject_steering_message(
         self,
         session_key: str,

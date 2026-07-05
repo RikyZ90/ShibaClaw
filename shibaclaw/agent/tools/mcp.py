@@ -12,14 +12,94 @@ from loguru import logger
 from shibaclaw.agent.tools.base import Tool
 from shibaclaw.agent.tools.registry import SkillVault
 
+class MCPWrappedTool(Tool):
+    """Dynamically registers an individual tool from an MCP server as a native tool."""
+
+    def __init__(self, server_name: str, tool_def: Any, session: Any, timeout: int = 30) -> None:
+        self._server_name = server_name
+        self._tool_name = tool_def.name
+        self._name = f"mcp_{server_name}_{tool_def.name}"
+        self._description = tool_def.description or f"Execute tool '{tool_def.name}' on MCP server '{server_name}'."
+        self._parameters = tool_def.inputSchema or {"type": "object", "properties": {}}
+        self._session = session
+        self._timeout = timeout
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return self._parameters
+
+    async def execute(self, **kwargs: Any) -> str:
+        from mcp import types
+        try:
+            result = await asyncio.wait_for(
+                self._session.call_tool(self._tool_name, arguments=kwargs),
+                timeout=self._timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "MCP tool '{}' on server '{}' timed out after {}s",
+                self._tool_name,
+                self._server_name,
+                self._timeout,
+            )
+            return f"(MCP tool call timed out after {self._timeout}s)"
+        except asyncio.CancelledError:
+            task = asyncio.current_task()
+            if task is not None and task.cancelling() > 0:
+                raise
+            logger.warning(
+                "MCP tool '{}' on server '{}' was cancelled",
+                self._tool_name,
+                self._server_name,
+            )
+            return "(MCP tool call was cancelled)"
+        except Exception as exc:
+            logger.exception(
+                "MCP tool '{}' on server '{}' failed: {}: {}",
+                self._tool_name,
+                self._server_name,
+                type(exc).__name__,
+                exc,
+            )
+            return f"(MCP tool call failed: {type(exc).__name__})"
+
+        parts = []
+        for block in result.content:
+            if isinstance(block, types.TextContent):
+                parts.append(block.text)
+            else:
+                parts.append(str(block))
+        return "\n".join(parts) or "(no output)"
+
+
 # Global registry of active MCP sessions and configs
 _mcp_sessions: dict[str, Any] = {}
 _mcp_configs: dict[str, Any] = {}
+_mcp_wrapped_tools: list[MCPWrappedTool] = []
 
 
 def clear_mcp_sessions() -> None:
     _mcp_sessions.clear()
     _mcp_configs.clear()
+    _mcp_wrapped_tools.clear()
+
+
+def register_active_mcp_tools(registry: SkillVault) -> None:
+    """Register all active MCP tools and wrapper utilities to the registry."""
+    if not _mcp_sessions:
+        return
+    registry.register(MCPListTools())
+    registry.register(MCPCallTool())
+    for tool in _mcp_wrapped_tools:
+        registry.register(tool)
 
 
 def get_mcp_servers_info() -> str:
@@ -364,9 +444,29 @@ async def connect_mcp_servers(
             logger.info("MCP server '{}': connected and session registered", name)
             connected_any = True
 
+            # Dynamically register tools from the server as native tools
+            try:
+                tools_list = await session.list_tools()
+                enabled_tools = set(cfg.enabled_tools) if cfg and hasattr(cfg, "enabled_tools") else {"*"}
+                allow_all = "*" in enabled_tools
+                for tool_def in tools_list.tools:
+                    wrapped_name = f"mcp_{name}_{tool_def.name}"
+                    if not allow_all and tool_def.name not in enabled_tools and wrapped_name not in enabled_tools:
+                        continue
+
+                    wrapped_tool = MCPWrappedTool(
+                        server_name=name,
+                        tool_def=tool_def,
+                        session=session,
+                        timeout=getattr(cfg, "tool_timeout", 30),
+                    )
+                    _mcp_wrapped_tools.append(wrapped_tool)
+                    logger.debug("Registered MCP tool '{}' as native tool '{}'", tool_def.name, wrapped_name)
+            except Exception as e:
+                logger.error("Failed to list and register tools for MCP server '{}': {}", name, e)
+
         except Exception as e:
             logger.error("MCP server '{}': failed to connect: {}", name, e)
 
     if connected_any:
-        registry.register(MCPListTools())
-        registry.register(MCPCallTool())
+        register_active_mcp_tools(registry)

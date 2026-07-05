@@ -416,9 +416,11 @@ async function checkGatewayHealth() {
         const data = await res.json();
         reachable = data.reachable === true;
         providerReady = data.provider_ready !== false;
+        state.gatewayStarting = data.status === "starting";
     } catch (e) {
         reachable = false;
         providerReady = true;
+        state.gatewayStarting = false;
     }
 
     let anyJobRunning = false;
@@ -455,6 +457,11 @@ async function checkGatewayHealth() {
 }
 
 function updateUIFromHealthState() {
+    if (state.gatewayUp && state.gatewayStarting) {
+        setStatusIndicator("starting");
+        return;
+    }
+
     if (!realtime.connected) {
         setStatusIndicator("disconnected");
         return;
@@ -488,6 +495,10 @@ function setStatusIndicator(mode) {
         case "ready":
             statusDot.className = "status-dot connected";
             statusText.textContent = "Shiba ready";
+            break;
+        case "starting":
+            statusDot.className = "status-dot starting";
+            statusText.textContent = "Starting...";
             break;
         case "working":
             statusDot.className = "status-dot working";

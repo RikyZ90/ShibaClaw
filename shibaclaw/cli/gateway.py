@@ -597,7 +597,7 @@ async def gateway_command(
     )
     console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
-    _state = {"restart": False}
+    _state = {"restart": False, "starting": True}
 
     async def _trigger_restart() -> None:
         """Schedule a graceful restart: cancel all tasks and let run() exit cleanly.
@@ -1372,7 +1372,7 @@ async def gateway_command(
                     writer.write(
                         _json_response(
                             {
-                                "status": "ok" if provider else "idle",
+                                "status": "starting" if _state.get("starting", False) else ("ok" if provider else "idle"),
                                 "uptime": int(time.time() - _start_time),
                                 "provider_ready": provider is not None,
                             }
@@ -1394,6 +1394,12 @@ async def gateway_command(
 
         try:
             await automation.start()
+
+            async def _clear_starting():
+                await asyncio.sleep(4.0)
+                _state["starting"] = False
+            asyncio.create_task(_clear_starting())
+
             await asyncio.gather(
                 agent.run(),
                 channels.start_all(),
