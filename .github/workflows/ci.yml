@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ".[dev]"
-          pip install ./shibaclaw-channel-whatsapp ./shibaclaw-tts-supertonic
+          pip install ./plugins/shibaclaw-channel-whatsapp ./plugins/shibaclaw-tts-supertonic
 
       - name: Lint with Ruff
         run: ruff check .
@@ -51,7 +51,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ".[windows-native,dev]"
-          pip install ./shibaclaw-channel-whatsapp ./shibaclaw-tts-supertonic
+          pip install ./plugins/shibaclaw-channel-whatsapp ./plugins/shibaclaw-tts-supertonic
 
       - name: Smoke-test desktop imports
         run: python -c "import shibaclaw; import webview; import pystray; from PIL import Image; from shibaclaw.desktop.runtime import DesktopRuntime; from shibaclaw.desktop.controller import DesktopController; from shibaclaw.helpers.system import get_installation_method; print('install method:', get_installation_method())"
