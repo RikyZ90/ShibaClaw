@@ -89,9 +89,10 @@ Skills with available="false" need dependencies installed first - you can try in
 The following MCP servers are active and connected:
 {mcp_info}
 
-IMPORTANT: The individual tools of these MCP servers are registered directly as native functions.
-For example, if an MCP server is named `server_name` and has a tool named `tool_name`, you will see it available as a native tool called `mcp_server_name_tool_name`.
-You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fallbacks if needed.
+IMPORTANT: The individual tools of these MCP servers are NOT exposed directly as native tools or CLI commands, and you cannot call them via terminal/shell execution.
+To use them, you MUST follow this two-step process:
+1. First, call `mcp_list_tools(server_name="<server_name>")` to discover the exact list of tools, their descriptions, and parameters.
+2. Second, call `mcp_call_tool(server_name="<server_name>", tool_name="<tool_name>", arguments={{...}})` to execute the desired tool with its required arguments.
 """)
         except Exception:
             pass

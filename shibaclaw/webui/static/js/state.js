@@ -23,7 +23,6 @@ const state = {
     gatewayKnown: false,     // Whether health state has been confirmed via API
     gatewayUnreachableCount: 0,  // Consecutive unreachable attempts
     gatewayProviderReady: true,
-    gatewayStarting: false,
     agentConfigured: false,
     healthTimer: null,
     historyTimer: null,

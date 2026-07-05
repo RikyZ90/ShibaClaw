@@ -263,24 +263,19 @@ class OAuthFlow:
         cfg: Any,  # MCPOAuthConfig
         *,
         callback_timeout: float = 120.0,
-        interactive: bool = True,
     ) -> dict[str, Any]:
         """
         Convenience method: return a valid (non-expired) token dict.
 
         Decision tree:
-        - No stored token → full authorize() flow (if interactive) or error.
+        - No stored token → full authorize() flow.
         - Expired + has refresh_token → refresh().
-        - Expired + no refresh_token → full authorize() flow (if interactive) or error.
+        - Expired + no refresh_token → full authorize() flow.
         - Not expired → return stored token directly.
         """
         stored = self._store.load_token(server_name)
 
         if not stored:
-            if not interactive:
-                raise RuntimeError(
-                    f"OAuth token for '{server_name}' not found. Please authenticate via the WebUI."
-                )
             return await self.authorize(server_name, cfg, callback_timeout=callback_timeout)
 
         if self._store.is_expired(server_name):
@@ -291,10 +286,6 @@ class OAuthFlow:
                     logger.warning(
                         "OAuthFlow[{}]: refresh failed ({}), re-authorising", server_name, exc
                     )
-            if not interactive:
-                raise RuntimeError(
-                    f"OAuth token for '{server_name}' is expired and cannot be refreshed silently. Please re-authenticate."
-                )
             return await self.authorize(server_name, cfg, callback_timeout=callback_timeout)
 
         return stored

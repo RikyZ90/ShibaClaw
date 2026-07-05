@@ -597,7 +597,7 @@ async def gateway_command(
     )
     console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
-    _state = {"restart": False, "starting": True}
+    _state = {"restart": False}
 
     async def _trigger_restart() -> None:
         """Schedule a graceful restart: cancel all tasks and let run() exit cleanly.
@@ -643,13 +643,6 @@ async def gateway_command(
             await channels.reconfigure(new_cfg)
             new_hb = new_cfg.gateway.heartbeat
             await automation.reconfigure(new_provider, new_hb.model or None)
-
-            try:
-                from shibaclaw.integrations.klavis_client import reload_klavis_client
-                reload_klavis_client(base_url="https://api.klavis.ai")
-            except Exception as e:
-                logger.warning("Hot-reload: failed to reload Klavis client: {}", e)
-
             logger.info("Hot-reload complete")
         except Exception as e:
             logger.error("Hot-reload failed: {}", e)
@@ -1379,7 +1372,7 @@ async def gateway_command(
                     writer.write(
                         _json_response(
                             {
-                                "status": "starting" if _state.get("starting", False) else ("ok" if provider else "idle"),
+                                "status": "ok" if provider else "idle",
                                 "uptime": int(time.time() - _start_time),
                                 "provider_ready": provider is not None,
                             }
@@ -1401,12 +1394,6 @@ async def gateway_command(
 
         try:
             await automation.start()
-
-            async def _clear_starting():
-                await asyncio.sleep(4.0)
-                _state["starting"] = False
-            asyncio.create_task(_clear_starting())
-
             await asyncio.gather(
                 agent.run(),
                 channels.start_all(),
@@ -1420,16 +1407,28 @@ async def gateway_command(
             else:
                 console.print("\nShutting down...")
         finally:
-            try:
-                await channels.stop_all()
-            except asyncio.CancelledError:
-                pass
+            # Stop channel tasks first so _start_channel coroutines exit cleanly
+            # before stop_all() tries to call channel.stop() on them.
+            # This eliminates "Task was destroyed but it is pending!" warnings.
+            for name, task in list(channels._channel_tasks.items()):
+                if not task.done():
+                    task.cancel()
+            if channels._channel_tasks:
+                await asyncio.gather(
+                    *channels._channel_tasks.values(), return_exceptions=True
+                )
+            channels._channel_tasks.clear()
+
             try:
                 await agent.close_mcp()
             except asyncio.CancelledError:
                 pass
             automation.stop()
             agent.stop()
+            try:
+                await channels.stop_all()
+            except asyncio.CancelledError:
+                pass
 
     await run()
 
