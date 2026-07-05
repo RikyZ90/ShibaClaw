@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import tiktoken
 
 from shibaclaw.cli.utils import safe_print
 
@@ -17,6 +16,8 @@ _ENC = None
 def _get_encoding():
     global _ENC
     if _ENC is None:
+        # Lazy load tiktoken as it takes ~250ms to import, speeding up startup
+        import tiktoken
         _ENC = tiktoken.get_encoding("cl100k_base")
     return _ENC
 

@@ -11,7 +11,7 @@ import typer
 
 from shibaclaw import __logo__
 
-from .utils import console
+from .utils import get_console
 
 
 def _is_oauth_authenticated(spec) -> bool:
@@ -83,15 +83,15 @@ def provider_login(provider: str):
     spec = next((s for s in PROVIDERS if s.name == key and s.is_oauth), None)
     if not spec:
         names = ", ".join(s.name.replace("_", "-") for s in PROVIDERS if s.is_oauth)
-        console.print(f"[red]Unknown OAuth provider: {provider}[/red]  Supported: {names}")
+        get_console().print(f"[red]Unknown OAuth provider: {provider}[/red]  Supported: {names}")
         raise typer.Exit(1)
 
     handler = _LOGIN_HANDLERS.get(spec.name)
     if not handler:
-        console.print(f"[red]Login not implemented for {spec.label}[/red]")
+        get_console().print(f"[red]Login not implemented for {spec.label}[/red]")
         raise typer.Exit(1)
 
-    console.print(f"{__logo__} OAuth Login - {spec.label}\n")
+    get_console().print(f"{__logo__} OAuth Login - {spec.label}\n")
     handler()
 
 
@@ -107,25 +107,25 @@ def _login_openai_codex() -> None:
             pass
 
         if not (token and token.access):
-            console.print("[cyan]Starting interactive OAuth login...[/cyan]\n")
+            get_console().print("[cyan]Starting interactive OAuth login...[/cyan]\n")
             token = login_oauth_interactive(
-                print_fn=lambda s: console.print(s),
+                print_fn=lambda s: get_console().print(s),
                 prompt_fn=lambda s: typer.prompt(s),
             )
         if not (token and token.access):
-            console.print("[red]✗ Authentication failed[/red]")
+            get_console().print("[red]✗ Authentication failed[/red]")
             raise typer.Exit(1)
-        console.print(
+        get_console().print(
             f"[green]✓ Authenticated with OpenAI Codex[/green]  [dim]{token.account_id}[/dim]"
         )
     except ImportError:
-        console.print("[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]")
+        get_console().print("[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]")
         raise typer.Exit(1)
 
 
 @register_login("github_copilot")
 def _login_github_copilot() -> None:
-    console.print("[cyan]Starting GitHub Copilot device flow...[/cyan]\n")
+    get_console().print("[cyan]Starting GitHub Copilot device flow...[/cyan]\n")
 
     github_client_id = "Iv1.b507a08c87ecfe98"
     github_device_code_url = "https://github.com/login/device/code"
@@ -148,12 +148,12 @@ def _login_github_copilot() -> None:
         expires_in = resp_json.get("expires_in", 900)
 
         if not device_code or not user_code:
-            console.print("[red]❌ GitHub did not return a device code[/red]")
+            get_console().print("[red]❌ GitHub did not return a device code[/red]")
             raise typer.Exit(1)
 
-        console.print(f"1. Go to: [bold blue]{verification_uri}[/bold blue]")
-        console.print(f"2. Enter code: [bold yellow]{user_code}[/bold yellow]")
-        console.print("\n[dim]Waiting for authorization...[/dim]")
+        get_console().print(f"1. Go to: [bold blue]{verification_uri}[/bold blue]")
+        get_console().print(f"2. Enter code: [bold yellow]{user_code}[/bold yellow]")
+        get_console().print("\n[dim]Waiting for authorization...[/dim]")
 
         max_attempts = expires_in // interval
         for _ in range(max_attempts):
@@ -179,13 +179,13 @@ def _login_github_copilot() -> None:
                     await asyncio.sleep(5)
                     continue
                 elif error == "expired_token":
-                    console.print("[red]❌ Device code expired. Try again.[/red]")
+                    get_console().print("[red]❌ Device code expired. Try again.[/red]")
                     raise typer.Exit(1)
                 elif error == "access_denied":
-                    console.print("[red]❌ Access denied by user.[/red]")
+                    get_console().print("[red]❌ Access denied by user.[/red]")
                     raise typer.Exit(1)
                 elif error:
-                    console.print(f"[red]❌ GitHub error: {error}[/red]")
+                    get_console().print(f"[red]❌ GitHub error: {error}[/red]")
                     raise typer.Exit(1)
 
                 access_token = tj.get("access_token")
@@ -195,14 +195,14 @@ def _login_github_copilot() -> None:
                     os.makedirs(token_dir, exist_ok=True)
                     with open(os.path.join(token_dir, "access-token"), "w") as f:
                         f.write(access_token)
-                    console.print("[green]✓ Successfully authenticated with GitHub Copilot[/green]")
+                    get_console().print("[green]✓ Successfully authenticated with GitHub Copilot[/green]")
                     return
 
             except Exception as httperr:
-                console.print(f"[red]❌ Network error during polling: {httperr}[/red]")
+                get_console().print(f"[red]❌ Network error during polling: {httperr}[/red]")
                 continue
 
-        console.print("[red]❌ Timed out waiting for authorization[/red]")
+        get_console().print("[red]❌ Timed out waiting for authorization[/red]")
         raise typer.Exit(1)
 
     try:
@@ -210,5 +210,5 @@ def _login_github_copilot() -> None:
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]Authentication error: {e}[/red]")
+        get_console().print(f"[red]Authentication error: {e}[/red]")
         raise typer.Exit(1)

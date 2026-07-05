@@ -15,10 +15,6 @@ if sys.platform == "win32":
     except (AttributeError, io.UnsupportedOperation):
         pass
 
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.text import Text
-
 from shibaclaw import __logo__
 
 # Detect Unicode support
@@ -31,10 +27,16 @@ try:
 except Exception:
     pass
 
-# Initialize rich console
-console = Console(
-    force_terminal=True if os.environ.get("SHIBACLAW_FORCE_TERMINAL") else None,
-)
+_console = None
+def get_console():
+    # Lazy initialize rich console to avoid ~100ms import penalty on startup
+    global _console
+    if _console is None:
+        from rich.console import Console
+        _console = Console(
+            force_terminal=True if os.environ.get("SHIBACLAW_FORCE_TERMINAL") else None,
+        )
+    return _console
 
 
 def safe_print(message: str, **kwargs) -> None:
@@ -43,11 +45,11 @@ def safe_print(message: str, **kwargs) -> None:
         # Simple regex-free replacement for common ShibaClaw emojis
         message = message.replace("🐾", ">>").replace("🐕‍🦺", "System").replace("🔍", "[Search]").replace("🛠️", "[Tool]").replace("✅", "[OK]")
     try:
-        console.print(message, **kwargs)
+        get_console().print(message, **kwargs)
     except UnicodeEncodeError:
         # Final fallback: strip non-ascii characters if it still fails
         safe_msg = "".join(c if ord(c) < 128 else "?" for c in message)
-        console.print(safe_msg, **kwargs)
+        get_console().print(safe_msg, **kwargs)
 
 
 def flush_pending_tty_input() -> None:
@@ -151,14 +153,19 @@ def print_cli_progress_line(text: str, thinking: ThinkingSpinner | None) -> None
         icon = "[✅]" if _supports_unicode else "[OK]"
 
     with thinking.pause() if thinking else nullcontext():
-        console.print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
+        get_console().print(f"  [orange3]{icon}[/orange3] [dim]{text}[/dim]")
 
 
 def print_agent_response(response: str, render_markdown: bool) -> None:
     """Render assistant response with consistent terminal styling."""
     content = response or ""
-    body = Markdown(content) if render_markdown else Text(content)
-    console.print()
-    console.print(f"[gold1]{__logo__} shibaclaw[/gold1]")
-    console.print(body)
-    console.print()
+    if render_markdown:
+        from rich.markdown import Markdown
+        body = Markdown(content)
+    else:
+        from rich.text import Text
+        body = Text(content)
+    get_console().print()
+    get_console().print(f"[gold1]{__logo__} shibaclaw[/gold1]")
+    get_console().print(body)
+    get_console().print()

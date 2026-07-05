@@ -19,7 +19,7 @@ from rich.panel import Panel
 from shibaclaw import __logo__, __version__
 from shibaclaw.helpers.logging import setup_shiba_logging
 
-from .utils import console
+from .utils import get_console
 
 
 @dataclass(frozen=True)
@@ -347,8 +347,8 @@ async def gateway_command(
     bus = MessageBus(rate_limit_per_minute=config.gateway.rate_limit_per_minute)
     provider = _make_provider(config, exit_on_error=False)
     if provider is None:
-        console.print("[yellow]🐾 Entering idle mode...[/yellow]")
-        console.print(
+        get_console().print("[yellow]🐾 Entering idle mode...[/yellow]")
+        get_console().print(
             "[dim]Open the WebUI to complete the setup or run:[/dim] [bold]shibaclaw onboard[/bold]"
         )
 
@@ -578,7 +578,7 @@ async def gateway_command(
     status_parts.append(
         "  [dim]Run [bold]shibaclaw print-token[/bold] to show the WebUI auth token[/dim]"
     )
-    console.print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
+    get_console().print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
     _state = {"restart": False}
 
@@ -1378,9 +1378,9 @@ async def gateway_command(
             )
         except (KeyboardInterrupt, asyncio.CancelledError):
             if _state["restart"]:
-                console.print("\n🔄 Restarting...")
+                get_console().print("\n🔄 Restarting...")
             else:
-                console.print("\nShutting down...")
+                get_console().print("\nShutting down...")
         finally:
             try:
                 await agent.close_mcp()
