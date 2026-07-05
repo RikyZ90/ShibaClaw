@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
@@ -23,12 +23,20 @@ class ChannelsConfig(Base):
 
     Built-in and plugin channel configs are stored as extra fields (dicts).
     Each channel parses its own config in __init__.
+
+    NOTE: model_config must repeat alias_generator + populate_by_name because
+    overriding model_config in a subclass replaces the parent's ConfigDict
+    entirely (Pydantic does not merge them).
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        extra="allow",
+    )
 
-    send_progress: bool = True  # stream agent's text progress to the channel
-    send_tool_hints: bool = False  # stream tool-call hints (e.g. read_file("…"))
+    send_progress: bool = True
+    send_tool_hints: bool = False
 
 
 class AgentDefaults(Base):
@@ -36,30 +44,22 @@ class AgentDefaults(Base):
 
     workspace: str = "~/.shibaclaw/workspace"
     model: str = ""
-    provider: str = (
-        "auto"  # Provider name (e.g. "anthropic", "openrouter") or "auto" for auto-detection
-    )
+    provider: str = "auto"
     max_tokens: int = 8192
     context_window_tokens: int = 65_536
     temperature: float = 0.1
     max_tool_iterations: int = 40
-    tool_timeout: int = 660  # Maximum time in seconds for all tool executions combined
-    loop_wall_timeout: int = 600  # Maximum time in seconds for the entire agent loop
-    subagent_timeout: int = 600  # Maximum time in seconds for a single subagent
-    reasoning_effort: str | None = None  # low / medium / high - enables LLM thinking mode
-    learning_enabled: bool = True  # Periodically update long-term memory in background
-    learning_interval: int = 10  # Number of new messages before triggering background learning
-    memory_max_prompt_tokens: int = (
-        2000  # Max tokens from MEMORY.md injected into the system prompt
-    )
-    memory_compact_threshold_tokens: int = 1600  # Token threshold that triggers automatic memory compaction (should be < memory_max_prompt_tokens)
-    consolidation_model: str | None = (
-        None  # Cheaper model for memory consolidation/compaction (None = use main model)
-    )
-    pinned_skills: list[str] = Field(
-        default_factory=list
-    )  # Skills always injected into prompt extras
-    max_pinned_skills: int = 5  # Max number of pinned skills
+    tool_timeout: int = 660
+    loop_wall_timeout: int = 600
+    subagent_timeout: int = 600
+    reasoning_effort: str | None = None
+    learning_enabled: bool = True
+    learning_interval: int = 10
+    memory_max_prompt_tokens: int = 2000
+    memory_compact_threshold_tokens: int = 1600
+    consolidation_model: str | None = None
+    pinned_skills: list[str] = Field(default_factory=list)
+    max_pinned_skills: int = 5
 
 
 class AgentsConfig(Base):
@@ -73,7 +73,7 @@ class ProviderConfig(Base):
 
     api_key: str = ""
     api_base: str | None = None
-    extra_headers: dict[str, str] | None = None  # Custom headers (e.g. APP-Code for AiHubMix)
+    extra_headers: dict[str, str] | None = None
 
     @field_validator("api_key", mode="before")
     @classmethod
@@ -96,10 +96,8 @@ class ProviderConfig(Base):
 class ProvidersConfig(Base):
     """Configuration for LLM providers."""
 
-    custom: ProviderConfig = Field(default_factory=ProviderConfig)  # Any OpenAI-compatible endpoint
-    azure_openai: ProviderConfig = Field(
-        default_factory=ProviderConfig
-    )  # Azure OpenAI (model = deployment name)
+    custom: ProviderConfig = Field(default_factory=ProviderConfig)
+    azure_openai: ProviderConfig = Field(default_factory=ProviderConfig)
     anthropic: ProviderConfig = Field(default_factory=ProviderConfig)
     openai: ProviderConfig = Field(default_factory=ProviderConfig)
     openrouter: ProviderConfig = Field(
@@ -116,37 +114,29 @@ class ProvidersConfig(Base):
     zhipu: ProviderConfig = Field(default_factory=ProviderConfig)
     dashscope: ProviderConfig = Field(default_factory=ProviderConfig)
     vllm: ProviderConfig = Field(default_factory=ProviderConfig)
-    ollama: ProviderConfig = Field(default_factory=ProviderConfig)  # Ollama local models
+    ollama: ProviderConfig = Field(default_factory=ProviderConfig)
     gemini: ProviderConfig = Field(default_factory=ProviderConfig)
     moonshot: ProviderConfig = Field(default_factory=ProviderConfig)
     minimax: ProviderConfig = Field(default_factory=ProviderConfig)
-    aihubmix: ProviderConfig = Field(default_factory=ProviderConfig)  # AiHubMix API gateway
-    siliconflow: ProviderConfig = Field(default_factory=ProviderConfig)  # SiliconFlow (硬基流动)
-    volcengine: ProviderConfig = Field(default_factory=ProviderConfig)  # VolcEngine (火山引擎)
-    volcengine_coding_plan: ProviderConfig = Field(
-        default_factory=ProviderConfig
-    )  # VolcEngine Coding Plan
-    byteplus: ProviderConfig = Field(
-        default_factory=ProviderConfig
-    )  # BytePlus (VolcEngine international)
-    byteplus_coding_plan: ProviderConfig = Field(
-        default_factory=ProviderConfig
-    )  # BytePlus Coding Plan
-    openai_codex: ProviderConfig = Field(default_factory=ProviderConfig)  # OpenAI Codex (OAuth)
-    github_copilot: ProviderConfig = Field(default_factory=ProviderConfig)  # Github Copilot (OAuth)
+    aihubmix: ProviderConfig = Field(default_factory=ProviderConfig)
+    siliconflow: ProviderConfig = Field(default_factory=ProviderConfig)
+    volcengine: ProviderConfig = Field(default_factory=ProviderConfig)
+    volcengine_coding_plan: ProviderConfig = Field(default_factory=ProviderConfig)
+    byteplus: ProviderConfig = Field(default_factory=ProviderConfig)
+    byteplus_coding_plan: ProviderConfig = Field(default_factory=ProviderConfig)
+    openai_codex: ProviderConfig = Field(default_factory=ProviderConfig)
+    github_copilot: ProviderConfig = Field(default_factory=ProviderConfig)
 
 
 class HeartbeatConfig(Base):
     """Heartbeat service configuration."""
 
     enabled: bool = True
-    interval_min: int = 30  # 30 minutes
-    model: str | None = None  # Profile model override
-    session_key: str = "heartbeat:default"  # Stable session key for heartbeat conversations
-    targets: dict[str, str] = Field(
-        default_factory=dict
-    )  # Channel → chat_id map (e.g. {"telegram": "12345", "webui": "recent"})
-    profile_id: str | None = None  # Profile to use for heartbeat agent (e.g. "builder", "hacker")
+    interval_min: int = 30
+    model: str | None = None
+    session_key: str = "heartbeat:default"
+    targets: dict[str, str] = Field(default_factory=dict)
+    profile_id: str | None = None
 
 
 class GatewayConfig(Base):
@@ -154,26 +144,26 @@ class GatewayConfig(Base):
 
     host: str = "127.0.0.1"
     port: int = 19999
-    ws_port: int = 19998  # WebSocket port for realtime WebUI↔︎Gateway communication
+    ws_port: int = 19998
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
-    rate_limit_per_minute: int = 0  # 0 = disabled; per-sender inbound message rate limit
+    rate_limit_per_minute: int = 0
 
 
 class WebSearchConfig(Base):
     """Web search tool configuration."""
 
-    provider: str = "brave"  # brave, tavily, duckduckgo, searxng, jina
+    provider: str = "brave"
     api_key: str = ""
-    base_url: str = ""  # SearXNG base URL
+    base_url: str = ""
     max_results: int = 5
 
 
 class AudioConfig(Base):
     """Configuration for Speech capabilities (STT/TTS)."""
 
-    provider_url: str | None = None  # e.g., "https://api.groq.com/openai/v1"
+    provider_url: str | None = None
     api_key: str | None = None
-    model: str = "whisper-large-v3-turbo"  # default STT model for Groq
+    model: str = "whisper-large-v3-turbo"
     tts_enabled: bool = False
     tts_provider: str = "browser"
     tts_voice: str = "en_female"
@@ -185,9 +175,7 @@ class AudioConfig(Base):
 class WebToolsConfig(Base):
     """Web tools configuration."""
 
-    proxy: str | None = (
-        None  # HTTP/SOCKS5 proxy URL, e.g. "http://127.0.0.1:7890" or "socks5://127.0.0.1:1080"
-    )
+    proxy: str | None = None
     search: WebSearchConfig = Field(default_factory=WebSearchConfig)
 
 
@@ -197,18 +185,14 @@ class ExecToolConfig(Base):
     enable: bool = True
     timeout: int = 120
     path_append: str = ""
-    install_audit: bool = True  # Enable vulnerability scanning for install commands
-    install_audit_timeout: int = 120  # Timeout in seconds for audit checks
-    install_audit_block_severity: str = "high"  # Min severity to block: critical, high, medium, low
+    install_audit: bool = True
+    install_audit_timeout: int = 120
+    install_audit_block_severity: str = "high"
 
 
 class MCPOAuthConfig(Base):
     """
     OAuth 2.0 Authorization Code + PKCE configuration for a remote MCP server.
-
-    When present on an ``MCPServerConfig``, ShibaClaw will automatically drive
-    the browser-based authorisation flow on first connection and refresh the
-    access token transparently on subsequent starts.
 
     Example config.json::
 
@@ -226,44 +210,26 @@ class MCPOAuthConfig(Base):
         }
     """
 
-    auth_url: str = Field(..., description="Provider\'s authorisation endpoint URL.")
-    token_url: str = Field(..., description="Provider\'s token exchange endpoint URL.")
+    auth_url: str = Field(..., description="Provider's authorisation endpoint URL.")
+    token_url: str = Field(..., description="Provider's token exchange endpoint URL.")
     client_id: str = Field(..., description="OAuth application client ID.")
-    client_secret: str | None = Field(
-        default=None,
-        description="Client secret (optional for PKCE-only public clients).",
-    )
-    scopes: list[str] = Field(
-        default_factory=list,
-        description="OAuth scopes to request (space-joined when sending to provider).",
-    )
-    callback_timeout: float = Field(
-        default=120.0,
-        description="Seconds to wait for the browser callback before aborting.",
-    )
+    client_secret: str | None = Field(default=None)
+    scopes: list[str] = Field(default_factory=list)
+    callback_timeout: float = Field(default=120.0)
 
 
 class MCPServerConfig(Base):
     """MCP server connection configuration (stdio or HTTP)."""
 
-    type: Literal["stdio", "sse", "streamableHttp"] | None = None  # auto-detected if omitted
-    command: str = ""  # Stdio: command to run (e.g. "npx")
-    args: list[str] = Field(default_factory=list)  # Stdio: command arguments
-    env: dict[str, str] = Field(default_factory=dict)  # Stdio: extra env vars
-    url: str = ""  # HTTP/SSE: endpoint URL
-    headers: dict[str, str] = Field(default_factory=dict)  # HTTP/SSE: static custom headers
-    oauth: MCPOAuthConfig | None = Field(
-        default=None,
-        description=(
-            "Optional OAuth 2.0 PKCE config.  When set, ShibaClaw performs the browser-based "
-            "auth flow on first connection and injects a dynamic Bearer token into every request, "
-            "superseding any static Authorization header in `headers`."
-        ),
-    )
-    tool_timeout: int = 30  # seconds before a tool call is cancelled
-    enabled_tools: list[str] = Field(
-        default_factory=lambda: ["*"]
-    )  # Only register these tools; accepts raw MCP names or wrapped mcp_<server>_<tool> names; ["*"] = all tools; [] = no tools
+    type: Literal["stdio", "sse", "streamableHttp"] | None = None
+    command: str = ""
+    args: list[str] = Field(default_factory=list)
+    env: dict[str, str] = Field(default_factory=dict)
+    url: str = ""
+    headers: dict[str, str] = Field(default_factory=dict)
+    oauth: MCPOAuthConfig | None = Field(default=None)
+    tool_timeout: int = 30
+    enabled_tools: list[str] = Field(default_factory=lambda: ["*"])
 
 
 class ToolsConfig(Base):
@@ -271,7 +237,7 @@ class ToolsConfig(Base):
 
     web: WebToolsConfig = Field(default_factory=WebToolsConfig)
     exec: ExecToolConfig = Field(default_factory=ExecToolConfig)
-    restrict_to_workspace: bool = True  # If true, restrict all tool access to workspace directory
+    restrict_to_workspace: bool = True
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
 
 
@@ -279,18 +245,29 @@ class DesktopConfig(Base):
     """Desktop / native-launcher preferences."""
 
     close_behavior: str = "hide"
-    # 'hide'  — clicking X hides the window (future tray keeps app alive).
-    # 'quit'  — clicking X performs a full clean shutdown.
-
     start_hidden: bool = False
-    # When True, launch without showing the window (useful with auto-start).
-
     auto_start_enabled: bool = False
-    # Register ShibaClaw to start automatically at Windows login.
-    # (Not yet implemented; flag reserved for future use.)
-
     window_width: int = 920
     window_height: int = 1048
+
+
+class ConnectedAppsConfig(Base):
+    """Connected Apps (Klavis Strata) state storage.
+
+    All dynamic keys (app states, __strata__, __backend__) are stored as Pydantic
+    extra fields.  model_config must repeat alias_generator + populate_by_name
+    because overriding model_config replaces — not merges — the parent ConfigDict.
+    """
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        extra="allow",
+    )
+
+    def get_extra(self, key: str) -> Any:
+        """Helper to retrieve a dynamic extra field by key."""
+        return self.model_extra.get(key) if self.model_extra else None
 
 
 class Config(BaseSettings):
@@ -303,6 +280,10 @@ class Config(BaseSettings):
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
     desktop: DesktopConfig = Field(default_factory=DesktopConfig)
+    connected_apps: ConnectedAppsConfig = Field(
+        default_factory=ConnectedAppsConfig,
+        description="Connected Apps state — app OAuth status and Klavis Strata session metadata.",
+    )
 
     @property
     def workspace_path(self) -> Path:
@@ -311,9 +292,8 @@ class Config(BaseSettings):
 
     @staticmethod
     def _provider_has_credentials(
-        provider: ProviderConfig | None, spec: "ProviderSpec | None"
+        provider: "ProviderConfig | None", spec: "ProviderSpec | None"
     ) -> bool:
-        """Return True when a provider has a stored key or a raw provider env var."""
         if not provider:
             return False
         if provider.api_key:
@@ -322,8 +302,7 @@ class Config(BaseSettings):
 
     def _match_provider(
         self, model: str | None = None
-    ) -> tuple["ProviderConfig | None", str | None]:
-        """Match provider config and its registry name. Returns (config, spec_name)."""
+    ) -> "tuple[ProviderConfig | None, str | None]":
         from shibaclaw.thinkers.registry import PROVIDERS
 
         forced = self.agents.defaults.provider
@@ -340,13 +319,12 @@ class Config(BaseSettings):
             kw = kw.lower()
             return kw in model_lower or kw.replace("-", "_") in model_normalized
 
-        def _get_valid_provider(spec: "ProviderSpec") -> ProviderConfig | None:
+        def _get_valid_provider(spec: "ProviderSpec") -> "ProviderConfig | None":
             p = getattr(self.providers, spec.name, None)
             if p and (spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec)):
                 return p
             return None
 
-        # Explicit provider prefix wins — prevents `github-copilot/...codex` matching openai_codex.
         if model_prefix:
             for spec in PROVIDERS:
                 if normalized_prefix == spec.name:
@@ -354,18 +332,13 @@ class Config(BaseSettings):
                     if p:
                         return p, spec.name
 
-        # Match by keyword (order follows PROVIDERS registry)
         for spec in PROVIDERS:
             if any(_kw_matches(kw) for kw in spec.keywords):
                 p = _get_valid_provider(spec)
                 if p:
                     return p, spec.name
 
-        # Fallback: configured local providers can route models without
-        # provider-specific keywords (for example plain "llama3.2" on Ollama).
-        # Prefer providers whose detect_by_base_keyword matches the configured api_base
-        # (e.g. Ollama's "11434" in "http://localhost:11434") over plain registry order.
-        local_fallback: tuple[ProviderConfig, str] | None = None
+        local_fallback: "tuple[ProviderConfig, str] | None" = None
         for spec in PROVIDERS:
             if not spec.is_local:
                 continue
@@ -379,8 +352,6 @@ class Config(BaseSettings):
         if local_fallback:
             return local_fallback
 
-        # Fallback: gateways first, then others (follows registry order)
-        # OAuth providers are NOT valid fallbacks — they require explicit model selection
         for spec in PROVIDERS:
             if spec.is_oauth:
                 continue
@@ -389,23 +360,19 @@ class Config(BaseSettings):
                 return p, spec.name
         return None, None
 
-    def get_provider(self, model: str | None = None) -> ProviderConfig | None:
-        """Get matched provider config (api_key, api_base, extra_headers). Falls back to first available."""
+    def get_provider(self, model: str | None = None) -> "ProviderConfig | None":
         p, _ = self._match_provider(model)
         return p
 
-    def get_provider_name(self, model: str | None = None) -> str | None:
-        """Get the registry name of the matched provider (e.g. "deepseek", "openrouter")."""
+    def get_provider_name(self, model: str | None = None) -> "str | None":
         _, name = self._match_provider(model)
         return name
 
-    def get_api_key(self, model: str | None = None) -> str | None:
-        """Get API key for the given model. Falls back to first available key."""
+    def get_api_key(self, model: str | None = None) -> "str | None":
         p = self.get_provider(model)
         return p.api_key if p else None
 
-    def get_api_base(self, model: str | None = None) -> str | None:
-        """Get the base URL for the matched provider."""
+    def get_api_base(self, model: str | None = None) -> "str | None":
         from shibaclaw.thinkers.registry import find_by_name
 
         p, name = self._match_provider(model)
@@ -421,4 +388,13 @@ class Config(BaseSettings):
                 return spec.default_api_base
         return None
 
-    model_config = SettingsConfigDict(env_prefix="SHIBACLAW_", env_nested_delimiter="__")
+    # SettingsConfigDict replaces (not merges) model_config — must include
+    # extra="ignore" here so unknown root-level keys in config.json are
+    # silently dropped instead of raising Extra inputs are not permitted.
+    model_config = SettingsConfigDict(
+        env_prefix="SHIBACLAW_",
+        env_nested_delimiter="__",
+        extra="ignore",
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )

@@ -22,6 +22,7 @@
     <!-- Styles -->
     <link rel="stylesheet" href="/static/index.css?v=2">
     <link rel="stylesheet" href="/static/css/mcp_manager.css?v=1">
+    <link rel="stylesheet" href="/static/css/connected_apps.css?v=1">
 
     <!-- WebSocket adapter and Marked.js -->
     <script src="/static/js/realtime.js"></script>
@@ -350,6 +351,9 @@
                     <button class="settings-sidebar-item" data-tab="mcp" onclick="switchSettingsTab('mcp')">
                         <span class="material-icons-round">hub</span><span>MCP</span>
                     </button>
+                    <button class="settings-sidebar-item" data-tab="connected-apps" onclick="switchSettingsTab('connected-apps')">
+                        <span class="material-icons-round">apps</span><span>Connected Apps</span>
+                    </button>
                     <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
                         <span class="material-icons-round">dns</span><span>Gateway</span>
                     </button>
@@ -415,6 +419,14 @@
                             <div class="dash-content">
                                 <div class="dash-title">MCP</div>
                                 <div class="dash-desc">Model Context Protocol servers</div>
+                            </div>
+                            <span class="material-icons-round dash-arrow">chevron_right</span>
+                        </button>
+                        <button class="dashboard-card" onclick="switchSettingsTab('connected-apps')">
+                            <span class="material-icons-round dash-icon">apps</span>
+                            <div class="dash-content">
+                                <div class="dash-title">Connected Apps</div>
+                                <div class="dash-desc">Connect Gmail, Slack, Notion & more via Klavis</div>
                             </div>
                             <span class="material-icons-round dash-arrow">chevron_right</span>
                         </button>
@@ -671,6 +683,11 @@
                     <!-- Tab: MCP Servers -->
                     <div class="settings-panel" id="panel-mcp" style="display:none">
                         <div id="mcp-manager-container"></div>
+                    </div>
+
+                    <!-- Tab: Connected Apps -->
+                    <div class="settings-panel" id="panel-connected-apps" style="display:none">
+                        <div id="connected-apps-container"></div>
                     </div>
 
                     <!-- Tab: Gateway -->
@@ -1232,6 +1249,7 @@
     <script src="/static/js/speech.js?v=2"></script>
     <script src="/static/select_session.js?v=2"></script>
     <script src="/static/js/mcp_manager.js?v=1"></script>
+    <script src="/static/js/connected_apps.js?v=1"></script>
 </body>
 
 </html>

@@ -107,6 +107,8 @@ class ShibaBrain:
         self._mcp_stack: AsyncExitStack | None = None
         self._mcp_connected = False
         self._mcp_connecting = False
+        self._mcp_queue: asyncio.Queue = asyncio.Queue()
+        self._mcp_worker_task: asyncio.Task = asyncio.create_task(self._mcp_worker())
         self._active_tasks: dict[str, list[asyncio.Task]] = {}  # session_key -> tasks
         self._background_tasks: list[asyncio.Task] = []
         self._session_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
@@ -153,7 +155,9 @@ class ShibaBrain:
         """Hot-reload agent configuration without restarting the gateway process.
 
         Updates provider, model, and all tool/config references in-place.
-        MCP connections are closed and will reconnect lazily on next use if servers changed.
+        MCP connections are torn down first, then tools are re-registered, and
+        MCP reconnection is awaited synchronously so the agent never has a
+        window where MCP tools are missing.
         """
         self.provider = new_provider
         self.config = new_cfg
@@ -172,23 +176,24 @@ class ShibaBrain:
         self._available_channels = self._extract_enabled_channels()
         self._provider_cache.clear()
 
-        # Re-register tools so changes to exec/web/restrict settings take effect
+        # MCP: reconfigure incrementally
+        new_mcp = new_cfg.tools.mcp_servers or {}
+        mcp_changed = self._mcp_configs_differ(new_mcp, self._mcp_servers)
+
+        if mcp_changed:
+            self._mcp_servers = new_mcp
+            self._mcp_connected = False
+
+        # Re-register default tools (always needed for exec/web/restrict changes)
         self.tools = SkillVault()
         self._register_default_tools()
 
-        # MCP: if servers changed, drop connections and explicitly reconnect
-        new_mcp = new_cfg.tools.mcp_servers or {}
-        if new_mcp != self._mcp_servers:
+        # MCP: reconnect incrementally so tools are updated immediately
+        if mcp_changed and self._mcp_servers:
             try:
-                await self.close_mcp()
-            except Exception:
-                pass
-            self._mcp_servers = new_mcp
-            self._mcp_connected = False
-            self._mcp_connecting = False
-            
-            # Eagerly reconnect to verify configuration and show logs immediately
-            self._schedule_background(self._connect_mcp())
+                await self._connect_mcp()
+            except Exception as exc:
+                logger.error("MCP reconnection after reconfigure failed: {}", exc)
 
         # Update memory consolidator provider/model
         self.memory_consolidator.provider = new_provider
@@ -200,6 +205,29 @@ class ShibaBrain:
         self.subagents.reconfigure(new_cfg, new_provider)
 
         logger.info("ShibaBrain reconfigured (model={})", self.model)
+
+    @staticmethod
+    def _mcp_configs_differ(a: dict, b: dict) -> bool:
+        """Compare two MCP server config dicts via JSON serialization, connection-affecting fields only."""
+        def _serialize(servers: dict) -> dict:
+            if not servers:
+                return {}
+            result = {}
+            for k, v in servers.items():
+                if hasattr(v, "model_dump"):
+                    v_dict = v.model_dump(mode="json")
+                elif isinstance(v, dict):
+                    v_dict = v
+                else:
+                    v_dict = {}
+                # Only include connection affecting fields to avoid unnecessary disconnects/reconnects
+                result[k] = {
+                    field: v_dict.get(field)
+                    for field in ("type", "command", "args", "env", "url", "headers", "oauth")
+                }
+            return result
+
+        return _serialize(a) != _serialize(b)
 
     def _resolve_provider_for_model(self, model: str | None) -> Thinker | None:
         """Return the provider instance that should serve the requested model."""
@@ -284,6 +312,12 @@ class ShibaBrain:
         if self.automation_service:
             self.tools.register(AutomationTool(self.automation_service))
 
+        try:
+            from shibaclaw.agent.tools.mcp import register_active_mcp_tools
+            register_active_mcp_tools(self.tools)
+        except Exception as e:
+            logger.error("Failed to restore active MCP tools on registry rebuild: {}", e)
+
     def inject_steering_message(
         self,
         session_key: str,
@@ -304,16 +338,56 @@ class ShibaBrain:
             return True
         return False
 
-    async def _connect_mcp(self) -> None:
-        """Connect to configured MCP servers (one-time, lazy)."""
-        if self._mcp_connected or self._mcp_connecting or not self._mcp_servers:
+    async def _mcp_worker(self) -> None:
+        """Worker task that executes all MCP connection/disconnection requests.
+
+        This ensures that self._mcp_stack is always entered and exited within
+        the same asyncio Task, preventing anyio's cross-task RuntimeError.
+        """
+        try:
+            while True:
+                try:
+                    op, fut = await self._mcp_queue.get()
+                    if op == "connect":
+                        try:
+                            await self._do_connect_mcp()
+                            fut.set_result(None)
+                        except BaseException as e:
+                            if not fut.done():
+                                if isinstance(e, Exception):
+                                    fut.set_result(e)
+                                else:
+                                    fut.set_exception(e)
+                    elif op == "close":
+                        try:
+                            await self._do_close_mcp()
+                            fut.set_result(None)
+                        except BaseException as e:
+                            if not fut.done():
+                                if isinstance(e, Exception):
+                                    fut.set_result(e)
+                                else:
+                                    fut.set_exception(e)
+                    self._mcp_queue.task_done()
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.exception("Error in MCP worker loop: {}", e)
+        finally:
+            try:
+                await self._do_close_mcp()
+            except Exception as e:
+                logger.exception("Error during final MCP close in worker: {}", e)
+
+    async def _do_connect_mcp(self) -> None:
+        if not self._mcp_servers:
             return
-        self._mcp_connecting = True
         from shibaclaw.agent.tools.mcp import connect_mcp_servers
 
         try:
-            self._mcp_stack = AsyncExitStack()
-            await self._mcp_stack.__aenter__()
+            if self._mcp_stack is None:
+                self._mcp_stack = AsyncExitStack()
+                await self._mcp_stack.__aenter__()
             await connect_mcp_servers(self._mcp_servers, self.tools, self._mcp_stack)
             self._mcp_connected = True
         except BaseException as e:
@@ -321,9 +395,57 @@ class ShibaBrain:
             if self._mcp_stack:
                 try:
                     await self._mcp_stack.aclose()
-                except Exception:
-                    pass
-                self._mcp_stack = None
+                except BaseException as close_e:
+                    logger.debug("Ignored exception during MCP stack aclose on connect failure: {}", close_e)
+                finally:
+                    self._mcp_stack = None
+            raise
+
+    async def _do_close_mcp(self) -> None:
+        if self._background_tasks:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._background_tasks, return_exceptions=True),
+                    timeout=10.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Timeout waiting for background tasks during MCP close; cancelling")
+                for task in self._background_tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            finally:
+                self._background_tasks.clear()
+
+        if self._mcp_stack:
+            stack = self._mcp_stack
+            self._mcp_stack = None
+            try:
+                await stack.aclose()
+            except BaseException as e:
+                logger.debug("Exception during MCP stack aclose: {}", e)
+            finally:
+                await asyncio.sleep(0)
+
+        try:
+            from shibaclaw.agent.tools.mcp import clear_mcp_sessions
+            clear_mcp_sessions()
+        except Exception:
+            pass
+
+        self._mcp_connected = False
+
+    async def _connect_mcp(self) -> None:
+        """Connect to configured MCP servers (one-time, lazy)."""
+        if self._mcp_connected or self._mcp_connecting or not self._mcp_servers:
+            return
+        self._mcp_connecting = True
+        fut = asyncio.get_running_loop().create_future()
+        await self._mcp_queue.put(("connect", fut))
+        try:
+            res = await fut
+            if isinstance(res, Exception):
+                raise res
         finally:
             self._mcp_connecting = False
 
@@ -687,20 +809,11 @@ class ShibaBrain:
 
     async def close_mcp(self) -> None:
         """Drain pending background archives, then close MCP connections."""
-        if self._background_tasks:
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
-            self._background_tasks.clear()
-        if self._mcp_stack:
-            try:
-                await self._mcp_stack.aclose()
-            except (RuntimeError, BaseExceptionGroup):
-                pass  # MCP SDK cancel scope cleanup is noisy but harmless
-            self._mcp_stack = None
-        try:
-            from shibaclaw.agent.tools.mcp import clear_mcp_sessions
-            clear_mcp_sessions()
-        except Exception:
-            pass
+        fut = asyncio.get_running_loop().create_future()
+        await self._mcp_queue.put(("close", fut))
+        res = await fut
+        if isinstance(res, Exception):
+            raise res
 
     def _schedule_background(self, coro) -> None:
         task = asyncio.create_task(coro)
@@ -716,6 +829,8 @@ class ShibaBrain:
 
     def stop(self) -> None:
         self._running = False
+        if self._mcp_worker_task and not self._mcp_worker_task.done():
+            self._mcp_worker_task.cancel()
         logger.debug("Agent loop stopping")
 
     async def _process_message(

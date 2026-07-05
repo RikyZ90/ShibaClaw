@@ -1,26 +1,26 @@
 {
-    "version": "0.7.9",
-    "release_notes": "Added MCP Server Manager UI, OAuth 2.0 PKCE support for MCP, and multiple security and reliability improvements.",
+    "version": "0.8.0",
+    "release_notes": "Added Connected Apps UI for seamless Klavis integrations (Gmail, Google Drive, Slack, GitHub, Outlook, etc.) using a single API key, along with multiple backend performance optimizations and race condition fixes.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.7.9."
+            "note": "Bumped version to 0.8.0."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.7.9 release notes."
+            "note": "Added v0.8.0 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.7.9."
+            "note": "Updated welcome announcement to v0.8.0."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.7.9."
+            "note": "Bumped packaged update manifest to v0.8.0."
         }
     ]
 }

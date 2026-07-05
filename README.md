@@ -22,11 +22,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.7.9</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.8.0</b> — Click to see what's new</summary>
 
-- **MCP Server Manager** — Added a full WebUI workflow to create, edit, test, and monitor MCP servers with environment-variable support and live status badges.
-- **OAuth 2.0 PKCE for MCP** — Added secure OAuth-based authentication for custom MCP HTTP endpoints through a local callback flow.
-- **Security & Reliability** — Hardened DingTalk SSRF handling and improved proxy/config loading for more resilient startup and execution.
+- **Connected Apps (Klavis Integration)** — Created a unified WebUI workflow to connect Gmail, Google Drive, Google Docs, Slack, GitHub, Outlook, and other SaaS apps using **Klavis** (`klavis.ai`).
+- **PKCE & CSRF OAuth Hardening** — Secured the local callback receiver endpoint (`/callback/{token}`) with unique runtime token validation.
+- **Reliability & Concurrency** — Hardened MCP session connections with serialized locks, graceful transport exception handling, and Anyio-compatible stream wrappers.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
@@ -247,10 +247,6 @@ Change models per session — no more single global model, but a flexible choice
 
 ### 🤖 Agent Profiles
 
-<p align="center">
-  <img src="assets/hacker-mode.webp" width="600" alt="Agent Profile Selector">
-</p>
-
 Switch the agent's personality on-the-fly without losing context. Each profile overrides the system prompt (SOUL.md) while keeping model, memory, and tools shared. Profiles are per-session — run a security audit in one tab and plan architecture in another.
 
 Built-in profiles: Default · Builder · Planner · Reviewer · <b>Hacker</b> (elite security expert with 50+ tool recommendations, OWASP/MITRE/NIST methodologies, CVSS scoring, and a custom cyber-shiba avatar).
@@ -330,6 +326,16 @@ Why this matters:
 - **Decoupled Architecture**: Keep your agent lean while scaling its capabilities through a distributed network of MCP servers.
 
 Configure your MCP servers directly in the **Settings** panel to start expanding ShibaClaw's horizons.
+
+### 🌐 Connected Apps (Klavis Integration)
+
+To make setting up popular SaaS tools (such as Gmail, Google Drive, Google Docs, Slack, GitHub, Outlook, etc.) as seamless as possible, ShibaClaw integrates with **Klavis** (`klavis.ai`).
+
+Instead of forcing users to manually create individual developer credentials, configure OAuth consent screens, and set up redirect URLs for every single service on Google Cloud or Microsoft Azure console, ShibaClaw allows you to manage all of these integrations via a unified **Connected Apps** interface:
+
+- **Single API Key**: Just grab a single API key from [klavis.ai](https://klavis.ai) and save it in the ShibaClaw Backend settings.
+- **One-Click Connections**: Instantly connect or disconnect Gmail, Slack, and other services with a single click using secure OAuth login directly managed by the Klavis gateway.
+- **Auto-Generated MCP Servers**: Once an app is connected, ShibaClaw automatically configures the appropriate MCP server with standard tools, registering them seamlessly into the active agent session.
 
 ***
 

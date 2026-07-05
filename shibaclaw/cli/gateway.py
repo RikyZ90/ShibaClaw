@@ -305,6 +305,23 @@ async def notify_webui_session(
     return False
 
 
+async def _cancel_all_tasks_gracefully() -> None:
+    """Cancel every running asyncio task except the current one and wait for them to finish.
+
+    This replaces the old ``call_later(0.5, lambda: [t.cancel() for t in all_tasks()])``
+    pattern which left tasks in a "destroyed but pending" state because:
+    - call_later schedules a sync callback — it cannot await the cancellation
+    - tasks whose coroutines were blocked in wait_for / shield never got a chance to
+      handle CancelledError before the event loop tore them down
+    """
+    current = asyncio.current_task()
+    tasks = [t for t in asyncio.all_tasks() if t is not current and not t.done()]
+    for t in tasks:
+        t.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 async def gateway_command(
     host: Optional[str] = None,
     port_override: Optional[int] = None,
@@ -580,7 +597,20 @@ async def gateway_command(
     )
     get_console().print(Panel("\n".join(status_parts), expand=False, border_style="blue"))
 
-    _state = {"restart": False}
+    _state = {"restart": False, "starting": True}
+
+    async def _trigger_restart() -> None:
+        """Schedule a graceful restart: cancel all tasks and let run() exit cleanly.
+
+        Previously this used ``call_later(0.5, lambda: [t.cancel() ...])``, which
+        is a sync callback and cannot await the cancellations.  Tasks blocked in
+        ``wait_for`` / ``Future`` were left in a pending state and destroyed by the
+        event loop, producing "Task was destroyed but it is pending!" warnings and
+        leaving MCP stdio sub-processes running (causing the observed slowness on
+        subsequent restarts).
+        """
+        await asyncio.sleep(0.1)  # yield so the HTTP/WS response is sent first
+        await _cancel_all_tasks_gracefully()
 
     async def _do_reload() -> None:
         """Hot-reload all components from the saved config file."""
@@ -601,9 +631,7 @@ async def gateway_command(
                 "Hot-reload: gateway host/port changed — falling back to full restart"
             )
             _state["restart"] = True
-            asyncio.get_event_loop().call_later(
-                0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
-            )
+            asyncio.ensure_future(_trigger_restart())
             return
 
         try:
@@ -615,6 +643,13 @@ async def gateway_command(
             await channels.reconfigure(new_cfg)
             new_hb = new_cfg.gateway.heartbeat
             await automation.reconfigure(new_provider, new_hb.model or None)
+
+            try:
+                from shibaclaw.integrations.klavis_client import reload_klavis_client
+                reload_klavis_client(base_url="https://api.klavis.ai")
+            except Exception as e:
+                logger.warning("Hot-reload: failed to reload Klavis client: {}", e)
+
             logger.info("Hot-reload complete")
         except Exception as e:
             logger.error("Hot-reload failed: {}", e)
@@ -884,9 +919,7 @@ async def gateway_command(
             elif action == "restart":
                 await ws.send(_ok({"status": "restarting"}))
                 _state["restart"] = True
-                asyncio.get_event_loop().call_later(
-                    0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
-                )
+                asyncio.ensure_future(_trigger_restart())
 
             # --- Automation (new unified actions) ---
             elif action == "automation.list":
@@ -1126,10 +1159,9 @@ async def gateway_command(
                         writer.write(_json_response({"error": "unauthorized"}, 401))
                     else:
                         writer.write(_json_response({"status": "restarting"}))
+                        await writer.drain()
                         _state["restart"] = True
-                        asyncio.get_event_loop().call_later(
-                            0.5, lambda: [t.cancel() for t in asyncio.all_tasks()]
-                        )
+                        asyncio.ensure_future(_trigger_restart())
 
                 elif "POST" in request_line and "/reload" in request_line:
                     if not _check_auth():
@@ -1347,7 +1379,7 @@ async def gateway_command(
                     writer.write(
                         _json_response(
                             {
-                                "status": "ok" if provider else "idle",
+                                "status": "starting" if _state.get("starting", False) else ("ok" if provider else "idle"),
                                 "uptime": int(time.time() - _start_time),
                                 "provider_ready": provider is not None,
                             }
@@ -1369,6 +1401,12 @@ async def gateway_command(
 
         try:
             await automation.start()
+
+            async def _clear_starting():
+                await asyncio.sleep(4.0)
+                _state["starting"] = False
+            asyncio.create_task(_clear_starting())
+
             await asyncio.gather(
                 agent.run(),
                 channels.start_all(),
@@ -1383,15 +1421,15 @@ async def gateway_command(
                 get_console().print("\nShutting down...")
         finally:
             try:
+                await channels.stop_all()
+            except asyncio.CancelledError:
+                pass
+            try:
                 await agent.close_mcp()
             except asyncio.CancelledError:
                 pass
             automation.stop()
             agent.stop()
-            try:
-                await channels.stop_all()
-            except asyncio.CancelledError:
-                pass
 
     await run()
 

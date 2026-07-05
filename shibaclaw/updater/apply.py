@@ -147,10 +147,7 @@ def _exe_upgrade(
     install_dir_str = str(install_dir) if install_dir else ""
 
     try:
-        # DETACHED_PROCESS = 0x00000008
-        # CREATE_NEW_PROCESS_GROUP = 0x00000200
-        # CREATE_NO_WINDOW = 0x08000000
-        create_no_window = 0x08000000
+        detached_process = 0x00000008
         create_new_process_group = 0x00000200
 
         cmd = [
@@ -165,22 +162,12 @@ def _exe_upgrade(
         if install_dir_str:
             cmd.extend(["-InstallDir", install_dir_str])
 
-        log_path = Path(tempfile.gettempdir()) / "shibaclaw_update.log"
-        log_file = open(log_path, "w")
-
         subprocess.Popen(
             cmd,
-            creationflags=create_no_window | create_new_process_group,
+            creationflags=detached_process | create_new_process_group,
             close_fds=True,
             cwd=tempfile.gettempdir(),
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
         )
-
-        # We don't strictly need to close this here because the parent
-        # process is going to exit very soon, but it is good practice.
-        # Actually it's better to NOT close it because the child process
-        # inherits the handle. It will be closed when the child exits.
 
         from loguru import logger
         logger.info(

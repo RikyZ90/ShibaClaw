@@ -1,6 +1,8 @@
 """Configuration loading utilities."""
 
 import json
+import os
+import tempfile
 from pathlib import Path
 
 import pydantic
@@ -40,10 +42,8 @@ def load_config(config_path: Path | None = None) -> Config:
         logger.info(f"Creating default configuration at {path}")
         default_cfg = Config()
         save_config(default_cfg, path)
-        # Sync plugin/channel defaults
         try:
             from shibaclaw.cli.onboard import _onboard_plugins
-
             _onboard_plugins(path)
         except Exception:
             logger.debug("[config] _onboard_plugins failed on new config", exc_info=True)
@@ -55,7 +55,6 @@ def load_config(config_path: Path | None = None) -> Config:
         data = _migrate_config(data)
         try:
             from shibaclaw.cli.onboard import _onboard_plugins
-
             _onboard_plugins(path)
         except Exception:
             logger.debug("[config] _onboard_plugins failed on existing config", exc_info=True)
@@ -68,7 +67,10 @@ def load_config(config_path: Path | None = None) -> Config:
 
 def save_config(config: Config, config_path: Path | None = None) -> None:
     """
-    Save configuration to file.
+    Save configuration to file atomically.
+
+    Writes to a temporary file first, then renames it over the target so that
+    a crash mid-write never leaves an empty or corrupt config.json.
 
     Args:
         config: Configuration to save.
@@ -78,9 +80,21 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     data = config.model_dump(mode="json", by_alias=True)
+    payload = json.dumps(data, indent=2, ensure_ascii=False)
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    # Write to a sibling temp file then rename — atomic on all major OSes.
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".config_tmp_", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(payload)
+        os.replace(tmp_path, path)  # atomic rename
+    except Exception:
+        # Clean up the temp file on failure; re-raise so caller can log.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def _migrate_config(data: dict) -> dict:
@@ -128,7 +142,7 @@ def _migrate_config(data: dict) -> dict:
             _ch_cfg.pop("consentGranted", None)
             _ch_cfg.pop("consent_granted", None)
 
-    # Fix proxy saved as {} instead of null (caused by typeof null === "object" in JS)
+    # Fix proxy saved as {} instead of null
     for _ch_name, _ch_cfg in channels.items():
         if isinstance(_ch_cfg, dict) and isinstance(_ch_cfg.get("proxy"), dict):
             _ch_cfg["proxy"] = None
@@ -139,7 +153,7 @@ def _migrate_config(data: dict) -> dict:
 
     data["channels"] = channels
 
-    # Ensure mcpServers have all default fields without re-adding deleted servers
+    # Ensure mcpServers have all default fields
     mcp_servers = tools.get("mcpServers", {})
     mcp_defaults = {
         "type": None,
@@ -157,5 +171,16 @@ def _migrate_config(data: dict) -> dict:
                 server[key] = default_val
     tools["mcpServers"] = mcp_servers
     data["tools"] = tools
+
+    # Migrate connectedApps: if present, ensure it is a plain dict (not None)
+    # and strip any keys that should not reach ConnectedAppsConfig validation.
+    # ConnectedAppsConfig uses extra="allow" so all keys are accepted;
+    # we only need to guarantee the field exists as a dict.
+    if "connectedApps" not in data:
+        # try snake_case fallback (written by older versions)
+        if "connected_apps" in data:
+            data["connectedApps"] = data.pop("connected_apps")
+    if data.get("connectedApps") is None:
+        data["connectedApps"] = {}
 
     return data

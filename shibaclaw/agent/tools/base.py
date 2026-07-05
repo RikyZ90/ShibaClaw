@@ -1,5 +1,6 @@
 """Base class for agent tools."""
 
+import json
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -133,7 +134,6 @@ class Tool(ABC):
 
         if target_type == "array" and isinstance(val, str):
             try:
-                import json
                 parsed = json.loads(val)
                 if isinstance(parsed, list):
                     val = parsed
@@ -142,7 +142,6 @@ class Tool(ABC):
 
         if target_type == "object" and isinstance(val, str):
             try:
-                import json
                 parsed = json.loads(val)
                 if isinstance(parsed, dict):
                     val = parsed

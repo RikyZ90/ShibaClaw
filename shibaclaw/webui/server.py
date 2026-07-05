@@ -88,6 +88,14 @@ from .routers.mcp_manager import (
     test_mcp_server,
     upsert_mcp_server,
 )
+from .routers.connected_apps import (
+    list_apps,
+    connect_app,
+    disconnect_app,
+    get_app_status,
+    get_backend_status, cancel_connect_app,
+    save_backend_settings,
+)
 from .ws_handler import ws_endpoint
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -136,7 +144,7 @@ def create_app(
         Route("/api/context", api_context_get),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
-        # ── Automation (unified) ────────────────────────────────
+        # ── Automation (unified) ─────────────────────────────────────────────
         Route("/api/automation/status", api_automation_status, methods=["GET"]),
         Route("/api/automation/jobs", api_automation_jobs_list, methods=["GET"]),
         Route("/api/automation/jobs", api_automation_jobs_create, methods=["POST"]),
@@ -144,19 +152,29 @@ def create_app(
         Route("/api/automation/jobs/{job_id}", api_automation_job_update, methods=["PATCH"]),
         Route("/api/automation/jobs/{job_id}", api_automation_job_delete, methods=["DELETE"]),
         Route("/api/automation/jobs/{job_id}/trigger", api_automation_job_trigger, methods=["POST"]),
-        # ── Legacy shims (deprecated, kept for backward compat) ─────
+        # ── Legacy shims (deprecated, kept for backward compat) ───────────────────
         Route("/api/cron/jobs", api_cron_list, methods=["GET"]),
         Route("/api/cron/jobs/{job_id}/trigger", api_cron_trigger, methods=["POST"]),
         Route("/api/heartbeat/status", api_heartbeat_status, methods=["GET"]),
         Route("/api/heartbeat/trigger", api_heartbeat_trigger, methods=["POST"]),
-        # ── MCP Server Manager ──────────────────────────────────
+        # ── MCP Server Manager ────────────────────────────────────────────────
         Route("/api/mcp/servers", list_mcp_servers, methods=["GET"]),
         Route("/api/mcp/servers/{name}", get_mcp_server, methods=["GET"]),
         Route("/api/mcp/servers/{name}", upsert_mcp_server, methods=["PUT"]),
         Route("/api/mcp/servers/{name}", delete_mcp_server, methods=["DELETE"]),
         Route("/api/mcp/servers/{name}/rename", rename_mcp_server, methods=["PATCH"]),
         Route("/api/mcp/servers/{name}/test", test_mcp_server, methods=["POST"]),
-        # ───────────────────────────────────────────────
+        # ── Connected Apps (Klavis Strata) ───────────────────────────────────
+        # NOTE: /api/apps/backend MUST be before /api/apps/{app_id}/...
+        # otherwise Starlette matches "backend" as an app_id path param.
+        Route("/api/apps", list_apps, methods=["GET"]),
+        Route("/api/apps/backend", get_backend_status, methods=["GET"]),
+        Route("/api/apps/backend", save_backend_settings, methods=["PUT"]),
+        Route("/api/apps/{app_id}/connect", connect_app, methods=["POST"]),
+        Route("/api/apps/{app_id}/cancel", cancel_connect_app, methods=["POST"]),
+        Route("/api/apps/{app_id}/connect", disconnect_app, methods=["DELETE"]),
+        Route("/api/apps/{app_id}/status", get_app_status, methods=["GET"]),
+        # ───────────────────────────────────────────────────────────────
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
         Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
         Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),

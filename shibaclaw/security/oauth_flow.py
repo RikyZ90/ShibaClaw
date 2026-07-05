@@ -58,6 +58,7 @@ class _CallbackServer:
         self._future: asyncio.Future[dict[str, str]] = asyncio.get_running_loop().create_future()
         self._server: asyncio.Server | None = None
         self.port: int = 0
+        self.token: str = secrets.token_urlsafe(16)
 
     async def start(self) -> None:
         """Start the server and populate ``self.port``."""
@@ -68,7 +69,7 @@ class _CallbackServer:
         )
         self.port = self._server.sockets[0].getsockname()[1]
         await self._server.__aenter__()
-        logger.debug("OAuthCallbackServer: listening on http://127.0.0.1:{}/callback", self.port)
+        logger.debug("OAuthCallbackServer: listening on http://127.0.0.1:{}/callback/{}", self.port, self.token)
 
     async def wait_for_code(self, timeout: float = 120.0) -> dict[str, str]:
         """Block until the callback arrives or *timeout* seconds elapse."""
@@ -89,7 +90,9 @@ class _CallbackServer:
                 return
 
             path = parts[1]
-            if "/callback" not in path:
+            if f"/callback/{self.token}" not in path:
+                body = self._HTML_ERR.format(error="Invalid or missing callback token").encode()
+                await self._respond(writer, 400, body)
                 return
 
             qs = urllib.parse.urlparse(path).query
@@ -173,7 +176,7 @@ class OAuthFlow:
 
         callback_server = _CallbackServer()
         await callback_server.start()
-        redirect_uri = f"http://127.0.0.1:{callback_server.port}/callback"
+        redirect_uri = f"http://127.0.0.1:{callback_server.port}/callback/{callback_server.token}"
 
         auth_params: dict[str, str] = {
             "response_type": "code",
@@ -263,19 +266,24 @@ class OAuthFlow:
         cfg: Any,  # MCPOAuthConfig
         *,
         callback_timeout: float = 120.0,
+        interactive: bool = True,
     ) -> dict[str, Any]:
         """
         Convenience method: return a valid (non-expired) token dict.
 
         Decision tree:
-        - No stored token → full authorize() flow.
+        - No stored token → full authorize() flow (if interactive) or error.
         - Expired + has refresh_token → refresh().
-        - Expired + no refresh_token → full authorize() flow.
+        - Expired + no refresh_token → full authorize() flow (if interactive) or error.
         - Not expired → return stored token directly.
         """
         stored = self._store.load_token(server_name)
 
         if not stored:
+            if not interactive:
+                raise RuntimeError(
+                    f"OAuth token for '{server_name}' not found. Please authenticate via the WebUI."
+                )
             return await self.authorize(server_name, cfg, callback_timeout=callback_timeout)
 
         if self._store.is_expired(server_name):
@@ -286,6 +294,10 @@ class OAuthFlow:
                     logger.warning(
                         "OAuthFlow[{}]: refresh failed ({}), re-authorising", server_name, exc
                     )
+            if not interactive:
+                raise RuntimeError(
+                    f"OAuth token for '{server_name}' is expired and cannot be refreshed silently. Please re-authenticate."
+                )
             return await self.authorize(server_name, cfg, callback_timeout=callback_timeout)
 
         return stored

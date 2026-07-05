@@ -7,11 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-try {
-    [console]::OutputEncoding = [System.Text.Encoding]::UTF8
-} catch {
-    # Ignore if running without a console
-}
+[console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
