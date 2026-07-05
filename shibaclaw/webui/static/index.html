@@ -43,7 +43,7 @@
             <p class="login-subtitle">Enter your access token to continue</p>
             <div class="login-input-group">
                 <input type="password" id="login-token" class="login-input" placeholder="Paste access token..."
-                    autocomplete="off" spellcheck="false">
+                    autocomplete="off" spellcheck="false" aria-label="Paste access token...">
                 <button id="btn-login" class="login-btn">
                     <span class="material-icons-round" style="font-size:18px;vertical-align:middle">login</span>
                     Connect
@@ -69,7 +69,7 @@
                                 <div class="status-dot disconnected" id="status-dot"></div>
                                 <span class="status-text" id="status-text">Connecting...</span>
                                 <button class="btn-restart" id="btn-restart" onclick="restartGateway()"
-                                    title="Restart Gateway" tabindex="-1">
+                                    title="Restart Gateway" tabindex="-1" aria-label="Restart Gateway">
                                     <span class="material-icons-round">refresh</span>
                                 </button>
                             </div>
@@ -281,7 +281,7 @@
                                 </button>
                                 <div class="model-dropdown-menu" id="model-dropdown-menu" style="display: none;">
                                     <input type="text" id="model-search-input" placeholder="Search models..."
-                                        autocomplete="off">
+                                        autocomplete="off" aria-label="Search models...">
                                     <div class="model-list" id="model-list-container">
                                         <!-- Models injected here -->
                                         <div
@@ -316,7 +316,7 @@
         <div id="settings-view" class="settings-view" style="display:none">
             <header class="settings-header">
                 <div class="settings-header-left">
-                    <button class="settings-back-btn" onclick="closeSettingsView()" title="Back to Chat">
+                    <button class="settings-back-btn" onclick="closeSettingsView()" title="Back to Chat" aria-label="Back to Chat">
                         <span class="material-icons-round">arrow_back</span>
                     </button>
                     <div>
@@ -497,7 +497,7 @@
                                 <div class="settings-model-menu" id="s-agent-model-menu" style="display:none">
                                     <input type="text" id="s-agent-model-search"
                                         class="form-input settings-model-search" placeholder="Search models..."
-                                        autocomplete="off">
+                                        autocomplete="off" aria-label="Search models...">
                                     <div class="settings-model-list" id="s-agent-model-list"></div>
                                 </div>
                             </div>
@@ -523,7 +523,7 @@
                                     style="display:none">
                                     <input type="text" id="s-agent-consolidationModel-search"
                                         class="form-input settings-model-search" placeholder="Search models..."
-                                        autocomplete="off">
+                                        autocomplete="off" aria-label="Search models...">
                                     <div class="settings-model-list" id="s-agent-consolidationModel-list"></div>
                                 </div>
                             </div>
@@ -582,7 +582,7 @@
                         <div class="provider-stats-bar">
                             <div class="provider-search-wrap">
                                 <span class="material-icons-round">search</span>
-                                <input type="text" id="provider-search" class="provider-search-input" placeholder="Filter providers...">
+                                <input type="text" id="provider-search" class="provider-search-input" placeholder="Filter providers..." aria-label="Filter providers...">
                             </div>
                             <div class="provider-stats-count" id="provider-stats"></div>
                         </div>
@@ -721,7 +721,7 @@
                         <!-- Skills toolbar -->
                         <div class="skills-toolbar">
                             <input type="text" id="skills-search" class="form-input"
-                                placeholder="Filter skills by name or description...">
+                                placeholder="Filter skills by name or description..." aria-label="Filter skills by name or description...">
                             <div class="skills-toolbar-actions">
                                 <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
                                     <span class="material-icons-round"
@@ -787,7 +787,7 @@
                     <div class="settings-panel" id="panel-plugins" style="display:none">
                         <div class="skills-toolbar">
                             <input type="text" id="plugin-install-name" class="form-input"
-                                placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL...">
+                                placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL..." aria-label="Plugin package name or Git URL">
                             <div class="skills-toolbar-actions">
                                 <button type="button" class="btn-primary" onclick="installPlugin()">
                                     <span class="material-icons-round" style="font-size:16px;vertical-align:middle">download</span> Install
@@ -1119,7 +1119,7 @@
                     <div id="ob-key-section">
                         <div class="ob-key-wrap">
                             <input type="password" id="ob-api-key" class="form-input ob-key-input" placeholder="sk-..."
-                                autocomplete="off">
+                                autocomplete="off" aria-label="API Key">
                             <button class="ob-eye" id="ob-eye-toggle" type="button" aria-label="Toggle password visibility" title="Toggle password visibility"><span
                                     class="material-icons-round">visibility_off</span></button>
                         </div>
@@ -1145,7 +1145,7 @@
                     <p class="ob-hint" id="ob-model-hint" style="margin-bottom:1rem"></p>
                     <div class="model-selector-wrapper" id="ob-model-selector-wrapper" style="position: relative;">
                         <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o"
-                            autocomplete="off" style="padding-right: 30px;">
+                            autocomplete="off" style="padding-right: 30px;" aria-label="Model">
                         <span class="material-icons-round"
                             style="position: absolute; right: 10px; top: 12px; color: var(--text-muted); pointer-events: none; font-size: 18px;">expand_more</span>
                         <div class="model-dropdown-menu" id="ob-model-dropdown-menu" style="display: none;">
