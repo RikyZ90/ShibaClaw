@@ -1,3 +1,19 @@
+## [0.8.1] - 2026-07-05
+
+### Added
+- **Klavis Strata Integration** — Integrated Klavis Strata support inside the connected apps dashboard, deferring the MCP sync until the user successfully completes the OAuth callback check rather than on setup start.
+
+### Fixed
+- **Session List Sorting** — Switched `list_sessions` to use the `.jsonl` session file modification time (`st_mtime`) for `updated_at` timestamps instead of metadata timestamps, ensuring recently modified sessions bubble to the top correctly.
+- **Provider Key Persistence** — Fixed the Web UI settings panel to preserve provider API keys and custom API base URLs in `lastSettingsConfig` while expanding/collapsing accordion panels, avoiding data loss when saving settings.
+- **Restart Console Descriptor Error** — Dropped `close_fds=True` from the Windows process spawning implementation when restarting the gateway to prevent bad file descriptor errors. Changed the restart thread to non-daemon (`daemon=False`).
+- **Plugin Path Resolution** — Updated the `api_install_plugin` endpoint to resolve the target path under the `plugins/` subdirectory to match the reorganized repository structure.
+
+### Optimized
+- **Async & I/O Bottlenecks** — Offloaded synchronous SSRF DNS checks inside the MCP tool client to a separate execution thread to unblock the main event loop. Added an `st_mtime`-aware cache for `OAuthTokenStore` and a global cache for the Fernet encryption key to reduce CPU load and disk I/O overhead.
+- **Concurrent Model Fetching** — Added a promise-based caching layer for settings model picker fetches (`_fetchingModelsPromise`) to prevent duplicate, concurrent API requests, resetting the cache only on settings mutations.
+- **Gateway Shutdown Safety** — Added 5-second execution timeouts to both channel shutdowns (`channels.stop_all()`) and MCP clients closing (`agent.close_mcp()`) during gateway exit sequences.
+
 ## [0.8.0] - 2026-07-05
 
 ### Added
