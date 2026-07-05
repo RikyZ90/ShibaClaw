@@ -155,3 +155,9 @@ filterwarnings = [
     "ignore::DeprecationWarning:websockets.*",
     "ignore::DeprecationWarning:uvicorn.*",
 ]
+
+[tool.uv.workspace]
+members = ["plugins/*"]
+
+[tool.uv.sources]
+shibaclaw = { workspace = true }

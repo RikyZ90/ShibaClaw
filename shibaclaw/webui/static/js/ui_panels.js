@@ -1617,6 +1617,26 @@ function populateSettings(cfg) {
                     <input type="text" class="form-input prov-base" data-prov="${name}" value="${pc.apiBase || ""}" placeholder="(default)">
                 </div>`;
 
+            const keyInput = expandPanel.querySelector(".prov-key");
+            if (keyInput) {
+                keyInput.addEventListener("input", (e) => {
+                    pc.apiKey = e.target.value.trim();
+                    if (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers && lastSettingsConfig.providers[name]) {
+                        lastSettingsConfig.providers[name].apiKey = e.target.value.trim();
+                    }
+                });
+            }
+
+            const baseInput = expandPanel.querySelector(".prov-base");
+            if (baseInput) {
+                baseInput.addEventListener("input", (e) => {
+                    pc.apiBase = e.target.value.trim() || null;
+                    if (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers && lastSettingsConfig.providers[name]) {
+                        lastSettingsConfig.providers[name].apiBase = e.target.value.trim() || null;
+                    }
+                });
+            }
+
             expandPanel.querySelector(".provider-expand-close").addEventListener("click", (e) => {
                 e.stopPropagation();
                 tile.classList.remove("expanded");
@@ -1973,7 +1993,7 @@ window.saveSettings = async function () {
                 maxPinnedSkills: window._skillsMaxPinned || 5,
             }
         },
-        providers: {},
+        providers: (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers) ? JSON.parse(JSON.stringify(lastSettingsConfig.providers)) : {},
         tools: {
             web: {
                 proxy: $("s-tool-proxy").value || null,

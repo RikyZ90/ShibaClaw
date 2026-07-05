@@ -108,25 +108,21 @@ def _graceful_shutdown_server() -> None:
 
 
 def _exec_restart() -> None:
-    """Replace the current process with a fresh one.
-
-    On POSIX this is atomic (same PID, ports released automatically).
-    On Windows os.execv does not truly replace the PID, so we spawn a
-    new detached process and then exit.
-    """
     argv = _safe_argv()
     if sys.platform != "win32":
         os.execv(argv[0], argv)
     else:
         creationflags = (
-            subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.DETACHED_PROCESS
+            subprocess.CREATE_NEW_CONSOLE
         )
-        subprocess.Popen(
-            argv,
-            creationflags=creationflags,
-            close_fds=True,
-        )
+        try:
+            # Drop close_fds=True so we don't cause Bad File Descriptor errors for console output
+            subprocess.Popen(
+                argv,
+                creationflags=creationflags
+            )
+        except Exception:
+            pass
         os._exit(0)
 
 
@@ -143,7 +139,7 @@ def _schedule_restart_outside_loop(delay: float = 2.0) -> None:
         time.sleep(delay)
         _exec_restart()
 
-    t = threading.Thread(target=_restart_thread, daemon=True)
+    t = threading.Thread(target=_restart_thread, daemon=False)
     t.start()
 
 
