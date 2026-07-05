@@ -159,3 +159,170 @@ async def test_mcp_dynamic_registration(monkeypatch):
     assert new_registry.has("mcp_call_tool")
 
     clear_mcp_sessions()
+
+
+@pytest.mark.asyncio
+async def test_mcp_execute_cancelled_propagation():
+    import asyncio
+    clear_mcp_sessions()
+
+    mock_session = AsyncMock()
+    mock_session.call_tool.side_effect = asyncio.CancelledError()
+
+    _mcp_sessions["github"] = mock_session
+
+    mock_cfg = MagicMock()
+    mock_cfg.enabled_tools = ["*"]
+    mock_cfg.tool_timeout = 10
+    _mcp_configs["github"] = mock_cfg
+
+    call_tool = MCPCallTool()
+
+    with pytest.raises(asyncio.CancelledError):
+        await call_tool.execute(server_name="github", tool_name="search_code", arguments={"query": "test"})
+
+    clear_mcp_sessions()
+
+
+@pytest.mark.asyncio
+async def test_mcp_incremental_connect(monkeypatch):
+    from shibaclaw.agent.tools.registry import SkillVault
+    from shibaclaw.agent.tools.mcp import connect_mcp_servers, _mcp_sessions, _mcp_configs, _mcp_stacks, clear_mcp_sessions
+    from contextlib import AsyncExitStack
+
+    clear_mcp_sessions()
+
+    mock_stdio_enter_count = 0
+    class MockContextManager:
+        async def __aenter__(self):
+            nonlocal mock_stdio_enter_count
+            mock_stdio_enter_count += 1
+            return ("read", "write")
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    monkeypatch.setattr("mcp.client.stdio.stdio_client", lambda params: MockContextManager())
+
+    mock_session = AsyncMock()
+    mock_session.list_tools.return_value = MockToolsList([])
+    class MockSessionContextManager:
+        async def __aenter__(self):
+            return mock_session
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    monkeypatch.setattr("mcp.ClientSession", lambda read, write: MockSessionContextManager())
+
+    cfg_github = MagicMock()
+    cfg_github.type = "stdio"
+    cfg_github.command = "python"
+    cfg_github.args = []
+    cfg_github.env = {}
+    cfg_github.enabled_tools = ["*"]
+    cfg_github.tool_timeout = 10
+
+    mcp_servers_1 = {"github": cfg_github}
+    registry = SkillVault()
+
+    async with AsyncExitStack() as stack:
+        await connect_mcp_servers(mcp_servers_1, registry, stack)
+        
+        assert "github" in _mcp_sessions
+        assert mock_stdio_enter_count == 1
+
+        cfg_slack = MagicMock()
+        cfg_slack.type = "stdio"
+        cfg_slack.command = "node"
+        cfg_slack.args = []
+        cfg_slack.env = {}
+        cfg_slack.enabled_tools = ["*"]
+        cfg_slack.tool_timeout = 10
+
+        mcp_servers_2 = {"github": cfg_github, "slack": cfg_slack}
+        await connect_mcp_servers(mcp_servers_2, registry, stack)
+
+        assert "github" in _mcp_sessions
+        assert "slack" in _mcp_sessions
+        assert mock_stdio_enter_count == 2
+
+        mcp_servers_3 = {"slack": cfg_slack}
+        await connect_mcp_servers(mcp_servers_3, registry, stack)
+
+        assert "github" not in _mcp_sessions
+        assert "slack" in _mcp_sessions
+        assert mock_stdio_enter_count == 2
+
+    clear_mcp_sessions()
+
+
+@pytest.mark.asyncio
+async def test_mcp_self_healing_reconnect(monkeypatch):
+    from shibaclaw.agent.tools.registry import SkillVault
+    from shibaclaw.agent.tools.mcp import (
+        connect_mcp_servers,
+        MCPCallTool,
+        _mcp_sessions,
+        _mcp_configs,
+        clear_mcp_sessions,
+    )
+    from contextlib import AsyncExitStack
+    from anyio import ClosedResourceError
+
+    clear_mcp_sessions()
+
+    # Mock stdio client entry count
+    stdio_enters = 0
+    class MockContextManager:
+        async def __aenter__(self):
+            nonlocal stdio_enters
+            stdio_enters += 1
+            return ("read", "write")
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    monkeypatch.setattr("mcp.client.stdio.stdio_client", lambda params: MockContextManager())
+
+    # Mock ClientSession
+    mock_session_1 = AsyncMock()
+    mock_session_1.list_tools.return_value = MockToolsList([])
+    mock_session_1.call_tool.side_effect = ClosedResourceError()
+
+    mock_session_2 = AsyncMock()
+    mock_session_2.list_tools.return_value = MockToolsList([])
+    mock_session_2.call_tool.return_value = MockCallResult("Self healed success!")
+
+    sessions = [mock_session_1, mock_session_2]
+    session_idx = 0
+
+    class MockSessionContextManager:
+        async def __aenter__(self):
+            nonlocal session_idx
+            s = sessions[session_idx]
+            session_idx = min(session_idx + 1, len(sessions) - 1)
+            return s
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    monkeypatch.setattr("mcp.ClientSession", lambda read, write: MockSessionContextManager())
+
+    cfg = MagicMock()
+    cfg.type = "stdio"
+    cfg.command = "python"
+    cfg.args = []
+    cfg.env = {}
+    cfg.enabled_tools = ["*"]
+    cfg.tool_timeout = 10
+
+    registry = SkillVault()
+
+    async with AsyncExitStack() as stack:
+        await connect_mcp_servers({"github": cfg}, registry, stack)
+
+        call_tool = MCPCallTool()
+        res = await call_tool.execute(server_name="github", tool_name="search_code")
+        assert "Self healed success!" in res
+        assert stdio_enters == 2
+
+    clear_mcp_sessions()
+
+

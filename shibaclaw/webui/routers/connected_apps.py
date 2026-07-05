@@ -338,6 +338,13 @@ async def connect_app(request: Request) -> JSONResponse:
             klavis, cfg_dict, user_id, app_def.klavis_server_name
         )
 
+        if is_new_strata:
+            # Save strata_id immediately so that if subsequent steps (inject_server etc.) fail,
+            # we do not lose the strata_id and leak a Strata slot on Klavis.
+            err = await _save_and_reload(cfg_dict)
+            if err:
+                logger.error("Failed to save newly created Strata ID to config: {}", err)
+
         oauth_url = existing_oauth_urls.get(app_def.klavis_server_name) or ""
 
         # If strata already existed and we didn't have the oauth url, we inject it.

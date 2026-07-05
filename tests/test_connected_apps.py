@@ -571,3 +571,59 @@ async def test_cancel_connect_app_retains_local_strata_if_exists():
         # But gmail server is still removed locally
         assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
 
+
+@pytest.mark.asyncio
+async def test_connect_app_saves_strata_id_immediately_on_failure():
+    from unittest.mock import AsyncMock, patch, MagicMock
+    from starlette.requests import Request
+    import httpx
+    from shibaclaw.webui.routers.connected_apps import connect_app
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/apps/gmail/connect",
+        "path_params": {"app_id": "gmail"},
+    }
+    req = Request(scope)
+
+    cfg = MagicMock()
+    # Empty connected_apps config dict
+    cfg_dict = {
+        "tools": {"mcpServers": {}},
+        "connected_apps": {}
+    }
+
+    mock_klavis = AsyncMock()
+    mock_klavis.is_configured = MagicMock(return_value=True)
+
+    # Mock strata creation to succeed
+    from shibaclaw.integrations.klavis_client import StrataInfo
+    mock_klavis.create_strata.return_value = StrataInfo(
+        strata_id="new-strata-123",
+        mcp_url="https://strata.klavis.ai/new",
+        oauth_urls={"Gmail": "https://auth.gmail"}
+    )
+    # Count how many times _save_and_reload is called
+    save_count = 0
+    async def mock_save(d):
+        nonlocal save_count
+        save_count += 1
+        if save_count == 2:
+            from starlette.responses import JSONResponse
+            return JSONResponse({"error": "Database write error during final save"}, status_code=500)
+        return None
+
+    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
+         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", side_effect=mock_save):
+        
+        mock_am.config = cfg
+        response = await connect_app(req)
+        
+        assert response.status_code == 500
+        assert save_count == 2
+        assert cfg_dict["connected_apps"]["__strata__"]["strata_id"] == "new-strata-123"
+
+

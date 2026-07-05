@@ -176,22 +176,19 @@ class ShibaBrain:
         self._available_channels = self._extract_enabled_channels()
         self._provider_cache.clear()
 
-        # MCP: close existing connections FIRST (before SkillVault reset)
+        # MCP: reconfigure incrementally
         new_mcp = new_cfg.tools.mcp_servers or {}
         mcp_changed = self._mcp_configs_differ(new_mcp, self._mcp_servers)
 
         if mcp_changed:
-            try:
-                await self.close_mcp()
-            except Exception:
-                pass
             self._mcp_servers = new_mcp
+            self._mcp_connected = False
 
         # Re-register default tools (always needed for exec/web/restrict changes)
         self.tools = SkillVault()
         self._register_default_tools()
 
-        # MCP: reconnect synchronously so tools are available immediately
+        # MCP: reconnect incrementally so tools are updated immediately
         if mcp_changed and self._mcp_servers:
             try:
                 await self._connect_mcp()
@@ -348,43 +345,50 @@ class ShibaBrain:
         This ensures that self._mcp_stack is always entered and exited within
         the same asyncio Task, preventing anyio's cross-task RuntimeError.
         """
-        while True:
+        try:
+            while True:
+                try:
+                    op, fut = await self._mcp_queue.get()
+                    if op == "connect":
+                        try:
+                            await self._do_connect_mcp()
+                            fut.set_result(None)
+                        except BaseException as e:
+                            if not fut.done():
+                                if isinstance(e, Exception):
+                                    fut.set_result(e)
+                                else:
+                                    fut.set_exception(e)
+                    elif op == "close":
+                        try:
+                            await self._do_close_mcp()
+                            fut.set_result(None)
+                        except BaseException as e:
+                            if not fut.done():
+                                if isinstance(e, Exception):
+                                    fut.set_result(e)
+                                else:
+                                    fut.set_exception(e)
+                    self._mcp_queue.task_done()
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.exception("Error in MCP worker loop: {}", e)
+        finally:
             try:
-                op, fut = await self._mcp_queue.get()
-                if op == "connect":
-                    try:
-                        await self._do_connect_mcp()
-                        fut.set_result(None)
-                    except BaseException as e:
-                        if not fut.done():
-                            if isinstance(e, Exception):
-                                fut.set_result(e)
-                            else:
-                                fut.set_exception(e)
-                elif op == "close":
-                    try:
-                        await self._do_close_mcp()
-                        fut.set_result(None)
-                    except BaseException as e:
-                        if not fut.done():
-                            if isinstance(e, Exception):
-                                fut.set_result(e)
-                            else:
-                                fut.set_exception(e)
-                self._mcp_queue.task_done()
-            except asyncio.CancelledError:
-                break
+                await self._do_close_mcp()
             except Exception as e:
-                logger.exception("Error in MCP worker loop: {}", e)
+                logger.exception("Error during final MCP close in worker: {}", e)
 
     async def _do_connect_mcp(self) -> None:
-        if self._mcp_connected or not self._mcp_servers:
+        if not self._mcp_servers:
             return
         from shibaclaw.agent.tools.mcp import connect_mcp_servers
 
         try:
-            self._mcp_stack = AsyncExitStack()
-            await self._mcp_stack.__aenter__()
+            if self._mcp_stack is None:
+                self._mcp_stack = AsyncExitStack()
+                await self._mcp_stack.__aenter__()
             await connect_mcp_servers(self._mcp_servers, self.tools, self._mcp_stack)
             self._mcp_connected = True
         except BaseException as e:
