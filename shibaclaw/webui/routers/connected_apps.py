@@ -415,6 +415,39 @@ async def disconnect_app(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "app_id": app_id})
 
 
+
+async def cancel_connect_app(request: Request) -> JSONResponse:
+    """POST /api/apps/{app_id}/cancel"""
+    app_id = request.path_params.get("app_id", "")
+    app_def = CONNECTED_APPS.get(app_id)
+    if not app_def:
+        return JSONResponse({"error": f"Unknown app: {app_id}"}, status_code=404)
+
+    cfg = agent_manager.config
+    if not cfg:
+        agent_manager.load_latest_config()
+        cfg = agent_manager.config
+    cfg_dict = _cfg_to_dict(cfg)
+
+    apps_cfg = cfg_dict.get(_CONNECTED_APPS_KEY) or {}
+    if app_id in apps_cfg and apps_cfg[app_id].get("pending_oauth"):
+        logger.info("Canceling OAuth flow for app '{}'", app_id)
+        apps_cfg[app_id]["pending_oauth"] = False
+        apps_cfg[app_id]["connected"] = False
+        apps_cfg[app_id]["enabled"] = False
+        cfg_dict[_CONNECTED_APPS_KEY] = apps_cfg
+
+        # We don't remove the MCP server completely since they just cancelled login,
+        # but they aren't authenticated yet. Alternatively, we could remove it
+        # but leaving it doesn't break things if connected=False.
+
+        err = await _save_and_reload(cfg_dict)
+        if err:
+            return err
+
+    return JSONResponse({"ok": True})
+
+
 async def get_app_status(request: Request) -> JSONResponse:
     """GET /api/apps/{app_id}/status"""
     app_id = request.path_params.get("app_id", "")

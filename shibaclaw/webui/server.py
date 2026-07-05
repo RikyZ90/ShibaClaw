@@ -93,7 +93,7 @@ from .routers.connected_apps import (
     connect_app,
     disconnect_app,
     get_app_status,
-    get_backend_status,
+    get_backend_status, cancel_connect_app,
     save_backend_settings,
 )
 from .ws_handler import ws_endpoint
@@ -171,6 +171,7 @@ def create_app(
         Route("/api/apps/backend", get_backend_status, methods=["GET"]),
         Route("/api/apps/backend", save_backend_settings, methods=["PUT"]),
         Route("/api/apps/{app_id}/connect", connect_app, methods=["POST"]),
+        Route("/api/apps/{app_id}/cancel", cancel_connect_app, methods=["POST"]),
         Route("/api/apps/{app_id}/connect", disconnect_app, methods=["DELETE"]),
         Route("/api/apps/{app_id}/status", get_app_status, methods=["GET"]),
         # ───────────────────────────────────────────────────────────────

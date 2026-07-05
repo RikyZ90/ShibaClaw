@@ -48,8 +48,8 @@
 
   /* ── state ──────────────────────────────────────────────────────────────── */
   let _apps = [];
-  let _backendConfigured = false;
-  let _pendingOauthUrl = null;
+  let _backendConfigured = false;  let _pendingOauthUrl = null;
+  let _pendingOauthAppId = null;
   // Prevent double-connect and double-poll
   const _connecting = new Set();
   const _polling    = new Set();
@@ -283,10 +283,24 @@
     }
   }
 
-  function _closeModal() {
+  async function _closeModal() {
     const overlay = document.getElementById('ca-app-modal-overlay');
     if (overlay) overlay.style.display = 'none';
     _pendingOauthUrl = null;
+
+    if (_pendingOauthAppId) {
+      try {
+        await fetch(`/api/apps/${encodeURIComponent(_pendingOauthAppId)}/cancel`, {
+          method: 'POST',
+          headers: _h()
+        });
+        _refreshCard(_pendingOauthAppId);
+      } catch (e) {
+        console.error('Failed to cancel OAuth flow:', e);
+      }
+      _pendingOauthAppId = null;
+    }
+
   }
 
   function _openModal(title) {
@@ -308,7 +322,8 @@
     el.style.display = 'block';
   }
 
-  function _showWaitingForLogin(appName, oauthUrl) {
+  function _showWaitingForLogin(appId, appName, oauthUrl) {
+    _pendingOauthAppId = appId;
     _pendingOauthUrl = oauthUrl;
     const body = document.getElementById('ca-modal-body');
     if (!body) return;
@@ -358,7 +373,7 @@
       }
       if (data.oauth_url) {
         window.open(data.oauth_url, '_blank', 'noopener');
-        _showWaitingForLogin(name, data.oauth_url);
+        _showWaitingForLogin(appId, name, data.oauth_url);
         _pollStatus(appId, name).catch(() => {});
         return;
       }
