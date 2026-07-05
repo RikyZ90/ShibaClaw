@@ -208,24 +208,23 @@ class ShibaBrain:
 
     @staticmethod
     def _mcp_configs_differ(a: dict, b: dict) -> bool:
-        """Compare two MCP server config dicts via JSON serialization.
-
-        Pydantic model __eq__ can produce false negatives when comparing
-        objects created from different deserialization rounds (e.g. None vs
-        empty dict for optional fields).  Serializing to JSON first gives a
-        deterministic, canonical representation.
-        """
+        """Compare two MCP server config dicts via JSON serialization, connection-affecting fields only."""
         def _serialize(servers: dict) -> dict:
             if not servers:
                 return {}
             result = {}
             for k, v in servers.items():
                 if hasattr(v, "model_dump"):
-                    result[k] = v.model_dump(mode="json")
+                    v_dict = v.model_dump(mode="json")
                 elif isinstance(v, dict):
-                    result[k] = v
+                    v_dict = v
                 else:
-                    result[k] = str(v)
+                    v_dict = {}
+                # Only include connection affecting fields to avoid unnecessary disconnects/reconnects
+                result[k] = {
+                    field: v_dict.get(field)
+                    for field in ("type", "command", "args", "env", "url", "headers", "oauth")
+                }
             return result
 
         return _serialize(a) != _serialize(b)

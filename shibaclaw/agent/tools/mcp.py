@@ -13,7 +13,7 @@ from shibaclaw.agent.tools.base import Tool
 from shibaclaw.agent.tools.registry import SkillVault
 
 class MCPWrappedTool(Tool):
-    """Dynamically registers an individual tool from an MCP server as a native tool."""
+    """Dynamically registers an individual tool from an MCP server as a native tool, with eager self-healing reconnect capabilities."""
 
     def __init__(self, server_name: str, tool_def: Any, session: Any, timeout: int = 30) -> None:
         self._server_name = server_name
@@ -67,6 +67,8 @@ class MCPWrappedTool(Tool):
                 or "ConnectionError" in exc_type_name
                 or "RequestError" in exc_type_name
                 or "ClosedResource" in str(exc)
+                or "EndOfStream" in exc_type_name
+                or "EndOfStream" in str(exc)
             ):
                 is_conn_err = True
 
@@ -90,6 +92,10 @@ class MCPWrappedTool(Tool):
                             return "\n".join(parts) or "(no output)"
                         except Exception as retry_exc:
                             exc = retry_exc
+                else:
+                    raise MCPReconnectError(
+                        f"Failed to reconnect to MCP server '{self._server_name}' after transport failure: {exc}"
+                    )
 
             logger.exception(
                 "MCP tool '{}' on server '{}' failed: {}: {}",
@@ -115,7 +121,67 @@ _mcp_configs: dict[str, Any] = {}
 _mcp_wrapped_tools: list[MCPWrappedTool] = []
 _mcp_stacks: dict[str, AsyncExitStack] = {}
 _parent_stack: AsyncExitStack | None = None
-_registry: SkillVault | None = None
+_mcp_cleanup_registered = False
+_mcp_lock: asyncio.Lock | None = None
+
+def _get_mcp_lock() -> asyncio.Lock:
+    global _mcp_lock
+    if _mcp_lock is None:
+        _mcp_lock = asyncio.Lock()
+    return _mcp_lock
+
+
+class MCPReconnectError(Exception):
+    """Raised when self-healing reconnection of an MCP server fails."""
+    pass
+
+
+from anyio.abc import ObjectReceiveStream
+
+class SafeReadStream(ObjectReceiveStream[Any]):
+    """Wrapper around anyio receive stream that converts ClosedResourceError and other errors
+
+    into graceful EndOfStream, and triggers a reconnect in the background.
+    """
+    def __init__(self, original_stream: Any, server_name: str) -> None:
+        self._original_stream = original_stream
+        self._server_name = server_name
+
+    async def receive(self) -> Any:
+        import anyio
+        try:
+            return await self._original_stream.receive()
+        except (anyio.ClosedResourceError, anyio.EndOfStream):
+            raise anyio.EndOfStream()
+        except Exception as e:
+            logger.warning(
+                "Transport read error on MCP server '{}' (converting to EOF): {}",
+                self._server_name,
+                e,
+            )
+            # Trigger self-healing reconnect in the background
+            asyncio.create_task(reconnect_server(self._server_name))
+            raise anyio.EndOfStream()
+
+    async def aclose(self) -> None:
+        try:
+            await self._original_stream.aclose()
+        except Exception:
+            pass
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._original_stream, name)
+
+
+async def _close_all_mcp_stacks() -> None:
+    global _mcp_cleanup_registered
+    for name, server_stack in list(_mcp_stacks.items()):
+        try:
+            await server_stack.aclose()
+        except Exception:
+            pass
+    _mcp_stacks.clear()
+    _mcp_cleanup_registered = False
 
 
 def _cfg_to_json(cfg: Any) -> Any:
@@ -129,43 +195,53 @@ def _cfg_to_json(cfg: Any) -> Any:
 
 
 def _mcp_config_differ(cfg_a: Any, cfg_b: Any) -> bool:
-    return _cfg_to_json(cfg_a) != _cfg_to_json(cfg_b)
+    def _extract_connection_fields(cfg: Any) -> dict:
+        if cfg is None:
+            return {}
+        cfg_dict = _cfg_to_json(cfg)
+        return {
+            k: cfg_dict.get(k)
+            for k in ("type", "command", "args", "env", "url", "headers", "oauth")
+        }
+    return _extract_connection_fields(cfg_a) != _extract_connection_fields(cfg_b)
 
 
 def clear_mcp_sessions() -> None:
-    global _parent_stack, _registry
+    global _parent_stack, _registry, _mcp_cleanup_registered
     _mcp_sessions.clear()
     _mcp_configs.clear()
     _mcp_wrapped_tools.clear()
     _mcp_stacks.clear()
     _parent_stack = None
     _registry = None
+    _mcp_cleanup_registered = False
 
 
 async def reconnect_server(name: str) -> bool:
     """Attempt to reconnect a single MCP server by name."""
     global _parent_stack, _registry
-    if not _parent_stack or not _registry:
-        return False
-    cfg = _mcp_configs.get(name)
-    if not cfg:
-        return False
+    async with _get_mcp_lock():
+        if not _parent_stack or not _registry:
+            return False
+        cfg = _mcp_configs.get(name)
+        if not cfg:
+            return False
 
-    logger.info("Self-healing: Reconnecting MCP server '{}'...", name)
-    try:
-        server_stack = _mcp_stacks.pop(name, None)
-        if server_stack:
-            try:
-                await server_stack.aclose()
-            except Exception:
-                pass
-        
-        _mcp_sessions.pop(name, None)
-        await connect_mcp_servers({name: cfg}, _registry, _parent_stack, is_reconfigure=False)
-        return name in _mcp_sessions
-    except Exception as e:
-        logger.error("Self-healing reconnection failed for '{}': {}", name, e)
-        return False
+        logger.info("Self-healing: Reconnecting MCP server '{}'...", name)
+        try:
+            server_stack = _mcp_stacks.pop(name, None)
+            if server_stack:
+                try:
+                    await server_stack.aclose()
+                except Exception:
+                    pass
+            
+            _mcp_sessions.pop(name, None)
+            await _connect_mcp_servers_impl({name: cfg}, _registry, _parent_stack, is_reconfigure=False)
+            return name in _mcp_sessions
+        except Exception as e:
+            logger.error("Self-healing reconnection failed for '{}': {}", name, e)
+            return False
 
 
 def register_active_mcp_tools(registry: SkillVault) -> None:
@@ -478,19 +554,32 @@ async def connect_mcp_servers(
     *,
     is_reconfigure: bool = True,
 ) -> None:
-    """Connect to configured MCP servers and register their sessions.
+    """Connect to configured MCP servers and register their sessions (thread-safe entry)."""
+    async with _get_mcp_lock():
+        await _connect_mcp_servers_impl(
+            mcp_servers, registry, stack, is_reconfigure=is_reconfigure
+        )
 
-    Supports incremental updates: connects new servers, closes removed/modified
-    servers, and preserves unchanged active connections.
-    """
+
+async def _connect_mcp_servers_impl(
+    mcp_servers: dict,
+    registry: SkillVault,
+    stack: AsyncExitStack,
+    *,
+    is_reconfigure: bool = True,
+) -> None:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.sse import sse_client
     from mcp.client.stdio import stdio_client
     from mcp.client.streamable_http import streamable_http_client
 
-    global _parent_stack, _registry
+    global _parent_stack, _registry, _mcp_cleanup_registered
     _parent_stack = stack
     _registry = registry
+
+    if not _mcp_cleanup_registered:
+        stack.push_async_callback(_close_all_mcp_stacks)
+        _mcp_cleanup_registered = True
 
     if is_reconfigure:
         # 1. Identify servers to remove (either not in new config, or configuration changed)
@@ -525,12 +614,26 @@ async def connect_mcp_servers(
             registry.unregister("mcp_list_tools")
             registry.unregister("mcp_call_tool")
 
-    connected_any = bool(_mcp_sessions)
-    for name, cfg in mcp_servers.items():
+    # Resolve all auth headers concurrently to eliminate O(n) OAuth latency
+    auth_headers_map = {}
+    async def resolve_auth(name: str, cfg: Any) -> None:
         if name in _mcp_sessions:
-            # Already active and unchanged
-            continue
+            return
+        try:
+            auth_headers_map[name] = await _resolve_auth_headers(name, cfg, interactive=False)
+        except Exception as e:
+            logger.error("Failed to resolve auth headers for MCP server '{}': {}", name, e)
+            auth_headers_map[name] = {}
 
+    to_connect = [name for name in mcp_servers if name not in _mcp_sessions]
+    if to_connect:
+        await asyncio.gather(*(resolve_auth(name, mcp_servers[name]) for name in to_connect))
+
+    connected_any = bool(_mcp_sessions)
+
+    # Connect sequentially to ensure anyio task-binding of cancel scopes remains on _mcp_worker
+    for name in to_connect:
+        cfg = mcp_servers[name]
         try:
             transport_type = cfg.type
             if not transport_type:
@@ -546,18 +649,17 @@ async def connect_mcp_servers(
 
             logger.info("Connecting to MCP server '{}' (transport: {})...", name, transport_type)
             server_stack = AsyncExitStack()
-            await stack.enter_async_context(server_stack)
+            await server_stack.__aenter__()
             _mcp_stacks[name] = server_stack
 
             if transport_type == "stdio":
-                # stdio servers don't use HTTP headers — OAuth not applicable
                 params = StdioServerParameters(
                     command=cfg.command, args=cfg.args, env=cfg.env or None
                 )
                 read, write = await server_stack.enter_async_context(stdio_client(params))
 
             elif transport_type == "sse":
-                auth_headers = await _resolve_auth_headers(name, cfg, interactive=False)
+                auth_headers = auth_headers_map.get(name, {})
                 oauth_hook = _make_oauth_hook(name, cfg)
 
                 def _make_httpx_client_factory(
@@ -565,7 +667,6 @@ async def connect_mcp_servers(
                     origin_url: str,
                     oauth_hook: Any | None = None,
                 ) -> Any:
-                    """Capture resolved_headers and origin_url in a closure for the SSE client factory."""
                     _ssrf = _make_ssrf_hook(origin_url)
                     hooks = [_ssrf]
                     if oauth_hook:
@@ -577,7 +678,6 @@ async def connect_mcp_servers(
                         auth: httpx.Auth | None = None,
                     ) -> httpx.AsyncClient:
                         merged_headers = {**resolved_headers, **(headers or {})}
-                        # Use a reasonable default timeout if none provided
                         if timeout is None:
                             timeout = httpx.Timeout(connect=40.0, read=40.0, write=40.0, pool=40.0)
                         return httpx.AsyncClient(
@@ -594,17 +694,14 @@ async def connect_mcp_servers(
                 )
 
             elif transport_type == "streamableHttp":
-                auth_headers = await _resolve_auth_headers(name, cfg, interactive=False)
+                auth_headers = auth_headers_map.get(name, {})
                 oauth_hook = _make_oauth_hook(name, cfg)
                 hooks = [_make_ssrf_hook(cfg.url)]
                 if oauth_hook:
                     hooks.append(oauth_hook)
 
-                # Use a reasonable timeout to prevent hanging connections
-                # tool_timeout defaults to 30s in MCPServerConfig, use that + buffer
                 connect_timeout = getattr(cfg, "tool_timeout", 30) + 10
 
-                # _make_ssrf_hook captures cfg.url by value — safe across loop iterations
                 http_client = await server_stack.enter_async_context(
                     httpx.AsyncClient(
                         headers=auth_headers or None,
@@ -619,9 +716,13 @@ async def connect_mcp_servers(
 
             else:
                 logger.warning("MCP server '{}': unknown transport type '{}'", name, transport_type)
+                _mcp_stacks.pop(name, None)
+                await server_stack.aclose()
                 continue
 
-            session = await server_stack.enter_async_context(ClientSession(read, write))
+            # Wrap stream in SafeReadStream to prevent unhandled background crashes
+            safe_read = SafeReadStream(read, name)
+            session = await server_stack.enter_async_context(ClientSession(safe_read, write))
             await session.initialize()
 
             _mcp_sessions[name] = session
@@ -652,6 +753,11 @@ async def connect_mcp_servers(
 
         except Exception as e:
             logger.error("MCP server '{}': failed to connect: {}", name, e)
+            _mcp_stacks.pop(name, None)
+            try:
+                await server_stack.aclose()
+            except Exception:
+                pass
 
     if connected_any:
         register_active_mcp_tools(registry)

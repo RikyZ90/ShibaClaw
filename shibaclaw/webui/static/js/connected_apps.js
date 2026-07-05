@@ -54,6 +54,7 @@
   const _connecting    = new Set();
   const _disconnecting = new Set();
   const _polling       = new Set();
+  const _activePollControllers = {};
 
   const CATEGORY_LABELS = {
     google:       'Google Services',
@@ -101,7 +102,7 @@
   /* ── data fetching ───────────────────────────────────────────────────── */
   async function _loadApps() {
     try {
-      const res = await fetch('/api/apps', { headers: _h() });
+      const res = await authFetch('/api/apps');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       _apps = data.apps || [];
@@ -112,7 +113,7 @@
 
   async function _loadBackend() {
     try {
-      const res = await fetch('/api/apps/backend', { headers: _h() });
+      const res = await authFetch('/api/apps/backend');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       _backendConfigured = !!data.configured;
@@ -299,10 +300,13 @@
     }
 
     if (_pendingOauthAppId) {
+      if (_activePollControllers[_pendingOauthAppId]) {
+        _activePollControllers[_pendingOauthAppId].abort();
+        delete _activePollControllers[_pendingOauthAppId];
+      }
       try {
-        await fetch(`/api/apps/${encodeURIComponent(_pendingOauthAppId)}/cancel`, {
-          method: 'POST',
-          headers: _h()
+        await authFetch(`/api/apps/${encodeURIComponent(_pendingOauthAppId)}/cancel`, {
+          method: 'POST'
         });
         _refreshCard(_pendingOauthAppId);
       } catch (e) {
@@ -395,9 +399,8 @@
     const name = appDef ? appDef.name : appId;
     _openModal(`Connecting ${name}&hellip;`, appId);
     try {
-      const res = await fetch(`/api/apps/${encodeURIComponent(appId)}/connect`, {
-        method: 'POST',
-        headers: _h(),
+      const res = await authFetch(`/api/apps/${encodeURIComponent(appId)}/connect`, {
+        method: 'POST'
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -427,19 +430,32 @@
   async function _pollStatus(appId, name) {
     if (_polling.has(appId)) return;
     _polling.add(appId);
+    const controller = new AbortController();
+    _activePollControllers[appId] = controller;
     const MAX_ATTEMPTS = 24;
     try {
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        await new Promise(r => setTimeout(r, 5000));
+        try {
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(resolve, 5000);
+            controller.signal.addEventListener('abort', () => {
+              clearTimeout(timer);
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+          throw e;
+        }
 
         // Stop if modal was closed
         const overlay = document.getElementById('ca-app-modal-overlay');
         if (!overlay || overlay.style.display === 'none') return;
 
         try {
-          const res = await fetch(
+          const res = await authFetch(
             `/api/apps/${encodeURIComponent(appId)}/status`,
-            { headers: _h() }
+            { signal: controller.signal }
           );
           if (!res.ok) continue;
           const data = await res.json();
@@ -449,11 +465,17 @@
             _refreshCard(appId);
             return;
           }
-        } catch (_) { /* transient error, keep trying */ }
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          /* transient error, keep trying */
+        }
       }
       _showModalStatus('error', 'Timed out waiting for authorisation. Please try again.');
     } finally {
       _polling.delete(appId);
+      if (_activePollControllers[appId] === controller) {
+        delete _activePollControllers[appId];
+      }
     }
   }
 
@@ -469,9 +491,8 @@
       return;
     }
     try {
-      const res = await fetch(`/api/apps/${encodeURIComponent(appId)}/connect`, {
-        method: 'DELETE',
-        headers: _h(),
+      const res = await authFetch(`/api/apps/${encodeURIComponent(appId)}/connect`, {
+        method: 'DELETE'
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -509,9 +530,9 @@
     };
     if (!token) { _show('error', 'API key is required.'); return; }
     try {
-      const res = await fetch('/api/apps/backend', {
+      const res = await authFetch('/api/apps/backend', {
         method: 'PUT',
-        headers: _h({ 'Content-Type': 'application/json' }),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bearer_token: token }),
       });
       const data = await res.json();
@@ -537,6 +558,9 @@
 
   /* ── utils ───────────────────────────────────────────────────────────────── */
   function _esc(str) {
+    if (typeof escapeHtml === 'function') {
+      return escapeHtml(str);
+    }
     return String(str || '')
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
