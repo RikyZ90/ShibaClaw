@@ -266,6 +266,8 @@ class PackManager:
         sessions = []
         for path in self.sessions_dir.glob("*.jsonl"):
             try:
+                mtime = path.stat().st_mtime
+                updated_at = datetime.fromtimestamp(mtime).isoformat()
                 with open(path, encoding="utf-8") as f:
                     first_line = f.readline().strip()
                     if first_line:
@@ -279,7 +281,7 @@ class PackManager:
                                     "nickname": meta.get("nickname"),
                                     "profile_id": meta.get("profile_id", "default"),
                                     "created_at": data.get("created_at"),
-                                    "updated_at": data.get("updated_at"),
+                                    "updated_at": updated_at,
                                     "path": str(path),
                                 }
                             )
