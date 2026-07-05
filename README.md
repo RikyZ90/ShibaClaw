@@ -22,11 +22,11 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.7.9</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.8.0</b> — Click to see what's new</summary>
 
-- **MCP Server Manager** — Added a full WebUI workflow to create, edit, test, and monitor MCP servers with environment-variable support and live status badges.
-- **OAuth 2.0 PKCE for MCP** — Added secure OAuth-based authentication for custom MCP HTTP endpoints through a local callback flow.
-- **Security & Reliability** — Hardened DingTalk SSRF handling and improved proxy/config loading for more resilient startup and execution.
+- **Connected Apps (Klavis Integration)** — Created a unified WebUI workflow to connect Gmail, Google Drive, Google Docs, Slack, GitHub, Outlook, and other SaaS apps using **Klavis** (`klavis.ai`).
+- **PKCE & CSRF OAuth Hardening** — Secured the local callback receiver endpoint (`/callback/{token}`) with unique runtime token validation.
+- **Reliability & Concurrency** — Hardened MCP session connections with serialized locks, graceful transport exception handling, and Anyio-compatible stream wrappers.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 

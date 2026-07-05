@@ -1,3 +1,20 @@
+## [0.8.0] - 2026-07-05
+
+### Added
+- **Connected Apps Interface** — Created a unified UI workflow to connect Gmail, Google Drive, Google Docs, Slack, GitHub, Outlook and other SaaS apps using **Klavis** (`klavis.ai`).
+- **OAuth Path CSRF Protection** — Added unique runtime token validation to the local callback receiver endpoint (`/callback/{token}`) to secure OAuth authentication flows.
+
+### Fixed
+- **MCP Worker Race Condition** — Added locking mechanism to serialize parallel connection handshakes and reconnect sequences, preventing race conditions on the global session registry.
+- **SSE Transport Fault Tolerance** — Handled background stream closures and Anyio transport errors gracefully, auto-triggering background reconnects instead of crashing task groups.
+- **Anyio Stream Compatibility** — Satisfied structural isinstance checks in the ClientSession reader loop by subclassing the SSE stream wrapper from `anyio.abc.ObjectReceiveStream`.
+- **Asyncio Lock Loop Binding** — Switched the MCP manager lock to lazy initialization to ensure it binds to the running gateway event loop rather than module import time.
+
+### Changed
+- **Config Reconnection Optimization** — Filtered MCP configurations so that reconfigure calls only trigger reconnections if connection-affecting fields (`type`, `command`, `args`, `env`, `url`, `headers`, `oauth`) have actually changed.
+- **Frontend Fetch Migration** — Ported all Connected Apps fetch requests in `connected_apps.js` to use the global `authFetch` wrapper for proper authentication and session handling.
+- **Polling Cancellation** — Introduced frontend `AbortController` cancellation to immediately terminate active status checks when connection modals are dismissed.
+
 ## [0.7.9] - 2026-07-04
 
 ### Added
