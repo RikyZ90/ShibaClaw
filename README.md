@@ -327,6 +327,16 @@ Why this matters:
 
 Configure your MCP servers directly in the **Settings** panel to start expanding ShibaClaw's horizons.
 
+### 🌐 Connected Apps (Klavis Integration)
+
+To make setting up popular SaaS tools (such as Gmail, Google Drive, Google Docs, Slack, GitHub, Outlook, etc.) as seamless as possible, ShibaClaw integrates with **Klavis** (`klavis.ai`).
+
+Instead of forcing users to manually create individual developer credentials, configure OAuth consent screens, and set up redirect URLs for every single service on Google Cloud or Microsoft Azure console, ShibaClaw allows you to manage all of these integrations via a unified **Connected Apps** interface:
+
+- **Single API Key**: Just grab a single API key from [klavis.ai](https://klavis.ai) and save it in the ShibaClaw Backend settings.
+- **One-Click Connections**: Instantly connect or disconnect Gmail, Slack, and other services with a single click using secure OAuth login directly managed by the Klavis gateway.
+- **Auto-Generated MCP Servers**: Once an app is connected, ShibaClaw automatically configures the appropriate MCP server with standard tools, registering them seamlessly into the active agent session.
+
 ***
 
 ## 🌐 Supported Providers
