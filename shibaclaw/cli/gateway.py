@@ -77,7 +77,7 @@ async def deliver_scheduled_job_result(
         if target.channel == "webui":
             payload["persist"] = True
             if has_gateway_ws_clients:
-                await broadcast_ws_event("session.notify", payload, session_key=target.session_key)
+                await broadcast_ws_event("session.notify", payload, target.session_key)
             else:
                 await notify_webui(
                     target.session_key,
@@ -102,7 +102,7 @@ async def deliver_scheduled_job_result(
                     "persist": False,
                     "msg_type": "notification",
                 },
-                session_key="",
+                "",
             )
         else:
             await notify_webui(
@@ -117,7 +117,7 @@ async def deliver_scheduled_job_result(
 
     payload["persist"] = False
     if has_gateway_ws_clients:
-        await broadcast_ws_event("session.notify", payload, session_key=target.session_key)
+        await broadcast_ws_event("session.notify", payload, target.session_key)
     else:
         await notify_webui(
             target.session_key,
