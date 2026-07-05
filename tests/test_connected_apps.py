@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 
 # ── import symbols under test ─────────────────────────────────────────────────
@@ -126,12 +124,12 @@ def test_sync_gmail_to_mcp():
 
     _sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
 
-    tools = cfg["tools"]
-    servers = tools.get("mcpServers") or tools.get("mcp_servers")
-    assert servers is not None
+    servers = cfg["tools"]["mcp_servers"]
     assert "gmail-klavis" in servers
     entry = servers["gmail-klavis"]
     assert entry["url"] == "https://strata.klavis.ai/mcp/gmail/"
+    assert entry["enabled"] is True
+
 
 
 def test_sync_github_to_mcp():
@@ -141,9 +139,7 @@ def test_sync_github_to_mcp():
 
     _sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
 
-    tools = cfg["tools"]
-    servers = tools.get("mcpServers") or tools.get("mcp_servers")
-    assert servers is not None
+    servers = cfg["tools"]["mcp_servers"]
     assert "github-klavis" in servers
 
 
@@ -160,9 +156,7 @@ def test_disconnect_gmail_removes_from_mcp():
 
     _remove_app_from_mcp(cfg, app_def)
 
-    tools = cfg["tools"]
-    servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
-    assert "gmail-klavis" not in servers
+    assert "gmail-klavis" not in cfg["tools"]["mcp_servers"]
 
 
 def test_disconnect_nonexistent_app_is_noop():
@@ -170,9 +164,7 @@ def test_disconnect_nonexistent_app_is_noop():
     cfg = _base_cfg()
     # no github-klavis in servers — should not raise
     _remove_app_from_mcp(cfg, app_def)
-    tools = cfg["tools"]
-    servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
-    assert "github-klavis" not in servers
+    assert "github-klavis" not in cfg["tools"]["mcp_servers"]
 
 
 # ── 7. build_app_response shape ───────────────────────────────────────────────
@@ -220,410 +212,3 @@ def test_default_klavis_endpoint():
 
 def test_default_transport():
     assert _DEFAULT_TRANSPORT == "streamableHttp"
-
-
-# ── 10. Strata lifecycle and OAuth flow cancellation ──────────────────────────
-
-@pytest.mark.asyncio
-async def test_ensure_strata_handles_403_and_404():
-    from unittest.mock import AsyncMock
-    import httpx
-    from shibaclaw.webui.routers.connected_apps import _ensure_strata
-
-    mock_klavis = AsyncMock()
-    # Mock get_strata to raise 403 HTTP error
-    resp = httpx.Response(403)
-    request = httpx.Request("GET", "https://api.klavis.ai/mcp-server/strata/test-strata")
-    mock_klavis.get_strata.side_effect = httpx.HTTPStatusError("Forbidden", request=request, response=resp)
-    
-    # Mock create_strata to return successful StrataInfo
-    from shibaclaw.integrations.klavis_client import StrataInfo
-    mock_klavis.create_strata.return_value = StrataInfo(
-        strata_id="new-strata-id",
-        mcp_url="https://strata.klavis.ai/new",
-        oauth_urls={"Gmail": "https://auth.gmail"}
-    )
-
-    cfg_dict = {
-        "connected_apps": {
-            "__strata__": {
-                "strata_id": "test-strata",
-                "mcp_url": "https://strata.klavis.ai/old",
-                "user_id": "test-user"
-            }
-        }
-    }
-
-    strata_id, mcp_url, is_new, oauth_urls = await _ensure_strata(
-        mock_klavis, cfg_dict, "test-user", "Gmail"
-    )
-
-    # Recreated strata because 403 is treated as stale/inaccessible
-    assert strata_id == "new-strata-id"
-    assert mcp_url == "https://strata.klavis.ai/new"
-    assert is_new is True
-    assert oauth_urls == {"Gmail": "https://auth.gmail"}
-    mock_klavis.create_strata.assert_called_once_with("test-user", ["Gmail"])
-
-
-@pytest.mark.asyncio
-async def test_cancel_connect_app_removes_from_klavis():
-    from unittest.mock import AsyncMock, patch, MagicMock
-    from starlette.requests import Request
-    from shibaclaw.webui.routers.connected_apps import cancel_connect_app
-
-    # Create dummy starlette request
-    scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/api/apps/gmail/cancel",
-        "path_params": {"app_id": "gmail"},
-    }
-    req = Request(scope)
-
-    cfg = MagicMock()
-    # Mock config dict
-    cfg_dict = {
-        "tools": {
-            "mcpServers": {
-                "gmail-klavis": {
-                    "type": "streamableHttp",
-                    "url": "https://strata.klavis.ai/old",
-                }
-            }
-        },
-        "connected_apps": {
-            "__strata__": {
-                "strata_id": "test-strata",
-            },
-            "gmail": {
-                "pending_oauth": True,
-                "connected": False,
-                "enabled": False,
-            }
-        }
-    }
-    mock_klavis = AsyncMock()
-    mock_klavis.is_configured = MagicMock(return_value=True)
-    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
-        
-        mock_am.config = cfg
-        resp = await cancel_connect_app(req)
-        assert resp.status_code == 200
-        
-        # Verify klavis remove_server was called
-        mock_klavis.remove_server.assert_called_once_with("test-strata", "Gmail")
-        
-        # Verify app state in config dict is reset and mcp server is removed
-        assert cfg_dict["connected_apps"]["gmail"]["pending_oauth"] is False
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
-
-
-@pytest.mark.asyncio
-async def test_disconnect_app_clears_local_strata_on_404():
-    from unittest.mock import AsyncMock, patch, MagicMock
-    from starlette.requests import Request
-    import httpx
-    from shibaclaw.webui.routers.connected_apps import disconnect_app
-
-    scope = {
-        "type": "http",
-        "method": "DELETE",
-        "path": "/api/apps/gmail/connect",
-        "path_params": {"app_id": "gmail"},
-    }
-    req = Request(scope)
-
-    cfg = MagicMock()
-    cfg_dict = {
-        "tools": {
-            "mcpServers": {
-                "gmail-klavis": {
-                    "type": "streamableHttp",
-                    "url": "https://strata.klavis.ai/old",
-                }
-            }
-        },
-        "connected_apps": {
-            "__strata__": {
-                "strata_id": "test-strata",
-            },
-            "gmail": {
-                "pending_oauth": False,
-                "connected": True,
-                "enabled": True,
-            }
-        }
-    }
-
-    mock_klavis = AsyncMock()
-    mock_klavis.is_configured = MagicMock(return_value=True)
-    
-    # Mock remove_server to raise 404
-    resp = httpx.Response(404)
-    request = httpx.Request("POST", "https://api.klavis.ai/mcp-server/strata/delete")
-    mock_klavis.remove_server.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
-    # Mock get_strata to also raise 404 (meaning the Strata is actually gone)
-    mock_klavis.get_strata.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
-
-    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
-        
-        mock_am.config = cfg
-        resp = await disconnect_app(req)
-        assert resp.status_code == 200
-        
-        # Strata should be cleared locally because get_strata also returned 404
-        assert "__strata__" not in cfg_dict["connected_apps"]
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
-
-
-@pytest.mark.asyncio
-async def test_disconnect_app_retains_local_strata_if_exists():
-    from unittest.mock import AsyncMock, patch, MagicMock
-    from starlette.requests import Request
-    import httpx
-    from shibaclaw.webui.routers.connected_apps import disconnect_app
-    from shibaclaw.integrations.klavis_client import StrataInfo
-
-    scope = {
-        "type": "http",
-        "method": "DELETE",
-        "path": "/api/apps/gmail/connect",
-        "path_params": {"app_id": "gmail"},
-    }
-    req = Request(scope)
-
-    cfg = MagicMock()
-    cfg_dict = {
-        "tools": {
-            "mcpServers": {
-                "gmail-klavis": {
-                    "type": "streamableHttp",
-                    "url": "https://strata.klavis.ai/old",
-                }
-            }
-        },
-        "connected_apps": {
-            "__strata__": {
-                "strata_id": "test-strata",
-            },
-            "gmail": {
-                "pending_oauth": False,
-                "connected": True,
-                "enabled": True,
-            }
-        }
-    }
-
-    mock_klavis = AsyncMock()
-    mock_klavis.is_configured = MagicMock(return_value=True)
-    
-    # Mock remove_server to raise 404
-    resp = httpx.Response(404)
-    request = httpx.Request("POST", "https://api.klavis.ai/mcp-server/strata/delete")
-    mock_klavis.remove_server.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
-    # Mock get_strata to succeed (meaning the Strata itself exists)
-    mock_klavis.get_strata.return_value = StrataInfo(strata_id="test-strata", mcp_url="https://strata.klavis.ai/old", oauth_urls={})
-
-    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
-        
-        mock_am.config = cfg
-        resp = await disconnect_app(req)
-        assert resp.status_code == 200
-        
-        # Strata should be retained locally because get_strata succeeded
-        assert "__strata__" in cfg_dict["connected_apps"]
-        assert cfg_dict["connected_apps"]["__strata__"]["strata_id"] == "test-strata"
-        # But gmail server is still removed locally
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
-
-
-@pytest.mark.asyncio
-async def test_cancel_connect_app_clears_local_strata_on_404():
-    from unittest.mock import AsyncMock, patch, MagicMock
-    from starlette.requests import Request
-    import httpx
-    from shibaclaw.webui.routers.connected_apps import cancel_connect_app
-
-    scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/api/apps/gmail/cancel",
-        "path_params": {"app_id": "gmail"},
-    }
-    req = Request(scope)
-
-    cfg = MagicMock()
-    cfg_dict = {
-        "tools": {
-            "mcpServers": {
-                "gmail-klavis": {
-                    "type": "streamableHttp",
-                    "url": "https://strata.klavis.ai/old",
-                }
-            }
-        },
-        "connected_apps": {
-            "__strata__": {
-                "strata_id": "test-strata",
-            },
-            "gmail": {
-                "pending_oauth": True,
-                "connected": False,
-                "enabled": False,
-            }
-        }
-    }
-
-    mock_klavis = AsyncMock()
-    mock_klavis.is_configured = MagicMock(return_value=True)
-    
-    # Mock remove_server to raise 404
-    resp = httpx.Response(404)
-    request = httpx.Request("POST", "https://api.klavis.ai/mcp-server/strata/delete")
-    mock_klavis.remove_server.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
-    # Mock get_strata to also raise 404 (meaning the Strata is actually gone)
-    mock_klavis.get_strata.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
-
-    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
-        
-        mock_am.config = cfg
-        resp = await cancel_connect_app(req)
-        assert resp.status_code == 200
-        
-        # Strata should be cleared locally because get_strata also returned 404
-        assert "__strata__" not in cfg_dict["connected_apps"]
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
-
-
-@pytest.mark.asyncio
-async def test_cancel_connect_app_retains_local_strata_if_exists():
-    from unittest.mock import AsyncMock, patch, MagicMock
-    from starlette.requests import Request
-    import httpx
-    from shibaclaw.webui.routers.connected_apps import cancel_connect_app
-    from shibaclaw.integrations.klavis_client import StrataInfo
-
-    scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/api/apps/gmail/cancel",
-        "path_params": {"app_id": "gmail"},
-    }
-    req = Request(scope)
-
-    cfg = MagicMock()
-    cfg_dict = {
-        "tools": {
-            "mcpServers": {
-                "gmail-klavis": {
-                    "type": "streamableHttp",
-                    "url": "https://strata.klavis.ai/old",
-                }
-            }
-        },
-        "connected_apps": {
-            "__strata__": {
-                "strata_id": "test-strata",
-            },
-            "gmail": {
-                "pending_oauth": True,
-                "connected": False,
-                "enabled": False,
-            }
-        }
-    }
-
-    mock_klavis = AsyncMock()
-    mock_klavis.is_configured = MagicMock(return_value=True)
-    
-    # Mock remove_server to raise 404
-    resp = httpx.Response(404)
-    request = httpx.Request("POST", "https://api.klavis.ai/mcp-server/strata/delete")
-    mock_klavis.remove_server.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
-    # Mock get_strata to succeed (meaning the Strata itself exists)
-    mock_klavis.get_strata.return_value = StrataInfo(strata_id="test-strata", mcp_url="https://strata.klavis.ai/old", oauth_urls={})
-
-    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
-        
-        mock_am.config = cfg
-        resp = await cancel_connect_app(req)
-        assert resp.status_code == 200
-        
-        # Strata should be retained locally because get_strata succeeded
-        assert "__strata__" in cfg_dict["connected_apps"]
-        assert cfg_dict["connected_apps"]["__strata__"]["strata_id"] == "test-strata"
-        # But gmail server is still removed locally
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
-
-
-@pytest.mark.asyncio
-async def test_connect_app_saves_strata_id_immediately_on_failure():
-    from unittest.mock import AsyncMock, patch, MagicMock
-    from starlette.requests import Request
-    import httpx
-    from shibaclaw.webui.routers.connected_apps import connect_app
-
-    scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/api/apps/gmail/connect",
-        "path_params": {"app_id": "gmail"},
-    }
-    req = Request(scope)
-
-    cfg = MagicMock()
-    # Empty connected_apps config dict
-    cfg_dict = {
-        "tools": {"mcpServers": {}},
-        "connected_apps": {}
-    }
-
-    mock_klavis = AsyncMock()
-    mock_klavis.is_configured = MagicMock(return_value=True)
-
-    # Mock strata creation to succeed
-    from shibaclaw.integrations.klavis_client import StrataInfo
-    mock_klavis.create_strata.return_value = StrataInfo(
-        strata_id="new-strata-123",
-        mcp_url="https://strata.klavis.ai/new",
-        oauth_urls={"Gmail": "https://auth.gmail"}
-    )
-    # Count how many times _save_and_reload is called
-    save_count = 0
-    async def mock_save(d):
-        nonlocal save_count
-        save_count += 1
-        if save_count == 2:
-            from starlette.responses import JSONResponse
-            return JSONResponse({"error": "Database write error during final save"}, status_code=500)
-        return None
-
-    with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", side_effect=mock_save):
-        
-        mock_am.config = cfg
-        response = await connect_app(req)
-        
-        assert response.status_code == 500
-        assert save_count == 2
-        assert cfg_dict["connected_apps"]["__strata__"]["strata_id"] == "new-strata-123"
-
-

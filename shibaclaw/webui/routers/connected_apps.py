@@ -121,34 +121,24 @@ def _get_app_state(cfg_dict: dict, app_id: str) -> dict:
     return _get_apps_cfg(cfg_dict).get(app_id) or {}
 
 
-def _sync_app_to_mcp(
-    cfg_dict: dict,
-    app_def: ConnectedAppDef,
-    strata_mcp_url: str,
-    headers: dict[str, str] | None = None,
-) -> None:
+def _sync_app_to_mcp(cfg_dict: dict, app_def: ConnectedAppDef, strata_mcp_url: str) -> None:
     if "tools" not in cfg_dict or cfg_dict["tools"] is None:
         cfg_dict["tools"] = {}
     tools = cfg_dict["tools"]
-    # Always use "mcpServers" — the camelCase alias produced by model_dump(mode="json").
-    # Migrate legacy "mcp_servers" key if present.
-    if "mcp_servers" in tools and "mcpServers" not in tools:
-        tools["mcpServers"] = tools.pop("mcp_servers")
-    if tools.get("mcpServers") is None:
-        tools["mcpServers"] = {}
-    entry: dict[str, Any] = {
+    servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
+    if tools.get(servers_key) is None:
+        tools[servers_key] = {}
+    tools[servers_key][app_def.mcp_server_key] = {
         "type": _DEFAULT_TRANSPORT,
         "url": strata_mcp_url,
+        "enabled": True,
     }
-    if headers:
-        entry["headers"] = headers
-    tools["mcpServers"][app_def.mcp_server_key] = entry
 
 
 def _remove_app_from_mcp(cfg_dict: dict, app_def: ConnectedAppDef) -> None:
     tools = cfg_dict.get("tools") or {}
-    # Check both key variants for backward compatibility
-    servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
+    servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
+    servers = tools.get(servers_key) or {}
     servers.pop(app_def.mcp_server_key, None)
 
 
@@ -259,8 +249,8 @@ async def _ensure_strata(
             logger.debug("Reusing existing Strata id={}", strata_id)
             return strata_id, mcp_url, False, info.oauth_urls
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in (403, 404):
-                logger.warning("Strata {} is inaccessible or gone from Klavis (status {}) — will recreate.", strata_id, exc.response.status_code)
+            if exc.response.status_code == 404:
+                logger.warning("Strata {} is gone from Klavis — will recreate.", strata_id)
                 _clear_stale_strata(cfg_dict)
                 strata_id = ""
             else:
@@ -338,13 +328,6 @@ async def connect_app(request: Request) -> JSONResponse:
             klavis, cfg_dict, user_id, app_def.klavis_server_name
         )
 
-        if is_new_strata:
-            # Save strata_id immediately so that if subsequent steps (inject_server etc.) fail,
-            # we do not lose the strata_id and leak a Strata slot on Klavis.
-            err = await _save_and_reload(cfg_dict)
-            if err:
-                logger.error("Failed to save newly created Strata ID to config: {}", err)
-
         oauth_url = existing_oauth_urls.get(app_def.klavis_server_name) or ""
 
         # If strata already existed and we didn't have the oauth url, we inject it.
@@ -382,10 +365,7 @@ async def connect_app(request: Request) -> JSONResponse:
         "pending_oauth": True,
     }
     if mcp_url:
-        backend_cfg = _get_apps_cfg(cfg_dict).get("__backend__") or {}
-        klavis_api_key = backend_cfg.get("klavis_api_key") or ""
-        headers = {"Authorization": f"Bearer {klavis_api_key}"} if klavis_api_key else None
-        _sync_app_to_mcp(cfg_dict, app_def, mcp_url, headers=headers)
+        _sync_app_to_mcp(cfg_dict, app_def, mcp_url)
 
     err = await _save_and_reload(cfg_dict)
     if err:
@@ -421,21 +401,6 @@ async def disconnect_app(request: Request) -> JSONResponse:
         if strata_id:
             try:
                 await klavis.remove_server(strata_id, app_def.klavis_server_name)
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code in (403, 404):
-                    try:
-                        await klavis.get_strata(strata_id)
-                        logger.info("Strata {} still exists on Klavis. Retaining local strata ID.", strata_id)
-                    except httpx.HTTPStatusError as get_exc:
-                        if get_exc.response.status_code in (403, 404):
-                            logger.warning("Strata {} is indeed gone or inaccessible from Klavis (status {}). Clearing locally.", strata_id, get_exc.response.status_code)
-                            _clear_stale_strata(cfg_dict)
-                        else:
-                            logger.warning("Klavis get_strata failed during disconnect check: {}", get_exc)
-                    except Exception as get_exc:
-                        logger.warning("Klavis get_strata failed during disconnect check: {}", get_exc)
-                else:
-                    logger.warning("Klavis remove_server failed for '{}': {}", app_id, exc)
             except Exception as exc:
                 logger.warning("Klavis remove_server failed for '{}': {}", app_id, exc)
 
@@ -472,32 +437,9 @@ async def cancel_connect_app(request: Request) -> JSONResponse:
         apps_cfg[app_id]["enabled"] = False
         cfg_dict[_CONNECTED_APPS_KEY] = apps_cfg
 
-        klavis = _get_klavis_client_clean()
-        if klavis.is_configured():
-            strata_id = _get_strata_meta(cfg_dict).get("strata_id") or ""
-            if strata_id:
-                try:
-                    await klavis.remove_server(strata_id, app_def.klavis_server_name)
-                except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code in (403, 404):
-                        try:
-                            await klavis.get_strata(strata_id)
-                            logger.info("Strata {} still exists on Klavis. Retaining local strata ID.", strata_id)
-                        except httpx.HTTPStatusError as get_exc:
-                            if get_exc.response.status_code in (403, 404):
-                                logger.warning("Strata {} is indeed gone or inaccessible from Klavis (status {}). Clearing locally.", strata_id, get_exc.response.status_code)
-                                _clear_stale_strata(cfg_dict)
-                            else:
-                                logger.warning("Klavis get_strata failed during cancel check: {}", get_exc)
-                        except Exception as get_exc:
-                            logger.warning("Klavis get_strata failed during cancel check: {}", get_exc)
-                    else:
-                        logger.warning("Klavis remove_server failed during cancel for '{}': {}", app_id, exc)
-                except Exception as exc:
-                    logger.warning("Klavis remove_server failed during cancel for '{}': {}", app_id, exc)
-
-        # Remove the MCP server since the OAuth was cancelled and it's not authenticated
-        _remove_app_from_mcp(cfg_dict, app_def)
+        # We don't remove the MCP server completely since they just cancelled login,
+        # but they aren't authenticated yet. Alternatively, we could remove it
+        # but leaving it doesn't break things if connected=False.
 
         err = await _save_and_reload(cfg_dict)
         if err:
@@ -533,17 +475,6 @@ async def get_app_status(request: Request) -> JSONResponse:
                     apps_cfg = cfg_dict.get(_CONNECTED_APPS_KEY) or {}
                     apps_cfg[app_id] = {"enabled": True, "connected": True, "pending_oauth": False}
                     cfg_dict[_CONNECTED_APPS_KEY] = apps_cfg
-
-                    # Inject Bearer token headers into MCP server config so
-                    # the Strata MCP proxy authenticates the tool calls.
-                    backend_cfg = apps_cfg.get("__backend__") or {}
-                    klavis_api_key = backend_cfg.get("klavis_api_key") or ""
-                    if klavis_api_key:
-                        strata_mcp_url = _get_strata_meta(cfg_dict).get("mcp_url", "")
-                        if strata_mcp_url:
-                            headers = {"Authorization": f"Bearer {klavis_api_key}"}
-                            _sync_app_to_mcp(cfg_dict, app_def, strata_mcp_url, headers=headers)
-
                     await _save_and_reload(cfg_dict)
                     app_state = apps_cfg[app_id]
                 else:

@@ -164,12 +164,6 @@ class ChannelManager:
 
         # Stop removed/changed channels
         for name in to_stop:
-            channel = self.channels.pop(name, None)
-            if channel:
-                try:
-                    await channel.stop()
-                except Exception as e:
-                    logger.error("Error stopping {} during reconfigure: {}", name, e)
             task = self._channel_tasks.pop(name, None)
             if task:
                 task.cancel()
@@ -177,6 +171,12 @@ class ChannelManager:
                     await task
                 except (asyncio.CancelledError, Exception):
                     pass
+            channel = self.channels.pop(name, None)
+            if channel:
+                try:
+                    await channel.stop()
+                except Exception as e:
+                    logger.error("Error stopping {} during reconfigure: {}", name, e)
             logger.debug("Reconfigure: stopped channel {}", name)
 
         # Start new/changed channels
@@ -212,15 +212,6 @@ class ChannelManager:
         if self._stop_event:
             self._stop_event.set()
 
-        # Stop all channels first so they shut down polling cleanly
-        for name, channel in list(self.channels.items()):
-            try:
-                await channel.stop()
-                logger.debug("Stopped {} channel", name)
-            except Exception as e:
-                logger.error("Error stopping {}: {}", name, e)
-        self.channels.clear()
-
         # Cancel individual channel tasks
         for name, task in list(self._channel_tasks.items()):
             task.cancel()
@@ -237,6 +228,14 @@ class ChannelManager:
                 await self._dispatch_task
             except asyncio.CancelledError:
                 pass
+
+        # Stop all channels
+        for name, channel in self.channels.items():
+            try:
+                await channel.stop()
+                logger.debug("Stopped {} channel", name)
+            except Exception as e:
+                logger.error("Error stopping {}: {}", name, e)
 
     async def _dispatch_outbound(self) -> None:
         """Dispatch outbound messages to the appropriate channel."""
