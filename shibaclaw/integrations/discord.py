@@ -506,6 +506,14 @@ class DiscordChannel(BaseChannel):
             if size and size > MAX_ATTACHMENT_BYTES:
                 content_parts.append(f"[attachment: {filename} - too large]")
                 continue
+
+            from shibaclaw.security.network import validate_url_target
+            is_safe, err_msg = await asyncio.to_thread(validate_url_target, url)
+            if not is_safe:
+                logger.warning("Blocked untrusted Discord attachment URL: {}", err_msg)
+                content_parts.append(f"[attachment: {filename} - blocked by security policy]")
+                continue
+
             try:
                 media_dir.mkdir(parents=True, exist_ok=True)
                 file_path = (
