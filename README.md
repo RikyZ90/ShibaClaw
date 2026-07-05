@@ -328,7 +328,7 @@ Why this matters:
 
 Configure your MCP servers directly in the **Settings** panel to start expanding ShibaClaw's horizons.
 
-### 🌐 Connected Apps (Klavis Integration)
+### 🌐 Apps (Klavis Integration)
 
 To make setting up popular SaaS tools (such as Gmail, Google Drive, Google Docs, Slack, GitHub, Outlook, etc.) as seamless as possible, ShibaClaw integrates with **Klavis** (`klavis.ai`).
 
