@@ -94,10 +94,11 @@ def restore_terminal(saved_attrs) -> None:
 
 def render_interactive_ansi(render_fn) -> str:
     """Render Rich output to ANSI so prompt_toolkit can print it safely."""
+    from rich.console import Console
     ansi_console = Console(
         force_terminal=True,
-        color_system=console.color_system or "standard",
-        width=console.width,
+        color_system=get_console().color_system or "standard",
+        width=get_console().width,
     )
     with ansi_console.capture() as capture:
         render_fn(ansi_console)
@@ -109,7 +110,7 @@ class ThinkingSpinner:
 
     def __init__(self, enabled: bool):
         self._spinner = (
-            console.status(
+            get_console().status(
                 "[dim]shibaclaw is [bold gold1]hunting[/bold gold1] for answers...[/dim]",
                 spinner="dots",
             )
