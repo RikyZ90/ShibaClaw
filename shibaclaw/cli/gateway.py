@@ -372,6 +372,7 @@ async def gateway_command(
     session_manager = PackManager(config.workspace_path)
 
     from shibaclaw.brain.routing import SessionRouter
+
     session_router = SessionRouter()
 
     # ------------------------------------------------------------------
@@ -462,8 +463,12 @@ async def gateway_command(
             session_manager.list_sessions(),
             set(channels.enabled_channels),
         )
-        exec_target = resolved_targets[0] if resolved_targets else select_heartbeat_target(
-            session_manager.list_sessions(), set(channels.enabled_channels)
+        exec_target = (
+            resolved_targets[0]
+            if resolved_targets
+            else select_heartbeat_target(
+                session_manager.list_sessions(), set(channels.enabled_channels)
+            )
         )
 
         outbound = await agent.process_direct(
@@ -527,6 +532,7 @@ async def gateway_command(
     _existing_hb = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
     if hb_cfg.enabled and not store_existed and not _existing_hb:
         from shibaclaw.automation.types import AutomationPayload, AutomationSchedule
+
         automation.add_job(
             name="Heartbeat",
             schedule=AutomationSchedule(
@@ -627,9 +633,7 @@ async def gateway_command(
             or new_cfg.gateway.ws_port != config.gateway.ws_port
         )
         if net_changed:
-            logger.warning(
-                "Hot-reload: gateway host/port changed — falling back to full restart"
-            )
+            logger.warning("Hot-reload: gateway host/port changed — falling back to full restart")
             _state["restart"] = True
             asyncio.ensure_future(_trigger_restart())
             return
@@ -646,6 +650,7 @@ async def gateway_command(
 
             try:
                 from shibaclaw.integrations.klavis_client import reload_klavis_client
+
                 reload_klavis_client(base_url="https://api.klavis.ai")
             except Exception as e:
                 logger.warning("Hot-reload: failed to reload Klavis client: {}", e)
@@ -667,8 +672,10 @@ async def gateway_command(
                     notification = result.get("notification") or {}
                     current = result.get("display_current") or result.get("current", "?")
                     latest = result.get("display_latest") or result.get("latest", "?")
-                    msg = notification.get("text") or result.get("summary") or (
-                        f"🆕 *ShibaClaw update available!*\n{current} → {latest}"
+                    msg = (
+                        notification.get("text")
+                        or result.get("summary")
+                        or (f"🆕 *ShibaClaw update available!*\n{current} → {latest}")
                     )
                     logger.info("🆕 Update available: {} → {}", current, latest)
                     await on_automation_notify(
@@ -868,7 +875,7 @@ async def gateway_command(
                                         "payload": {
                                             "content": "",
                                             "media": [],
-                                            "finish_reason": "cancelled"
+                                            "finish_reason": "cancelled",
                                         },
                                     }
                                 )
@@ -924,7 +931,9 @@ async def gateway_command(
             # --- Automation (new unified actions) ---
             elif action == "automation.list":
                 await ws.send(
-                    _ok({"jobs": [_ser_job(j) for j in automation.list_jobs(include_disabled=True)]})
+                    _ok(
+                        {"jobs": [_ser_job(j) for j in automation.list_jobs(include_disabled=True)]}
+                    )
                 )
 
             elif action == "automation.trigger":
@@ -948,10 +957,13 @@ async def gateway_command(
 
             elif action == "automation.create":
                 from shibaclaw.automation.types import AutomationPayload, AutomationSchedule
+
                 s = payload.get("schedule", {})
                 p = payload.get("payload", {})
                 name = payload.get("name", "")
-                delete_after_run = payload.get("deleteAfterRun", payload.get("delete_after_run", False))
+                delete_after_run = payload.get(
+                    "deleteAfterRun", payload.get("delete_after_run", False)
+                )
                 schedule = AutomationSchedule(
                     kind=s.get("kind", "every"),
                     at_ms=s.get("atMs", s.get("at_ms")),
@@ -992,8 +1004,11 @@ async def gateway_command(
 
             # --- Backward-compat aliases (deprecated, keep for WebUI compat) ---
             elif action == "cron.list":
-                scheduled = [j for j in automation.list_jobs(include_disabled=True)
-                             if j.payload.kind == "scheduled"]
+                scheduled = [
+                    j
+                    for j in automation.list_jobs(include_disabled=True)
+                    if j.payload.kind == "scheduled"
+                ]
                 await ws.send(_ok({"jobs": [_ser_job(j) for j in scheduled]}))
 
             elif action == "cron.trigger":
@@ -1004,12 +1019,16 @@ async def gateway_command(
             elif action == "heartbeat.status":
                 hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
                 hb = hb_jobs[0] if hb_jobs else None
-                await ws.send(_ok({
-                    "enabled": hb is not None and hb.enabled,
-                    "running": automation.status()["running"],
-                    "last_run_ms": hb.state.last_run_at_ms if hb else None,
-                    "last_status": hb.state.last_status if hb else None,
-                }))
+                await ws.send(
+                    _ok(
+                        {
+                            "enabled": hb is not None and hb.enabled,
+                            "running": automation.status()["running"],
+                            "last_run_ms": hb.state.last_run_at_ms if hb else None,
+                            "last_status": hb.state.last_status if hb else None,
+                        }
+                    )
+                )
 
             elif action == "heartbeat.trigger":
                 hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
@@ -1076,9 +1095,13 @@ async def gateway_command(
             await _broadcast_ws_event("session.notify", payload, session_key=session_key)
         else:
             await notify_webui_session(
-                session_key, content, auth_token,
-                source="agent", persist=False,
-                media=media, msg_type="response",
+                session_key,
+                content,
+                auth_token,
+                source="agent",
+                persist=False,
+                media=media,
+                msg_type="response",
             )
 
     channels._notify_webui = _webui_outbound_notify
@@ -1118,7 +1141,7 @@ async def gateway_command(
                     if idx < 0:
                         return {}
                     try:
-                        return json.loads(data[idx + 4:])
+                        return json.loads(data[idx + 4 :])
                     except (json.JSONDecodeError, ValueError):
                         return {}
 
@@ -1172,14 +1195,21 @@ async def gateway_command(
                         asyncio.create_task(_do_reload())
 
                 # --- Automation HTTP endpoints (new) ---
-                elif "GET" in request_line and ("/api/automation/jobs" in request_line or "/api/automation/list" in request_line):
+                elif "GET" in request_line and (
+                    "/api/automation/jobs" in request_line or "/api/automation/list" in request_line
+                ):
                     parts = request_line.split(" ")
                     path = parts[1] if len(parts) > 1 else ""
                     path = path.split("?")[0]
                     if path in ("/api/automation/jobs", "/api/automation/list"):
                         writer.write(
                             _json_response(
-                                {"jobs": [_serialize_job(j) for j in automation.list_jobs(include_disabled=True)]}
+                                {
+                                    "jobs": [
+                                        _serialize_job(j)
+                                        for j in automation.list_jobs(include_disabled=True)
+                                    ]
+                                }
                             )
                         )
                     elif path.startswith("/api/automation/jobs/"):
@@ -1202,11 +1232,17 @@ async def gateway_command(
                         path = path.split("?")[0]
                         if path == "/api/automation/jobs":
                             body = _parse_body()
-                            from shibaclaw.automation.types import AutomationPayload, AutomationSchedule
+                            from shibaclaw.automation.types import (
+                                AutomationPayload,
+                                AutomationSchedule,
+                            )
+
                             s = body.get("schedule", {})
                             p = body.get("payload", {})
                             name = body.get("name", "")
-                            delete_after_run = body.get("deleteAfterRun", body.get("delete_after_run", False))
+                            delete_after_run = body.get(
+                                "deleteAfterRun", body.get("delete_after_run", False)
+                            )
                             schedule = AutomationSchedule(
                                 kind=s.get("kind", "every"),
                                 at_ms=s.get("atMs", s.get("at_ms")),
@@ -1259,7 +1295,8 @@ async def gateway_command(
                     else:
                         job_id = (
                             request_line.split("/api/automation/trigger/")[1]
-                            .split(" ")[0].split("?")[0]
+                            .split(" ")[0]
+                            .split("?")[0]
                         )
                         ran = await automation.run_job(job_id, force=True)
                         writer.write(_json_response({"triggered": ran}))
@@ -1268,27 +1305,41 @@ async def gateway_command(
                 elif "GET" in request_line and "/heartbeat/status" in request_line:
                     hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
                     hb = hb_jobs[0] if hb_jobs else None
-                    writer.write(_json_response({
-                        "enabled": hb is not None and hb.enabled,
-                        "running": automation.status()["running"],
-                        "last_run_ms": hb.state.last_run_at_ms if hb else None,
-                        "last_status": hb.state.last_status if hb else None,
-                    }))
+                    writer.write(
+                        _json_response(
+                            {
+                                "enabled": hb is not None and hb.enabled,
+                                "running": automation.status()["running"],
+                                "last_run_ms": hb.state.last_run_at_ms if hb else None,
+                                "last_status": hb.state.last_status if hb else None,
+                            }
+                        )
+                    )
 
-                elif "POST" in request_line and ("/heartbeat/trigger" in request_line or "/api/automation/trigger-heartbeats" in request_line):
+                elif "POST" in request_line and (
+                    "/heartbeat/trigger" in request_line
+                    or "/api/automation/trigger-heartbeats" in request_line
+                ):
                     if not _check_auth():
                         writer.write(_json_response({"error": "unauthorized"}, 401))
                     else:
-                        hb_jobs = [j for j in automation.list_jobs() if j.payload.kind == "heartbeat"]
+                        hb_jobs = [
+                            j for j in automation.list_jobs() if j.payload.kind == "heartbeat"
+                        ]
                         if hb_jobs:
                             ran = await automation.run_job(hb_jobs[0].id, force=True)
                             writer.write(_json_response({"triggered": ran}))
                         else:
-                            writer.write(_json_response({"triggered": False, "error": "no heartbeat job"}))
+                            writer.write(
+                                _json_response({"triggered": False, "error": "no heartbeat job"})
+                            )
 
                 elif "GET" in request_line and "/api/cron/list" in request_line:
-                    scheduled = [j for j in automation.list_jobs(include_disabled=True)
-                                 if j.payload.kind == "scheduled"]
+                    scheduled = [
+                        j
+                        for j in automation.list_jobs(include_disabled=True)
+                        if j.payload.kind == "scheduled"
+                    ]
                     writer.write(_json_response({"jobs": [_serialize_job(j) for j in scheduled]}))
 
                 elif "POST" in request_line and "/api/cron/trigger/" in request_line:
@@ -1296,8 +1347,7 @@ async def gateway_command(
                         writer.write(_json_response({"error": "unauthorized"}, 401))
                     else:
                         job_id = (
-                            request_line.split("/api/cron/trigger/")[1]
-                            .split(" ")[0].split("?")[0]
+                            request_line.split("/api/cron/trigger/")[1].split(" ")[0].split("?")[0]
                         )
                         ran = await automation.run_job(job_id, force=True)
                         writer.write(_json_response({"triggered": ran}))
@@ -1353,9 +1403,7 @@ async def gateway_command(
                         except Exception as e:
                             writer.write(
                                 (
-                                    json.dumps(
-                                        {"t": "e", "error": str(e)}, ensure_ascii=False
-                                    )
+                                    json.dumps({"t": "e", "error": str(e)}, ensure_ascii=False)
                                     + "\n"
                                 ).encode()
                             )
@@ -1379,7 +1427,9 @@ async def gateway_command(
                     writer.write(
                         _json_response(
                             {
-                                "status": "starting" if _state.get("starting", False) else ("ok" if provider else "idle"),
+                                "status": "starting"
+                                if _state.get("starting", False)
+                                else ("ok" if provider else "idle"),
                                 "uptime": int(time.time() - _start_time),
                                 "provider_ready": provider is not None,
                             }
@@ -1405,6 +1455,7 @@ async def gateway_command(
             async def _clear_starting():
                 await asyncio.sleep(4.0)
                 _state["starting"] = False
+
             asyncio.create_task(_clear_starting())
 
             await asyncio.gather(

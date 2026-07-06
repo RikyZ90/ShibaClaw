@@ -7,18 +7,12 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
-from rich.rule import Rule
-from rich.table import Table
 
 from shibaclaw import __logo__, __version__
 from shibaclaw.cli.auth import _is_oauth_authenticated
 
-from .utils import safe_print
+from .utils import safe_print, get_console
 
-console = Console()
 
 # ---------------------------------------------------------------------------
 # Providers shown during onboarding, in display order.
@@ -39,7 +33,9 @@ _ONBOARD_PROVIDERS = [
 
 
 def _rule(title: str = "") -> None:
-    console.print(Rule(f"[bold]{title}[/bold]" if title else "", style="orange3"))
+    from rich.rule import Rule
+
+    get_console().print(Rule(f"[bold]{title}[/bold]" if title else "", style="orange3"))
 
 
 def _detect_env_keys() -> dict[str, str]:
@@ -67,6 +63,9 @@ def _is_already_configured(config, name: str) -> bool:
 
 
 def _pick_provider(config, env_found: dict[str, str], oauth_found: list[str]):
+    from rich.prompt import Prompt
+    from rich.table import Table
+
     """
     Ask the user to pick a provider.
     Returns (provider_name, env_key, default_model, is_local, is_oauth) or None.
@@ -82,7 +81,7 @@ def _pick_provider(config, env_found: dict[str, str], oauth_found: list[str]):
     ]
 
     if not choices:
-        console.print("[green]v[/green] Provider already configured.")
+        get_console().print("[green]v[/green] Provider already configured.")
         return None
 
     table = Table(show_header=False, box=None, padding=(0, 2))
@@ -98,7 +97,7 @@ def _pick_provider(config, env_found: dict[str, str], oauth_found: list[str]):
         else:
             note = ""
         table.add_row(str(i), f"{label}  {note}")
-    console.print(table)
+    get_console().print(table)
 
     raw = Prompt.ask("\n  Pick a number", default="1")
     try:
@@ -106,19 +105,21 @@ def _pick_provider(config, env_found: dict[str, str], oauth_found: list[str]):
         if not (0 <= idx < len(choices)):
             raise ValueError
     except ValueError:
-        console.print("[red]  Invalid choice -- skipping provider setup.[/red]")
+        get_console().print("[red]  Invalid choice -- skipping provider setup.[/red]")
         return None
 
     return choices[idx][0], choices[idx][2], choices[idx][3], choices[idx][4], choices[idx][5]
 
 
 def _ask_api_key(env_key: str, current_key: str) -> str | None:
+    from rich.prompt import Confirm, Prompt
+
     """Prompt for an API key. Returns the new key or the existing one."""
     _rule("Step 2 / 3  --  API Key")
 
     if current_key:
         masked = "*" * (len(current_key) - 4) + current_key[-4:]
-        console.print(f"  Current key: [dim]{masked}[/dim]")
+        get_console().print(f"  Current key: [dim]{masked}[/dim]")
         if not Confirm.ask("  Replace it?", default=False):
             return current_key
 
@@ -128,17 +129,22 @@ def _ask_api_key(env_key: str, current_key: str) -> str | None:
 
 
 def _ask_model(provider_name: str, default_model: str, current_model: str) -> str:
+    from rich.prompt import Prompt
+
     """Prompt for a model name with a smart default."""
     _rule("Step 3 / 3  --  Model")
 
     suggested = current_model if current_model else default_model
-    console.print(f"  Provider: [bold]{provider_name}[/bold]")
-    console.print("  Check the provider website for the full list of available models.")
+    get_console().print(f"  Provider: [bold]{provider_name}[/bold]")
+    get_console().print("  Check the provider website for the full list of available models.")
     model = Prompt.ask("  Model", default=suggested)
     return model.strip() or suggested
 
 
 def _ask_channel() -> tuple[str, dict[str, Any]] | None:
+    from rich.prompt import Confirm, Prompt
+    from rich.table import Table
+
     """Offer an optional channel. Returns (name, partial_config) or None."""
     _rule("Optional  --  Chat Channel")
 
@@ -152,7 +158,7 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
     if not channels:
         return None
 
-    console.print(
+    get_console().print(
         "  Connect a channel to chat via Telegram, Discord, etc.\n"
         "  [dim]You can skip and use the CLI or WebUI instead.[/dim]\n"
     )
@@ -164,7 +170,7 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
     names = list(channels.keys())
     for i, (name, label) in enumerate(channels.items(), 1):
         table.add_row(str(i), label)
-    console.print(table)
+    get_console().print(table)
 
     raw = Prompt.ask("\n  Pick a number (0 to skip)", default="0")
     try:
@@ -174,11 +180,11 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
         if not (1 <= idx <= len(names)):
             raise ValueError
     except ValueError:
-        console.print("[dim]  Invalid -- skipping channel setup.[/dim]")
+        get_console().print("[dim]  Invalid -- skipping channel setup.[/dim]")
         return None
 
     chosen = names[idx - 1]
-    console.print(
+    get_console().print(
         f"\n  [bold]{channels[chosen]}[/bold]  -- enter your credentials.\n"
         "  Leave blank to skip and edit config.json manually.\n"
     )
@@ -216,8 +222,10 @@ def _ask_channel() -> tuple[str, dict[str, Any]] | None:
 
 
 def _show_summary(config_path: Path, provider: str, model: str) -> None:
-    console.print()
-    console.print(
+    from rich.panel import Panel
+
+    get_console().print()
+    get_console().print(
         Panel(
             f"[bold green]v Setup complete![/bold green]\n\n"
             f"Provider: [cyan]{provider}[/cyan]\n"
@@ -228,11 +236,11 @@ def _show_summary(config_path: Path, provider: str, model: str) -> None:
             padding=(1, 2),
         )
     )
-    console.print("\n[bold]Next steps:[/bold]")
-    console.print('  Chat:     [cyan]shibaclaw agent -m "Hello!"[/cyan]')
-    console.print("  WebUI:    [cyan]shibaclaw web[/cyan]")
-    console.print("  Gateway:  [cyan]shibaclaw gateway[/cyan]")
-    console.print(
+    get_console().print("\n[bold]Next steps:[/bold]")
+    get_console().print('  Chat:     [cyan]shibaclaw agent -m "Hello!"[/cyan]')
+    get_console().print("  WebUI:    [cyan]shibaclaw web[/cyan]")
+    get_console().print("  Gateway:  [cyan]shibaclaw gateway[/cyan]")
+    get_console().print(
         "\n  [dim]You can also onboard via the WebUI at[/dim] [bold cyan]http://localhost:3000[/bold cyan]\n"
     )
 
@@ -308,9 +316,11 @@ def _try_restart_gateway(config) -> None:
             req.add_header("Authorization", f"Bearer {token}")
         with urllib.request.urlopen(req, timeout=5):
             pass
-        console.print("[green]✓[/green] Gateway restart triggered — new config will be loaded.")
+        get_console().print(
+            "[green]✓[/green] Gateway restart triggered — new config will be loaded."
+        )
     except Exception:
-        console.print("[dim]  Tip: restart the gateway to apply changes.[/dim]")
+        get_console().print("[dim]  Tip: restart the gateway to apply changes.[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +332,9 @@ def onboard_command(
     workspace: Optional[str] = None,
     config_override: Optional[str] = None,
 ):
+    from rich.panel import Panel
+    from rich.prompt import Confirm
+
     """Initialize shibaclaw configuration and workspace."""
     from shibaclaw.config.loader import get_config_path, load_config, save_config, set_config_path
     from shibaclaw.config.paths import get_workspace_path
@@ -341,8 +354,8 @@ def onboard_command(
         config.agents.defaults.workspace = workspace
 
     # Header
-    console.print()
-    console.print(
+    get_console().print()
+    get_console().print(
         Panel(
             f"[bold gold1]{__logo__} shibaclaw v{__version__}[/bold gold1]\n"
             "[dim]Let's get you set up in a few steps.[/dim]",
@@ -358,7 +371,7 @@ def onboard_command(
     for name, key in env_found.items():
         label = next((p[1] for p in _ONBOARD_PROVIDERS if p[0] == name), name)
         masked = "*" * max(0, len(key) - 4) + key[-4:] if len(key) > 4 else "****"
-        console.print(
+        get_console().print(
             f"[green]v[/green] Detected [bold]{label}[/bold] key from environment ({masked})"
         )
         p = getattr(config.providers, name, None)
@@ -367,7 +380,7 @@ def onboard_command(
 
     for name in oauth_found:
         label = next((p[1] for p in _ONBOARD_PROVIDERS if p[0] == name), name)
-        console.print(f"[green]v[/green] [bold]{label}[/bold] already authenticated (OAuth)")
+        get_console().print(f"[green]v[/green] [bold]{label}[/bold] already authenticated (OAuth)")
 
     # --- Provider selection (always shown) ---
     chosen_provider = config.agents.defaults.provider or "auto"
@@ -394,7 +407,7 @@ def onboard_command(
             pname, env_key, default_model, is_local, is_oauth = result
 
             if is_oauth:
-                console.print(
+                get_console().print(
                     f"\n  [yellow]Run [bold]shibaclaw provider login {pname.replace('_', '-')}[/bold]"
                     " to complete OAuth authentication.[/yellow]"
                 )
@@ -427,7 +440,7 @@ def onboard_command(
             config.agents.defaults.model = chosen_model
 
     # Optional channel
-    console.print()
+    get_console().print()
     channel_result = _ask_channel()
     if channel_result:
         ch_name, ch_cfg = channel_result
@@ -440,17 +453,17 @@ def onboard_command(
 
     # Save
     save_config(config, config_path)
-    console.print(f"\n[green]v[/green] Config saved at [dim]{config_path}[/dim]")
+    get_console().print(f"\n[green]v[/green] Config saved at [dim]{config_path}[/dim]")
 
     # Inject plugin channel defaults (never clobbers user values)
     _onboard_plugins(config_path)
 
     # Workspace + template sync (asks before overwriting personalised files)
-    console.print()
+    get_console().print()
     workspace_path = get_workspace_path(str(config.workspace_path))
     if not workspace_path.exists():
         workspace_path.mkdir(parents=True, exist_ok=True)
-        console.print(f"[green]v[/green] Workspace created at [dim]{workspace_path}[/dim]")
+        get_console().print(f"[green]v[/green] Workspace created at [dim]{workspace_path}[/dim]")
 
     sync_workspace_templates(workspace_path, silent=False)
 

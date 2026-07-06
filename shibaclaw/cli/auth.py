@@ -119,7 +119,9 @@ def _login_openai_codex() -> None:
             f"[green]✓ Authenticated with OpenAI Codex[/green]  [dim]{token.account_id}[/dim]"
         )
     except ImportError:
-        get_console().print("[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]")
+        get_console().print(
+            "[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]"
+        )
         raise typer.Exit(1)
 
 
@@ -195,7 +197,9 @@ def _login_github_copilot() -> None:
                     os.makedirs(token_dir, exist_ok=True)
                     with open(os.path.join(token_dir, "access-token"), "w") as f:
                         f.write(access_token)
-                    get_console().print("[green]✓ Successfully authenticated with GitHub Copilot[/green]")
+                    get_console().print(
+                        "[green]✓ Successfully authenticated with GitHub Copilot[/green]"
+                    )
                     return
 
             except Exception as httperr:

@@ -12,8 +12,6 @@ from prompt_toolkit.application import run_in_terminal
 from prompt_toolkit.formatted_text import ANSI, HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.patch_stdout import patch_stdout
-from rich.markdown import Markdown
-from rich.text import Text
 
 from shibaclaw import __logo__
 
@@ -93,7 +91,13 @@ async def _print_interactive_response(response: str, render_markdown: bool) -> N
             lambda c: (
                 c.print(),
                 c.print(f"[gold1]{__logo__} shibaclaw[/gold1]"),
-                c.print(Markdown(response) if render_markdown else Text(response)),
+                c.print(
+                    (
+                        __import__("rich.markdown", fromlist=["Markdown"]).Markdown(response)
+                        if render_markdown
+                        else __import__("rich.text", fromlist=["Text"]).Text(response)
+                    )
+                ),
                 c.print(),
             )
         )
