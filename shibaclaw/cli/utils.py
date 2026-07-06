@@ -28,11 +28,14 @@ except Exception:
     pass
 
 _console = None
+
+
 def get_console():
     # Lazy initialize rich console to avoid ~100ms import penalty on startup
     global _console
     if _console is None:
         from rich.console import Console
+
         _console = Console(
             force_terminal=True if os.environ.get("SHIBACLAW_FORCE_TERMINAL") else None,
         )
@@ -43,7 +46,13 @@ def safe_print(message: str, **kwargs) -> None:
     """Print a message to the console, removing emojis if Unicode is not supported."""
     if not _supports_unicode:
         # Simple regex-free replacement for common ShibaClaw emojis
-        message = message.replace("🐾", ">>").replace("🐕‍🦺", "System").replace("🔍", "[Search]").replace("🛠️", "[Tool]").replace("✅", "[OK]")
+        message = (
+            message.replace("🐾", ">>")
+            .replace("🐕‍🦺", "System")
+            .replace("🔍", "[Search]")
+            .replace("🛠️", "[Tool]")
+            .replace("✅", "[OK]")
+        )
     try:
         get_console().print(message, **kwargs)
     except UnicodeEncodeError:
@@ -95,6 +104,7 @@ def restore_terminal(saved_attrs) -> None:
 def render_interactive_ansi(render_fn) -> str:
     """Render Rich output to ANSI so prompt_toolkit can print it safely."""
     from rich.console import Console
+
     ansi_console = Console(
         force_terminal=True,
         color_system=get_console().color_system or "standard",
@@ -162,9 +172,11 @@ def print_agent_response(response: str, render_markdown: bool) -> None:
     content = response or ""
     if render_markdown:
         from rich.markdown import Markdown
+
         body = Markdown(content)
     else:
         from rich.text import Text
+
         body = Text(content)
     get_console().print()
     get_console().print(f"[gold1]{__logo__} shibaclaw[/gold1]")

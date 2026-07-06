@@ -6,7 +6,6 @@ import asyncio
 from typing import Optional
 
 import typer
-from rich.table import Table
 
 from shibaclaw import __logo__, __version__
 from shibaclaw.helpers.logging import setup_shiba_logging
@@ -171,9 +170,7 @@ def web(
     safe_print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     safe_print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
     if token:
-        safe_print(
-            f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token) - 4)}[/bold]"
-        )
+        safe_print(f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token) - 4)}[/bold]")
     if provider is None:
         safe_print("")
         safe_print(
@@ -195,6 +192,7 @@ def web(
             gateway_proc = None
 
     from shibaclaw.webui.routers.system import set_shutdown_callback
+
     set_shutdown_callback(stop_gateway_proc)
 
     try:
@@ -268,9 +266,7 @@ def status():
 
     cfg_path, cfg = get_config_path(), load_config()
     safe_print(f"{__logo__} [bold]shibaclaw Status[/bold]\n")
-    safe_print(
-        f"Config: {cfg_path} {'[green]✓[/green]' if cfg_path.exists() else '[red]✗[/red]'}"
-    )
+    safe_print(f"Config: {cfg_path} {'[green]✓[/green]' if cfg_path.exists() else '[red]✗[/red]'}")
     safe_print(
         f"Workspace: {cfg.workspace_path} {'[green]✓[/green]' if cfg.workspace_path.exists() else '[red]✗[/red]'}"
     )
@@ -303,6 +299,8 @@ def channels_status():
     cfg = load_config()
     discovered = discover_all()
     all_module_names = set(discover_channel_names())
+    from rich.table import Table
+
     table = Table(title="Channel Status")
     table.add_column("Channel", style="cyan")
     table.add_column("Enabled", style="green")
