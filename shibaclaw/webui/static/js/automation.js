@@ -88,10 +88,13 @@ async function loadAutomationPanel() {
             return true;
         });
 
-        // Parse TASK.md for virtual jobs
         if (taskMdRes && taskMdRes.ok) {
             let taskMd = await taskMdRes.text();
-            taskMd = taskMd.replace(/<!--[\s\S]*?-->/g, ''); // strip comments
+            let previous;
+            do {
+                previous = taskMd;
+                taskMd = taskMd.replace(/<!--[\s\S]*?-->/g, '');
+            } while (taskMd !== previous);
             
             let relevant = taskMd;
             const activeMatch = /^##\s+Active Tasks\s*$/im.exec(taskMd);
@@ -579,8 +582,8 @@ async function _removeFromTaskMd(taskName) {
         if (!taskMd) return;
 
         const escapedName = taskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reExisting = new RegExp(`(^|\\n)### Task: ${escapedName}\\s*\\n[\\s\\S]*?(?=\\n### |\\n## |$)`, 'g');
-        const cleaned = taskMd.replace(reExisting, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+        const reExisting = new RegExp(`(^|\\r?\\n)(?:###?\\s*Task:\\s*${escapedName}|##\\s+${escapedName})\\s*\\r?\\n[\\s\\S]*?(?=\\r?\\n#+\\s+|$)`, 'gi');
+        const cleaned = taskMd.replace(reExisting, '').replace(/(?:\r?\n){3,}/g, '\n\n').trim() + '\n';
 
         if (cleaned !== taskMd) {
             await authFetch('/api/file-save', {
