@@ -78,6 +78,12 @@ from .api import (
     api_install_plugin,
     api_uninstall_plugin,
 )
+from .routers.knowledge import (
+    api_knowledge_list,
+    api_knowledge_create,
+    api_knowledge_delete,
+    api_knowledge_upload,
+)
 from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
 from .gateway_client import gateway_client
 from .routers.mcp_manager import (
@@ -198,6 +204,11 @@ def create_app(
         Route("/api/v1/notifications", api_notifications_list, methods=["GET"]),
         Route("/api/v1/notifications", api_notifications_post, methods=["POST"]),
         Route("/api/v1/notifications", api_notifications_delete, methods=["DELETE"]),
+        # ── Knowledge Base ───────────────────────────────────────────────────
+        Route("/api/knowledge", api_knowledge_list, methods=["GET"]),
+        Route("/api/knowledge", api_knowledge_create, methods=["POST"]),
+        Route("/api/knowledge/{collection_id}", api_knowledge_delete, methods=["DELETE"]),
+        Route("/api/knowledge/{collection_id}/upload", api_knowledge_upload, methods=["POST"]),
         Route("/api/restart", api_restart_server, methods=["POST"]),
         Route("/api/onboard/providers", api_onboard_providers, methods=["GET"]),
         Route("/api/onboard/templates", api_onboard_templates, methods=["GET"]),

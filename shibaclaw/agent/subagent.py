@@ -13,6 +13,7 @@ from shibaclaw.agent.tools.filesystem import EditFileTool, ListDirTool, ReadFile
 from shibaclaw.agent.tools.registry import SkillVault
 from shibaclaw.agent.tools.shell import ExecTool
 from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
+from shibaclaw.agent.tools.knowledge import KnowledgeSearchTool
 from shibaclaw.bus.events import InboundMessage
 from shibaclaw.bus.queue import MessageBus
 from shibaclaw.config.schema import ExecToolConfig
@@ -158,6 +159,7 @@ class SubagentManager:
                 )
             )
             tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
+            tools.register(KnowledgeSearchTool())
             tools.register(WebFetchTool(proxy=self.web_proxy))
 
             system_prompt = self._build_subagent_prompt()

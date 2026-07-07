@@ -163,6 +163,7 @@ You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fa
         iteration: int | None = None,
         max_iterations: int | None = None,
         available_channels: list[str] | None = None,
+        active_kbs: list[str] | None = None,
     ) -> str:
         """Return a '## Live State' block for the system prompt.
 
@@ -181,6 +182,11 @@ You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fa
             lines.append(f"Available Channels: {', '.join(available_channels)}")
             lines.append(
                 'Use the message tool with channel="<name>" to send cross-channel messages.'
+            )
+        if active_kbs:
+            lines.append(f"Active Knowledge Bases: {', '.join(active_kbs)}")
+            lines.append(
+                'You have access to these Knowledge Bases for this session. Use the `knowledge_search` tool to query them when needed.'
             )
         return "## Live State\n\n" + "\n".join(lines)
 

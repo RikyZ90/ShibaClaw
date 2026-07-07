@@ -9,11 +9,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+import re
+
 import httpx
 from loguru import logger
 
 from shibaclaw.updater.detector import PYPI_PACKAGE, get_installation_method
 from shibaclaw.updater.manifest import normalize_manifest_path
+
+VERSION_PATTERN = re.compile(r"^[a-zA-Z0-9.\-_]+$")
+INSTALLER_URL = "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1"
 
 
 def _old_dir(workspace_root: Path, new_version: str) -> Path:
@@ -44,12 +49,13 @@ def _get_exe_install_dir() -> Path | None:
                 break
             candidate = parent
     except Exception as _e:
-        logger.debug("Ignored error: {}", _e)
+        logger.warning("Ignored error while searching for install dir: {}", _e)
 
     # Fallback: use the standard default location
     try:
         return Path.home() / ".shibaclaw"
-    except Exception:
+    except Exception as _e:
+        logger.warning("Fallback install dir failed: {}", _e)
         return None
 
 
@@ -93,36 +99,34 @@ def _exe_upgrade(
     if not download_url:
         return {"ok": False, "output": "No download URL provided."}
 
-    installer_url = (
-        "https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1"
-    )
     temp_ps1 = Path(tempfile.gettempdir()) / f"shibaclaw_install_{version}.ps1"
+    zip_path = Path(tempfile.gettempdir()) / f"shibaclaw_release_{version}.zip"
 
     downloaded = False
     try:
-        with httpx.Client(follow_redirects=True, timeout=15.0) as client:
-            response = client.get(installer_url)
-            response.raise_for_status()
-            temp_ps1.write_text(response.text, encoding="utf-8")
-            downloaded = True
-    except Exception as _e:
-        logger.debug("Ignored error: {}", _e)
-
-    if not downloaded:
-        bundled_ps1 = get_runtime_root() / "scripts" / "install" / "install.ps1"
-        if bundled_ps1.exists():
+        with httpx.Client(follow_redirects=True, timeout=30.0) as client:
+            # Download installer script
             try:
-                shutil.copy2(str(bundled_ps1), str(temp_ps1))
+                response = client.get(INSTALLER_URL)
+                response.raise_for_status()
+                temp_ps1.write_text(response.text, encoding="utf-8")
                 downloaded = True
             except Exception as _e:
-                logger.debug("Ignored error: {}", _e)
+                logger.warning("Failed to download install.ps1, will try fallback: {}", _e)
 
-    if not downloaded:
-        return {"ok": False, "output": "Could not download or locate install.ps1 script."}
+            if not downloaded:
+                bundled_ps1 = get_runtime_root() / "scripts" / "install" / "install.ps1"
+                if bundled_ps1.exists():
+                    try:
+                        shutil.copy2(bundled_ps1, temp_ps1)
+                        downloaded = True
+                    except Exception as _e:
+                        logger.warning("Failed to copy bundled install.ps1: {}", _e)
 
-    zip_path = Path(tempfile.gettempdir()) / f"shibaclaw_release_{version}.zip"
-    try:
-        with httpx.Client(follow_redirects=True, timeout=30.0) as client:
+            if not downloaded:
+                return {"ok": False, "output": "Could not download or locate install.ps1 script."}
+
+            # Download update package
             with client.stream("GET", download_url) as response:
                 response.raise_for_status()
                 total = int(response.headers.get("content-length", 0))
@@ -135,13 +139,13 @@ def _exe_upgrade(
                             try:
                                 progress_cb(current, total)
                             except Exception as _e:
-                                logger.debug("Ignored error: {}", _e)
+                                logger.warning("Progress callback failed: {}", _e)
     except Exception as exc:
         if zip_path.exists():
             try:
                 zip_path.unlink()
             except Exception as _e:
-                logger.debug("Ignored error: {}", _e)
+                logger.warning("Failed to clean up incomplete zip: {}", _e)
         return {"ok": False, "output": f"Failed to download update package: {exc}"}
 
     # Resolve install_dir robustly — always pass it explicitly to the PS1 script
@@ -149,9 +153,6 @@ def _exe_upgrade(
     install_dir_str = str(install_dir) if install_dir else ""
 
     try:
-        create_no_window = 0x08000000
-        create_new_process_group = 0x00000200
-
         cmd = [
             "powershell.exe",
             "-WindowStyle", "Hidden",
@@ -165,11 +166,13 @@ def _exe_upgrade(
         if install_dir_str:
             cmd.extend(["-InstallDir", install_dir_str])
 
-        subprocess.Popen(
-            cmd,
-            creationflags=create_no_window | create_new_process_group,
-            cwd=tempfile.gettempdir(),
-        )
+        kwargs: dict[str, Any] = {"cwd": tempfile.gettempdir()}
+        if sys.platform == "win32":
+            create_no_window = 0x08000000
+            create_new_process_group = 0x00000200
+            kwargs["creationflags"] = create_no_window | create_new_process_group
+
+        subprocess.Popen(cmd, **kwargs)
 
         logger.info(
             "exe updater: launched installer for v{} | install_dir={} | cmd={}",
@@ -211,7 +214,7 @@ def _backup_personal_files(
 
         dest = old_dir / rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(str(local_file), str(dest))
+        shutil.copy2(local_file, dest)
         moved.append({"from": str(local_file), "to": str(dest)})
 
     return {"moved": moved, "skipped": skipped}
@@ -242,7 +245,7 @@ def _normalize_update_request(
         default_cmd = "pip install --upgrade shibaclaw"
     elif install_method == "exe":
         default_cmd = (
-            'powershell -c "irm https://raw.githubusercontent.com/RikyZ90/ShibaClaw/main/scripts/install/install.ps1 | iex"'
+            f'powershell -c "irm {INSTALLER_URL} | iex"'
         )
 
     normalized.setdefault("action_command", default_cmd)
@@ -283,8 +286,7 @@ def apply_update(
     install_method = normalized["install_method"]
     version = normalized.get("latest") or (manifest or {}).get("version") or "unknown"
 
-    import re
-    if not re.match(r"^[a-zA-Z0-9.\-_]+$", version) or ".." in version:
+    if not VERSION_PATTERN.match(version) or ".." in version:
         return {
             "install_method": install_method,
             "version": version,

@@ -27,6 +27,7 @@ from shibaclaw.agent.tools.registry import SkillVault
 from shibaclaw.agent.tools.shell import ExecTool
 from shibaclaw.agent.tools.spawn import SpawnTool
 from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
+from shibaclaw.agent.tools.knowledge import KnowledgeSearchTool
 from shibaclaw.brain.manager import PackManager, Session
 from shibaclaw.bus.events import InboundMessage, OutboundMessage
 from shibaclaw.bus.queue import MessageBus
@@ -299,6 +300,7 @@ class ShibaBrain:
                 )
             )
         self.tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
+        self.tools.register(KnowledgeSearchTool())
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
         self.tools.register(MemorySearchTool(workspace=self.workspace))
         self.tools.register(
@@ -567,12 +569,23 @@ class ShibaBrain:
                 break
             iteration += 1
 
+            active_kbs = None
+            if chat_id:
+                try:
+                    from shibaclaw.webui.agent_manager import agent_manager
+                    if agent_manager.pm:
+                        sess = agent_manager.pm.get_or_create(chat_id)
+                        active_kbs = sess.metadata.get("knowledge_bases", [])
+                except Exception:
+                    pass
+
             live_block = self.context.build_runtime_block(
                 channel=channel,
                 chat_id=chat_id,
                 iteration=iteration,
                 max_iterations=self.max_iterations,
                 available_channels=self._available_channels,
+                active_kbs=active_kbs,
             )
             messages[0] = {
                 "role": "system",

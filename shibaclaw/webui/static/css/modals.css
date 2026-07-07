@@ -1929,3 +1929,67 @@ input[type="number"].form-input {
         font-size: 0.75rem;
     }
 }
+
+/* ── Knowledge Base Dropzone & Badges ────────────────────────── */
+.kb-dropzone {
+    background: var(--bg-surface);
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px dashed var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.kb-dropzone.dragover {
+    border-color: var(--primary);
+    background: rgba(232, 163, 23, 0.05);
+    box-shadow: 0 0 15px rgba(232, 163, 23, 0.1) inset;
+}
+
+.kb-dropzone::after {
+    content: "Drop files here to upload";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(24, 24, 27, 0.85);
+    backdrop-filter: blur(4px);
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 1.1rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.kb-dropzone.dragover::after {
+    opacity: 1;
+}
+
+.kb-file-badges-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.kb-file-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.kb-file-badge .material-icons-round {
+    font-size: 12px;
+}

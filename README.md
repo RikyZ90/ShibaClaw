@@ -496,9 +496,3 @@ If it saved you time, secured your workflow, or just made you smile — <b>leave
   🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> &nbsp;·&nbsp;
   🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a>
 </p>
-
-***
-
-<p align="center">
-  <i>Inspired by <a href="https://github.com/HKUDS/nanobot">NanoBot</a> by HKUDS — MIT License.</i>
-</p>

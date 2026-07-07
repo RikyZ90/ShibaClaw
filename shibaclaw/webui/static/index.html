@@ -99,6 +99,9 @@
                     <span class="material-icons-round">event_repeat</span> Automation
                     <span class="automation-badge-mini" id="automation-badge-mini" style="display:none"></span>
                 </button>
+                <button class="btn-command" onclick="openModal('knowledge-modal')">
+                    <span class="material-icons-round">library_books</span> Knowledge Base
+                </button>
                 <button class="btn-command" onclick="openModal('connected-apps-modal')">
                     <span class="material-icons-round">apps</span> Apps
                 </button>
@@ -198,7 +201,8 @@
                     </div>
                 </div>
                 <div class="width-toggle-wrapper">
-                    <button class="btn-width-toggle" id="btn-width-toggle" title="Adjust chat width" aria-label="Adjust chat width">
+                    <button class="btn-width-toggle" id="btn-width-toggle" title="Adjust chat width"
+                        aria-label="Adjust chat width">
                         <span class="material-icons-round">view_column</span>
                     </button>
                     <div class="width-popover" id="width-popover">
@@ -259,10 +263,12 @@
                         <!-- Staged files appear here -->
                     </div>
                     <div class="input-container">
-                        <button class="btn-attach" id="btn-mic" title="Voice Message (Auto-Stop on silence)" aria-label="Record voice message">
+                        <button class="btn-attach" id="btn-mic" title="Voice Message (Auto-Stop on silence)"
+                            aria-label="Record voice message">
                             <span class="material-icons-round">mic</span>
                         </button>
-                        <button class="btn-attach" id="btn-attach" title="Attach files or images" aria-label="Attach files or images">
+                        <button class="btn-attach" id="btn-attach" title="Attach files or images"
+                            aria-label="Attach files or images">
                             <span class="material-icons-round">attach_file</span>
                         </button>
                         <input type="file" id="file-input" multiple style="display:none">
@@ -283,18 +289,41 @@
                                     <span class="material-icons-round"
                                         style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
                                 </button>
-                                <div class="model-dropdown-menu" id="model-dropdown-menu" style="display: none;">
-                                    <input type="text" id="model-search-input" placeholder="Search models..."
-                                        autocomplete="off" aria-label="Search models...">
-                                    <div class="model-list" id="model-list-container">
-                                        <!-- Models injected here -->
-                                        <div
-                                            style="padding: 10px; color: var(--text-2); text-align: center; font-size: 0.85rem;">
-                                            Loading models...</div>
+                            </div>
+                            <!-- Knowledge Base Selector Dropdown -->
+                            <div class="model-selector-wrapper" id="kb-selector-wrapper" style="position: relative;">
+                                <button class="btn-input-action" id="btn-kb-select"
+                                    title="Select active Knowledge Bases">
+                                    <span class="material-icons-round">library_books</span>
+                                    <span id="active-kb-display">KBs (0)</span>
+                                    <span class="material-icons-round"
+                                        style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
+                                </button>
+                                <div class="model-dropdown-menu" id="kb-dropdown-menu"
+                                    style="display: none; bottom: calc(100% + 8px); top: auto; min-width: 250px;">
+                                    <div class="model-dropdown-list" id="kb-dropdown-list">
+                                        <!-- populated dynamically -->
+                                    </div>
+                                    <div
+                                        style="padding: 8px; border-top: 1px solid var(--border-light); text-align: center;">
+                                        <button class="btn-action" style="width: 100%; justify-content: center;"
+                                            onclick="openModal('knowledge-modal')">Manage Collections</button>
                                     </div>
                                 </div>
                             </div>
+                            <div class="model-dropdown-menu" id="model-dropdown-menu" style="display: none;">
+                                <input type="text" id="model-search-input" placeholder="Search models..."
+                                    autocomplete="off" aria-label="Search models...">
+                                <div class="model-list" id="model-list-container">
+                                    <!-- Models injected here -->
+                                    <div
+                                        style="padding: 10px; color: var(--text-2); text-align: center; font-size: 0.85rem;">
+                                        Loading models...</div>
+                                </div>
+                            </div>
+                        </div>
 
+                        <div style="display: flex; gap: 4px; align-items: center;">
                             <button class="btn-input-action" id="btn-context" onclick="openModal('context-modal')"
                                 title="View context">
                                 <span class="material-icons-round">psychology</span>
@@ -304,545 +333,563 @@
                                 <span class="material-icons-round">stop_circle</span>
                                 <span>Stop</span>
                             </button>
+                        </div>
+                        
+                        <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+                            <span class="input-hint">Shift + <span class="material-icons-round"
+                                style="font-size: 12px; vertical-align: middle; margin-bottom: 2px;">keyboard_return</span>
+                                for new line</span>
                             <div class="token-badge" id="token-badge" title="Click to view full context"
                                 onclick="openModal('context-modal')">
                                 <span class="material-icons-round">data_usage</span>
                                 <span class="token-badge-text" id="token-badge-text">-- / --</span>
                             </div>
                         </div>
-                        <span class="input-hint">Enter to send · Shift+Enter for new line</span>
                     </div>
+            </div>
+    </div>
+    </main>
+
+    <!-- Settings View (Dedicated Page) -->
+    <div id="settings-view" class="settings-view" style="display:none">
+        <header class="settings-header">
+            <div class="settings-header-left">
+                <button class="settings-back-btn" onclick="closeSettingsView()" title="Back to Chat"
+                    aria-label="Back to Chat">
+                    <span class="material-icons-round">arrow_back</span>
+                </button>
+                <div>
+                    <h2>Settings</h2>
+                    <span class="settings-subtitle" id="settings-current-tab-title">Agent</span>
                 </div>
             </div>
-        </main>
+            <button class="btn-primary" onclick="saveSettings()">
+                <span class="material-icons-round" style="font-size:1rem;vertical-align:middle">save</span> Save Changes
+            </button>
+        </header>
 
-        <!-- Settings View (Dedicated Page) -->
-        <div id="settings-view" class="settings-view" style="display:none">
-            <header class="settings-header">
-                <div class="settings-header-left">
-                    <button class="settings-back-btn" onclick="closeSettingsView()" title="Back to Chat" aria-label="Back to Chat">
-                        <span class="material-icons-round">arrow_back</span>
-                    </button>
-                    <div>
-                        <h2>Settings</h2>
-                        <span class="settings-subtitle" id="settings-current-tab-title">Agent</span>
-                    </div>
-                </div>
-                <button class="btn-primary" onclick="saveSettings()">
-                    <span class="material-icons-round" style="font-size:1rem;vertical-align:middle">save</span> Save Changes
+        <div class="settings-layout">
+            <!-- Vertical sidebar nav -->
+            <nav class="settings-sidebar" id="settings-sidebar">
+                <button class="settings-sidebar-item active" data-tab="agent" onclick="switchSettingsTab('agent')">
+                    <span class="material-icons-round">smart_toy</span><span>Agent</span>
                 </button>
-            </header>
+                <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
+                    <span class="material-icons-round">key</span><span>Provider</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
+                    <span class="material-icons-round">lock_open</span><span>OAuth</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
+                    <span class="material-icons-round">mic</span><span>Voice & Audio</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
+                    <span class="material-icons-round">build</span><span>Tools</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="mcp" onclick="switchSettingsTab('mcp')">
+                    <span class="material-icons-round">hub</span><span>MCP</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
+                    <span class="material-icons-round">dns</span><span>Gateway</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
+                    <span class="material-icons-round">forum</span><span>Channels</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
+                    <span class="material-icons-round">menu_book</span><span>Skills</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="plugins" onclick="switchSettingsTab('plugins')">
+                    <span class="material-icons-round">extension</span><span>Plugins</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
+                    <span class="material-icons-round">system_update</span><span>Update</span>
+                </button>
+            </nav>
 
-            <div class="settings-layout">
-                <!-- Vertical sidebar nav -->
-                <nav class="settings-sidebar" id="settings-sidebar">
-                    <button class="settings-sidebar-item active" data-tab="agent" onclick="switchSettingsTab('agent')">
-                        <span class="material-icons-round">smart_toy</span><span>Agent</span>
+            <!-- Mobile category list dashboard -->
+            <div class="settings-mobile-dashboard" id="settings-mobile-dashboard">
+                <div class="mobile-dashboard-grid">
+                    <button class="dashboard-card" onclick="switchSettingsTab('agent')">
+                        <span class="material-icons-round dash-icon">smart_toy</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Agent</div>
+                            <div class="dash-desc">Workspace, default model, thought settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
-                        <span class="material-icons-round">key</span><span>Provider</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('providers')">
+                        <span class="material-icons-round dash-icon">key</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Provider</div>
+                            <div class="dash-desc">Configure API keys & endpoints</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
-                        <span class="material-icons-round">lock_open</span><span>OAuth</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('oauth')">
+                        <span class="material-icons-round dash-icon">lock_open</span>
+                        <div class="dash-content">
+                            <div class="dash-title">OAuth</div>
+                            <div class="dash-desc">Link OpenRouter, GitHub, etc.</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
-                        <span class="material-icons-round">mic</span><span>Voice & Audio</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('audio')">
+                        <span class="material-icons-round dash-icon">mic</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Voice & Audio</div>
+                            <div class="dash-desc">Speech to text & audio settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
-                        <span class="material-icons-round">build</span><span>Tools</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('tools')">
+                        <span class="material-icons-round dash-icon">build</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Tools</div>
+                            <div class="dash-desc">Web search, proxy & execution options</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="mcp" onclick="switchSettingsTab('mcp')">
-                        <span class="material-icons-round">hub</span><span>MCP</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('mcp')">
+                        <span class="material-icons-round dash-icon">hub</span>
+                        <div class="dash-content">
+                            <div class="dash-title">MCP</div>
+                            <div class="dash-desc">Model Context Protocol servers</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
-                        <span class="material-icons-round">dns</span><span>Gateway</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('gateway')">
+                        <span class="material-icons-round dash-icon">dns</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Gateway</div>
+                            <div class="dash-desc">Server port, host & connection settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
-                        <span class="material-icons-round">forum</span><span>Channels</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('channels')">
+                        <span class="material-icons-round dash-icon">forum</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Channels</div>
+                            <div class="dash-desc">Progress reporting & notifications</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
-                        <span class="material-icons-round">menu_book</span><span>Skills</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('skills')">
+                        <span class="material-icons-round dash-icon">menu_book</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Skills</div>
+                            <div class="dash-desc">Browse, pin & import workspace skills</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="plugins" onclick="switchSettingsTab('plugins')">
-                        <span class="material-icons-round">extension</span><span>Plugins</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('plugins')">
+                        <span class="material-icons-round dash-icon">extension</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Plugins</div>
+                            <div class="dash-desc">Manage custom extensions and TTS voice engines</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
-                        <span class="material-icons-round">system_update</span><span>Update</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('update')">
+                        <span class="material-icons-round dash-icon">system_update</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Update</div>
+                            <div class="dash-desc">Check for updates & onboard wizard</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                </nav>
+                </div>
+            </div>
 
-                <!-- Mobile category list dashboard -->
-                <div class="settings-mobile-dashboard" id="settings-mobile-dashboard">
-                    <div class="mobile-dashboard-grid">
-                        <button class="dashboard-card" onclick="switchSettingsTab('agent')">
-                            <span class="material-icons-round dash-icon">smart_toy</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Agent</div>
-                                <div class="dash-desc">Workspace, default model, thought settings</div>
+            <!-- Content pane -->
+            <div class="settings-content" id="settings-body">
+                <!-- Mobile detail header back button -->
+                <button class="settings-mobile-back" id="settings-mobile-back" onclick="backToSettingsDashboard()">
+                    <span class="material-icons-round">arrow_back</span> Back to settings list
+                </button>
+
+                <!-- Loading spinner -->
+                <div id="settings-loading" class="settings-loader">
+                    <span class="material-icons-round spin">progress_activity</span>
+                    Loading settings...
+                </div>
+
+                <!-- Tab: Agent -->
+                <div class="settings-panel" id="panel-agent">
+                    <div class="field-row"><label for="s-agent-workspace">Workspace</label><input type="text"
+                            id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
+                    <div class="field-row field-row-stack">
+                        <label for="s-agent-model-button">Default Model For New Sessions</label>
+                        <p class="settings-note">Used when you create a new chat. Provider routing is inferred
+                            automatically from the selected model.</p>
+                        <div class="settings-model-picker" id="s-agent-model-picker">
+                            <input type="hidden" id="s-agent-model">
+                            <button type="button" class="form-input settings-model-button" id="s-agent-model-button">
+                                <span class="settings-model-button-main">
+                                    <span class="settings-model-button-label" id="s-agent-model-display">Select a
+                                        default model</span>
+                                    <span class="settings-model-button-provider" id="s-agent-model-provider">New
+                                        sessions</span>
+                                </span>
+                                <span class="material-icons-round">arrow_drop_down</span>
+                            </button>
+                            <div class="settings-model-menu" id="s-agent-model-menu" style="display:none">
+                                <input type="text" id="s-agent-model-search" class="form-input settings-model-search"
+                                    placeholder="Search models..." autocomplete="off" aria-label="Search models...">
+                                <div class="settings-model-list" id="s-agent-model-list"></div>
                             </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('providers')">
-                            <span class="material-icons-round dash-icon">key</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Provider</div>
-                                <div class="dash-desc">Configure API keys & endpoints</div>
+                        </div>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <label for="s-agent-consolidationModel-button">Memory / Consolidation Model</label>
+                        <p class="settings-note">Optional. Leave it empty to reuse the default session model for
+                            proactive learning and long-term memory consolidation.</p>
+                        <div class="settings-model-picker" id="s-agent-consolidationModel-picker">
+                            <input type="hidden" id="s-agent-consolidationModel">
+                            <button type="button" class="form-input settings-model-button"
+                                id="s-agent-consolidationModel-button">
+                                <span class="settings-model-button-main">
+                                    <span class="settings-model-button-label"
+                                        id="s-agent-consolidationModel-display">Same as default session model</span>
+                                    <span
+                                        class="settings-model-button-provider settings-model-button-provider-placeholder"
+                                        id="s-agent-consolidationModel-provider">Inherits</span>
+                                </span>
+                                <span class="material-icons-round">arrow_drop_down</span>
+                            </button>
+                            <div class="settings-model-menu" id="s-agent-consolidationModel-menu" style="display:none">
+                                <input type="text" id="s-agent-consolidationModel-search"
+                                    class="form-input settings-model-search" placeholder="Search models..."
+                                    autocomplete="off" aria-label="Search models...">
+                                <div class="settings-model-list" id="s-agent-consolidationModel-list"></div>
                             </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('oauth')">
-                            <span class="material-icons-round dash-icon">lock_open</span>
-                            <div class="dash-content">
-                                <div class="dash-title">OAuth</div>
-                                <div class="dash-desc">Link OpenRouter, GitHub, etc.</div>
+                        </div>
+                    </div>
+                    <div class="field-row"><label for="s-agent-maxTokens">Max Tokens</label><input type="number"
+                            id="s-agent-maxTokens" class="form-input" value="8192"></div>
+                    <div class="field-row"><label for="s-agent-ctxTokens">Context Window Tokens</label><input
+                            type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
+                    <div class="field-row"><label for="s-agent-temp">Temperature</label><input type="text"
+                            id="s-agent-temp" class="form-input" value="0.1"></div>
+                    <div class="field-row"><label for="s-agent-maxIter">Max Tool Iterations</label><input type="number"
+                            id="s-agent-maxIter" class="form-input" value="40"></div>
+                    <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s)</label><input type="number"
+                            id="s-agent-toolTimeout" class="form-input" value="660" min="10"
+                            title="Max seconds for all tool executions combined"></div>
+                    <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s)</label><input
+                            type="number" id="s-agent-loopWallTimeout" class="form-input" value="600" min="10"
+                            title="Max seconds for the entire agent loop"></div>
+                    <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s)</label><input
+                            type="number" id="s-agent-subagentTimeout" class="form-input" value="600" min="10"
+                            title="Max seconds for a single subagent execution"></div>
+                    <div class="field-row"><label for="s-agent-reasoning">Reasoning Effort</label><input type="text"
+                            id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+
+                    <div class="field-row">
+                        <label for="s-ui-hide-thoughts">Thought Blocks (Reasoning Models)</label>
+                        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                                <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
+                                        id="s-ui-hide-thoughts"><span class="toggle-slider"></span></label>
+                                <span class="settings-note">Hide reasoning content (&lt;think&gt; tags)</span>
                             </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('audio')">
-                            <span class="material-icons-round dash-icon">mic</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Voice & Audio</div>
-                                <div class="dash-desc">Speech to text & audio settings</div>
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                                <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
+                                        class="toggle-slider"></span></label>
+                                <span class="settings-note">Collapse Thought Blocks</span>
                             </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('tools')">
-                            <span class="material-icons-round dash-icon">build</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Tools</div>
-                                <div class="dash-desc">Web search, proxy & execution options</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('mcp')">
-                            <span class="material-icons-round dash-icon">hub</span>
-                            <div class="dash-content">
-                                <div class="dash-title">MCP</div>
-                                <div class="dash-desc">Model Context Protocol servers</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('gateway')">
-                            <span class="material-icons-round dash-icon">dns</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Gateway</div>
-                                <div class="dash-desc">Server port, host & connection settings</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('channels')">
-                            <span class="material-icons-round dash-icon">forum</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Channels</div>
-                                <div class="dash-desc">Progress reporting & notifications</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('skills')">
-                            <span class="material-icons-round dash-icon">menu_book</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Skills</div>
-                                <div class="dash-desc">Browse, pin & import workspace skills</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('plugins')">
-                            <span class="material-icons-round dash-icon">extension</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Plugins</div>
-                                <div class="dash-desc">Manage custom extensions and TTS voice engines</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
-                        <button class="dashboard-card" onclick="switchSettingsTab('update')">
-                            <span class="material-icons-round dash-icon">system_update</span>
-                            <div class="dash-content">
-                                <div class="dash-title">Update</div>
-                                <div class="dash-desc">Check for updates & onboard wizard</div>
-                            </div>
-                            <span class="material-icons-round dash-arrow">chevron_right</span>
-                        </button>
+                        </div>
+                    </div>
+
+                    <div class="field-row">
+                        <label for="s-ui-mobile-enter-newline">Mobile: Enter inserts newline</label>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <label class="toggle"><input type="checkbox" id="s-ui-mobile-enter-newline"><span
+                                    class="toggle-slider"></span></label>
+                            <span class="settings-note" style="margin-left:6px">On mobile devices, pressing Enter
+                                inserts a newline instead of sending the message</span>
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Tab: Providers (card grid) -->
+                <div class="settings-panel" id="panel-providers" style="display:none">
+                    <div class="provider-stats-bar">
+                        <div class="provider-search-wrap">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" id="provider-search" class="provider-search-input"
+                                placeholder="Filter providers..." aria-label="Filter providers...">
+                        </div>
+                        <div class="provider-stats-count" id="provider-stats"></div>
+                    </div>
+                    <div class="provider-grid" id="providers-list"></div>
+                </div>
+
+
+                <!-- Tab: OAuth Providers -->
+                <div class="settings-panel" id="panel-oauth" style="display:none">
+                    <div class="oauth-list" id="oauth-list">
+                        <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
                     </div>
                 </div>
 
-                <!-- Content pane -->
-                <div class="settings-content" id="settings-body">
-                    <!-- Mobile detail header back button -->
-                    <button class="settings-mobile-back" id="settings-mobile-back" onclick="backToSettingsDashboard()">
-                        <span class="material-icons-round">arrow_back</span> Back to settings list
-                    </button>
 
-                    <!-- Loading spinner -->
-                    <div id="settings-loading" class="settings-loader">
-                        <span class="material-icons-round spin">progress_activity</span>
-                        Loading settings...
+                <!-- Tab: Audio -->
+                <div class="settings-panel" id="panel-audio" style="display:none">
+                    <div class="field-row field-row-stack">
+                        <label for="s-audio-providerUrl">STT Provider URL</label>
+                        <p class="settings-note">
+                            Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier,
+                            ultra-fast)
+                            use: <code>https://api.groq.com/openai/v1</code>
+                        </p>
+                        <input type="text" id="s-audio-providerUrl" class="form-input"
+                            placeholder="https://api.groq.com/openai/v1">
                     </div>
-
-                    <!-- Tab: Agent -->
-                    <div class="settings-panel" id="panel-agent">
-                        <div class="field-row"><label for="s-agent-workspace">Workspace</label><input type="text" id="s-agent-workspace"
-                                class="form-input" placeholder="~/.shibaclaw/workspace"></div>
-                        <div class="field-row field-row-stack">
-                            <label for="s-agent-model-button">Default Model For New Sessions</label>
-                            <p class="settings-note">Used when you create a new chat. Provider routing is inferred
-                                automatically from the selected model.</p>
-                            <div class="settings-model-picker" id="s-agent-model-picker">
-                                <input type="hidden" id="s-agent-model">
-                                <button type="button" class="form-input settings-model-button"
-                                    id="s-agent-model-button">
-                                    <span class="settings-model-button-main">
-                                        <span class="settings-model-button-label" id="s-agent-model-display">Select a
-                                            default model</span>
-                                        <span class="settings-model-button-provider" id="s-agent-model-provider">New
-                                            sessions</span>
-                                    </span>
-                                    <span class="material-icons-round">arrow_drop_down</span>
-                                </button>
-                                <div class="settings-model-menu" id="s-agent-model-menu" style="display:none">
-                                    <input type="text" id="s-agent-model-search"
-                                        class="form-input settings-model-search" placeholder="Search models..."
-                                        autocomplete="off" aria-label="Search models...">
-                                    <div class="settings-model-list" id="s-agent-model-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field-row field-row-stack">
-                            <label for="s-agent-consolidationModel-button">Memory / Consolidation Model</label>
-                            <p class="settings-note">Optional. Leave it empty to reuse the default session model for
-                                proactive learning and long-term memory consolidation.</p>
-                            <div class="settings-model-picker" id="s-agent-consolidationModel-picker">
-                                <input type="hidden" id="s-agent-consolidationModel">
-                                <button type="button" class="form-input settings-model-button"
-                                    id="s-agent-consolidationModel-button">
-                                    <span class="settings-model-button-main">
-                                        <span class="settings-model-button-label"
-                                            id="s-agent-consolidationModel-display">Same as default session model</span>
-                                        <span
-                                            class="settings-model-button-provider settings-model-button-provider-placeholder"
-                                            id="s-agent-consolidationModel-provider">Inherits</span>
-                                    </span>
-                                    <span class="material-icons-round">arrow_drop_down</span>
-                                </button>
-                                <div class="settings-model-menu" id="s-agent-consolidationModel-menu"
-                                    style="display:none">
-                                    <input type="text" id="s-agent-consolidationModel-search"
-                                        class="form-input settings-model-search" placeholder="Search models..."
-                                        autocomplete="off" aria-label="Search models...">
-                                    <div class="settings-model-list" id="s-agent-consolidationModel-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="field-row"><label for="s-agent-maxTokens">Max Tokens</label><input type="number" id="s-agent-maxTokens"
-                                class="form-input" value="8192"></div>
-                        <div class="field-row"><label for="s-agent-ctxTokens">Context Window Tokens</label><input type="number"
-                                id="s-agent-ctxTokens" class="form-input" value="65536"></div>
-                        <div class="field-row"><label for="s-agent-temp">Temperature</label><input type="text" id="s-agent-temp"
-                                class="form-input" value="0.1"></div>
-                        <div class="field-row"><label for="s-agent-maxIter">Max Tool Iterations</label><input type="number"
-                                id="s-agent-maxIter" class="form-input" value="40"></div>
-                        <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s)</label><input type="number"
-                                id="s-agent-toolTimeout" class="form-input" value="660" min="10"
-                                title="Max seconds for all tool executions combined"></div>
-                        <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s)</label><input type="number"
-                                id="s-agent-loopWallTimeout" class="form-input" value="600" min="10"
-                                title="Max seconds for the entire agent loop"></div>
-                        <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s)</label><input type="number"
-                                id="s-agent-subagentTimeout" class="form-input" value="600" min="10"
-                                title="Max seconds for a single subagent execution"></div>
-                        <div class="field-row"><label for="s-agent-reasoning">Reasoning Effort</label><input type="text" id="s-agent-reasoning"
-                                class="form-input" placeholder="null (not set)"></div>
-
-                        <div class="field-row">
-                            <label for="s-ui-hide-thoughts">Thought Blocks (Reasoning Models)</label>
-                            <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-                                <div style="display:flex;align-items:center;gap:8px;min-width:0">
-                                    <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
-                                            id="s-ui-hide-thoughts"><span class="toggle-slider"></span></label>
-                                    <span class="settings-note">Hide reasoning content (&lt;think&gt; tags)</span>
-                                </div>
-                                <div style="display:flex;align-items:center;gap:8px;min-width:0">
-                                    <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
-                                            class="toggle-slider"></span></label>
-                                    <span class="settings-note">Collapse Thought Blocks</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="field-row">
-                            <label for="s-ui-mobile-enter-newline">Mobile: Enter inserts newline</label>
-                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                <label class="toggle"><input type="checkbox" id="s-ui-mobile-enter-newline"><span
-                                        class="toggle-slider"></span></label>
-                                <span class="settings-note" style="margin-left:6px">On mobile devices, pressing Enter
-                                    inserts a newline instead of sending the message</span>
-                            </div>
-                        </div>
-
+                    <div class="field-row"><label for="s-audio-apiKey">STT API Key</label><input type="password"
+                            id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)">
                     </div>
-
-
-                    <!-- Tab: Providers (card grid) -->
-                    <div class="settings-panel" id="panel-providers" style="display:none">
-                        <div class="provider-stats-bar">
-                            <div class="provider-search-wrap">
-                                <span class="material-icons-round">search</span>
-                                <input type="text" id="provider-search" class="provider-search-input" placeholder="Filter providers..." aria-label="Filter providers...">
-                            </div>
-                            <div class="provider-stats-count" id="provider-stats"></div>
-                        </div>
-                        <div class="provider-grid" id="providers-list"></div>
+                    <div class="field-row"><label for="s-audio-model">STT Model</label><input type="text"
+                            id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
+                    <div class="field-row"><label for="tts-toggle">Text-To-Speech (Bot Voice)</label><label
+                            class="toggle"><input type="checkbox" id="tts-toggle"><span
+                                class="toggle-slider"></span></label></div>
+                    <div class="field-row" id="tts-provider-row" style="display:none">
+                        <label for="s-audio-ttsProvider">TTS Provider</label>
+                        <select id="s-audio-ttsProvider" class="form-input">
+                            <option value="browser">Browser Native Synthesis</option>
+                            <option value="supertonic">Supertonic TTS (Local ONNX)</option>
+                        </select>
                     </div>
-
-
-                    <!-- Tab: OAuth Providers -->
-                    <div class="settings-panel" id="panel-oauth" style="display:none">
-                        <div class="oauth-list" id="oauth-list">
-                            <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
-                        </div>
+                    <div class="field-row" id="tts-voice-row" style="display:none">
+                        <label for="s-audio-ttsVoice">TTS Voice</label>
+                        <select id="s-audio-ttsVoice" class="form-input">
+                            <option value="F1">Female 1 (en_female)</option>
+                            <option value="M1">Male 1 (en_male)</option>
+                        </select>
                     </div>
-
-
-                    <!-- Tab: Audio -->
-                    <div class="settings-panel" id="panel-audio" style="display:none">
-                        <div class="field-row field-row-stack">
-                            <label for="s-audio-providerUrl">STT Provider URL</label>
-                            <p class="settings-note">
-                                Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier,
-                                ultra-fast)
-                                use: <code>https://api.groq.com/openai/v1</code>
-                            </p>
-                            <input type="text" id="s-audio-providerUrl" class="form-input"
-                                placeholder="https://api.groq.com/openai/v1">
-                        </div>
-                        <div class="field-row"><label for="s-audio-apiKey">STT API Key</label><input type="password" id="s-audio-apiKey"
-                                class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)"></div>
-                        <div class="field-row"><label for="s-audio-model">STT Model</label><input type="text" id="s-audio-model"
-                                class="form-input" placeholder="whisper-large-v3-turbo"></div>
-                        <div class="field-row"><label for="tts-toggle">Text-To-Speech (Bot Voice)</label><label class="toggle"><input
-                                    type="checkbox" id="tts-toggle"><span class="toggle-slider"></span></label></div>
-                        <div class="field-row" id="tts-provider-row" style="display:none">
-                            <label for="s-audio-ttsProvider">TTS Provider</label>
-                            <select id="s-audio-ttsProvider" class="form-input">
-                                <option value="browser">Browser Native Synthesis</option>
-                                <option value="supertonic">Supertonic TTS (Local ONNX)</option>
-                            </select>
-                        </div>
-                        <div class="field-row" id="tts-voice-row" style="display:none">
-                            <label for="s-audio-ttsVoice">TTS Voice</label>
-                            <select id="s-audio-ttsVoice" class="form-input">
-                                <option value="F1">Female 1 (en_female)</option>
-                                <option value="M1">Male 1 (en_male)</option>
-                            </select>
-                        </div>
-                        <div class="field-row" id="tts-lang-row" style="display:none">
-                            <label for="s-audio-ttsLang">TTS Language</label>
-                            <select id="s-audio-ttsLang" class="form-input">
-                                <option value="en">English (en)</option>
-                                <option value="it">Italiano (it)</option>
-                                <option value="es">Español (es)</option>
-                                <option value="fr">Français (fr)</option>
-                                <option value="de">Deutsch (de)</option>
-                                <option value="ja">日本語 (ja)</option>
-                                <option value="na">Auto-detect (na)</option>
-                            </select>
-                        </div>
-                        <div class="field-row" id="tts-speed-row" style="display:none">
-                            <label for="s-audio-ttsSpeed">TTS Speed</label>
-                            <input type="number" id="s-audio-ttsSpeed" class="form-input" min="0.5" max="2.0" step="0.1" value="1.0">
-                        </div>
+                    <div class="field-row" id="tts-lang-row" style="display:none">
+                        <label for="s-audio-ttsLang">TTS Language</label>
+                        <select id="s-audio-ttsLang" class="form-input">
+                            <option value="en">English (en)</option>
+                            <option value="it">Italiano (it)</option>
+                            <option value="es">Español (es)</option>
+                            <option value="fr">Français (fr)</option>
+                            <option value="de">Deutsch (de)</option>
+                            <option value="ja">日本語 (ja)</option>
+                            <option value="na">Auto-detect (na)</option>
+                        </select>
                     </div>
-
-                    <!-- Tab: Tools -->
-                    <div class="settings-panel" id="panel-tools" style="display:none">
-                        <div class="field-row"><label for="s-tool-searchProvider">Search Provider</label><input type="text"
-                                id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
-                        <div class="field-row"><label for="s-tool-searchKey">Search API Key</label><input type="password" id="s-tool-searchKey"
-                                class="form-input" placeholder="API key"></div>
-                        <div class="field-row"><label for="s-tool-searchMax">Max Search Results</label><input type="number"
-                                id="s-tool-searchMax" class="form-input" value="5"></div>
-                        <div class="field-row"><label for="s-tool-proxy">Proxy URL</label><input type="text" id="s-tool-proxy"
-                                class="form-input" placeholder="(optional)"></div>
-                        <div class="field-row"><label for="s-tool-execEnable">Shell Exec Enabled</label><label class="toggle"><input
-                                    type="checkbox" id="s-tool-execEnable"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div class="field-row"><label for="s-tool-execTimeout">Exec Timeout (s)</label><input type="number"
-                                id="s-tool-execTimeout" class="form-input" value="60"></div>
-                        <div class="field-row"><label for="s-tool-restrict">Restrict to Workspace</label><label class="toggle"><input
-                                    type="checkbox" id="s-tool-restrict"><span class="toggle-slider"></span></label>
-                        </div>
+                    <div class="field-row" id="tts-speed-row" style="display:none">
+                        <label for="s-audio-ttsSpeed">TTS Speed</label>
+                        <input type="number" id="s-audio-ttsSpeed" class="form-input" min="0.5" max="2.0" step="0.1"
+                            value="1.0">
                     </div>
+                </div>
 
-                    <!-- Tab: MCP Servers -->
-                    <div class="settings-panel" id="panel-mcp" style="display:none">
-                        <div id="mcp-manager-container"></div>
+                <!-- Tab: Tools -->
+                <div class="settings-panel" id="panel-tools" style="display:none">
+                    <div class="field-row"><label for="s-tool-searchProvider">Search Provider</label><input type="text"
+                            id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
+                    <div class="field-row"><label for="s-tool-searchKey">Search API Key</label><input type="password"
+                            id="s-tool-searchKey" class="form-input" placeholder="API key"></div>
+                    <div class="field-row"><label for="s-tool-searchMax">Max Search Results</label><input type="number"
+                            id="s-tool-searchMax" class="form-input" value="5"></div>
+                    <div class="field-row"><label for="s-tool-proxy">Proxy URL</label><input type="text"
+                            id="s-tool-proxy" class="form-input" placeholder="(optional)"></div>
+                    <div class="field-row"><label for="s-tool-execEnable">Shell Exec Enabled</label><label
+                            class="toggle"><input type="checkbox" id="s-tool-execEnable"><span
+                                class="toggle-slider"></span></label>
                     </div>
+                    <div class="field-row"><label for="s-tool-execTimeout">Exec Timeout (s)</label><input type="number"
+                            id="s-tool-execTimeout" class="form-input" value="60"></div>
+                    <div class="field-row"><label for="s-tool-restrict">Restrict to Workspace</label><label
+                            class="toggle"><input type="checkbox" id="s-tool-restrict"><span
+                                class="toggle-slider"></span></label>
+                    </div>
+                </div>
 
-                    <!-- Tab: Gateway -->
-                    <div class="settings-panel" id="panel-gateway" style="display:none">
-                        <div class="field-row"><label for="s-gw-host">Host</label><input type="text" id="s-gw-host" class="form-input"
-                                placeholder="127.0.0.1"></div>
-                        <div class="field-row"><label for="s-gw-port">Port</label><input type="number" id="s-gw-port" class="form-input"
-                                value="19999"></div>
-                        <!--
+                <!-- Tab: MCP Servers -->
+                <div class="settings-panel" id="panel-mcp" style="display:none">
+                    <div id="mcp-manager-container"></div>
+                </div>
+
+                <!-- Tab: Gateway -->
+                <div class="settings-panel" id="panel-gateway" style="display:none">
+                    <div class="field-row"><label for="s-gw-host">Host</label><input type="text" id="s-gw-host"
+                            class="form-input" placeholder="127.0.0.1"></div>
+                    <div class="field-row"><label for="s-gw-port">Port</label><input type="number" id="s-gw-port"
+                            class="form-input" value="19999"></div>
+                    <!--
                             Legacy heartbeat fields — kept hidden so saveSettings() still collects them
                             and avoids stripping existing config values. Managed via the Automation panel.
                         -->
-                        <input type="hidden" id="s-hb-enabled" value="true">
-                        <input type="hidden" id="s-hb-interval" value="30">
-                        <input type="hidden" id="s-hb-model" value="">
-                        <input type="hidden" id="s-hb-profile" value="">
-                        <select id="s-hb-target-channel" style="display:none"></select>
-                        <input type="hidden" id="s-hb-target-id" value="">
+                    <input type="hidden" id="s-hb-enabled" value="true">
+                    <input type="hidden" id="s-hb-interval" value="30">
+                    <input type="hidden" id="s-hb-model" value="">
+                    <input type="hidden" id="s-hb-profile" value="">
+                    <select id="s-hb-target-channel" style="display:none"></select>
+                    <input type="hidden" id="s-hb-target-id" value="">
+                </div>
+
+                <!-- Tab: Channels (split layout) -->
+                <div class="settings-panel" id="panel-channels" style="display:none">
+                    <div class="channel-top-bar">
+                        <div class="channel-top-chip">
+                            <span>Send Progress</span>
+                            <label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="channel-top-chip">
+                            <span>Send Tool Hints</span>
+                            <label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="channel-top-stats" id="channel-stats"></div>
                     </div>
-
-                    <!-- Tab: Channels (split layout) -->
-                    <div class="settings-panel" id="panel-channels" style="display:none">
-                        <div class="channel-top-bar">
-                            <div class="channel-top-chip">
-                                <span>Send Progress</span>
-                                <label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span class="toggle-slider"></span></label>
+                    <div class="channel-split">
+                        <div class="channel-list" id="channel-list"></div>
+                        <div class="channel-detail-pane" id="channel-detail-pane">
+                            <div class="channel-detail-empty">
+                                <span class="material-icons-round">touch_app</span>
+                                Select a channel to configure
                             </div>
-                            <div class="channel-top-chip">
-                                <span>Send Tool Hints</span>
-                                <label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span class="toggle-slider"></span></label>
-                            </div>
-                            <div class="channel-top-stats" id="channel-stats"></div>
-                        </div>
-                        <div class="channel-split">
-                            <div class="channel-list" id="channel-list"></div>
-                            <div class="channel-detail-pane" id="channel-detail-pane">
-                                <div class="channel-detail-empty">
-                                    <span class="material-icons-round">touch_app</span>
-                                    Select a channel to configure
-                                </div>
-                            </div>
-                        </div>
-                        <div id="channels-detail" style="display:none"></div>
-                    </div>
-
-                    <!-- Tab: Skills -->
-                    <div class="settings-panel" id="panel-skills" style="display:none">
-                        <!-- Skills toolbar -->
-                        <div class="skills-toolbar">
-                            <input type="text" id="skills-search" class="form-input"
-                                placeholder="Filter skills by name or description..." aria-label="Filter skills by name or description...">
-                            <div class="skills-toolbar-actions">
-                                <select id="skills-profile-select" class="form-select" style="min-width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); margin-right: 8px;" aria-label="Select profile for skills" onchange="loadSkillsPanel()">
-                                    <option value="default">Default Profile</option>
-                                </select>
-                                <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
-                                    <span class="material-icons-round"
-                                        style="font-size:16px;vertical-align:middle">refresh</span> Refresh
-                                </button>
-                                <button type="button" class="btn-secondary"
-                                    onclick="window.open('https://clawhub.ai/','_blank')">
-                                    <span class="material-icons-round"
-                                        style="font-size:16px;vertical-align:middle">store</span> ClawHub
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Always Active pinning section -->
-                        <div class="skills-pinned-section">
-                            <div class="skills-section-header">
-                                <span class="material-icons-round">push_pin</span>
-                                <span>Always Active</span>
-                                <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
-                            </div>
-                            <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills.
-                                Injected every turn.</p>
-                            <div id="skills-pinned-list" class="skills-pinned-list"></div>
-                        </div>
-
-                        <!-- All skills browse -->
-                        <div class="skills-browse-section">
-                            <div class="skills-section-header">
-                                <span class="material-icons-round">menu_book</span>
-                                <span>Installed Skills</span>
-                            </div>
-                            <div id="skills-list" class="skills-list">
-                                <div class="settings-loader"><span
-                                        class="material-icons-round spin">progress_activity</span> Loading skills...
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Import section -->
-                        <div class="skills-import-section">
-                            <div class="skills-section-header">
-                                <span class="material-icons-round">upload_file</span>
-                                <span>Import Skills (.zip)</span>
-                            </div>
-                            <div class="skills-import-form">
-                                <input type="file" id="skills-import-file" accept=".zip" style="display:none"
-                                    onchange="handleSkillsFileSelect(event)">
-                                <button type="button" class="btn-secondary"
-                                    onclick="document.getElementById('skills-import-file').click()">
-                                    <span class="material-icons-round"
-                                        style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
-                                </button>
-                                <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
-                                <button type="button" class="btn-primary" id="skills-import-btn"
-                                    onclick="importSkills()" disabled>
-                                    Import
-                                </button>
-                            </div>
-                            <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
                         </div>
                     </div>
+                    <div id="channels-detail" style="display:none"></div>
+                </div>
 
-                    <div class="settings-panel" id="panel-plugins" style="display:none">
-                        <div class="skills-toolbar">
-                            <input type="text" id="plugin-install-name" class="form-input"
-                                placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL..." aria-label="Plugin package name or Git URL">
-                            <div class="skills-toolbar-actions">
-                                <button type="button" class="btn-primary" onclick="installPlugin()">
-                                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">download</span> Install
-                                </button>
-                            </div>
-                        </div>
-                        <div id="plugin-action-log" class="console-box" style="display:none; font-family:var(--font-mono); font-size:0.75rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:16px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--text-secondary)"></div>
-                        <div class="skills-browse-section">
-                            <div class="skills-section-header">
-                                <span class="material-icons-round">extension</span>
-                                <span>Installed Plugins</span>
-                            </div>
-                            <div id="installed-plugins-list" class="skills-list"></div>
-                        </div>
-                        <div class="skills-browse-section" style="margin-top: 1.5rem;">
-                            <div class="skills-section-header">
-                                <span class="material-icons-round">cloud_download</span>
-                                <span>Available Plugins</span>
-                            </div>
-                            <div id="available-plugins-list" class="skills-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- Tab: Update -->
-                    <div class="settings-panel" id="panel-update" style="display:none">
-                        <div id="update-status-container">
-                            <div class="update-checking"><span
-                                    class="material-icons-round spin">progress_activity</span> Loading...</div>
-                        </div>
-
-                        <div class="settings-section-divider" style="margin-top: 2rem;">
-                            <span class="material-icons-round">rocket_launch</span>
-                            <span>Setup Wizard</span>
-                        </div>
-                        <div class="field-row field-row-stack">
-                            <p class="settings-note">Reopen the guided setup to configure provider, credentials, model
-                                and workspace templates.</p>
-                            <button type="button" class="btn-secondary settings-onboard-btn"
-                                onclick="openOnboardFromSettings()">
+                <!-- Tab: Skills -->
+                <div class="settings-panel" id="panel-skills" style="display:none">
+                    <!-- Skills toolbar -->
+                    <div class="skills-toolbar">
+                        <input type="text" id="skills-search" class="form-input"
+                            placeholder="Filter skills by name or description..."
+                            aria-label="Filter skills by name or description...">
+                        <div class="skills-toolbar-actions">
+                            <select id="skills-profile-select" class="form-select"
+                                style="min-width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); margin-right: 8px;"
+                                aria-label="Select profile for skills" onchange="loadSkillsPanel()">
+                                <option value="default">Default Profile</option>
+                            </select>
+                            <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
                                 <span class="material-icons-round"
-                                    style="font-size:16px;vertical-align:middle">rocket_launch</span>
-                                Open onboarding wizard
+                                    style="font-size:16px;vertical-align:middle">refresh</span> Refresh
+                            </button>
+                            <button type="button" class="btn-secondary"
+                                onclick="window.open('https://clawhub.ai/','_blank')">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">store</span> ClawHub
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Always Active pinning section -->
+                    <div class="skills-pinned-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">push_pin</span>
+                            <span>Always Active</span>
+                            <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
+                        </div>
+                        <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills.
+                            Injected every turn.</p>
+                        <div id="skills-pinned-list" class="skills-pinned-list"></div>
+                    </div>
+
+                    <!-- All skills browse -->
+                    <div class="skills-browse-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">menu_book</span>
+                            <span>Installed Skills</span>
+                        </div>
+                        <div id="skills-list" class="skills-list">
+                            <div class="settings-loader"><span
+                                    class="material-icons-round spin">progress_activity</span> Loading skills...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Import section -->
+                    <div class="skills-import-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">upload_file</span>
+                            <span>Import Skills (.zip)</span>
+                        </div>
+                        <div class="skills-import-form">
+                            <input type="file" id="skills-import-file" accept=".zip" style="display:none"
+                                onchange="handleSkillsFileSelect(event)">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('skills-import-file').click()">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
+                            </button>
+                            <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
+                            <button type="button" class="btn-primary" id="skills-import-btn" onclick="importSkills()"
+                                disabled>
+                                Import
+                            </button>
+                        </div>
+                        <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
+                    </div>
+                </div>
+
+                <div class="settings-panel" id="panel-plugins" style="display:none">
+                    <div class="skills-toolbar">
+                        <input type="text" id="plugin-install-name" class="form-input"
+                            placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL..."
+                            aria-label="Plugin package name or Git URL">
+                        <div class="skills-toolbar-actions">
+                            <button type="button" class="btn-primary" onclick="installPlugin()">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">download</span> Install
+                            </button>
+                        </div>
+                    </div>
+                    <div id="plugin-action-log" class="console-box"
+                        style="display:none; font-family:var(--font-mono); font-size:0.75rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:16px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--text-secondary)">
+                    </div>
+                    <div class="skills-browse-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">extension</span>
+                            <span>Installed Plugins</span>
+                        </div>
+                        <div id="installed-plugins-list" class="skills-list"></div>
+                    </div>
+                    <div class="skills-browse-section" style="margin-top: 1.5rem;">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">cloud_download</span>
+                            <span>Available Plugins</span>
+                        </div>
+                        <div id="available-plugins-list" class="skills-list"></div>
+                    </div>
+                </div>
+
+                <!-- Tab: Update -->
+                <div class="settings-panel" id="panel-update" style="display:none">
+                    <div id="update-status-container">
+                        <div class="update-checking"><span class="material-icons-round spin">progress_activity</span>
+                            Loading...</div>
+                    </div>
+
+                    <div class="settings-section-divider" style="margin-top: 2rem;">
+                        <span class="material-icons-round">rocket_launch</span>
+                        <span>Setup Wizard</span>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <p class="settings-note">Reopen the guided setup to configure provider, credentials, model
+                            and workspace templates.</p>
+                        <button type="button" class="btn-secondary settings-onboard-btn"
+                            onclick="openOnboardFromSettings()">
+                            <span class="material-icons-round"
+                                style="font-size:16px;vertical-align:middle">rocket_launch</span>
+                            Open onboarding wizard
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
@@ -1082,7 +1129,8 @@
         <div class="modal large">
             <div class="modal-header">
                 <h2><span class="material-icons-round">folder_open</span> File Explorer</h2>
-                <button class="btn-icon" aria-label="Refresh" onclick="loadFs(state.currentFsPath || '.')" title="Refresh">
+                <button class="btn-icon" aria-label="Refresh" onclick="loadFs(state.currentFsPath || '.')"
+                    title="Refresh">
                     <span class="material-icons-round">refresh</span>
                 </button>
                 <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('fs-modal')">
@@ -1142,7 +1190,8 @@
                         <div class="ob-key-wrap">
                             <input type="password" id="ob-api-key" class="form-input ob-key-input" placeholder="sk-..."
                                 autocomplete="off" aria-label="API Key">
-                            <button class="ob-eye" id="ob-eye-toggle" type="button" aria-label="Toggle password visibility" title="Toggle password visibility"><span
+                            <button class="ob-eye" id="ob-eye-toggle" type="button"
+                                aria-label="Toggle password visibility" title="Toggle password visibility"><span
                                     class="material-icons-round">visibility_off</span></button>
                         </div>
                         <p class="ob-hint" id="ob-key-hint"></p>
@@ -1242,6 +1291,39 @@
 
     <script src="/static/js/state.js?v=2"></script>
     <script src="/static/js/auth.js?v=2"></script>
+    <!-- Knowledge Base Manager Modal -->
+    <div class="modal-backdrop" id="knowledge-modal" data-backdrop-close="false">
+        <div class="modal" style="width: 600px; max-width: 95vw;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-icons-round">library_books</span>
+                    <h2>Knowledge Bases</h2>
+                </div>
+                <button class="btn-icon" onclick="closeModal('knowledge-modal')" aria-label="Close modal">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="margin-bottom:16px; color:var(--text-muted)">Manage collections of documents for the agent to
+                    reference.</p>
+                <div style="display:flex; gap:8px; margin-bottom: 16px;">
+                    <input type="text" id="kb-new-name" class="form-input" placeholder="New collection name"
+                        style="flex:1">
+                    <button class="btn-primary" onclick="createKB()" style="width: auto; min-width: 80px;"
+                        id="kb-btn-create">Create</button>
+                </div>
+                <div id="kb-feedback-msg"
+                    style="display:none; margin-bottom: 16px; font-size: 13px; font-weight: 500; padding: 8px 12px; border-radius: var(--radius-md);">
+                </div>
+                <div id="kb-list-container"
+                    style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/knowledge.js?v=1"></script>
     <script src="/static/js/utils.js?v=2"></script>
     <script src="/static/js/api_socket.js?v=2"></script>
     <script src="/static/js/chat.js?v=2"></script>

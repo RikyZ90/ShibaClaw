@@ -51,6 +51,7 @@ async def api_sessions_get(request: Request):
             "nickname": session.metadata.get("nickname"),
             "profile_id": session.metadata.get("profile_id", "default"),
             "model": session.metadata.get("model", ""),
+            "knowledge_bases": session.metadata.get("knowledge_bases", []),
         }
     )
 
@@ -72,7 +73,9 @@ async def api_sessions_patch(request: Request):
         session.metadata["profile_id"] = data["profile_id"]
     if "model" in data:
         session.metadata["model"] = data["model"]
-    if "nickname" in data or "profile_id" in data or "model" in data:
+    if "knowledge_bases" in data:
+        session.metadata["knowledge_bases"] = data["knowledge_bases"]
+    if "nickname" in data or "profile_id" in data or "model" in data or "knowledge_bases" in data:
         pm.save(session)
         return JSONResponse(
             {"status": "updated", "profile_id": session.metadata.get("profile_id", "default")}
