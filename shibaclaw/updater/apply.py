@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
+from loguru import logger
+
 from shibaclaw.updater.detector import PYPI_PACKAGE, get_installation_method
 from shibaclaw.updater.manifest import normalize_manifest_path
 
@@ -169,7 +171,6 @@ def _exe_upgrade(
             cwd=tempfile.gettempdir(),
         )
 
-        from loguru import logger
         logger.info(
             "exe updater: launched installer for v{} | install_dir={} | cmd={}",
             version,
