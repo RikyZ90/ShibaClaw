@@ -1,26 +1,26 @@
 {
-    "version": "0.8.3",
-    "release_notes": "Bumped minimum dependency versions in pyproject.toml to the latest secure and stable versions. Implemented security fixes for Zip Slip, path traversals, file explorer path disclosures, and optimized configuration load performance.",
+    "version": "0.8.5",
+    "release_notes": "Decentralized ui_panels.js into modular files, replaced monkey-patching with CustomEvents, resolved frontend memory leaks, fixed scroll hijacking, and optimized Markdown rendering performance.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.8.3."
+            "note": "Bumped version to 0.8.5."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.8.3 release notes."
+            "note": "Added v0.8.5 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated welcome announcement to v0.8.3."
+            "note": "Updated welcome announcement to v0.8.5."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.8.3."
+            "note": "Bumped packaged update manifest to v0.8.5."
         },
         {
             "path": "shibaclaw/agent/skills.py",

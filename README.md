@@ -22,14 +22,12 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.8.3</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.8.5</b> — Click to see what's new</summary>
 
-- **Agent Context Builder** — Implemented a new context builder and support infrastructure for enhanced agent runtime state management.
-- **Zip Slip & Path Traversal Mitigations** — Resolved a Zip Slip vulnerability in skill importing and path traversal risks in the plugin manager and updater version handling.
-- **Config Load Optimization** — Eliminated redundant disk writes and onboarding scans by running plugin discovery once per process.
-- **File Explorer Path Redaction** — Switched the explorer API to return relative paths instead of absolute local system paths, resolving information disclosure.
-- **WebSocket Close Handling** — Wrapped early websocket closes in try-except blocks to prevent unhandled connection errors on drop.
-- **TASK.md Sanitization & Virtual Tasks** — Fixed HTML comment sanitization in `TASK.md` and case-insensitive virtual task deletion logic.
+- **UI Architecture Split** — Decentralized the massive `ui_panels.js` God Object (3,400+ lines) into modular files to vastly improve Clean Code compliance and maintainability.
+- **Event-Driven Modals** — Replaced fragile monkey-patching of `window.openModal` with a decoupled `shiba-modal-opened` VanillaJS CustomEvent mechanism.
+- **Memory Leaks & Scroll Hijacking Fixed** — Resolved frontend memory leaks by adding a hard limit to OAuth polling flows and fixing gateway caching. Fixed a UI bug where scrolling up would forcefully pull the user to the bottom of the page.
+- **Session Load Decomposition** — Decomposed the monolithic 250+ line `loadSession()` into four single-responsibility functions, improving parse execution speed.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 

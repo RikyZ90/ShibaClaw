@@ -1,3 +1,17 @@
+## [0.8.5] - 2026-07-07
+
+### Refactored
+- **UI Architecture Split** — Decentralized the massive `ui_panels.js` God Object (3,400+ lines) into modular files (`settings_panel`, `update_panel`, `onboard_wizard`, `model_selector`, `auth_ui`, `plugins_panel`) to vastly improve Clean Code compliance and maintainability without introducing external build dependencies.
+- **Event-Driven Modals** — Replaced fragile monkey-patching of `window.openModal` with a decoupled `shiba-modal-opened` VanillaJS CustomEvent mechanism.
+
+### Fixed
+- **Memory Leaks** — Resolved frontend memory leaks by adding a hard `MAX_POLLS` limit to OAuth polling flows and properly caching and clearing the gateway `setInterval` ID in `restartGateway()`.
+- **Chat Scroll Hijacking** — Fixed a UI bug where `scrollToBottom()` would forcefully pull the user to the bottom of the page when actively scrolling up to read chat history.
+
+### Optimized
+- **Markdown Rendering** — Eliminated repeated `localStorage` read calls during rapid Markdown parsing operations by migrating to globally cached state variables.
+- **Session Load Decomposition** — Decomposed the monolithic 250+ line `loadSession()` into four single-responsibility functions, improving stack trace clarity and parse execution speed.
+
 ## [0.8.3] - 2026-07-06
 
 ### Added
