@@ -18,15 +18,14 @@ let mentionState = {
 async function loadMentionData() {
     if (mentionData.loaded) return;
     try {
-        const [kbRes, mcpRes, appRes] = await Promise.all([
+        const [kbRes, mcpRes] = await Promise.all([
             authFetch("/api/knowledge").then(res => res.ok ? res.json() : []),
-            authFetch("/api/mcp/servers").then(res => res.ok ? res.json() : []),
-            authFetch("/api/apps").then(res => res.ok ? res.json() : [])
+            authFetch("/api/mcp/servers").then(res => res.ok ? res.json() : [])
         ]);
         
         mentionData.kb = (kbRes.collections || []).map(k => ({ type: "kb", id: k.id, name: k.name, label: "Knowledge Base", icon: "menu_book" }));
-        mentionData.mcp = (mcpRes.servers || []).map(m => ({ type: "mcp", id: m._name || m.name, name: m._name || m.name, label: "MCP Server", icon: "dns" }));
-        mentionData.app = (appRes.apps || []).map(a => ({ type: "app", id: a.id, name: a.name, label: "App", icon: "apps" }));
+        mentionData.mcp = (mcpRes.servers || []).map(m => ({ type: "mcp", id: m._name || m.name, name: m._name || m.name, label: "App", icon: "apps" }));
+        mentionData.app = []; // Kept empty for compatibility
         
         mentionData.loaded = true;
     } catch (e) {

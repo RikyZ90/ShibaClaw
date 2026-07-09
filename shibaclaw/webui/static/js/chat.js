@@ -455,8 +455,7 @@ function renderMarkdown(text) {
                 let t = type.toLowerCase();
                 let colorClass = "";
                 if (t === "kb") { icon = "menu_book"; colorClass = "mention-kb"; }
-                else if (t === "app") { icon = "apps"; colorClass = "mention-app"; }
-                else if (t === "mcp") { icon = "dns"; colorClass = "mention-mcp"; }
+                else if (t === "app" || t === "mcp") { icon = "apps"; colorClass = "mention-app"; }
                 mentions.push(`<span class="mention-chip-inline ${colorClass}"><span class="material-icons-round">${icon}</span>${name}</span>`);
                 return `@@MENTION_PLACEHOLDER_${mentions.length - 1}@@`;
             });
