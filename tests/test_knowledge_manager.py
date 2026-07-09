@@ -1,7 +1,4 @@
-import os
-import shutil
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from shibaclaw.agent.knowledge_manager import KnowledgeManager

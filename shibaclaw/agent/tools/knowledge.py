@@ -1,6 +1,6 @@
 """Knowledge Search tool."""
 
-from typing import Any, List
+from typing import Any
 
 from shibaclaw.agent.tools.base import Tool
 from shibaclaw.agent.knowledge_manager import KnowledgeManager

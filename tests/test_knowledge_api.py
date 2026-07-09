@@ -1,7 +1,5 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-import shutil
 from unittest.mock import patch
 with patch("shibaclaw.webui.server._auth_enabled", return_value=False):
     from shibaclaw.webui.server import create_app

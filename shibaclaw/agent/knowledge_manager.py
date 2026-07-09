@@ -15,16 +15,16 @@ warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub"
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
 
-from langchain_core.documents import Document
-from langchain_community.document_loaders import (
+from langchain_core.documents import Document  # noqa: E402
+from langchain_community.document_loaders import (  # noqa: E402
     BSHTMLLoader,
     CSVLoader,
     PyPDFLoader,
     TextLoader,
 )
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS  # noqa: E402
+from langchain_huggingface import HuggingFaceEmbeddings  # noqa: E402
+from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
