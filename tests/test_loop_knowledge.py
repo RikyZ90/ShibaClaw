@@ -2,6 +2,8 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 
+from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+
 @pytest.fixture
 def mock_agent_loop():
     from shibaclaw.agent.loop import ShibaBrain
@@ -25,7 +27,6 @@ def mock_agent_loop():
     
     return brain
 
-from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not RAG_AVAILABLE, reason="RAG dependencies are not installed")
