@@ -11,6 +11,7 @@ This document describes the full HTTP REST API exposed by the ShibaClaw WebUI se
 - [Context](#context)
 - [Skills](#skills)
 - [Profiles](#profiles)
+- [Knowledge Base](#knowledge-base)
 - [Gateway](#gateway)
 - [Automations](#automations)
 - [Filesystem](#filesystem)
@@ -236,7 +237,9 @@ Get details and message history for a specific session.
     { "role": "assistant", "content": "Hi there!" }
   ],
   "nickname": "My session",
-  "profile_id": "default"
+  "profile_id": "default",
+  "model": "gpt-4o",
+  "knowledge_bases": ["docs-collection"]
 }
 ```
 
@@ -244,7 +247,7 @@ Get details and message history for a specific session.
 
 ### `PATCH /api/sessions/{session_id}`
 
-Update session metadata (nickname and/or profile) or dynamically switch the active model.
+Update session metadata (nickname, profile, active model, and/or active knowledge bases).
 
 **Request body** (all fields optional)
 
@@ -252,14 +255,18 @@ Update session metadata (nickname and/or profile) or dynamically switch the acti
 {
   "nickname": "Renamed session",
   "profile_id": "my-profile",
-  "model": "gpt-4o"
+  "model": "gpt-4o",
+  "knowledge_bases": ["docs-collection"]
 }
 ```
 
 **Response**
 
 ```json
-{ "status": "updated", "profile_id": "my-profile" }
+{
+  "status": "updated",
+  "profile_id": "my-profile"
+}
 ```
 
 ---
@@ -650,6 +657,142 @@ Delete a custom profile. The `default` profile and built-in profiles cannot be d
 | Status | Body | Cause |
 |---|---|---|
 | 403 | `{ "error": "Cannot delete built-in or default profile" }` | Protected profile |
+
+---
+
+## Knowledge Base
+
+The Knowledge Base API manages cross-session vector stores using FAISS and LangChain. Files uploaded to a collection are chunked, embedded using HuggingFace embeddings (`all-MiniLM-L6-v2`), and stored locally for semantic search.
+
+### `GET /api/knowledge`
+
+List all available knowledge base collections.
+
+**Response**
+
+```json
+{
+  "collections": [
+    {
+      "id": "docs-collection",
+      "name": "Documentation",
+      "description": "Project manuals and deployment guides",
+      "files": ["deploy_guide.md", "README.md"]
+    }
+  ]
+}
+```
+
+---
+
+### `POST /api/knowledge`
+
+Create a new knowledge base collection.
+
+**Request body**
+
+```json
+{
+  "id": "docs-collection",
+  "name": "Documentation",
+  "description": "Project manuals and deployment guides"
+}
+```
+
+**Response**
+
+```json
+{
+  "id": "docs-collection",
+  "name": "Documentation",
+  "description": "Project manuals and deployment guides",
+  "files": []
+}
+```
+
+| Status | Body | Cause |
+|---|---|---|
+| 422 | `{ "error": "id and name are required" }` | Missing required parameters |
+| 400 | `{ "error": "Collection docs-collection already exists" }` | Collection ID conflict |
+
+---
+
+### `PATCH /api/knowledge/{collection_id}`
+
+Update collection metadata (rename or change description).
+
+**Path params**
+
+| Param | Description |
+|---|---|
+| `collection_id` | Collection identifier |
+
+**Request body** (all fields optional)
+
+```json
+{
+  "name": "New Collection Name",
+  "description": "New Description"
+}
+```
+
+**Response**
+
+```json
+{
+  "id": "docs-collection",
+  "name": "New Collection Name",
+  "description": "New Description",
+  "files": ["deploy_guide.md", "README.md"]
+}
+```
+
+---
+
+### `DELETE /api/knowledge/{collection_id}`
+
+Delete an existing knowledge base collection and its FAISS index.
+
+**Path params**
+
+| Param | Description |
+|---|---|
+| `collection_id` | Collection identifier |
+
+**Response**
+
+```json
+{
+  "status": "deleted"
+}
+```
+
+---
+
+### `POST /api/knowledge/{collection_id}/upload`
+
+Upload a document (PDF, CSV, HTML, or plain text) to a collection. The file is copied, chunked, and embedded into the collection's local FAISS vector store.
+
+**Path params**
+
+| Param | Description |
+|---|---|
+| `collection_id` | Collection identifier |
+
+**Request**
+
+Multipart form-data with the file payload:
+- Key: `file`
+- Value: Binary file stream
+
+**Response**
+
+```json
+{
+  "status": "uploaded",
+  "filename": "guide.pdf"
+}
+```
 
 ---
 

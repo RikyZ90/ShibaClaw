@@ -1,3 +1,19 @@
+## [0.9.0] - Unreleased
+
+### Added
+- **Local RAG & Knowledge Base Manager** — Integrated a cross-session Knowledge Base (Collezioni) management system using FAISS vector indexing and LangChain. Users can create custom collections, drag-and-drop or upload documents (PDF, CSV, HTML, TXT), which are automatically chunked and indexed locally using `all-MiniLM-L6-v2` HuggingFace embeddings.
+- **Knowledge Search Agent Tool** — Added the `knowledge_search` tool enabling the agent to perform semantic similarity searches across active knowledge base collections.
+- **Context-Aware Mentions System** — Implemented an autocomplete mention dropdown in the WebUI chat input (triggered by `@`). Users can explicitly target a knowledge base (`@kb:<name>`), an MCP server (`@mcp:<name>`), or a connected app (`@app:<name>`).
+- **Explicit Mentions Directives** — Mentions are parsed via regex and passed to the agent execution loop via session metadata. These are injected into the system prompt's Live State as `### EXPLICIT USER MENTIONS (HARD PROMPTS) ###`, directing the agent to prioritize searching/using those specific resources.
+- **Active KBs Selector** — Added a dropdown menu in the WebUI chat input footer to dynamically pin and track active Knowledge Bases per session.
+- **Application Self-Updater** — Re-engineered the update application logic to support automatic background updates for both Python `pip` and packaged Windows standalone `EXE` installations, complete with real-time download and install progress bars.
+
+### Refactored
+- **UI Architecture Modularization** — Reorganized the massive frontend WebUI codebase by splitting setting, profile, updater, onboard, mentions, and knowledge functionalities into decoupled, specialized ES6 module files (`profiles.js`, `update_panel.js`, `settings_panel.js`, `onboard_wizard.js`, `plugins_panel.js`, `mentions.js`, and `knowledge.js`).
+
+### Fixed
+- **Updater Directory & Detached Spawns** — Resolved updater relaunch issues on Windows by improving executable path detection, logging updater failures, and cleanly spawning detached PowerShell updater scripts to bypass lock handle collisions.
+
 ## [0.8.5] - 2026-07-07
 
 ### Refactored
