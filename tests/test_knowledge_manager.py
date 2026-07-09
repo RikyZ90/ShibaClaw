@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from shibaclaw.agent.knowledge_manager import KnowledgeManager
+from shibaclaw.agent.knowledge_manager import KnowledgeManager, RAG_AVAILABLE
 
 @pytest.fixture
 def workspace_dir(tmp_path):
@@ -20,6 +20,7 @@ def test_sanitize_id_invalid(km):
     with pytest.raises(ValueError, match="Invalid collection ID format"):
         km._sanitize_id("../invalid")
 
+@pytest.mark.skipif(not RAG_AVAILABLE, reason="RAG dependencies are not installed")
 def test_path_traversal_filename(km, tmp_path):
     km.create_collection("test", "test col")
     
@@ -36,6 +37,7 @@ def test_path_traversal_filename(km, tmp_path):
     
     assert (docs_dir / "hacked.txt").exists()
 
+@pytest.mark.skipif(not RAG_AVAILABLE, reason="RAG dependencies are not installed")
 @patch('shibaclaw.agent.knowledge_manager.KnowledgeManager._get_loader')
 def test_atomicity_on_parsing_error(mock_get_loader, km, tmp_path):
     km.create_collection("test", "test col")
@@ -55,6 +57,7 @@ def test_atomicity_on_parsing_error(mock_get_loader, km, tmp_path):
     coll_dir = km._get_collection_dir("test")
     assert not (coll_dir / "docs" / "dummy.txt").exists()
 
+@pytest.mark.skipif(not RAG_AVAILABLE, reason="RAG dependencies are not installed")
 def test_faiss_caching(km, tmp_path):
     km.create_collection("test", "test col")
     dummy_file = tmp_path / "dummy.txt"

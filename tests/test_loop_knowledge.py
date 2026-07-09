@@ -25,7 +25,10 @@ def mock_agent_loop():
     
     return brain
 
+from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+
 @pytest.mark.asyncio
+@pytest.mark.skipif(not RAG_AVAILABLE, reason="RAG dependencies are not installed")
 @patch('shibaclaw.agent.knowledge_manager.KnowledgeManager')
 async def test_agent_loop_does_not_block(mock_km_class, mock_agent_loop):
     # Setup mock to simulate KnowledgeManager behavior
