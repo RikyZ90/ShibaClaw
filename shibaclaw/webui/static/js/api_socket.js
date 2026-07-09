@@ -340,6 +340,7 @@ async function fetchStatus() {
         if (res.ok) {
             const data = await res.json();
             state.agentConfigured = data.agent_configured;
+            state.ragAvailable = data.rag_available;
 
             const versionEl = $("sidebar-version");
             if (versionEl && data.version) versionEl.textContent = "v" + data.version;

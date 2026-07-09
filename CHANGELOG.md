@@ -1,3 +1,13 @@
+## [0.9.1] - 2026-07-09
+
+### Added
+- **Optional Local RAG Dependencies** — Moved heavy machine learning packages (`langchain`, `faiss-cpu`, `sentence-transformers`, `torch`) into a `[rag]` optional dependencies extra. Shibaclaw core now launches instantly on lightweight environments like Raspberry Pi.
+- **WebUI Plugins Installation** — Exposed the Local RAG option as a plugin in the Settings > Plugins tab, allowing users to install or uninstall ML dependencies directly from the UI.
+- **Dynamic UI Adaptation** — The WebUI dynamically hides/disables document uploads, displays warning banners with settings redirect links, and adapts system prompts when RAG dependencies are not installed.
+
+### Fixed
+- **Plugin Naming & Uninstallation** — Fixed a package-naming bug in the frontend JS that prevented external/RAG plugins from uninstalling cleanly.
+
 ## [0.9.0] - 2026-07-09
 
 ### Added

@@ -300,7 +300,9 @@ class ShibaBrain:
                 )
             )
         self.tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
-        self.tools.register(KnowledgeSearchTool())
+        from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+        if RAG_AVAILABLE:
+            self.tools.register(KnowledgeSearchTool())
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
         self.tools.register(MemorySearchTool(workspace=self.workspace))
         self.tools.register(
@@ -581,11 +583,12 @@ class ShibaBrain:
 
             active_kbs = None
             try:
-                from shibaclaw.agent.knowledge_manager import KnowledgeManager
+                from shibaclaw.agent.knowledge_manager import KnowledgeManager, RAG_AVAILABLE
                 import asyncio
                 
-                km = KnowledgeManager(self.context.workspace)
-                all_collections = await asyncio.to_thread(km.list_collections)
+                if RAG_AVAILABLE:
+                    km = KnowledgeManager(self.context.workspace)
+                    all_collections = await asyncio.to_thread(km.list_collections)
                 
                 session_kb_ids = []
                 if chat_id:

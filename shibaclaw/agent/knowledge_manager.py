@@ -15,21 +15,29 @@ warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub"
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
 
-from langchain_core.documents import Document  # noqa: E402
-from langchain_community.document_loaders import (  # noqa: E402
-    BSHTMLLoader,
-    CSVLoader,
-    PyPDFLoader,
-    TextLoader,
-)
-from langchain_community.vectorstores import FAISS  # noqa: E402
-from langchain_huggingface import HuggingFaceEmbeddings  # noqa: E402
-from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: E402
+try:
+    from langchain_core.documents import Document  # noqa: E402
+    from langchain_community.document_loaders import (  # noqa: E402
+        BSHTMLLoader,
+        CSVLoader,
+        PyPDFLoader,
+        TextLoader,
+    )
+    from langchain_community.vectorstores import FAISS  # noqa: E402
+    from langchain_huggingface import HuggingFaceEmbeddings  # noqa: E402
+    from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: E402
+    RAG_AVAILABLE = True
+except ImportError:
+    class Document:
+        pass
+    RAG_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def _get_embeddings():
+    if not RAG_AVAILABLE:
+        raise RuntimeError("RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 class KnowledgeManager:
@@ -39,7 +47,10 @@ class KnowledgeManager:
         self.workspace_path = workspace_path
         self.base_dir = self.workspace_path / "memory" / "knowledge"
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        if RAG_AVAILABLE:
+            self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        else:
+            self.text_splitter = None
         self._faiss_cache = {}
         
     @property
@@ -109,6 +120,8 @@ class KnowledgeManager:
             del self._faiss_cache[cid]
 
     def _get_loader(self, file_path: Path):
+        if not RAG_AVAILABLE:
+            raise RuntimeError("Local RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
         ext = file_path.suffix.lower()
         if ext == ".pdf":
             return PyPDFLoader(str(file_path))
@@ -120,6 +133,8 @@ class KnowledgeManager:
             return TextLoader(str(file_path), autodetect_encoding=True)
 
     def add_document(self, collection_id: str, file_path: Path, filename: str) -> None:
+        if not RAG_AVAILABLE:
+            raise RuntimeError("Local RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
         coll_dir = self._get_collection_dir(collection_id)
         if not coll_dir.exists():
             raise ValueError(f"Collection {collection_id} does not exist")
@@ -183,6 +198,8 @@ class KnowledgeManager:
             raise e
 
     def search(self, collection_ids: List[str], query: str, k: int = 4) -> List[Document]:
+        if not RAG_AVAILABLE:
+            raise RuntimeError("Local RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
         results = []
         for cid in collection_ids:
             try:

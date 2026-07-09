@@ -1,16 +1,16 @@
 {
-    "version": "0.9.0",
-    "release_notes": "Integrated Local RAG with FAISS vector indexing and LangChain, introduced a context-aware autocomplete mentions system (@) in the WebUI, added an active KB collections dropdown selector, decoupled frontend JS into modular components, and resolved CodeQL string escaping issues.",
+    "version": "0.9.1",
+    "release_notes": "Optional Local RAG & Knowledge Base dependencies for Raspberry Pi compatibility and faster Windows startup, integrated directly as an installable extra in the WebUI Plugins panel, and minor Javascript uninstallation bug fixes.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.0."
+            "note": "Bumped version to 0.9.1."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.0 release notes."
+            "note": "Added v0.9.1 release notes."
         },
         {
             "path": "README.md",
@@ -20,7 +20,7 @@
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.0."
+            "note": "Bumped packaged update manifest to v0.9.1."
         },
         {
             "path": "shibaclaw/agent/context.py",
@@ -151,6 +151,16 @@
             "path": "shibaclaw/webui/ws_handler.py",
             "overwrite": true,
             "note": "Support knowledge collection update WebSocket events."
+        },
+        {
+            "path": "shibaclaw/webui/routers/plugins.py",
+            "overwrite": true,
+            "note": "RAG plugin listing, installation, and uninstallation routers."
+        },
+        {
+            "path": "shibaclaw/webui/static/js/plugins_panel.js",
+            "overwrite": true,
+            "note": "Expose RAG extra plugin in Plugins UI panel."
         }
     ]
 }

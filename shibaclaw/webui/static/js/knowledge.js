@@ -55,8 +55,22 @@ function renderKBManagerList() {
     const container = document.getElementById('kb-list-container');
     if (!container) return;
     
+    let html = '';
+    
+    // Add banner if RAG is not available
+    if (state.ragAvailable === false) {
+        html += `
+        <div style="background: rgba(255, 193, 7, 0.1); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px;">
+            <span class="material-icons-round" style="font-size: 18px; margin-top: 1px;">warning</span>
+            <div>
+                <strong>Local RAG is disabled.</strong> Document uploading and semantic search are unavailable. 
+                <a href="#" onclick="closeModal('knowledge-modal'); openModal('settings-modal'); switchSettingsTab('plugins'); return false;" style="color: var(--primary); font-weight: bold; text-decoration: underline;">Install the Local RAG plugin from Settings</a> to enable them.
+            </div>
+        </div>`;
+    }
+    
     if (allKnowledgeBases.length === 0) {
-        container.innerHTML = `
+        container.innerHTML = html + `
         <div style="text-align:center; padding: 40px 20px; color: var(--text-muted); display:flex; flex-direction:column; align-items:center; gap:12px; background: rgba(255,255,255,0.02); border-radius:12px; border: 1px dashed var(--border-light);">
             <span class="material-icons-round" style="font-size:48px; opacity: 0.5;">topic</span>
             <span style="font-size:15px;">No collections created yet.</span>
@@ -65,8 +79,21 @@ function renderKBManagerList() {
         return;
     }
     
-    container.innerHTML = allKnowledgeBases.map(kb => {
+    container.innerHTML = html + allKnowledgeBases.map(kb => {
         const badges = (kb.files || []).map(f => `<div class="kb-file-badge"><span class="material-icons-round">description</span> ${f}</div>`).join('');
+        
+        // Hide/disable button if RAG not available
+        const uploadBtn = (state.ragAvailable === false) ? `
+            <button class="btn-secondary" id="btn-upload-${kb.id}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size: 13px; opacity: 0.5; cursor: not-allowed;" onclick="showKBFeedback('Please install the Local RAG plugin from settings.', true)" title="Upload file (Disabled)">
+                <span class="material-icons-round" style="font-size: 16px;">upload_file</span> Upload Docs
+            </button>
+        ` : `
+            <input type="file" id="upload-${kb.id}" multiple style="display:none" onchange="uploadToKB('${kb.id}', this)">
+            <button class="btn-secondary" id="btn-upload-${kb.id}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size: 13px;" onclick="document.getElementById('upload-${kb.id}').click()" title="Upload file">
+                <span class="material-icons-round" style="font-size: 16px;">upload_file</span> Upload Docs
+            </button>
+        `;
+        
         return `
         <div class="kb-dropzone" id="dropzone-${kb.id}"
              ondragover="event.preventDefault(); this.classList.add('dragover');"
@@ -79,10 +106,7 @@ function renderKBManagerList() {
                     <span style="font-size: 13px; color: var(--text-muted);">${kb.files ? kb.files.length : 0} file(s) loaded</span>
                 </div>
                 <div style="display:flex; gap: 10px; align-items: center; position:relative; z-index:10;">
-                    <input type="file" id="upload-${kb.id}" multiple style="display:none" onchange="uploadToKB('${kb.id}', this)">
-                    <button class="btn-secondary" id="btn-upload-${kb.id}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size: 13px;" onclick="document.getElementById('upload-${kb.id}').click()" title="Upload file">
-                        <span class="material-icons-round" style="font-size: 16px;">upload_file</span> Upload Docs
-                    </button>
+                    ${uploadBtn}
                     <button class="btn-icon" id="edit-btn-${kb.id}" onclick="renameKB('${kb.id}', '${kb.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" title="Rename Collection">
                         <span class="material-icons-round" style="color: var(--text-primary);">edit</span>
                     </button>
@@ -99,6 +123,10 @@ function renderKBManagerList() {
 }
 
 async function handleKBDrop(e, kbId) {
+    if (state.ragAvailable === false) {
+        showKBFeedback("Local RAG is disabled. Please install the Local RAG plugin from settings.", true);
+        return;
+    }
     if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
     await uploadToKB(kbId, null, e.dataTransfer.files);
 }
@@ -198,6 +226,10 @@ async function renameKB(id, currentName) {
 }
 
 async function uploadToKB(id, inputElem, droppedFiles = null) {
+    if (state.ragAvailable === false) {
+        showKBFeedback("Local RAG is disabled. Please install the Local RAG plugin from settings.", true);
+        return;
+    }
     const files = droppedFiles ? Array.from(droppedFiles) : (inputElem && inputElem.files ? Array.from(inputElem.files) : []);
     if (files.length === 0) return;
     
@@ -251,6 +283,19 @@ async function uploadToKB(id, inputElem, droppedFiles = null) {
 function renderKBSelectorDropdown() {
     const list = document.getElementById('kb-dropdown-list');
     if (!list) return;
+    
+    if (state.ragAvailable === false) {
+        list.innerHTML = `
+        <div style="padding: 12px; font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.4;">
+            Local RAG is disabled.<br>
+            <span style="font-size: 11px; opacity: 0.8;"><a href="#" onclick="openModal('settings-modal'); switchSettingsTab('plugins'); return false;" style="color: var(--primary); font-weight: bold; text-decoration: underline;">Install it from Settings</a> to enable.</span>
+        </div>`;
+        const display = document.getElementById('active-kb-display');
+        if (display) {
+            display.innerText = `KBs (Disabled)`;
+        }
+        return;
+    }
     
     list.innerHTML = allKnowledgeBases.map(kb => {
         const isActive = activeSessionKBs.includes(kb.id);

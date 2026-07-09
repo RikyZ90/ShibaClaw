@@ -29,7 +29,7 @@ window.loadPluginsPanel = async function () {
                     <div style="display:flex; align-items:center; gap:8px">
                         <span class="acc-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? 'Enabled' : 'Disabled'}</span>
                         ${(() => {
-                            const pkgName = p.type === 'tts' ? `shibaclaw-tts-${p.name}` : `shibaclaw-channel-${p.name}`;
+                            const pkgName = p.type === 'tts' ? `shibaclaw-tts-${p.name}` : (p.type === 'channel' ? `shibaclaw-channel-${p.name}` : p.name);
                             return `<button class="btn-icon" onclick="uninstallPlugin('${pkgName}')" title="Uninstall" style="background:transparent; border:none; cursor:pointer">
                                 <span class="material-icons-round" style="color:var(--accent-red); font-size:18px">delete</span>
                             </button>`;

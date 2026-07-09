@@ -11,6 +11,7 @@ from shibaclaw.config.loader import load_config
 async def api_list_plugins(request: Request) -> JSONResponse:
     cfg = load_config()
     installed_channels = discover_plugins()
+    from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
 
     integrations = []
     for name, cls in installed_channels.items():
@@ -40,7 +41,26 @@ async def api_list_plugins(request: Request) -> JSONResponse:
             "installed": True
         })
 
+    rag = []
+    if RAG_AVAILABLE:
+        rag.append({
+            "name": "shibaclaw-rag",
+            "display_name": "Local RAG & Knowledge Base",
+            "type": "rag",
+            "enabled": True,
+            "installed": True
+        })
+
     available = []
+
+    if not RAG_AVAILABLE:
+        available.append({
+            "name": "shibaclaw-rag",
+            "display_name": "Local RAG & Knowledge Base",
+            "type": "rag",
+            "description": "Enables local semantic search and document uploading (PDF, CSV, HTML, TXT) using FAISS and HuggingFace sentence-transformers.",
+            "installed": False
+        })
 
     if "supertonic" not in installed_tts:
         available.append({
@@ -61,7 +81,7 @@ async def api_list_plugins(request: Request) -> JSONResponse:
         })
 
     return JSONResponse({
-        "plugins": integrations + tts,
+        "plugins": integrations + tts + rag,
         "available": available
     })
 
@@ -88,21 +108,31 @@ async def api_install_plugin(request: Request) -> JSONResponse:
         return JSONResponse({"error": "Only shibaclaw official plugins can be installed"}, status_code=400)
 
     from pathlib import Path
-    local_path = Path(__file__).resolve().parent.parent.parent.parent / "plugins" / package
-    if local_path.is_dir():
-        install_target = str(local_path)
-    else:
-        from shibaclaw import __version__
-        tag = f"v{__version__}" if __version__ != "dev" else "main"
-        install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@{tag}#subdirectory=plugins/{package}"
-
-    cmd = [sys.executable, "-m", "pip", "install", install_target]
-    logger.info("Installing plugin: {}", " ".join(cmd))
+    workspace_root = Path(__file__).resolve().parent.parent.parent.parent
+    local_path = workspace_root / "plugins" / package
     
     import subprocess
     extra_kwargs = {}
     if sys.platform == "win32":
         extra_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
+    if package == "shibaclaw-rag":
+        is_source = (workspace_root / "pyproject.toml").exists()
+        if is_source:
+            cmd = [sys.executable, "-m", "pip", "install", "-e", ".[rag]"]
+            extra_kwargs["cwd"] = str(workspace_root)
+        else:
+            cmd = [sys.executable, "-m", "pip", "install", "shibaclaw[rag]"]
+    elif local_path.is_dir():
+        install_target = str(local_path)
+        cmd = [sys.executable, "-m", "pip", "install", install_target]
+    else:
+        from shibaclaw import __version__
+        tag = f"v{__version__}" if __version__ != "dev" else "main"
+        install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@{tag}#subdirectory=plugins/{package}"
+        cmd = [sys.executable, "-m", "pip", "install", install_target]
+
+    logger.info("Installing plugin: {}", " ".join(cmd))
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -167,7 +197,23 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
     if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
         return JSONResponse({"error": "Only shibaclaw official plugins can be uninstalled"}, status_code=400)
 
-    cmd = [sys.executable, "-m", "pip", "uninstall", "-y", package]
+    if package == "shibaclaw-rag":
+        cmd = [
+            sys.executable,
+            "-m",
+            "pip",
+            "uninstall",
+            "-y",
+            "langchain",
+            "langchain-community",
+            "langchain-huggingface",
+            "faiss-cpu",
+            "sentence-transformers",
+            "pypdf",
+            "beautifulsoup4",
+        ]
+    else:
+        cmd = [sys.executable, "-m", "pip", "uninstall", "-y", package]
     logger.info("Uninstalling plugin: {}", " ".join(cmd))
     
     import subprocess

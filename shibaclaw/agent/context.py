@@ -184,7 +184,8 @@ You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fa
             lines.append(
                 'Use the message tool with channel="<name>" to send cross-channel messages.'
             )
-        if active_kbs:
+        from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+        if active_kbs and RAG_AVAILABLE:
             lines.append("Active Knowledge Bases for this session:")
             for kb in active_kbs:
                 lines.append(f"- {kb}")
@@ -193,7 +194,7 @@ You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fa
             )
             
         if metadata:
-            kbs = metadata.get("mentioned_kbs")
+            kbs = metadata.get("mentioned_kbs") if RAG_AVAILABLE else None
             mcps = metadata.get("mentioned_mcps")
             apps = metadata.get("mentioned_apps")
             
