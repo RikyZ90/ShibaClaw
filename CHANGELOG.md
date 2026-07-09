@@ -1,4 +1,10 @@
+## [0.9.2] - 2026-07-10
+
+### Fixed
+- **Plugin Installer Downgrade** — Fixed a bug where installing a plugin from the WebUI after a self-update would accidentally downgrade the application to the previously installed pip version, by ensuring the internal update manifest version always takes precedence over stale pip metadata.
+
 ## [0.9.1] - 2026-07-09
+
 
 ### Added
 - **Optional Local RAG Dependencies** — Moved heavy machine learning packages (`langchain`, `faiss-cpu`, `sentence-transformers`, `torch`) into a `[rag]` optional dependencies extra. Shibaclaw core now launches instantly on lightweight environments like Raspberry Pi.

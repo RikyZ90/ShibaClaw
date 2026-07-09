@@ -22,7 +22,7 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.1</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.2</b> — Click to see what's new</summary>
 
 - **Optional Local RAG & Raspberry Pi Compatibility** — Decoupled heavy ML dependencies into a `[rag]` extra. Core ShibaClaw now installs and launches instantly on low-spec hardware like Raspberry Pi, and RAG dependencies can be installed as a plugin directly from the WebUI.
 - **Context-Aware Mentions System** — Directly reference and prompt the agent to prioritize specific Knowledge Bases (`@kb:name`), MCP Servers (`@mcp:name`), or Connected Apps (`@app:name`) using an autocomplete mention dropdown triggered by `@` in the chat input.

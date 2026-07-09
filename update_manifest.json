@@ -1,166 +1,31 @@
 {
-    "version": "0.9.1",
-    "release_notes": "Optional Local RAG & Knowledge Base dependencies for Raspberry Pi compatibility and faster Windows startup, integrated directly as an installable extra in the WebUI Plugins panel, and minor Javascript uninstallation bug fixes.",
+    "version": "0.9.2",
+    "release_notes": "Hotfix: Fixed a bug where installing a plugin from the WebUI after a self-update would accidentally downgrade the application to the previously installed pip version.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.1."
+            "note": "Bumped version to 0.9.2."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.1 release notes."
+            "note": "Added v0.9.2 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation for Local RAG features."
+            "note": "Updated documentation version to 0.9.2."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.1."
+            "note": "Bumped packaged update manifest to v0.9.2."
         },
         {
-            "path": "shibaclaw/agent/context.py",
+            "path": "shibaclaw/__init__.py",
             "overwrite": true,
-            "note": "Added support for context-aware mentions in agent context."
-        },
-        {
-            "path": "shibaclaw/agent/knowledge_manager.py",
-            "overwrite": true,
-            "note": "Implemented KnowledgeManager for local RAG FAISS collections."
-        },
-        {
-            "path": "shibaclaw/agent/loop.py",
-            "overwrite": true,
-            "note": "Integrated mentions system directives in the main agent execution loop."
-        },
-        {
-            "path": "shibaclaw/agent/subagent.py",
-            "overwrite": true,
-            "note": "Pass session mentions to child agents."
-        },
-        {
-            "path": "shibaclaw/agent/tools/knowledge.py",
-            "overwrite": true,
-            "note": "Added knowledge search tool for collection queries."
-        },
-        {
-            "path": "shibaclaw/cli/commands.py",
-            "overwrite": true,
-            "note": "Expose knowledge base management CLI commands."
-        },
-        {
-            "path": "shibaclaw/config/schema.py",
-            "overwrite": true,
-            "note": "Updated config schema for local RAG."
-        },
-        {
-            "path": "shibaclaw/updater/apply.py",
-            "overwrite": true,
-            "note": "Improved PowerShell detached updater script spawns."
-        },
-        {
-            "path": "shibaclaw/webui/api.py",
-            "overwrite": true,
-            "note": "Exposed API endpoints for Knowledge Base management."
-        },
-        {
-            "path": "shibaclaw/webui/routers/connected_apps.py",
-            "overwrite": true,
-            "note": "Refactored connected apps router endpoints."
-        },
-        {
-            "path": "shibaclaw/webui/routers/knowledge.py",
-            "overwrite": true,
-            "note": "Added Knowledge Base API endpoints."
-        },
-        {
-            "path": "shibaclaw/webui/routers/sessions.py",
-            "overwrite": true,
-            "note": "Support mentions and active KBs configuration in session routes."
-        },
-        {
-            "path": "shibaclaw/webui/server.py",
-            "overwrite": true,
-            "note": "Registered knowledge router and session event handlers."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/chat.css",
-            "overwrite": true,
-            "note": "Added styles for autocomplete mentions dropdown and active KB footer."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/components.css",
-            "overwrite": true,
-            "note": "Added styling for collection UI dropzones and action buttons."
-        },
-        {
-            "path": "shibaclaw/webui/static/css/modals.css",
-            "overwrite": true,
-            "note": "Refactored modal layouts."
-        },
-        {
-            "path": "shibaclaw/webui/static/index.html",
-            "overwrite": true,
-            "note": "Updated WebUI structure with KB manager container."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/auth_ui.js",
-            "overwrite": true,
-            "note": "Decoupled auth UI handling."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/chat.js",
-            "overwrite": true,
-            "note": "Integrated mentions autocomplete and active KB manager."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/connected_apps.js",
-            "overwrite": true,
-            "note": "Decoupled connected apps management functions."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/files.js",
-            "overwrite": true,
-            "note": "Expose relative file management utilities."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/knowledge.js",
-            "overwrite": true,
-            "note": "Decoupled Knowledge Base frontend controller with CodeQL escaping fixes."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/mentions.js",
-            "overwrite": true,
-            "note": "Added frontend logic for @ autocomplete mentions dropdown."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/ui_panels.js",
-            "overwrite": true,
-            "note": "Modularized monolithic sidebar panel logic."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/utils.js",
-            "overwrite": true,
-            "note": "Helper utilities for element rendering."
-        },
-        {
-            "path": "shibaclaw/webui/ws_handler.py",
-            "overwrite": true,
-            "note": "Support knowledge collection update WebSocket events."
-        },
-        {
-            "path": "shibaclaw/webui/routers/plugins.py",
-            "overwrite": true,
-            "note": "RAG plugin listing, installation, and uninstallation routers."
-        },
-        {
-            "path": "shibaclaw/webui/static/js/plugins_panel.js",
-            "overwrite": true,
-            "note": "Expose RAG extra plugin in Plugins UI panel."
+            "note": "Fixed version priority to prefer manifest over stale pip metadata."
         }
     ]
 }

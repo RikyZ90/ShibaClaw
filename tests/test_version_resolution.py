@@ -22,7 +22,7 @@ def test_version_prefers_pyproject_for_source_checkout(tmp_path, monkeypatch):
 
 
 
-def test_version_prefers_installed_metadata_over_packaged_manifest(tmp_path, monkeypatch):
+def test_version_prefers_packaged_manifest_over_installed_metadata(tmp_path, monkeypatch):
     import shibaclaw
 
     package_dir = tmp_path / "site-packages" / "shibaclaw"
@@ -37,7 +37,7 @@ def test_version_prefers_installed_metadata_over_packaged_manifest(tmp_path, mon
     monkeypatch.setattr("importlib.metadata.version", lambda name: "0.3.8")
     monkeypatch.delattr(sys, "frozen", raising=False)
 
-    assert shibaclaw._get_version() == "0.3.8"
+    assert shibaclaw._get_version() == "0.2.1"
 
 
 def test_version_prefers_manifest_for_frozen_bundle(tmp_path, monkeypatch):
