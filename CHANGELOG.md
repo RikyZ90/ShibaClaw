@@ -1,4 +1,4 @@
-## [0.9.0] - Unreleased
+## [0.9.0] - 2026-07-09
 
 ### Added
 - **Local RAG & Knowledge Base Manager** — Integrated a cross-session Knowledge Base (Collezioni) management system using FAISS vector indexing and LangChain. Users can create custom collections, drag-and-drop or upload documents (PDF, CSV, HTML, TXT), which are automatically chunked and indexed locally using `all-MiniLM-L6-v2` HuggingFace embeddings.
@@ -13,6 +13,8 @@
 
 ### Fixed
 - **Updater Directory & Detached Spawns** — Resolved updater relaunch issues on Windows by improving executable path detection, logging updater failures, and cleanly spawning detached PowerShell updater scripts to bypass lock handle collisions.
+- **CodeQL Incomplete Escaping Fix** — Fixed a string escaping issue in the knowledge base manager UI where backslashes in collection names were not escaped prior to single quote escaping, resolving a CodeQL vulnerability.
+- **Linter Cleanups** — Resolved ruff check warnings by removing unused imports across files and correcting PEP 8 import formatting in `knowledge_manager.py`.
 
 ## [0.8.5] - 2026-07-07
 
