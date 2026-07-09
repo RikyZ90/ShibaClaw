@@ -48,6 +48,9 @@ def discover_plugins() -> dict[str, type[BaseChannel]]:
             plugins[ep.name] = cls
         except Exception:
             pass
+    return plugins
+
+
 def discover_local_plugins() -> dict[str, type[BaseChannel]]:
     """Discover local plugins stored in the user's plugins directory."""
     import sys
