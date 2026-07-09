@@ -80,14 +80,14 @@ def _get_version():
     if _looks_like_source_checkout(runtime_root):
         return (
             _read_pyproject_version(runtime_root)
-            or _read_installed_metadata_version()
             or _read_manifest_version(package_dir)
+            or _read_installed_metadata_version()
             or "dev"
         )
 
     return (
-        _read_installed_metadata_version()
-        or _read_manifest_version(package_dir)
+        _read_manifest_version(package_dir)
+        or _read_installed_metadata_version()
         or _read_pyproject_version(runtime_root)
         or "dev"
     )
