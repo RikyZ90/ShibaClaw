@@ -83,7 +83,7 @@ function renderKBManagerList() {
                     <button class="btn-secondary" id="btn-upload-${kb.id}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size: 13px;" onclick="document.getElementById('upload-${kb.id}').click()" title="Upload file">
                         <span class="material-icons-round" style="font-size: 16px;">upload_file</span> Upload Docs
                     </button>
-                    <button class="btn-icon" id="edit-btn-${kb.id}" onclick="renameKB('${kb.id}', '${kb.name.replace(/'/g, "\\'")}')" title="Rename Collection">
+                    <button class="btn-icon" id="edit-btn-${kb.id}" onclick="renameKB('${kb.id}', '${kb.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')" title="Rename Collection">
                         <span class="material-icons-round" style="color: var(--text-primary);">edit</span>
                     </button>
                     <button class="btn-icon" id="del-btn-${kb.id}" onclick="deleteKB('${kb.id}')" title="Delete Collection">
