@@ -27,6 +27,7 @@ from shibaclaw.agent.tools.registry import SkillVault
 from shibaclaw.agent.tools.shell import ExecTool
 from shibaclaw.agent.tools.spawn import SpawnTool
 from shibaclaw.agent.tools.web import WebFetchTool, WebSearchTool
+from shibaclaw.agent.tools.knowledge import KnowledgeSearchTool
 from shibaclaw.brain.manager import PackManager, Session
 from shibaclaw.bus.events import InboundMessage, OutboundMessage
 from shibaclaw.bus.queue import MessageBus
@@ -299,6 +300,7 @@ class ShibaBrain:
                 )
             )
         self.tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
+        self.tools.register(KnowledgeSearchTool())
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
         self.tools.register(MemorySearchTool(workspace=self.workspace))
         self.tools.register(
@@ -504,6 +506,7 @@ class ShibaBrain:
         profile_id: str | None = None,
         model: str | None = None,
         session_key: str | None = None,
+        metadata: dict | None = None,
     ) -> tuple[str | None, list[str], list[dict]]:
         """Run the agent iteration loop.
 
@@ -541,11 +544,19 @@ class ShibaBrain:
                 if steer_msgs:
                     logger.info("Steering loop with {} new messages", len(steer_msgs))
                     for msg in steer_msgs:
+                        # Prefix the steering message so the LLM clearly understands it's an interruption
+                        steer_text = f"**[USER INJECTION DURING TASK]**\n\n{msg['content']}"
+                        
+                        # Properly construct content with media so the model can see the images
+                        content = self.context._build_user_content(steer_text, msg.get("media"))
+                        
                         entry = {
                             "role": "user",
-                            "content": msg["content"],
-                            "timestamp": msg.get("timestamp")
+                            "content": content,
                         }
+                        if msg.get("timestamp"):
+                            entry["timestamp"] = msg.get("timestamp")
+                            
                         metadata = {}
                         if msg.get("media"):
                             metadata["media"] = msg["media"]
@@ -553,6 +564,7 @@ class ShibaBrain:
                             metadata["attachments"] = msg["attachments"]
                         if metadata:
                             entry["metadata"] = metadata
+                            
                         messages.append(entry)
                     self._steering_queues[session_key] = []
             # Wall-clock safety: abort if the loop has been running too long
@@ -567,12 +579,59 @@ class ShibaBrain:
                 break
             iteration += 1
 
+            active_kbs = None
+            try:
+                from shibaclaw.agent.knowledge_manager import KnowledgeManager
+                import asyncio
+                
+                km = KnowledgeManager(self.context.workspace)
+                all_collections = await asyncio.to_thread(km.list_collections)
+                
+                session_kb_ids = []
+                if chat_id:
+                    from shibaclaw.webui.agent_manager import agent_manager
+                    if agent_manager.pm:
+                        sess = agent_manager.pm.get_or_create(chat_id)
+                        session_kb_ids = sess.metadata.get("knowledge_bases", [])
+                
+                mentioned_kb_names = [k.lower() for k in (metadata.get("mentioned_kbs", []) if metadata else [])]
+
+                if all_collections and (session_kb_ids or mentioned_kb_names):
+                    active_kbs = []
+                    new_session_kb_ids = list(session_kb_ids)
+                    changed = False
+                    
+                    for col in all_collections:
+                        col_id = col.get("id", "")
+                        col_name = col.get("name", "")
+                        
+                        is_mentioned = col_name.lower() in mentioned_kb_names
+                        if is_mentioned and col_id not in new_session_kb_ids:
+                            new_session_kb_ids.append(col_id)
+                            changed = True
+                            
+                        if col_id in new_session_kb_ids:
+                            col_desc = col.get("description", "")
+                            desc_part = f" - Desc: {col_desc}" if col_desc else ""
+                            active_kbs.append(f"ID: {col_id} (Name: '{col_name}'){desc_part}")
+                            
+                    if changed and chat_id:
+                        from shibaclaw.webui.agent_manager import agent_manager
+                        if agent_manager.pm:
+                            sess = agent_manager.pm.get_or_create(chat_id)
+                            sess.metadata["knowledge_bases"] = new_session_kb_ids
+                            agent_manager.pm.save(sess)
+            except Exception:
+                pass
+
             live_block = self.context.build_runtime_block(
                 channel=channel,
                 chat_id=chat_id,
                 iteration=iteration,
                 max_iterations=self.max_iterations,
                 available_channels=self._available_channels,
+                active_kbs=active_kbs,
+                metadata=metadata,
             )
             messages[0] = {
                 "role": "system",
@@ -880,6 +939,7 @@ class ShibaBrain:
                 chat_id=chat_id,
                 profile_id=profile_id,
                 session_key=key,
+                metadata=msg.metadata,
             )
             self._save_turn(session, all_msgs, 1 + len(history))
             self.sessions.save(session)

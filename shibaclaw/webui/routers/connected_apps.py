@@ -39,7 +39,7 @@ class ConnectedAppDef:
     mcp_server_key: str = field(init=False)
 
     def __post_init__(self) -> None:
-        self.mcp_server_key = f"{self.id}-klavis"
+        self.mcp_server_key = self.id
 
 
 CONNECTED_APPS: dict[str, ConnectedAppDef] = {
@@ -121,6 +121,14 @@ def _get_app_state(cfg_dict: dict, app_id: str) -> dict:
     return _get_apps_cfg(cfg_dict).get(app_id) or {}
 
 
+def _is_klavis_server(k: str, v: Any) -> bool:
+    if isinstance(v, dict) and v.get("klavis_app"):
+        return True
+    if k.endswith("-klavis"):
+        return True
+    return False
+
+
 def _sync_app_to_mcp(
     cfg_dict: dict,
     app_def: ConnectedAppDef,
@@ -139,6 +147,7 @@ def _sync_app_to_mcp(
     entry: dict[str, Any] = {
         "type": _DEFAULT_TRANSPORT,
         "url": strata_mcp_url,
+        "klavis_app": app_def.id,
     }
     if headers:
         entry["headers"] = headers
@@ -215,7 +224,7 @@ def _clear_stale_strata(cfg_dict: dict) -> None:
         servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
         if tools.get(servers_key):
             tools[servers_key] = {
-                k: v for k, v in tools[servers_key].items() if not k.endswith("-klavis")
+                k: v for k, v in tools[servers_key].items() if not _is_klavis_server(k, v)
             }
 
     logger.warning("Cleared stale strata_id from config and disconnected apps — will recreate on next connect.")
@@ -657,7 +666,7 @@ async def reset_strata(request: Request) -> JSONResponse:
         servers_key = "mcp_servers" if "mcp_servers" in tools else "mcpServers"
         if tools.get(servers_key):
             tools[servers_key] = {
-                k: v for k, v in tools[servers_key].items() if not k.endswith("-klavis")
+                k: v for k, v in tools[servers_key].items() if not _is_klavis_server(k, v)
             }
 
     user_id = _get_or_create_user_id(cfg_dict)

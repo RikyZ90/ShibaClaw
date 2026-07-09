@@ -138,7 +138,7 @@ def web(
         os.environ["SHIBACLAW_WEBUI_URL"] = f"http://127.0.0.1:{port}"
         cfg.gateway.host = gateway_host
         safe_print("[cyan]➜ Starting Gateway process background...[/cyan]")
-        safe_print("[dim]  (Optimized memory: ~128MB UI + ~256MB Gateway)[/dim]")
+        safe_print("[dim]  (Optimized memory: ~128MB UI + ~512MB Gateway)[/dim]")
         gw_cmd = [
             sys.executable,
             "-m",

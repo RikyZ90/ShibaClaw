@@ -447,6 +447,19 @@ function renderMarkdown(text) {
                 });
             }
 
+            const mentions = [];
+            // Format mentions as beautiful chips
+            processedContent = processedContent.replace(/@(kb|mcp|app):(?:"([^"]+)"|([^\s<]+))/gi, (match, type, name1, name2) => {
+                const name = name1 || name2;
+                let icon = "dns";
+                let t = type.toLowerCase();
+                let colorClass = "";
+                if (t === "kb") { icon = "menu_book"; colorClass = "mention-kb"; }
+                else if (t === "app" || t === "mcp") { icon = "apps"; colorClass = "mention-app"; }
+                mentions.push(`<span class="mention-chip-inline ${colorClass}"><span class="material-icons-round">${icon}</span>${name}</span>`);
+                return `@@MENTION_PLACEHOLDER_${mentions.length - 1}@@`;
+            });
+
             processedContent = processedContent.replace(/__INLINE_CODE_PLACEHOLDER_(\d+)__/g, (match, p1) => {
                 return inlineCodes[parseInt(p1, 10)];
             });
@@ -455,7 +468,13 @@ function renderMarkdown(text) {
                 return codeBlocks[parseInt(p1, 10)];
             });
 
-            return marked.parse(processedContent);
+            let finalHtml = marked.parse(processedContent);
+            
+            finalHtml = finalHtml.replace(/@@MENTION_PLACEHOLDER_(\d+)@@/g, (match, p1) => {
+                return mentions[parseInt(p1, 10)];
+            });
+            
+            return finalHtml;
         } catch (e) {
             console.error("Markdown parse error:", e);
         }
@@ -602,7 +621,8 @@ function sendMessage() {
             attachments: attachments.map(a => ({
                 name: a.name,
                 url: a.url,
-                type: a.type
+                type: a.type,
+                mode: a.mode
             }))
         });
 

@@ -143,7 +143,7 @@ window.runUpdateAction = async function () {
 
         const ok = (report.pip && report.pip.ok) || (report.exe && report.exe.ok);
         const output = (report.pip && report.pip.output) || (report.exe && report.exe.output) || "";
-        const installerOutput = output ? escapeHtml(output) : "";
+        const installerOutput = (!ok && output) ? escapeHtml(output) : "";
         const message = escapeHtml(report.message || "Update complete.");
         const icon = ok ? "check_circle" : "error_outline";
         const color = ok ? "var(--accent-green)" : "var(--accent-red)";

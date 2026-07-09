@@ -37,6 +37,21 @@
     white-space: nowrap;
 }
 
+.staged-file-mode {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    font-size: 10px;
+    padding: 2px 4px;
+    cursor: pointer;
+    outline: none;
+}
+
+.staged-file-mode:hover {
+    border-color: var(--shiba-gold);
+}
+
 .btn-remove-staged {
     background: none;
     border: none;
@@ -86,14 +101,62 @@
 }
 
 .fs-item {
-    display: grid;
-    grid-template-columns: 32px 1fr 100px 140px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     padding: 8px 1.5rem;
     border-bottom: 1px solid var(--border-color);
-    cursor: pointer;
     transition: background var(--transition-fast);
     font-size: 13px;
+}
+
+.fs-item-clickable {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.fs-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.fs-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.fs-item:hover .fs-item-actions {
+    opacity: 1;
+}
+
+.fs-item-actions button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fs-item-actions button:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.fs-item-actions button.danger-action:hover {
+    color: var(--accent-red);
 }
 
 .fs-item:hover {

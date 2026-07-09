@@ -22,12 +22,12 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.8.5</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.0 (Unreleased)</b> — Click to see what's new</summary>
 
-- **UI Architecture Split** — Decentralized the massive `ui_panels.js` God Object (3,400+ lines) into modular files to vastly improve Clean Code compliance and maintainability.
-- **Event-Driven Modals** — Replaced fragile monkey-patching of `window.openModal` with a decoupled `shiba-modal-opened` VanillaJS CustomEvent mechanism.
-- **Memory Leaks & Scroll Hijacking Fixed** — Resolved frontend memory leaks by adding a hard limit to OAuth polling flows and fixing gateway caching. Fixed a UI bug where scrolling up would forcefully pull the user to the bottom of the page.
-- **Session Load Decomposition** — Decomposed the monolithic 250+ line `loadSession()` into four single-responsibility functions, improving parse execution speed.
+- **Local RAG & Knowledge Bases (Preview)** — Build personal knowledge collections locally using FAISS indexing and LangChain. Upload PDF, CSV, HTML, and TXT files, which are automatically chunked and indexed with HuggingFace embeddings (`all-MiniLM-L6-v2`) for local semantic search.
+- **Context-Aware Mentions System** — Directly reference and prompt the agent to prioritize specific Knowledge Bases (`@kb:name`), MCP Servers (`@mcp:name`), or Connected Apps (`@app:name`) using an autocomplete mention dropdown triggered by `@` in the chat input.
+- **Robust Self-Updater** — Automatically update your installation (both standard `pip` packages and Windows packaged executables) in the background with real-time progress bars in the WebUI.
+- **UI Modularization** — Reorganized frontend code by splitting settings, profiles, update, onboard, mentions, and knowledge functionalities into specialized JS modules to vastly improve maintainability.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
@@ -219,6 +219,8 @@ The WebUI is built-in — no separate frontend or Node.js required.
 Expose it on your local network and open the same URL from your phone or tablet — no extra apps, just a browser.
 
 - **Chat** — multi-session conversations with live streaming of tool calls, thinking blocks, elapsed time, and per-session model switching from the chat footer
+- **Local RAG & Knowledge Bases** — drag-and-drop or upload documents (PDF, CSV, HTML, TXT) to create local collections, query them via semantic search, and pin active collections to sessions
+- **Context Mentions (@)** — autocomplete and bind knowledge bases, MCP servers, and connected apps in your messages using `@` to direct the agent's focus
 - **Cross-provider model search** — one searchable picker merges models from all configured providers, shows provider labels, and switches the live runtime provider when you change the session model
 - **Agent Profiles** — switch personas per session (Hacker, Builder, Planner, Reviewer) with dynamic avatars
 - **File browser** — browse, view, and edit workspace files in-browser (sandboxed to workspace)
@@ -286,6 +288,7 @@ Instead of bloating the system prompt with thousands of messages, ShibaClaw feat
 | `web_search` | Brave, Tavily, SearXNG, Jina, or DuckDuckGo (fallback, no key needed) |
 | `web_fetch` | HTTP fetch with SSRF protection, DNS rebinding defense, and redirect validation |
 | `memory_search` | Ranked search over session history (TF-IDF + recency + importance scoring) |
+| `knowledge_search` | Semantic search over active/mentioned local Knowledge Base collections (FAISS vector store) |
 | `message` | Cross-channel messaging with media attachments |
 | `automation` | Manage or schedule background jobs (cron expressions, intervals, ISO dates, timezone-aware) |
 | `spawn` | Optional background worker for a focused task; reports back to the main session when done |
@@ -495,10 +498,4 @@ If it saved you time, secured your workflow, or just made you smile — <b>leave
   ☕ <a href="https://buymeacoffee.com/rikyz90f">Buy me a coffee</a> &nbsp;·&nbsp;
   🐛 <a href="https://github.com/RikyZ90/ShibaClaw/issues">Open an issue</a> &nbsp;·&nbsp;
   🔧 <a href="https://github.com/RikyZ90/ShibaClaw/pulls">Send a PR</a>
-</p>
-
-***
-
-<p align="center">
-  <i>Inspired by <a href="https://github.com/HKUDS/nanobot">NanoBot</a> by HKUDS — MIT License.</i>
 </p>

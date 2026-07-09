@@ -103,6 +103,12 @@ function startApp() {
     if (typeof initNotificationCenter === "function") {
         void initNotificationCenter();
     }
+    if (typeof loadKnowledgeBases === "function") {
+        void loadKnowledgeBases();
+    }
+    if (typeof initMentions === "function") {
+        initMentions();
+    }
     chatInput.focus();
 
     syncFooterActions();

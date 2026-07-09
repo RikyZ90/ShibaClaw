@@ -71,19 +71,19 @@ def test_registry_has_multiple_apps():
 # ── 2. mcp_server_key is derived correctly ────────────────────────────────────
 
 def test_mcp_server_key_gmail():
-    assert CONNECTED_APPS["gmail"].mcp_server_key == "gmail-klavis"
+    assert CONNECTED_APPS["gmail"].mcp_server_key == "gmail"
 
 
 def test_mcp_server_key_gdrive():
-    assert CONNECTED_APPS["gdrive"].mcp_server_key == "gdrive-klavis"
+    assert CONNECTED_APPS["gdrive"].mcp_server_key == "gdrive"
 
 
 def test_mcp_server_key_slack():
-    assert CONNECTED_APPS["slack"].mcp_server_key == "slack-klavis"
+    assert CONNECTED_APPS["slack"].mcp_server_key == "slack"
 
 
 def test_mcp_server_key_github():
-    assert CONNECTED_APPS["github"].mcp_server_key == "github-klavis"
+    assert CONNECTED_APPS["github"].mcp_server_key == "github"
 
 
 # ── 3. Backend config is separate from app list ───────────────────────────────
@@ -129,8 +129,8 @@ def test_sync_gmail_to_mcp():
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers")
     assert servers is not None
-    assert "gmail-klavis" in servers
-    entry = servers["gmail-klavis"]
+    assert "gmail" in servers
+    entry = servers["gmail"]
     assert entry["url"] == "https://strata.klavis.ai/mcp/gmail/"
 
 
@@ -144,7 +144,7 @@ def test_sync_github_to_mcp():
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers")
     assert servers is not None
-    assert "github-klavis" in servers
+    assert "github" in servers
 
 
 # ── 6. disconnect removes from mcpServers ─────────────────────────────────────
@@ -152,7 +152,7 @@ def test_sync_github_to_mcp():
 def test_disconnect_gmail_removes_from_mcp():
     app_def = CONNECTED_APPS["gmail"]
     cfg = _base_cfg()
-    cfg["tools"]["mcp_servers"]["gmail-klavis"] = {
+    cfg["tools"]["mcp_servers"]["gmail"] = {
         "type": "streamableHttp",
         "url": "https://strata.klavis.ai/mcp/gmail/",
         "enabled": True,
@@ -162,7 +162,7 @@ def test_disconnect_gmail_removes_from_mcp():
 
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
-    assert "gmail-klavis" not in servers
+    assert "gmail" not in servers
 
 
 def test_disconnect_nonexistent_app_is_noop():
@@ -172,7 +172,7 @@ def test_disconnect_nonexistent_app_is_noop():
     _remove_app_from_mcp(cfg, app_def)
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
-    assert "github-klavis" not in servers
+    assert "github" not in servers
 
 
 # ── 7. build_app_response shape ───────────────────────────────────────────────
@@ -184,7 +184,7 @@ def test_build_app_response_not_connected():
     assert resp["name"] == "Gmail"
     assert resp["connected"] is False
     assert resp["enabled"] is False
-    assert resp["mcp_server_key"] == "gmail-klavis"
+    assert resp["mcp_server_key"] == "gmail"
 
 
 def test_build_app_response_connected():
@@ -192,7 +192,7 @@ def test_build_app_response_connected():
     state = {"connected": True, "enabled": True, "server_url": "https://strata.klavis.ai/mcp/slack/", "instance_id": "slack-klavis"}
     resp = _build_app_response(app_def, state)
     assert resp["connected"] is True
-    assert resp["mcp_server_key"] == "slack-klavis"
+    assert resp["mcp_server_key"] == "slack"
 
 
 # ── 8. categories are correct ─────────────────────────────────────────────────
@@ -286,7 +286,7 @@ async def test_cancel_connect_app_removes_from_klavis():
     cfg_dict = {
         "tools": {
             "mcpServers": {
-                "gmail-klavis": {
+                "gmail": {
                     "type": "streamableHttp",
                     "url": "https://strata.klavis.ai/old",
                 }
@@ -319,7 +319,7 @@ async def test_cancel_connect_app_removes_from_klavis():
         
         # Verify app state in config dict is reset and mcp server is removed
         assert cfg_dict["connected_apps"]["gmail"]["pending_oauth"] is False
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
+        assert "gmail" not in cfg_dict["tools"]["mcpServers"]
 
 
 @pytest.mark.asyncio
@@ -341,7 +341,7 @@ async def test_disconnect_app_clears_local_strata_on_404():
     cfg_dict = {
         "tools": {
             "mcpServers": {
-                "gmail-klavis": {
+                "gmail": {
                     "type": "streamableHttp",
                     "url": "https://strata.klavis.ai/old",
                 }
@@ -380,7 +380,7 @@ async def test_disconnect_app_clears_local_strata_on_404():
         
         # Strata should be cleared locally because get_strata also returned 404
         assert "__strata__" not in cfg_dict["connected_apps"]
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
+        assert "gmail" not in cfg_dict["tools"]["mcpServers"]
 
 
 @pytest.mark.asyncio
@@ -403,7 +403,7 @@ async def test_disconnect_app_retains_local_strata_if_exists():
     cfg_dict = {
         "tools": {
             "mcpServers": {
-                "gmail-klavis": {
+                "gmail": {
                     "type": "streamableHttp",
                     "url": "https://strata.klavis.ai/old",
                 }
@@ -444,7 +444,7 @@ async def test_disconnect_app_retains_local_strata_if_exists():
         assert "__strata__" in cfg_dict["connected_apps"]
         assert cfg_dict["connected_apps"]["__strata__"]["strata_id"] == "test-strata"
         # But gmail server is still removed locally
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
+        assert "gmail" not in cfg_dict["tools"]["mcpServers"]
 
 
 @pytest.mark.asyncio
@@ -466,7 +466,7 @@ async def test_cancel_connect_app_clears_local_strata_on_404():
     cfg_dict = {
         "tools": {
             "mcpServers": {
-                "gmail-klavis": {
+                "gmail": {
                     "type": "streamableHttp",
                     "url": "https://strata.klavis.ai/old",
                 }
@@ -505,7 +505,7 @@ async def test_cancel_connect_app_clears_local_strata_on_404():
         
         # Strata should be cleared locally because get_strata also returned 404
         assert "__strata__" not in cfg_dict["connected_apps"]
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
+        assert "gmail" not in cfg_dict["tools"]["mcpServers"]
 
 
 @pytest.mark.asyncio
@@ -528,7 +528,7 @@ async def test_cancel_connect_app_retains_local_strata_if_exists():
     cfg_dict = {
         "tools": {
             "mcpServers": {
-                "gmail-klavis": {
+                "gmail": {
                     "type": "streamableHttp",
                     "url": "https://strata.klavis.ai/old",
                 }
@@ -569,7 +569,7 @@ async def test_cancel_connect_app_retains_local_strata_if_exists():
         assert "__strata__" in cfg_dict["connected_apps"]
         assert cfg_dict["connected_apps"]["__strata__"]["strata_id"] == "test-strata"
         # But gmail server is still removed locally
-        assert "gmail-klavis" not in cfg_dict["tools"]["mcpServers"]
+        assert "gmail" not in cfg_dict["tools"]["mcpServers"]
 
 
 @pytest.mark.asyncio

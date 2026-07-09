@@ -66,28 +66,81 @@ function _renderFsBreadcrumb(breadcrumb, path, activeLabel = null) {
 function _createFsRow({ icon, name, size = "", mtime = "", isDir = false, onClick }) {
     const row = document.createElement("div");
     row.className = isDir ? "fs-item is-dir" : "fs-item";
+    
+    // Create a wrapper for the clickable area
+    const clickableArea = document.createElement("div");
+    clickableArea.className = "fs-item-clickable";
     if (typeof onClick === "function") {
-        row.addEventListener("click", onClick);
+        clickableArea.addEventListener("click", onClick);
     }
-
-    row.appendChild(createMaterialIcon(icon, "material-icons-round fs-item-icon"));
-
+    
+    clickableArea.appendChild(createMaterialIcon(icon, "material-icons-round fs-item-icon"));
+    
     const nameEl = document.createElement("span");
     nameEl.className = "fs-item-name";
     nameEl.title = name;
     nameEl.textContent = name;
-    row.appendChild(nameEl);
+    clickableArea.appendChild(nameEl);
+    row.appendChild(clickableArea);
 
+    const metaArea = document.createElement("div");
+    metaArea.className = "fs-item-meta";
+    
     const sizeEl = document.createElement("span");
     sizeEl.className = "fs-item-size";
     sizeEl.textContent = size;
-    row.appendChild(sizeEl);
+    metaArea.appendChild(sizeEl);
 
     const mtimeEl = document.createElement("span");
     mtimeEl.className = "fs-item-mtime";
     mtimeEl.textContent = mtime;
-    row.appendChild(mtimeEl);
-
+    metaArea.appendChild(mtimeEl);
+    
+    if (!isDir && name !== "..") {
+        const actionsMenu = document.createElement("div");
+        actionsMenu.className = "fs-item-actions";
+        
+        const previewBtn = document.createElement("button");
+        previewBtn.title = "Preview";
+        previewBtn.innerHTML = '<span class="material-icons-round">visibility</span>';
+        previewBtn.onclick = (e) => { e.stopPropagation(); /* stub */ };
+        
+        const injectBtn = document.createElement("button");
+        injectBtn.title = "Inject into Context";
+        injectBtn.innerHTML = '<span class="material-icons-round">add_circle_outline</span>';
+        injectBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            const ext = name.split('.').pop() || "";
+            state.stagedFiles.push({
+                name: name,
+                url: `/api/fs/explore?path=${encodeURIComponent(state.currentFsPath === "." ? name : state.currentFsPath + "/" + name)}`,
+                type: "application/octet-stream",
+                mode: "context",
+                stagedAt: Date.now()
+            });
+            updateStagingUI();
+            if (typeof shibaDialog === "function") shibaDialog("alert", "Injected", `${name} added to context.`);
+        };
+        
+        const ragBtn = document.createElement("button");
+        ragBtn.title = "Index RAG";
+        ragBtn.innerHTML = '<span class="material-icons-round">library_add</span>';
+        ragBtn.onclick = (e) => { e.stopPropagation(); if (typeof shibaDialog === "function") shibaDialog("alert", "Index RAG", "Select a collection to index this file (stub)."); };
+        
+        const delBtn = document.createElement("button");
+        delBtn.title = "Delete";
+        delBtn.className = "danger-action";
+        delBtn.innerHTML = '<span class="material-icons-round">delete</span>';
+        delBtn.onclick = (e) => { e.stopPropagation(); /* stub */ };
+        
+        actionsMenu.appendChild(previewBtn);
+        actionsMenu.appendChild(injectBtn);
+        actionsMenu.appendChild(ragBtn);
+        actionsMenu.appendChild(delBtn);
+        metaArea.appendChild(actionsMenu);
+    }
+    
+    row.appendChild(metaArea);
     return row;
 }
 
@@ -160,6 +213,7 @@ async function handleFileUpload(files) {
                     name: uploadedFile.filename,
                     url: uploadedFile.url,
                     type: file.type,
+                    mode: "context",
                     stagedAt: Date.now()
                 });
                 updateStagingUI();
@@ -203,6 +257,26 @@ function updateStagingUI() {
         nameEl.title = file.name;
         nameEl.textContent = file.name;
         item.appendChild(nameEl);
+
+        const modeSelect = document.createElement("select");
+        modeSelect.className = "staged-file-mode";
+        modeSelect.title = "Usage Mode";
+        const modes = [
+            { value: "context", label: "Direct Context" },
+            { value: "rag", label: "RAG / KB" },
+            { value: "workspace", label: "Workspace" }
+        ];
+        modes.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.value;
+            opt.textContent = m.label;
+            if (file.mode === m.value) opt.selected = true;
+            modeSelect.appendChild(opt);
+        });
+        modeSelect.addEventListener("change", (e) => {
+            file.mode = e.target.value;
+        });
+        item.appendChild(modeSelect);
 
         const removeBtn = document.createElement("button");
         removeBtn.className = "btn-remove-staged";

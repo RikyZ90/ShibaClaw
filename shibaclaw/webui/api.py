@@ -69,7 +69,7 @@ async def api_context_get(request: Request):
     defaults = agent_manager.config.agents.defaults
     sections = []
 
-    from shibaclaw.helpers.helpers import estimate_message_tokens
+    from shibaclaw.helpers.helpers import estimate_message_tokens, estimate_prompt_tokens
 
     # Resolve profile_id from session metadata
     profile_id = None
@@ -79,6 +79,21 @@ async def api_context_get(request: Request):
 
     # ── Real system prompt (identity + bootstrap + memory + skills) ──
     system_prompt, prompt_tokens = _build_real_system_prompt(wp, defaults, profile_id=profile_id)
+    
+    from shibaclaw.agent.context import ScentBuilder
+    active_kbs = []
+    if session_id and agent_manager.pm:
+        sess_ctx = agent_manager.pm.get_or_create(session_id)
+        active_kbs = sess_ctx.metadata.get("knowledge_bases", [])
+    
+    runtime_block = ScentBuilder.build_runtime_block(
+        chat_id=session_id,
+        active_kbs=active_kbs
+    )
+    if runtime_block:
+        system_prompt += "\n\n" + runtime_block
+        prompt_tokens += estimate_prompt_tokens(runtime_block)
+        
     total_tokens = prompt_tokens
     sections.append(
         f"## 🧠 System Prompt ({prompt_tokens} tokens)\n\n```markdown\n{system_prompt}\n```"

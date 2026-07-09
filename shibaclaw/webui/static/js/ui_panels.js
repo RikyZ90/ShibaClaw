@@ -298,12 +298,13 @@ function _toggleAutoSection(key, headerEl) {
 
 async function loadCronSection() {
     const list = $("cron-list");
+    if (!list) return;
     const count = $("cron-count");
     try {
         const res = await authFetch("/api/cron/jobs");
         const data = await res.json();
         const jobs = data.jobs || [];
-        count.textContent = jobs.length;
+        if (count) count.textContent = jobs.length;
 
         if (jobs.length === 0) {
             list.innerHTML = `<div class="auto-empty">No one-time jobs</div>`;
@@ -341,6 +342,7 @@ async function loadCronSection() {
 
 async function loadHeartbeatSection() {
     const list = $("heartbeat-list");
+    if (!list) return;
     const badge = $("heartbeat-badge");
     try {
         const res = await authFetch("/api/heartbeat/status");
@@ -681,6 +683,9 @@ function _syncSessionUI(data, loadSeq, sessionId) {
     }
     if (typeof updateModelSelectorDisplay === "function") {
         updateModelSelectorDisplay(data.model || "");
+    }
+    if (typeof window.setActiveKBs === "function") {
+        window.setActiveKBs(data.knowledge_bases || []);
     }
 }
 

@@ -163,6 +163,8 @@ You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fa
         iteration: int | None = None,
         max_iterations: int | None = None,
         available_channels: list[str] | None = None,
+        active_kbs: list[str] | None = None,
+        metadata: dict | None = None,
     ) -> str:
         """Return a '## Live State' block for the system prompt.
 
@@ -182,6 +184,32 @@ You should call it directly. Only use `mcp_list_tools` and `mcp_call_tool` as fa
             lines.append(
                 'Use the message tool with channel="<name>" to send cross-channel messages.'
             )
+        if active_kbs:
+            lines.append("Active Knowledge Bases for this session:")
+            for kb in active_kbs:
+                lines.append(f"- {kb}")
+            lines.append(
+                'CRITICAL: When the user asks a question, ALWAYS use the `knowledge_search` tool to search these active Knowledge Bases FIRST before falling back to `web_search` or `web_fetch`.'
+            )
+            
+        if metadata:
+            kbs = metadata.get("mentioned_kbs")
+            mcps = metadata.get("mentioned_mcps")
+            apps = metadata.get("mentioned_apps")
+            
+            if kbs or mcps or apps:
+                lines.append("### EXPLICIT USER MENTIONS (HARD PROMPTS) ###")
+            
+            if kbs:
+                kb_names = ", ".join(f"'{k}'" for k in kbs)
+                lines.append(f"CRITICAL DIRECTIVE: The user explicitly requested to use the Knowledge Base(s): {kb_names}. YOU MUST prioritize using `knowledge_search` on these immediately.")
+            if mcps:
+                mcp_names = ", ".join(f"'{m}'" for m in mcps)
+                lines.append(f"CRITICAL DIRECTIVE: The user explicitly mentioned the MCP server(s): {mcp_names}. YOU MUST prioritize using the tools provided by these MCP servers.")
+            if apps:
+                app_names = ", ".join(f"'{a}'" for a in apps)
+                lines.append(f"CRITICAL DIRECTIVE: The user explicitly mentioned the Connected App(s): {app_names}. YOU MUST prioritize using the tools related to these apps.")
+
         return "## Live State\n\n" + "\n".join(lines)
 
     def _get_identity(self) -> str:

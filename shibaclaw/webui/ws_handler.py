@@ -285,6 +285,17 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
         return
 
     content = data.get("content", "").strip()
+
+    import re
+    mentioned_kbs = []
+    mentioned_mcps = []
+    mentioned_apps = []
+    for match in re.finditer(r'@kb:(?:"([^"]+)"|([^\s]+))', content):
+        mentioned_kbs.append(match.group(1) or match.group(2))
+    for match in re.finditer(r'@mcp:(?:"([^"]+)"|([^\s]+))', content):
+        mentioned_mcps.append(match.group(1) or match.group(2))
+    for match in re.finditer(r'@app:(?:"([^"]+)"|([^\s]+))', content):
+        mentioned_apps.append(match.group(1) or match.group(2))
     session = sessions.setdefault(
         ws_id, _make_session_state(f"webui:{ws_id[:8]}")
     )
@@ -317,6 +328,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
         "content": content,
         "media": media_paths if media_paths else None,
         "attachments": attachments_data,
+        "mentioned_kbs": mentioned_kbs,
+        "mentioned_mcps": mentioned_mcps,
+        "mentioned_apps": mentioned_apps,
     }
 
     ps = processing_state.get(session_key)
@@ -398,6 +412,9 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
                     "session_key": session_key,
                     "message_id": message["id"],
                     "attachments": message.get("attachments", []),
+                    "mentioned_kbs": message.get("mentioned_kbs", []),
+                    "mentioned_mcps": message.get("mentioned_mcps", []),
+                    "mentioned_apps": message.get("mentioned_apps", []),
                 },
             }
 

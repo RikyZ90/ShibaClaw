@@ -159,10 +159,12 @@ function buildTokenCard(t) {
 function updateTokenBadge(t) {
     const badge = $("token-badge");
     const text = $("token-badge-text");
+    const fill = $("token-badge-fill");
     if (!badge || !text || !t) return;
     const pct = t.usage_pct ?? 0;
     const tier = usageTier(pct);
     badge.className = "token-badge usage-" + tier;
+    if (fill) fill.style.width = `${pct}%`;
     text.textContent = `${fmtTokens(t.total ?? 0)} / ${fmtTokens(t.context_window ?? 0)} · ${pct}%`;
 }
 

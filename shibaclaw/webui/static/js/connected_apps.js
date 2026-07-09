@@ -360,7 +360,7 @@
         <div class="ca-spinner-glow"></div>
       </div>
       <div class="ca-modal-waiting__text">
-        Waiting for ${_esc(appName)} login&hellip;<br>
+        Waiting for ${_esc(appName)} login…<br>
         <span class="ca-modal-waiting__sub">Complete the authorization in the browser tab, then return here.</span>
       </div>
       <button class="ca-modal-waiting__open-btn" data-action="reopen-oauth">
@@ -382,7 +382,7 @@
 
     const appDef = _apps.find(a => a.id === appId);
     const name = appDef ? appDef.name : appId;
-    _openModal(`Connecting ${name}&hellip;`, appId);
+    _openModal(`Connecting ${name}…`, appId);
     try {
       const res = await authFetch(`/api/apps/${encodeURIComponent(appId)}/connect`, {
         method: 'POST'

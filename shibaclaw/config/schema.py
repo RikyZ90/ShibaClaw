@@ -230,6 +230,7 @@ class MCPServerConfig(Base):
     oauth: MCPOAuthConfig | None = Field(default=None)
     tool_timeout: int = 30
     enabled_tools: list[str] = Field(default_factory=lambda: ["*"])
+    klavis_app: str | None = Field(default=None, description="Connected App ID on Klavis Strata.")
 
 
 class ToolsConfig(Base):
