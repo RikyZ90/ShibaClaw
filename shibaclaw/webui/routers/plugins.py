@@ -139,6 +139,7 @@ async def api_install_plugin(request: Request) -> JSONResponse:
         tag = f"v{__version__}" if __version__ != "dev" else "main"
         zip_url = f"https://github.com/RikyZ90/ShibaClaw/archive/refs/{'tags/' + tag if tag != 'main' else 'heads/main'}.zip"
         
+        tmp_path = None
         try:
             logger.info("Downloading plugin {} from {}", package, zip_url)
             async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -161,7 +162,7 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                 pkg_snake_case = package.replace("-", "_")
                 target_dir = plugins_dir / pkg_snake_case
                 if target_dir.exists():
-                    shutil.rmtree(target_dir)
+                    shutil.rmtree(target_dir, ignore_errors=True)
                 
                 for f in plugin_files:
                     if f.endswith('/'):
@@ -182,8 +183,6 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                         with z.open(f) as zf, open(dest_path, "wb") as out:
                             shutil.copyfileobj(zf, out)
             
-            Path(tmp_path).unlink(missing_ok=True)
-            
             import importlib
             importlib.invalidate_caches()
 
@@ -197,6 +196,9 @@ async def api_install_plugin(request: Request) -> JSONResponse:
         except Exception as e:
             logger.exception("Plugin installation failed")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        finally:
+            if tmp_path:
+                Path(tmp_path).unlink(missing_ok=True)
 
     from pathlib import Path
     workspace_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -299,18 +301,22 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
         pkg_snake_case = package.replace("-", "_")
         target_dir = get_plugins_dir() / pkg_snake_case
         
-        if target_dir.exists():
-            shutil.rmtree(target_dir)
-            
-        import importlib
-        importlib.invalidate_caches()
+        try:
+            if target_dir.exists():
+                shutil.rmtree(target_dir, ignore_errors=True)
 
-        asyncio.create_task(_do_restart())
-        return JSONResponse({
-            "ok": True,
-            "stdout": f"Plugin {package} folder deleted locally.",
-            "restarting": True
-        })
+            import importlib
+            importlib.invalidate_caches()
+
+            asyncio.create_task(_do_restart())
+            return JSONResponse({
+                "ok": True,
+                "stdout": f"Plugin {package} folder deleted locally.",
+                "restarting": True
+            })
+        except Exception as e:
+            logger.exception("Plugin uninstallation failed in local dir")
+            return JSONResponse({"ok": False, "error": f"Failed to delete plugin folder: {str(e)}"}, status_code=500)
 
     if package == "shibaclaw-rag":
         cmd = [
