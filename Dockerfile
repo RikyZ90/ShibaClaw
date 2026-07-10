@@ -1,14 +1,12 @@
 # syntax=docker/dockerfile:1
 # STAGE 1: Builder
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+FROM python:3.12-slim-bookworm AS builder
 
-# Evita che uv crei un virtualenv nel percorso predefinito, 
-# installa invece i pacchetti nel sistema o in una cartella specifica
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Install build dependencies
+# Install uv and build dependencies
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -16,6 +14,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     python3-dev \
     libolm-dev \
     && rm -rf /var/lib/apt/lists/*
+RUN pip install uv
 
 # Copia solo i file di dipendenze per sfruttare la cache di Docker
 RUN --mount=type=cache,target=/root/.cache/uv \
