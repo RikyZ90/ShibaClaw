@@ -253,8 +253,7 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                 "stdout": stdout.decode()
             }, status_code=500)
             
-            asyncio.create_task(_do_restart())
-        
+        asyncio.create_task(_do_restart())
         return JSONResponse({
             "ok": True,
             "stdout": stdout.decode().strip(),
@@ -363,8 +362,7 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
                 "stdout": stdout.decode()
             }, status_code=500)
             
-            asyncio.create_task(_do_restart())
-        
+        asyncio.create_task(_do_restart())
         return JSONResponse({
             "ok": True,
             "stdout": stdout.decode().strip(),
