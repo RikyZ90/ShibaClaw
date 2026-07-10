@@ -113,14 +113,14 @@ async def api_install_plugin(request: Request) -> JSONResponse:
 
     async def _do_restart():
         await asyncio.sleep(1.5)
-        if system_router._shutdown_callback is not None:
-            try:
-                system_router._shutdown_callback()
-            except Exception as _e:
-                logger.debug("Ignored error: {}", _e)
         if system_router._restart_callback is not None:
             system_router._restart_callback()
         else:
+            if system_router._shutdown_callback is not None:
+                try:
+                    system_router._shutdown_callback()
+                except Exception as _e:
+                    logger.debug("Ignored error: {}", _e)
             system_router._schedule_restart_outside_loop(delay=2.0)
             system_router._graceful_shutdown_server()
 
@@ -278,14 +278,14 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
 
     async def _do_restart():
         await asyncio.sleep(1.5)
-        if system_router._shutdown_callback is not None:
-            try:
-                system_router._shutdown_callback()
-            except Exception as _e:
-                logger.debug("Ignored error: {}", _e)
         if system_router._restart_callback is not None:
             system_router._restart_callback()
         else:
+            if system_router._shutdown_callback is not None:
+                try:
+                    system_router._shutdown_callback()
+                except Exception as _e:
+                    logger.debug("Ignored error: {}", _e)
             system_router._schedule_restart_outside_loop(delay=2.0)
             system_router._graceful_shutdown_server()
 

@@ -93,10 +93,13 @@ class DesktopRuntime:
 
     def _restart_gateway(self) -> None:
         """Stop then restart the gateway subprocess in place."""
-        logger.info("Restarting gateway subprocess…")
-        self._stop_gateway()
-        self._start_gateway()
-        logger.info("Gateway subprocess restarted")
+        def _do_restart() -> None:
+            logger.info("Restarting gateway subprocess…")
+            self._stop_gateway()
+            self._start_gateway()
+            logger.info("Gateway subprocess restarted")
+
+        threading.Thread(target=_do_restart, name="shibaclaw-gw-restart", daemon=True).start()
 
     @property
     def base_url(self) -> str:
