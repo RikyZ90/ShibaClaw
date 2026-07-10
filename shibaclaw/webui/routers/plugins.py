@@ -124,8 +124,7 @@ async def api_install_plugin(request: Request) -> JSONResponse:
             except Exception as _e:
                 logger.debug("Ignored error: {}", _e)
         if _restart_callback is not None:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, _restart_callback)
+            _restart_callback()
         else:
             _schedule_restart_outside_loop(delay=2.0)
             _graceful_shutdown_server()
@@ -197,6 +196,9 @@ async def api_install_plugin(request: Request) -> JSONResponse:
             
             Path(tmp_path).unlink(missing_ok=True)
             
+            import importlib
+            importlib.invalidate_caches()
+
             asyncio.create_task(_do_restart())
             return JSONResponse({
                 "ok": True,
@@ -253,6 +255,9 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                 "stdout": stdout.decode()
             }, status_code=500)
             
+        import importlib
+        importlib.invalidate_caches()
+
         asyncio.create_task(_do_restart())
         return JSONResponse({
             "ok": True,
@@ -296,8 +301,7 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
             except Exception as _e:
                 logger.debug("Ignored error: {}", _e)
         if _restart_callback is not None:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, _restart_callback)
+            _restart_callback()
         else:
             _schedule_restart_outside_loop(delay=2.0)
             _graceful_shutdown_server()
@@ -315,6 +319,9 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
         if target_dir.exists():
             shutil.rmtree(target_dir)
             
+        import importlib
+        importlib.invalidate_caches()
+
         asyncio.create_task(_do_restart())
         return JSONResponse({
             "ok": True,
@@ -362,6 +369,9 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
                 "stdout": stdout.decode()
             }, status_code=500)
             
+        import importlib
+        importlib.invalidate_caches()
+
         asyncio.create_task(_do_restart())
         return JSONResponse({
             "ok": True,
