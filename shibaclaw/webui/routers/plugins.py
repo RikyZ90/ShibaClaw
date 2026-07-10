@@ -124,8 +124,7 @@ async def api_install_plugin(request: Request) -> JSONResponse:
             except Exception as _e:
                 logger.debug("Ignored error: {}", _e)
         if _restart_callback is not None:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, _restart_callback)
+            _restart_callback()
         else:
             _schedule_restart_outside_loop(delay=2.0)
             _graceful_shutdown_server()
@@ -164,8 +163,8 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                 if not plugin_files:
                     return JSONResponse({"ok": False, "error": f"Plugin {package} not found in release archive."}, status_code=404)
                 
-                short_name = package.replace("shibaclaw-channel-", "").replace("shibaclaw-tts-", "").replace("shibaclaw_", "")
-                target_dir = plugins_dir / short_name
+                pkg_snake_case = package.replace("-", "_")
+                target_dir = plugins_dir / pkg_snake_case
                 if target_dir.exists():
                     shutil.rmtree(target_dir)
                 target_dir.mkdir(parents=True)
@@ -180,7 +179,6 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                     # Se c'è una cartella col nome del pacchetto (es. shibaclaw_channel_whatsapp),
                     # estraiamo direttamente il suo contenuto, ignorando il resto
                     # (questo adatta la struttura di pip a una struttura locale)
-                    pkg_snake_case = package.replace("-", "_")
                     if rel_path.startswith(f"{pkg_snake_case}/"):
                         rel_path = rel_path[len(f"{pkg_snake_case}/"):]
                     elif rel_path == "pyproject.toml" or rel_path == "README.md":
@@ -197,6 +195,9 @@ async def api_install_plugin(request: Request) -> JSONResponse:
             
             Path(tmp_path).unlink(missing_ok=True)
             
+            import importlib
+            importlib.invalidate_caches()
+
             asyncio.create_task(_do_restart())
             return JSONResponse({
                 "ok": True,
@@ -297,8 +298,7 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
             except Exception as _e:
                 logger.debug("Ignored error: {}", _e)
         if _restart_callback is not None:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, _restart_callback)
+            _restart_callback()
         else:
             _schedule_restart_outside_loop(delay=2.0)
             _graceful_shutdown_server()
@@ -310,8 +310,8 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
         import shutil
         from shibaclaw.config.paths import get_plugins_dir
         
-        short_name = package.replace("shibaclaw-channel-", "").replace("shibaclaw-tts-", "").replace("shibaclaw_", "")
-        target_dir = get_plugins_dir() / short_name
+        pkg_snake_case = package.replace("-", "_")
+        target_dir = get_plugins_dir() / pkg_snake_case
         
         if target_dir.exists():
             shutil.rmtree(target_dir)

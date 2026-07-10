@@ -25,7 +25,7 @@ def discover_local_tts_plugins() -> dict[str, type[BaseTTS]]:
             for attr in dir(mod):
                 obj = getattr(mod, attr)
                 if isinstance(obj, type) and issubclass(obj, BaseTTS) and obj is not BaseTTS:
-                    short_name = name.replace("shibaclaw-tts-", "").replace("shibaclaw_", "")
+                    short_name = name.replace("shibaclaw_tts_", "").replace("shibaclaw_", "")
                     plugins[short_name] = obj
                     break
         except Exception as e:

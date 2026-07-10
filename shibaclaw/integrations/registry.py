@@ -73,8 +73,8 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
             for attr in dir(mod):
                 obj = getattr(mod, attr)
                 if isinstance(obj, type) and issubclass(obj, _Base) and obj is not _Base:
-                    # Strip 'shibaclaw-channel-' prefix if it exists to get the short name
-                    short_name = name.replace("shibaclaw-channel-", "").replace("shibaclaw_", "")
+                    # Strip 'shibaclaw_channel_' prefix if it exists to get the short name
+                    short_name = name.replace("shibaclaw_channel_", "").replace("shibaclaw_", "")
                     plugins[short_name] = obj
                     break
         except Exception as e:
