@@ -22,7 +22,7 @@ x-common-config: &common-config
     - ./.shibaclaw/.local:/root/.local # user-level installs (pip, pipx...)
     - ./.shibaclaw/.cache:/root/.cache # package/build cache
     - ./.shibaclaw/tools:/opt/tools # custom tools installed at runtime
-    - ./.shibaclaw/bin:/usr/local/bin # persist globally installed executables (git, gh)
+    - ./.shibaclaw/bin:/opt/local/bin # persist globally installed executables (git, gh)
     - ./.shibaclaw/.gitconfig:/root/.gitconfig # persist user git config (optional)
 services:
   shibaclaw-gateway:

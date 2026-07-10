@@ -44,7 +44,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 COPY --from=builder /app/.venv /app/.venv
 
 # Assicura che l'app usi il virtualenv di uv
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:/opt/local/bin:/opt/tools/bin:$PATH"
 ENV TIKTOKEN_CACHE_DIR="/app/.tiktoken_cache"
 
 # Pre-download tiktoken cl100k_base encoding for offline use
