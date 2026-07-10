@@ -163,11 +163,10 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                 if not plugin_files:
                     return JSONResponse({"ok": False, "error": f"Plugin {package} not found in release archive."}, status_code=404)
                 
-                short_name = package.replace("shibaclaw-channel-", "").replace("shibaclaw-tts-", "").replace("shibaclaw_", "")
-                target_dir = plugins_dir / short_name
+                pkg_snake_case = package.replace("-", "_")
+                target_dir = plugins_dir / pkg_snake_case
                 if target_dir.exists():
                     shutil.rmtree(target_dir)
-                target_dir.mkdir(parents=True)
                 
                 for f in plugin_files:
                     if f.endswith('/'):
@@ -176,23 +175,17 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                     if not rel_path:
                         continue
                     
-                    # Se c'è una cartella col nome del pacchetto (es. shibaclaw_channel_whatsapp),
-                    # estraiamo direttamente il suo contenuto, ignorando il resto
-                    # (questo adatta la struttura di pip a una struttura locale)
-                    pkg_snake_case = package.replace("-", "_")
-                    if rel_path.startswith(f"{pkg_snake_case}/"):
-                        rel_path = rel_path[len(f"{pkg_snake_case}/"):]
-                    elif rel_path == "pyproject.toml" or rel_path == "README.md":
+                    if rel_path == "pyproject.toml" or rel_path == "README.md":
                         # Ignoriamo i file root del pacchetto pip, ci serve solo il codice sorgente
                         continue
-                    
-                    if not rel_path:
-                        continue
                         
-                    dest_path = target_dir / rel_path
-                    dest_path.parent.mkdir(parents=True, exist_ok=True)
-                    with z.open(f) as zf, open(dest_path, "wb") as out:
-                        shutil.copyfileobj(zf, out)
+                    # Manteniamo intatta la struttura della cartella sorgente per evitare
+                    # ModuleNotFoundError causati da absolute imports all'interno dei plugin
+                    if rel_path.startswith(f"{pkg_snake_case}/"):
+                        dest_path = plugins_dir / rel_path
+                        dest_path.parent.mkdir(parents=True, exist_ok=True)
+                        with z.open(f) as zf, open(dest_path, "wb") as out:
+                            shutil.copyfileobj(zf, out)
             
             Path(tmp_path).unlink(missing_ok=True)
             
@@ -313,8 +306,8 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
         import shutil
         from shibaclaw.config.paths import get_plugins_dir
         
-        short_name = package.replace("shibaclaw-channel-", "").replace("shibaclaw-tts-", "").replace("shibaclaw_", "")
-        target_dir = get_plugins_dir() / short_name
+        pkg_snake_case = package.replace("-", "_")
+        target_dir = get_plugins_dir() / pkg_snake_case
         
         if target_dir.exists():
             shutil.rmtree(target_dir)
