@@ -1,3 +1,8 @@
+## [0.9.3] - 2025-01-15
+
+### Fixed
+- **WhatsApp Plugin not showing as installed on Windows EXE** — Fixed the WebUI plugin list endpoint to include locally-installed plugins (stored in `~/.shibaclaw/plugins/`) alongside entry-point plugins. The `api_list_plugins()` function now merges `discover_plugins()` with `discover_local_plugins()`, matching the behavior used by `ChannelManager` and onboarding. This ensures the WhatsApp channel plugin (installed via GitHub zip extraction on EXE builds) correctly appears as "installed" in the WebUI.
+
 ## [0.9.2] - 2026-07-10
 
 ### Fixed

@@ -22,12 +22,9 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.2</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.3</b> — Click to see what's new</summary>
 
-- **Optional Local RAG & Raspberry Pi Compatibility** — Decoupled heavy ML dependencies into a `[rag]` extra. Core ShibaClaw now installs and launches instantly on low-spec hardware like Raspberry Pi, and RAG dependencies can be installed as a plugin directly from the WebUI.
-- **Context-Aware Mentions System** — Directly reference and prompt the agent to prioritize specific Knowledge Bases (`@kb:name`), MCP Servers (`@mcp:name`), or Connected Apps (`@app:name`) using an autocomplete mention dropdown triggered by `@` in the chat input.
-- **Robust Self-Updater** — Automatically update your installation (both standard `pip` packages and Windows packaged executables) in the background with real-time progress bars in the WebUI.
-- **UI Modularization** — Reorganized frontend code by splitting settings, profiles, update, onboard, mentions, and knowledge functionalities into specialized JS modules to vastly improve maintainability.
+- **WhatsApp Plugin Fix for Windows EXE** — Fixed the WebUI plugin list to correctly show locally-installed plugins (like WhatsApp) as "installed" on Windows packaged executables. The plugin discovery now merges entry-point plugins with local plugins from `~/.shibaclaw/plugins/`, matching the behavior used by the ChannelManager and onboarding.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
