@@ -247,8 +247,10 @@ class OAuthFlow:
             "refresh_token": stored["refresh_token"],
             "client_id": cfg.client_id,
         }
-        if cfg.client_secret:
-            payload["client_secret"] = cfg.client_secret
+
+        client_secret = cfg.resolve_client_secret(server_name) if hasattr(cfg, "resolve_client_secret") else cfg.client_secret
+        if client_secret:
+            payload["client_secret"] = client_secret
 
         token_data = await self._post_token(cfg.token_url, payload)
 
@@ -322,8 +324,10 @@ class OAuthFlow:
             "client_id": cfg.client_id,
             "code_verifier": code_verifier,
         }
-        if cfg.client_secret:
-            payload["client_secret"] = cfg.client_secret
+
+        client_secret = cfg.resolve_client_secret(server_name) if hasattr(cfg, "resolve_client_secret") else cfg.client_secret
+        if client_secret:
+            payload["client_secret"] = client_secret
 
         return await self._post_token(cfg.token_url, payload)
 

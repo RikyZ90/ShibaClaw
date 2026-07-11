@@ -177,6 +177,19 @@ class WebSearchConfig(Base):
     base_url: str = ""
     max_results: int = 5
 
+    def resolve_api_key(self) -> str:
+        """Return the API key: from config field or encrypted vault."""
+        if self.api_key:
+            return self.api_key
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("tools", "web_search.api_key")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return ""
+
 
 class AudioConfig(Base):
     """Configuration for Speech capabilities (STT/TTS)."""
@@ -190,6 +203,19 @@ class AudioConfig(Base):
     tts_speed: float = 1.0
     tts_lang: str = "en"
     tts_model_path: str | None = None
+
+    def resolve_api_key(self) -> str | None:
+        """Return the API key: from config field or encrypted vault."""
+        if self.api_key:
+            return self.api_key
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("audio", "api_key")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return None
 
 
 class WebToolsConfig(Base):
@@ -236,6 +262,19 @@ class MCPOAuthConfig(Base):
     client_secret: str | None = Field(default=None)
     scopes: list[str] = Field(default_factory=list)
     callback_timeout: float = Field(default=120.0)
+
+    def resolve_client_secret(self, server_name: str) -> str | None:
+        """Return the client secret: from config field or encrypted vault."""
+        if self.client_secret:
+            return self.client_secret
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_secret = get_credential_manager().get_secret("mcp_servers", f"{server_name}.client_secret")
+            if vault_secret and isinstance(vault_secret, str):
+                return vault_secret
+        except Exception:
+            pass
+        return None
 
 
 class MCPServerConfig(Base):

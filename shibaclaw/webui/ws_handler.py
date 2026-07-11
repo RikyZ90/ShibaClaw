@@ -618,13 +618,13 @@ async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict[str, Any]) ->
         audio_file = io.BytesIO(audio_bytes)
         audio_file.name = "audio.wav"
 
-        api_key = config.audio.api_key
+        api_key = config.audio.resolve_api_key()
         base_url = config.audio.provider_url
 
         if not api_key and not base_url:
             groq = config.providers.groq
-            if groq and groq.api_key:
-                api_key = groq.api_key
+            if groq and groq.resolve_api_key("groq"):
+                api_key = groq.resolve_api_key("groq")
                 base_url = groq.api_base or "https://api.groq.com/openai/v1"
 
         client_kwargs = {"api_key": api_key or "not-set"}

@@ -248,5 +248,13 @@ def _migrate_config_secrets_inline(cfg: Config, cm) -> bool:
                 ch_data[sk] = ""
                 migrated = True
 
+    # --- MCP OAuth secrets ---
+    if cfg.tools and cfg.tools.mcp_servers:
+        for server_name, server_cfg in cfg.tools.mcp_servers.items():
+            if server_cfg.oauth and server_cfg.oauth.client_secret:
+                cm.set_secret("mcp_servers", f"{server_name}.client_secret", server_cfg.oauth.client_secret)
+                server_cfg.oauth.client_secret = None
+                migrated = True
+
     return migrated
 
