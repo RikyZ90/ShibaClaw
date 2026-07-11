@@ -33,7 +33,7 @@ def _check_build_environment() -> None:
         )
 
     missing = []
-    for module_name in ("PyInstaller", "PIL", "pystray", "webview"):
+    for module_name in ("PyInstaller", "PIL", "pystray", "webview", "langchain"):
         try:
             __import__(module_name)
         except ImportError:
@@ -43,7 +43,7 @@ def _check_build_environment() -> None:
         raise SystemExit(
             "Missing desktop build dependencies: "
             + ", ".join(missing)
-            + ". Install them with: pip install -e \".[windows-native,dev]\""
+            + ". Install them with: pip install -e \".[windows-native,dev,rag]\""
         )
 
 
