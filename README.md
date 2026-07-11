@@ -22,9 +22,9 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.3</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.4</b> — Click to see what's new</summary>
 
-- **WhatsApp Plugin Fix for Windows EXE** — Fixed the WebUI plugin list to correctly show locally-installed plugins (like WhatsApp) as "installed" on Windows packaged executables. The plugin discovery now merges entry-point plugins with local plugins from `~/.shibaclaw/plugins/`, matching the behavior used by the ChannelManager and onboarding.
+- **Linux Self-Update Stuck on v0.9.2** — Fixed a bug where `_get_version()` reported a stale version from the bundled manifest even after a successful pip/pipx upgrade. Version resolution now prefers installed package metadata, ensuring the updater converges correctly.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 

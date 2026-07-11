@@ -1,0 +1,1032 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index e827900..6e6f14c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,3 +1,8 @@
++## [0.9.4] - 2026-07-11
++
++### Fixed
++- **Linux Self-Update Stuck on v0.9.2** — Fixed a bug where the bundled `shibaclaw/updater/update_manifest.json` was not bumped alongside releases, causing `_get_version()` to report a stale version (0.9.2) even after a successful `pip`/`pipx` upgrade to a newer release. This made the updater perpetually report "update available" without ever converging. Version resolution for pip installations now prefers installed package metadata (`importlib.metadata`) over the bundled manifest, ensuring the reported version always reflects the actually-installed wheel version.
++
+ ## [0.9.3] - 2025-01-15
+ 
+ ### Fixed
+diff --git a/README.md b/README.md
+index 3a903af..664ded6 100644
+--- a/README.md
++++ b/README.md
+@@ -22,9 +22,9 @@
+ ***
+ 
+ <details open>
+-<summary>📢 <b>Latest Release: v0.9.3</b> — Click to see what's new</summary>
++<summary>📢 <b>Latest Release: v0.9.4</b> — Click to see what's new</summary>
+ 
+-- **WhatsApp Plugin Fix for Windows EXE** — Fixed the WebUI plugin list to correctly show locally-installed plugins (like WhatsApp) as "installed" on Windows packaged executables. The plugin discovery now merges entry-point plugins with local plugins from `~/.shibaclaw/plugins/`, matching the behavior used by the ChannelManager and onboarding.
++- **Linux Self-Update Stuck on v0.9.2** — Fixed a bug where `_get_version()` reported a stale version from the bundled manifest even after a successful pip/pipx upgrade. Version resolution now prefers installed package metadata, ensuring the updater converges correctly.
+ 
+ See the [Changelog](./CHANGELOG.md) for full release history.
+ 
+diff --git a/pyproject.toml b/pyproject.toml
+index 54b084f..7727f14 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,6 +1,6 @@
+ [project]
+ name = "shibaclaw"
+-version = "0.9.3"
++version = "0.9.4"
+ description = "A lightweight personal AI assistant framework"
+ readme = { file = "README.md", content-type = "text/markdown" }
+ requires-python = ">=3.12"
+@@ -29,7 +29,7 @@ dependencies = [
+     "oauth-cli-kit>=0.1.6,<1.0.0",
+     "loguru>=0.7.3,<1.0.0",
+     "readability-lxml>=0.8.4.1,<1.0.0",
+-    "rich>=14.3.4,<15.0.0",
++    "rich>=14.3.4,<16.0.0",
+     "croniter>=6.2.3,<7.0.0",
+     "socksio>=1.0.0,<2.0.0",
+     "msgpack>=1.2.1,<2.0.0",
+@@ -37,12 +37,12 @@ dependencies = [
+     "questionary>=2.1.1,<3.0.0",
+     "mcp>=1.28.1,<2.0.0",
+     "json-repair>=0.61.2,<1.0.0",
+-    "chardet>=5.2.0,<6.0.0",
+-    "openai>=2.44.0,<3.0.0",
++    "chardet>=5.2.0,<8.0.0",
++    "openai>=2.45.0,<3.0.0",
+     "tiktoken>=0.13.0,<1.0.0",
+     "uvicorn>=0.50.1,<1.0.0",
+     "starlette>=1.3.1,<2.0.0",
+-    "aiofiles>=24.1.0,<25.0.0",
++    "aiofiles>=24.1.0,<26.0.0",
+     "pip-audit>=2.10.1,<3.0.0",
+     "python-multipart>=0.0.32",
+     "pyyaml>=6.0.3,<7.0",
+diff --git a/shibaclaw/__init__.py b/shibaclaw/__init__.py
+index 86c45f5..bb5d84e 100644
+--- a/shibaclaw/__init__.py
++++ b/shibaclaw/__init__.py
+@@ -85,9 +85,12 @@ def _get_version():
+             or "dev"
+         )
+ 
++    # pip/pipx/wheel installation: prefer installed package metadata (reflects the
++    # actually-installed wheel version) over the bundled manifest, which can go
++    # stale if a release forgets to bump shibaclaw/updater/update_manifest.json.
+     return (
+-        _read_manifest_version(package_dir)
+-        or _read_installed_metadata_version()
++        _read_installed_metadata_version()
++        or _read_manifest_version(package_dir)
+         or _read_pyproject_version(runtime_root)
+         or "dev"
+     )
+diff --git a/shibaclaw/agent/knowledge_manager.py b/shibaclaw/agent/knowledge_manager.py
+index dc3870a..3f8e3da 100644
+--- a/shibaclaw/agent/knowledge_manager.py
++++ b/shibaclaw/agent/knowledge_manager.py
+@@ -11,9 +11,7 @@ from typing import Any, Dict, List, Optional
+ from filelock import FileLock
+ 
+ # Suppress Hugging Face Hub unauthenticated request warnings and disable progress bars
+-warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
+-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+-os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
++# (Moved to _get_embeddings to avoid global side effects on import)
+ 
+ try:
+     from langchain_core.documents import Document  # noqa: E402
+@@ -38,6 +36,11 @@ logger = logging.getLogger(__name__)
+ def _get_embeddings():
+     if not RAG_AVAILABLE:
+         raise RuntimeError("RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
++    
++    warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
++    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
++    os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
++    
+     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+ 
+ class KnowledgeManager:
+@@ -165,10 +168,20 @@ class KnowledgeManager:
+             # Save to temporary directory first for atomic update
+             vectorstore.save_local(str(temp_faiss_dir))
+             
+-            # Atomic rename (replace existing)
++            # Atomic rename (replace existing safely)
+             if faiss_dir.exists():
+-                shutil.rmtree(faiss_dir, ignore_errors=True)
+-            temp_faiss_dir.rename(faiss_dir)
++                backup_dir = coll_dir / "index_backup"
++                if backup_dir.exists():
++                    shutil.rmtree(backup_dir, ignore_errors=True)
++                faiss_dir.rename(backup_dir)
++                try:
++                    temp_faiss_dir.rename(faiss_dir)
++                except Exception as rename_err:
++                    backup_dir.rename(faiss_dir)
++                    raise rename_err
++                shutil.rmtree(backup_dir, ignore_errors=True)
++            else:
++                temp_faiss_dir.rename(faiss_dir)
+             
+             # Update cache
+             cid = self._sanitize_id(collection_id)
+diff --git a/shibaclaw/agent/loop.py b/shibaclaw/agent/loop.py
+index 03d7a5c..ca05a17 100644
+--- a/shibaclaw/agent/loop.py
++++ b/shibaclaw/agent/loop.py
+@@ -540,7 +540,7 @@ class ShibaBrain:
+         if session_key:
+             self._steering_queues[session_key] = []
+ 
+-        while iteration < self.max_iterations:
++        while self.max_iterations == 0 or iteration < self.max_iterations:
+             if session_key and session_key in self._steering_queues:
+                 steer_msgs = self._steering_queues[session_key]
+                 if steer_msgs:
+@@ -571,7 +571,7 @@ class ShibaBrain:
+                     self._steering_queues[session_key] = []
+             # Wall-clock safety: abort if the loop has been running too long
+             elapsed = time.monotonic() - loop_start
+-            if elapsed > self.loop_wall_timeout:
++            if self.loop_wall_timeout > 0 and elapsed > self.loop_wall_timeout:
+                 logger.warning(f"Session wall timeout ({self.loop_wall_timeout}s) reached after {elapsed:.1f}s.")
+                 final_content = (
+                     f"I reached the maximum time limit for processing "
+@@ -682,11 +682,11 @@ class ShibaBrain:
+                             try:
+                                 await asyncio.wait_for(
+                                     asyncio.shield(tool_future),
+-                                    timeout=min(_heartbeat, self.tool_timeout - _waited),
++                                    timeout=min(_heartbeat, self.tool_timeout - _waited) if self.tool_timeout > 0 else _heartbeat,
+                                 )
+                             except asyncio.TimeoutError:
+                                 _waited += _heartbeat
+-                                if _waited >= self.tool_timeout:
++                                if self.tool_timeout > 0 and _waited >= self.tool_timeout:
+                                     break
+                                 if on_progress:
+                                     await on_progress(
+@@ -737,7 +737,7 @@ class ShibaBrain:
+                 final_content = response.content
+                 break
+ 
+-        if final_content is None and iteration >= self.max_iterations:
++        if final_content is None and self.max_iterations > 0 and iteration >= self.max_iterations:
+             logger.warning("Max iterations ({}) reached", self.max_iterations)
+             final_content = (
+                 f"I reached the maximum number of tool call iterations ({self.max_iterations}) "
+diff --git a/shibaclaw/agent/subagent.py b/shibaclaw/agent/subagent.py
+index b634193..ff15f57 100644
+--- a/shibaclaw/agent/subagent.py
++++ b/shibaclaw/agent/subagent.py
+@@ -111,10 +111,13 @@ class SubagentManager:
+         logger.info("Subagent [{}] starting task: {}", task_id, label)
+ 
+         try:
+-            return await asyncio.wait_for(
+-                self._run_subagent_inner(task_id, task, label, origin),
+-                timeout=self.timeout,
+-            )
++            if self.timeout > 0:
++                return await asyncio.wait_for(
++                    self._run_subagent_inner(task_id, task, label, origin),
++                    timeout=self.timeout,
++                )
++            else:
++                return await self._run_subagent_inner(task_id, task, label, origin)
+         except asyncio.TimeoutError:
+             logger.warning("Subagent [{}] timed out after {}s", task_id, self.timeout)
+             await self._announce_result(
+diff --git a/shibaclaw/agent/tools/mcp.py b/shibaclaw/agent/tools/mcp.py
+index 382ed35..0e022dd 100644
+--- a/shibaclaw/agent/tools/mcp.py
++++ b/shibaclaw/agent/tools/mcp.py
+@@ -42,7 +42,7 @@ class MCPWrappedTool(Tool):
+         try:
+             result = await asyncio.wait_for(
+                 self._session.call_tool(self._tool_name, arguments=kwargs),
+-                timeout=self._timeout,
++                timeout=self._timeout if self._timeout > 0 else None,
+             )
+         except asyncio.TimeoutError:
+             logger.warning(
+@@ -82,7 +82,7 @@ class MCPWrappedTool(Tool):
+                         try:
+                             result = await asyncio.wait_for(
+                                 self._session.call_tool(self._tool_name, arguments=kwargs),
+-                                timeout=self._timeout,
++                                timeout=self._timeout if self._timeout > 0 else None,
+                             )
+                             parts = []
+                             for block in result.content:
+@@ -481,7 +481,7 @@ class MCPCallTool(Tool):
+         try:
+             result = await asyncio.wait_for(
+                 session.call_tool(tool_name, arguments=args),
+-                timeout=timeout,
++                timeout=timeout if timeout > 0 else None,
+             )
+         except asyncio.TimeoutError:
+             logger.warning("MCP tool '{}' on server '{}' timed out after {}s", tool_name, server_name, timeout)
+diff --git a/shibaclaw/integrations/registry.py b/shibaclaw/integrations/registry.py
+index a2627d0..b561141 100644
+--- a/shibaclaw/integrations/registry.py
++++ b/shibaclaw/integrations/registry.py
+@@ -59,7 +59,7 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
+ 
+     plugins_dir = get_plugins_dir()
+     if str(plugins_dir) not in sys.path:
+-        sys.path.insert(0, str(plugins_dir))
++        sys.path.append(str(plugins_dir))
+ 
+     plugins: dict[str, type[BaseChannel]] = {}
+     if not plugins_dir.exists():
+@@ -68,6 +68,9 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
+     for _, name, ispkg in pkgutil.iter_modules([str(plugins_dir)]):
+         if not ispkg:
+             continue
++        # Force re-scan for newly-extracted packages
++        if name in sys.modules:
++            del sys.modules[name]
+         try:
+             mod = importlib.import_module(name)
+             for attr in dir(mod):
+@@ -75,10 +78,11 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
+                 if isinstance(obj, type) and issubclass(obj, _Base) and obj is not _Base:
+                     # Strip 'shibaclaw-channel-' prefix if it exists to get the short name
+                     short_name = name.replace("shibaclaw-channel-", "").replace("shibaclaw_channel_", "").replace("shibaclaw_", "")
++                    obj._local_package_name = name  # Preserve for uninstall
+                     plugins[short_name] = obj
+                     break
+         except Exception as e:
+-            logger.debug("Failed to load local plugin {}: {}", name, e)
++            logger.warning("Failed to load local plugin {}: {}", name, e)
+ 
+     return plugins
+ 
+diff --git a/shibaclaw/tts/registry.py b/shibaclaw/tts/registry.py
+index e881a8f..ce6112c 100644
+--- a/shibaclaw/tts/registry.py
++++ b/shibaclaw/tts/registry.py
+@@ -11,7 +11,7 @@ def discover_local_tts_plugins() -> dict[str, type[BaseTTS]]:
+ 
+     plugins_dir = get_plugins_dir()
+     if str(plugins_dir) not in sys.path:
+-        sys.path.insert(0, str(plugins_dir))
++        sys.path.append(str(plugins_dir))
+ 
+     plugins: dict[str, type[BaseTTS]] = {}
+     if not plugins_dir.exists():
+@@ -20,6 +20,8 @@ def discover_local_tts_plugins() -> dict[str, type[BaseTTS]]:
+     for _, name, ispkg in pkgutil.iter_modules([str(plugins_dir)]):
+         if not ispkg:
+             continue
++        if name in sys.modules:
++            del sys.modules[name]
+         try:
+             mod = importlib.import_module(name)
+             for attr in dir(mod):
+@@ -29,7 +31,7 @@ def discover_local_tts_plugins() -> dict[str, type[BaseTTS]]:
+                     plugins[short_name] = obj
+                     break
+         except Exception as e:
+-            logger.debug("Failed to load local TTS plugin {}: {}", name, e)
++            logger.warning("Failed to load local TTS plugin {}: {}", name, e)
+ 
+     return plugins
+ 
+diff --git a/shibaclaw/updater/update_manifest.json b/shibaclaw/updater/update_manifest.json
+index c1827e5..e02702c 100644
+--- a/shibaclaw/updater/update_manifest.json
++++ b/shibaclaw/updater/update_manifest.json
+@@ -1,31 +1,31 @@
+ {
+-    "version": "0.9.2",
+-    "release_notes": "Hotfix: Fixed a bug where installing a plugin from the WebUI after a self-update would accidentally downgrade the application to the previously installed pip version.",
++    "version": "0.9.4",
++    "release_notes": "Fixed Linux self-update stuck on v0.9.2: the bundled update_manifest.json was not bumped alongside releases, causing _get_version() to report a stale version even after a successful pip/pipx upgrade. Version resolution now prefers installed pip metadata over the bundled manifest for pip installations.",
+     "changes": [
+         {
+             "path": "pyproject.toml",
+             "overwrite": true,
+-            "note": "Bumped version to 0.9.2."
++            "note": "Bumped version to 0.9.4."
+         },
+         {
+             "path": "CHANGELOG.md",
+             "overwrite": true,
+-            "note": "Added v0.9.2 release notes."
++            "note": "Added v0.9.4 release notes."
+         },
+         {
+             "path": "README.md",
+             "overwrite": true,
+-            "note": "Updated documentation version to 0.9.2."
++            "note": "Updated documentation version to 0.9.4."
+         },
+         {
+             "path": "shibaclaw/updater/update_manifest.json",
+             "overwrite": true,
+-            "note": "Bumped packaged update manifest to v0.9.2."
++            "note": "Bumped packaged update manifest to v0.9.4."
+         },
+         {
+             "path": "shibaclaw/__init__.py",
+             "overwrite": true,
+-            "note": "Fixed version priority to prefer manifest over stale pip metadata."
++            "note": "Fixed version priority: pip installations now prefer installed metadata over bundled manifest."
+         }
+     ]
+ }
+\ No newline at end of file
+diff --git a/shibaclaw/webui/routers/plugins.py b/shibaclaw/webui/routers/plugins.py
+index 015c839..eeaddbe 100644
+--- a/shibaclaw/webui/routers/plugins.py
++++ b/shibaclaw/webui/routers/plugins.py
+@@ -1,5 +1,14 @@
+ import sys
+ import asyncio
++import re
++import httpx
++import tempfile
++import zipfile
++import shutil
++import importlib
++import subprocess
++from pathlib import Path
++
+ from starlette.requests import Request
+ from starlette.responses import JSONResponse
+ from loguru import logger
+@@ -7,11 +16,27 @@ from loguru import logger
+ from shibaclaw.integrations.registry import discover_plugins, discover_local_plugins
+ from shibaclaw.tts.registry import discover_tts_plugins
+ from shibaclaw.config.loader import load_config
++from shibaclaw.config.paths import get_plugins_dir
++from shibaclaw.helpers.system import is_running_as_exe
++from shibaclaw.webui.routers import system as system_router
++from shibaclaw import __version__
++from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
++
++_plugin_lock = asyncio.Lock()
++
++def with_plugin_lock(func):
++    import functools
++    @functools.wraps(func)
++    async def wrapper(request: Request, *args, **kwargs):
++        if _plugin_lock.locked():
++            return JSONResponse({"ok": False, "error": "Another plugin operation is in progress. Please wait."}, status_code=409)
++        async with _plugin_lock:
++            return await func(request, *args, **kwargs)
++    return wrapper
+ 
+ async def api_list_plugins(request: Request) -> JSONResponse:
+     cfg = load_config()
+     installed_channels = {**discover_plugins(), **discover_local_plugins()}
+-    from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+ 
+     integrations = []
+     for name, cls in installed_channels.items():
+@@ -86,70 +111,46 @@ async def api_list_plugins(request: Request) -> JSONResponse:
+     })
+ 
+ 
+-async def api_install_plugin(request: Request) -> JSONResponse:
++async def _do_restart():
++    await asyncio.sleep(1.5)
++    # Purge any cached plugin modules so re-discovery works
++    stale = [k for k in sys.modules if k.startswith("shibaclaw_")]
++    for k in stale:
++        del sys.modules[k]
+ 
+-    try:
+-        body = await request.json()
+-    except Exception:
+-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
++    if system_router._restart_callback is not None:
++        system_router._restart_callback()
++    else:
++        if system_router._shutdown_callback is not None:
++            try:
++                system_router._shutdown_callback()
++            except Exception as _e:
++                logger.debug("Ignored error: {}", _e)
++        system_router._schedule_restart_outside_loop(delay=2.0)
++        system_router._graceful_shutdown_server()
++
++
++async def _install_plugin_exe(package: str) -> JSONResponse:
++    plugins_dir = get_plugins_dir()
++    plugins_dir.mkdir(parents=True, exist_ok=True)
+     
+-    package = body.get("package")
+-    if not package:
+-        return JSONResponse({"error": "package is required"}, status_code=400)
+-
+-    import re
+-    if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
+-        return JSONResponse({"error": "Only shibaclaw official plugins can be installed"}, status_code=400)
+-
+-    from shibaclaw.helpers.system import is_running_as_exe
+-    is_exe = is_running_as_exe()
+-    if is_exe and package == "shibaclaw-rag":
+-        return JSONResponse({
+-            "ok": False,
+-            "error": "The Local RAG plugin requires complex external ML dependencies (langchain, faiss, etc.) which cannot be dynamically installed in the frozen .exe version. Please run ShibaClaw from source to use this feature."
+-        }, status_code=400)
+-
+-    from shibaclaw.webui.routers import system as system_router
+-
+-    async def _do_restart():
+-        await asyncio.sleep(1.5)
+-        if system_router._restart_callback is not None:
+-            system_router._restart_callback()
+-        else:
+-            if system_router._shutdown_callback is not None:
+-                try:
+-                    system_router._shutdown_callback()
+-                except Exception as _e:
+-                    logger.debug("Ignored error: {}", _e)
+-            system_router._schedule_restart_outside_loop(delay=2.0)
+-            system_router._graceful_shutdown_server()
+-
+-    if is_exe:
+-        import httpx
+-        import tempfile
+-        import zipfile
+-        import shutil
+-        from pathlib import Path
+-        from shibaclaw.config.paths import get_plugins_dir
+-        from shibaclaw import __version__
+-        
+-        plugins_dir = get_plugins_dir()
+-        plugins_dir.mkdir(parents=True, exist_ok=True)
+-        
+-        tag = f"v{__version__}" if __version__ != "dev" else "main"
+-        zip_url = f"https://github.com/RikyZ90/ShibaClaw/archive/refs/{'tags/' + tag if tag != 'main' else 'heads/main'}.zip"
+-        
+-        tmp_path = None
+-        try:
+-            logger.info("Downloading plugin {} from {}", package, zip_url)
+-            async with httpx.AsyncClient(follow_redirects=True) as client:
++    tag = f"v{__version__}" if __version__ != "dev" else "main"
++    zip_url = f"https://github.com/RikyZ90/ShibaClaw/archive/refs/{'tags/' + tag if tag != 'main' else 'heads/main'}.zip"
++    
++    try:
++        logger.info("Downloading plugin {} from {}", package, zip_url)
++        with tempfile.TemporaryDirectory() as tmp_dir:
++            tmp_path = Path(tmp_dir) / "repo.zip"
++            async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
+                 resp = await client.get(zip_url)
++                if resp.status_code == 404 and tag != "main":
++                    logger.warning("Plugin archive for {} not found, falling back to main branch", tag)
++                    zip_url = "https://github.com/RikyZ90/ShibaClaw/archive/refs/heads/main.zip"
++                    resp = await client.get(zip_url)
+                 resp.raise_for_status()
+-                
+-                with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+-                    tmp.write(resp.content)
+-                    tmp_path = tmp.name
+-                    
++                with open(tmp_path, "wb") as f:
++                    f.write(resp.content)
++            
+             logger.info("Extracting plugin {}", package)
+             with zipfile.ZipFile(tmp_path, 'r') as z:
+                 root_folder = z.namelist()[0].split('/')[0]
+@@ -171,40 +172,40 @@ async def api_install_plugin(request: Request) -> JSONResponse:
+                     if not rel_path:
+                         continue
+                     
+-                    if rel_path == "pyproject.toml" or rel_path == "README.md":
+-                        # Ignoriamo i file root del pacchetto pip, ci serve solo il codice sorgente
++                    if rel_path in ("pyproject.toml", "README.md"):
+                         continue
+                         
+-                    # Manteniamo intatta la struttura della cartella sorgente per evitare
+-                    # ModuleNotFoundError causati da absolute imports all'interno dei plugin
+                     if rel_path.startswith(f"{pkg_snake_case}/"):
+                         dest_path = plugins_dir / rel_path
+                         dest_path.parent.mkdir(parents=True, exist_ok=True)
+                         with z.open(f) as zf, open(dest_path, "wb") as out:
+                             shutil.copyfileobj(zf, out)
+-            
+-            import importlib
+-            importlib.invalidate_caches()
++        
++        importlib.invalidate_caches()
+ 
+-            asyncio.create_task(_do_restart())
+-            return JSONResponse({
+-                "ok": True,
+-                "stdout": f"Plugin {package} downloaded and extracted locally.",
+-                "restarting": True
+-            })
+-            
+-        except Exception as e:
+-            logger.exception("Plugin installation failed")
+-            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+-        finally:
+-            if tmp_path:
+-                Path(tmp_path).unlink(missing_ok=True)
+ 
+-    from pathlib import Path
++        asyncio.create_task(_do_restart())
++        return JSONResponse({
++            "ok": True,
++            "stdout": f"Plugin {package} downloaded and extracted locally.",
++            "restarting": True
++        })
++        
++    except httpx.HTTPStatusError as e:
++        if e.response.status_code == 404:
++            return JSONResponse({"ok": False, "error": f"Plugin archive not found for version {tag}. Please update ShibaClaw first."}, status_code=404)
++        logger.exception("Plugin installation failed (HTTP Error)")
++        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
++    except Exception as e:
++        logger.exception("Plugin installation failed")
++        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
++
++
++async def _install_plugin_source(package: str) -> JSONResponse:
+     workspace_root = Path(__file__).resolve().parent.parent.parent.parent
+     local_path = workspace_root / "plugins" / package
++    tag = f"v{__version__}" if __version__ != "dev" else "main"
+     
+-    import subprocess
+     extra_kwargs = {}
+     if sys.platform == "win32":
+         extra_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+@@ -215,15 +216,13 @@ async def api_install_plugin(request: Request) -> JSONResponse:
+             cmd = [sys.executable, "-m", "pip", "install", "-e", ".[rag]"]
+             extra_kwargs["cwd"] = str(workspace_root)
+         else:
+-            from shibaclaw import __version__
+             target = f"shibaclaw[rag]=={__version__}" if __version__ != "dev" else "shibaclaw[rag]"
+             cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir", target]
+     elif local_path.is_dir():
+         install_target = str(local_path)
+         cmd = [sys.executable, "-m", "pip", "install", install_target]
+     else:
+-        from shibaclaw import __version__
+-        tag = f"v{__version__}" if __version__ != "dev" else "main"
++        # tag already computed at function top
+         install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@{tag}#subdirectory=plugins/{package}"
+         cmd = [sys.executable, "-m", "pip", "install", install_target]
+ 
+@@ -239,15 +238,29 @@ async def api_install_plugin(request: Request) -> JSONResponse:
+         stdout, stderr = await proc.communicate()
+         
+         if proc.returncode != 0:
+-            return JSONResponse({
+-                "ok": False,
+-                "error": stderr.decode().strip(),
+-                "stdout": stdout.decode()
+-            }, status_code=500)
++            if tag != "main":
++                logger.warning("Pip install for tag {} failed, retrying with main branch...", tag)
++                install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@main#subdirectory=plugins/{package}"
++                cmd[-1] = install_target
++                logger.info("Retrying pip install: {}", " ".join(cmd))
++                proc = await asyncio.create_subprocess_exec(
++                    *cmd,
++                    stdout=asyncio.subprocess.PIPE,
++                    stderr=asyncio.subprocess.PIPE,
++                    **extra_kwargs
++                )
++                stdout, stderr = await proc.communicate()
++
++            if proc.returncode != 0:
++                return JSONResponse({
++                    "ok": False,
++                    "error": stderr.decode().strip(),
++                    "stdout": stdout.decode()
++                }, status_code=500)
+             
+-        import importlib
+         importlib.invalidate_caches()
+ 
++
+         asyncio.create_task(_do_restart())
+         return JSONResponse({
+             "ok": True,
+@@ -258,8 +271,9 @@ async def api_install_plugin(request: Request) -> JSONResponse:
+         logger.exception("Plugin installation failed")
+         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+ 
+-async def api_uninstall_plugin(request: Request) -> JSONResponse:
+ 
++@with_plugin_lock
++async def api_install_plugin(request: Request) -> JSONResponse:
+     try:
+         body = await request.json()
+     except Exception:
+@@ -269,45 +283,56 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
+     if not package:
+         return JSONResponse({"error": "package is required"}, status_code=400)
+ 
+-    import re
+     if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
+-        return JSONResponse({"error": "Only shibaclaw official plugins can be uninstalled"}, status_code=400)
++        return JSONResponse({"error": "Only shibaclaw official plugins can be installed"}, status_code=400)
+ 
+-    from shibaclaw.helpers.system import is_running_as_exe
+     is_exe = is_running_as_exe()
++    if is_exe and package == "shibaclaw-rag":
++        return JSONResponse({
++            "ok": False,
++            "error": "The Local RAG plugin requires complex external ML dependencies (langchain, faiss, etc.) which cannot be dynamically installed in the frozen .exe version. Please run ShibaClaw from source to use this feature."
++        }, status_code=400)
++
++    if is_exe:
++        return await _install_plugin_exe(package)
++    else:
++        return await _install_plugin_source(package)
++
++
++@with_plugin_lock
++async def api_uninstall_plugin(request: Request) -> JSONResponse:
++    try:
++        body = await request.json()
++    except Exception:
++        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+     
+-    from shibaclaw.webui.routers import system as system_router
++    package = body.get("package")
++    if not package:
++        return JSONResponse({"error": "package is required"}, status_code=400)
+ 
+-    async def _do_restart():
+-        await asyncio.sleep(1.5)
+-        if system_router._restart_callback is not None:
+-            system_router._restart_callback()
+-        else:
+-            if system_router._shutdown_callback is not None:
+-                try:
+-                    system_router._shutdown_callback()
+-                except Exception as _e:
+-                    logger.debug("Ignored error: {}", _e)
+-            system_router._schedule_restart_outside_loop(delay=2.0)
+-            system_router._graceful_shutdown_server()
++    if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
++        return JSONResponse({"error": "Only shibaclaw official plugins can be uninstalled"}, status_code=400)
+ 
++    is_exe = is_running_as_exe()
+     if is_exe:
+         if package == "shibaclaw-rag":
+-            return JSONResponse({"ok": False, "error": "RAG is not supported in the .exe version."}, status_code=400)
++            return JSONResponse({
++                "ok": False, 
++                "info": "The Local RAG plugin cannot be uninstalled in the .exe version. Its dependencies are not dynamically managed."
++            }, status_code=400)
+             
+-        import shutil
+-        from shibaclaw.config.paths import get_plugins_dir
+-        
+         pkg_snake_case = package.replace("-", "_")
+         target_dir = get_plugins_dir() / pkg_snake_case
+         
+         try:
+-            if target_dir.exists():
+-                shutil.rmtree(target_dir, ignore_errors=True)
++            if not target_dir.exists():
++                return JSONResponse({"ok": False, "error": f"Plugin {package} is not installed locally."}, status_code=404)
++
++            shutil.rmtree(target_dir)
+ 
+-            import importlib
+             importlib.invalidate_caches()
+ 
++
+             asyncio.create_task(_do_restart())
+             return JSONResponse({
+                 "ok": True,
+@@ -335,9 +360,9 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
+         ]
+     else:
+         cmd = [sys.executable, "-m", "pip", "uninstall", "-y", package]
++    
+     logger.info("Uninstalling plugin: {}", " ".join(cmd))
+     
+-    import subprocess
+     extra_kwargs = {}
+     if sys.platform == "win32":
+         extra_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+@@ -358,7 +383,6 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
+                 "stdout": stdout.decode()
+             }, status_code=500)
+             
+-        import importlib
+         importlib.invalidate_caches()
+ 
+         asyncio.create_task(_do_restart())
+diff --git a/shibaclaw/webui/server.py b/shibaclaw/webui/server.py
+index b595521..f54ce6b 100644
+--- a/shibaclaw/webui/server.py
++++ b/shibaclaw/webui/server.py
+@@ -457,10 +457,26 @@ class ServerManager:
+     def base_url(self) -> str:
+         return f"http://{self._host}:{self._port}"
+ 
++    @staticmethod
++    def _quiet_exception_handler(loop, context):
++        """Suppress the harmless ConnectionResetError from ProactorEventLoop on Windows.
++
++        When a WebSocket client disconnects abruptly, asyncio's
++        _ProactorBasePipeTransport._call_connection_lost tries to
++        shutdown a socket that is already dead, raising WinError 10054.
++        This is cosmetic and safe to ignore.
++        """
++        exc = context.get("exception")
++        if isinstance(exc, ConnectionResetError):
++            return  # silently swallow
++        # Everything else → default handler
++        loop.default_exception_handler(context)
++
+     def _run_in_thread(self) -> None:
+         loop = asyncio.new_event_loop()
+         self.loop = loop
+         asyncio.set_event_loop(loop)
++        loop.set_exception_handler(self._quiet_exception_handler)
+         try:
+             loop.run_until_complete(self._serve_with_startup_tasks())
+         finally:
+diff --git a/shibaclaw/webui/static/css/chat.css b/shibaclaw/webui/static/css/chat.css
+index 800ce98..3fc8fa9 100644
+--- a/shibaclaw/webui/static/css/chat.css
++++ b/shibaclaw/webui/static/css/chat.css
+@@ -1233,15 +1233,20 @@
+ .mention-chip-inline {
+     display: inline-flex;
+     align-items: center;
+-    font-size: 13px;
++    font-size: 11.5px;
+     font-weight: 500;
+-    padding: 2px 8px;
+-    border-radius: 12px;
++    padding: 1px 6px;
++    border-radius: 8px;
+     margin: 0 2px;
+     vertical-align: middle;
+     background-color: var(--primary-color-alpha, rgba(99, 102, 241, 0.15));
+     color: var(--primary-color, #818cf8);
+     border: 1px solid rgba(99, 102, 241, 0.3);
++    gap: 3px;
++}
++
++.mention-chip-inline .material-icons-round {
++    font-size: 14px;
+ }
+ 
+ .mention-chip-inline.mention-kb {
+diff --git a/shibaclaw/webui/static/index.css b/shibaclaw/webui/static/index.css
+index de58f07..fdcc0ba 100644
+--- a/shibaclaw/webui/static/index.css
++++ b/shibaclaw/webui/static/index.css
+@@ -9,4 +9,5 @@
+ @import url('css/login.css');
+ @import url('css/components.css');
+ @import url('css/notification-center.css');
+-@import url('css/profiles.css');
+\ No newline at end of file
++@import url('css/profiles.css');
++@import url('css/premium.css');
+\ No newline at end of file
+diff --git a/shibaclaw/webui/static/index.html b/shibaclaw/webui/static/index.html
+index 12f32e1..33beb9a 100644
+--- a/shibaclaw/webui/static/index.html
++++ b/shibaclaw/webui/static/index.html
+@@ -299,17 +299,14 @@
+                                     <span class="material-icons-round"
+                                         style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
+                                 </button>
+-                                <div class="model-dropdown-menu" id="kb-dropdown-menu"
+-                                    style="display: none; bottom: calc(100% + 8px); top: auto; min-width: 260px; padding: 4px 0; border: 1px solid var(--border-color); box-shadow: 0 4px 20px rgba(0,0,0,0.4); border-radius: 12px;">
+-                                    <div class="model-dropdown-list" id="kb-dropdown-list" style="max-height: 250px; overflow-y: auto; padding: 4px 8px; display: flex; flex-direction: column; gap: 2px;">
+-                                        <!-- populated dynamically -->
++                                <div class="model-dropdown-menu premium-dropdown" id="kb-dropdown-menu"
++                                    style="display: none; bottom: calc(100% + 12px); top: auto; min-width: 180px; width: max-content; padding: 0; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; background: var(--bg-secondary);">
++                                    <div style="padding: 10px 12px 6px 12px; display: flex; justify-content: space-between; align-items: center;">
++                                        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600;">Collections</span>
++                                        <span class="material-icons-round" onclick="openModal('knowledge-modal'); document.getElementById('kb-dropdown-menu').style.display = 'none';" style="font-size: 16px; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-color)'" onmouseout="this.style.color='var(--text-muted)'" title="Manage Collections">settings</span>
+                                     </div>
+-                                    <div
+-                                        style="padding: 8px 12px; border-top: 1px solid var(--border-light); text-align: center; margin-top: 4px; background: rgba(0,0,0,0.1);">
+-                                        <button style="width: 100%; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-light); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--shiba-gold)'; this.style.color='var(--shiba-gold)';" onmouseout="this.style.background='transparent'; this.style.borderColor='var(--border-light)'; this.style.color='var(--text-primary)';"
+-                                            onclick="openModal('knowledge-modal')">
+-                                            <span class="material-icons-round" style="font-size: 16px;">settings_suggest</span> Manage Collections
+-                                        </button>
++                                    <div class="model-dropdown-list" id="kb-dropdown-list" style="max-height: 250px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
++                                        <!-- populated dynamically -->
+                                     </div>
+                                 </div>
+                             </div>
+@@ -574,16 +571,17 @@
+                     <div class="field-row"><label for="s-agent-temp">Temperature</label><input type="text"
+                             id="s-agent-temp" class="form-input" value="0.1"></div>
+                     <div class="field-row"><label for="s-agent-maxIter">Max Tool Iterations</label><input type="number"
+-                            id="s-agent-maxIter" class="form-input" value="40"></div>
++                            id="s-agent-maxIter" class="form-input" value="40" min="0"
++                            title="Max tool iterations (0 for no limit)"></div>
+                     <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s)</label><input type="number"
+-                            id="s-agent-toolTimeout" class="form-input" value="660" min="10"
+-                            title="Max seconds for all tool executions combined"></div>
++                            id="s-agent-toolTimeout" class="form-input" value="660" min="0"
++                            title="Max seconds for all tool executions combined (0 for no timeout)"></div>
+                     <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s)</label><input
+-                            type="number" id="s-agent-loopWallTimeout" class="form-input" value="600" min="10"
+-                            title="Max seconds for the entire agent loop"></div>
++                            type="number" id="s-agent-loopWallTimeout" class="form-input" value="600" min="0"
++                            title="Max seconds for the entire agent loop (0 for no timeout)"></div>
+                     <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s)</label><input
+-                            type="number" id="s-agent-subagentTimeout" class="form-input" value="600" min="10"
+-                            title="Max seconds for a single subagent execution"></div>
++                            type="number" id="s-agent-subagentTimeout" class="form-input" value="600" min="0"
++                            title="Max seconds for a single subagent execution (0 for no timeout)"></div>
+                     <div class="field-row"><label for="s-agent-reasoning">Reasoning Effort</label><input type="text"
+                             id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+ 
+diff --git a/shibaclaw/webui/static/js/knowledge.js b/shibaclaw/webui/static/js/knowledge.js
+index 06c7dcc..76334cf 100644
+--- a/shibaclaw/webui/static/js/knowledge.js
++++ b/shibaclaw/webui/static/js/knowledge.js
+@@ -238,6 +238,7 @@ async function uploadToKB(id, inputElem, droppedFiles = null) {
+     if (btn) {
+         btn.innerHTML = `<span class="material-icons-round spin" style="font-size: 16px;">sync</span> Uploading ${files.length} file(s)...`;
+         btn.style.pointerEvents = "none";
++        btn.classList.add("loading-pulse");
+     }
+     
+     let successCount = 0;
+@@ -274,6 +275,7 @@ async function uploadToKB(id, inputElem, droppedFiles = null) {
+             btn.innerHTML = oldHtml;
+             btn.style.pointerEvents = "auto";
+             btn.style.borderColor = "";
++            btn.classList.remove("loading-pulse");
+         }, 2500);
+     }
+     
+@@ -300,9 +302,9 @@ function renderKBSelectorDropdown() {
+     list.innerHTML = allKnowledgeBases.map(kb => {
+         const isActive = activeSessionKBs.includes(kb.id);
+         return `
+-        <div class="model-item ${isActive ? 'selected' : ''}" onclick="toggleSessionKB('${kb.id}', event)">
++        <div class="model-item premium-kb-item ${isActive ? 'selected' : ''}" onclick="toggleSessionKB('${kb.id}', event)">
+             <span class="model-item-name">${kb.name}</span>
+-            ${isActive ? '<span class="material-icons-round" style="font-size:18px; color: var(--shiba-gold);">check_circle</span>' : '<span class="material-icons-round" style="font-size:18px; color: var(--text-muted); opacity: 0.3;">radio_button_unchecked</span>'}
++            <span class="material-icons-round premium-kb-check" style="font-size:18px;">check_circle</span>
+         </div>
+         `;
+     }).join('');
+diff --git a/shibaclaw/webui/static/js/mcp_manager.js b/shibaclaw/webui/static/js/mcp_manager.js
+index cba6f59..546daa4 100644
+--- a/shibaclaw/webui/static/js/mcp_manager.js
++++ b/shibaclaw/webui/static/js/mcp_manager.js
+@@ -161,8 +161,8 @@
+                     <textarea id="mcp-ed-env" class="form-input mcp-ed-textarea" placeholder='{"API_KEY": "…"}'>${escapeHtml(envVal)}</textarea>
+                 </div>
+                 <div class="field-row">
+-                    <label>Tool Timeout <span class="hint">(seconds)</span></label>
+-                    <input id="mcp-ed-timeout" type="number" class="form-input" value="${s.tool_timeout ?? 30}" min="1" max="600">
++                    <label>Tool Timeout <span class="hint">(seconds, 0 for no limit)</span></label>
++                    <input id="mcp-ed-timeout" type="number" class="form-input" value="${s.tool_timeout ?? 30}" min="0">
+                 </div>
+                 <div class="field-row">
+                     <label>Enabled Tools <span class="hint">(comma-sep, * = all)</span></label>
+diff --git a/shibaclaw/webui/static/js/plugins_panel.js b/shibaclaw/webui/static/js/plugins_panel.js
+index 83f7fee..3da6aee 100644
+--- a/shibaclaw/webui/static/js/plugins_panel.js
++++ b/shibaclaw/webui/static/js/plugins_panel.js
+@@ -75,10 +75,13 @@ window.installPlugin = async function (explicitName) {
+     if (!name) return;
+ 
+     const logEl = document.getElementById("plugin-action-log");
++    const container = input ? input.parentElement : null;
+     if (logEl) {
+         logEl.style.display = "block";
+-        logEl.textContent = `Installing ${name}... please wait.\nThis runs pip install and will automatically restart the server.`;
++        logEl.innerHTML = `<div style="display:flex; align-items:center; gap:8px"><span class="material-icons-round spin" style="color:var(--primary)">autorenew</span> <span>Installing <b>${escapeHtml(name)}</b>...</span></div><div style="font-size:0.8rem; margin-top:4px; color:var(--text-muted)">This runs pip install and will automatically restart the server.</div>`;
++        logEl.classList.add("loading-pulse");
+     }
++    if (container) container.style.opacity = "0.5";
+ 
+     try {
+         const res = await authFetch("/api/plugins/install", {
+@@ -89,16 +92,27 @@ window.installPlugin = async function (explicitName) {
+         const data = await res.json();
+         
+         if (!res.ok) {
+-            if (logEl) logEl.textContent = `Error: ${data.error || "Installation failed"}\n\n${data.stdout || ""}`;
++            if (logEl) {
++                logEl.classList.remove("loading-pulse");
++                logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Error:</b> ${escapeHtml(data.error || "Installation failed")}</div><pre style="margin-top:8px; font-size:0.75rem; background:rgba(0,0,0,0.2); padding:8px; border-radius:4px">${escapeHtml(data.stdout || "")}</pre>`;
++            }
++            if (container) container.style.opacity = "1";
+             return;
+         }
+ 
+-        if (logEl) logEl.textContent = `${data.stdout || "Success!"}\n\nPlugin installed! Restarting server to apply changes...`;
++        if (logEl) {
++            logEl.classList.remove("loading-pulse");
++            logEl.innerHTML = `<div style="color:var(--success)"><span class="material-icons-round">check_circle</span> <b>Success!</b> Plugin installed.</div><div style="font-size:0.8rem; margin-top:4px">Restarting server to apply changes...</div>`;
++        }
+         if (input) input.value = "";
+         
+         await pollForServerRestart();
+     } catch (e) {
+-        if (logEl) logEl.textContent = `Error: ${e.message || e}`;
++        if (logEl) {
++            logEl.classList.remove("loading-pulse");
++            logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Network Error:</b> ${escapeHtml(e.message || e)}</div>`;
++        }
++        if (container) container.style.opacity = "1";
+     }
+ };
+ 
+@@ -109,7 +123,8 @@ window.uninstallPlugin = async function (name) {
+     const logEl = document.getElementById("plugin-action-log");
+     if (logEl) {
+         logEl.style.display = "block";
+-        logEl.textContent = `Uninstalling ${name}... please wait.\nThis will automatically restart the server.`;
++        logEl.innerHTML = `<div style="display:flex; align-items:center; gap:8px"><span class="material-icons-round spin" style="color:var(--accent-red)">autorenew</span> <span>Uninstalling <b>${escapeHtml(name)}</b>...</span></div><div style="font-size:0.8rem; margin-top:4px; color:var(--text-muted)">This will automatically restart the server.</div>`;
++        logEl.classList.add("loading-pulse");
+     }
+ 
+     try {
+@@ -121,15 +136,24 @@ window.uninstallPlugin = async function (name) {
+         const data = await res.json();
+ 
+         if (!res.ok) {
+-            if (logEl) logEl.textContent = `Error: ${data.error || "Uninstallation failed"}\n\n${data.stdout || ""}`;
++            if (logEl) {
++                logEl.classList.remove("loading-pulse");
++                logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Error:</b> ${escapeHtml(data.error || "Uninstallation failed")}</div><pre style="margin-top:8px; font-size:0.75rem; background:rgba(0,0,0,0.2); padding:8px; border-radius:4px">${escapeHtml(data.stdout || "")}</pre>`;
++            }
+             return;
+         }
+ 
+-        if (logEl) logEl.textContent = `${data.stdout || "Success!"}\n\nPlugin uninstalled! Restarting server to apply...`;
++        if (logEl) {
++            logEl.classList.remove("loading-pulse");
++            logEl.innerHTML = `<div style="color:var(--success)"><span class="material-icons-round">check_circle</span> <b>Success!</b> Plugin uninstalled.</div><div style="font-size:0.8rem; margin-top:4px">Restarting server to apply changes...</div>`;
++        }
+         
+         await pollForServerRestart();
+     } catch (e) {
+-        if (logEl) logEl.textContent = `Error: ${e.message || e}`;
++        if (logEl) {
++            logEl.classList.remove("loading-pulse");
++            logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Network Error:</b> ${escapeHtml(e.message || e)}</div>`;
++        }
+     }
+ };
+ 
+diff --git a/update_manifest.json b/update_manifest.json
+index 64bf0d8..e02702c 100644
+--- a/update_manifest.json
++++ b/update_manifest.json
+@@ -1,31 +1,31 @@
+ {
+-    "version": "0.9.3",
+-    "release_notes": "Fixed WhatsApp plugin not showing as installed on Windows EXE builds. The WebUI plugin list now correctly includes locally-installed plugins from ~/.shibaclaw/plugins/ alongside entry-point plugins.",
++    "version": "0.9.4",
++    "release_notes": "Fixed Linux self-update stuck on v0.9.2: the bundled update_manifest.json was not bumped alongside releases, causing _get_version() to report a stale version even after a successful pip/pipx upgrade. Version resolution now prefers installed pip metadata over the bundled manifest for pip installations.",
+     "changes": [
+         {
+             "path": "pyproject.toml",
+             "overwrite": true,
+-            "note": "Bumped version to 0.9.3."
++            "note": "Bumped version to 0.9.4."
+         },
+         {
+             "path": "CHANGELOG.md",
+             "overwrite": true,
+-            "note": "Added v0.9.3 release notes."
++            "note": "Added v0.9.4 release notes."
+         },
+         {
+             "path": "README.md",
+             "overwrite": true,
+-            "note": "Updated documentation version to 0.9.3."
++            "note": "Updated documentation version to 0.9.4."
+         },
+         {
+             "path": "shibaclaw/updater/update_manifest.json",
+             "overwrite": true,
+-            "note": "Bumped packaged update manifest to v0.9.3."
++            "note": "Bumped packaged update manifest to v0.9.4."
+         },
+         {
+-            "path": "shibaclaw/webui/routers/plugins.py",
++            "path": "shibaclaw/__init__.py",
+             "overwrite": true,
+-            "note": "Fixed plugin discovery to include local plugins for EXE builds."
++            "note": "Fixed version priority: pip installations now prefer installed metadata over bundled manifest."
+         }
+     ]
+ }
+\ No newline at end of file

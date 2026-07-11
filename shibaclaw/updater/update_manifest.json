@@ -1,31 +1,31 @@
 {
-    "version": "0.9.2",
-    "release_notes": "Hotfix: Fixed a bug where installing a plugin from the WebUI after a self-update would accidentally downgrade the application to the previously installed pip version.",
+    "version": "0.9.4",
+    "release_notes": "Fixed Linux self-update stuck on v0.9.2: the bundled update_manifest.json was not bumped alongside releases, causing _get_version() to report a stale version even after a successful pip/pipx upgrade. Version resolution now prefers installed pip metadata over the bundled manifest for pip installations.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.2."
+            "note": "Bumped version to 0.9.4."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.2 release notes."
+            "note": "Added v0.9.4 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation version to 0.9.2."
+            "note": "Updated documentation version to 0.9.4."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.2."
+            "note": "Bumped packaged update manifest to v0.9.4."
         },
         {
             "path": "shibaclaw/__init__.py",
             "overwrite": true,
-            "note": "Fixed version priority to prefer manifest over stale pip metadata."
+            "note": "Fixed version priority: pip installations now prefer installed metadata over bundled manifest."
         }
     ]
 }

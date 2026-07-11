@@ -85,9 +85,12 @@ def _get_version():
             or "dev"
         )
 
+    # pip/pipx/wheel installation: prefer installed package metadata (reflects the
+    # actually-installed wheel version) over the bundled manifest, which can go
+    # stale if a release forgets to bump shibaclaw/updater/update_manifest.json.
     return (
-        _read_manifest_version(package_dir)
-        or _read_installed_metadata_version()
+        _read_installed_metadata_version()
+        or _read_manifest_version(package_dir)
         or _read_pyproject_version(runtime_root)
         or "dev"
     )

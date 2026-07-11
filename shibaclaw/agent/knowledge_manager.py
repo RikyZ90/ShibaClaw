@@ -11,9 +11,7 @@ from typing import Any, Dict, List, Optional
 from filelock import FileLock
 
 # Suppress Hugging Face Hub unauthenticated request warnings and disable progress bars
-warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
+# (Moved to _get_embeddings to avoid global side effects on import)
 
 try:
     from langchain_core.documents import Document  # noqa: E402
@@ -38,6 +36,11 @@ logger = logging.getLogger(__name__)
 def _get_embeddings():
     if not RAG_AVAILABLE:
         raise RuntimeError("RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
+    
+    warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
+    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+    os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
+    
     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 class KnowledgeManager:
@@ -165,10 +168,20 @@ class KnowledgeManager:
             # Save to temporary directory first for atomic update
             vectorstore.save_local(str(temp_faiss_dir))
             
-            # Atomic rename (replace existing)
+            # Atomic rename (replace existing safely)
             if faiss_dir.exists():
-                shutil.rmtree(faiss_dir, ignore_errors=True)
-            temp_faiss_dir.rename(faiss_dir)
+                backup_dir = coll_dir / "index_backup"
+                if backup_dir.exists():
+                    shutil.rmtree(backup_dir, ignore_errors=True)
+                faiss_dir.rename(backup_dir)
+                try:
+                    temp_faiss_dir.rename(faiss_dir)
+                except Exception as rename_err:
+                    backup_dir.rename(faiss_dir)
+                    raise rename_err
+                shutil.rmtree(backup_dir, ignore_errors=True)
+            else:
+                temp_faiss_dir.rename(faiss_dir)
             
             # Update cache
             cid = self._sanitize_id(collection_id)

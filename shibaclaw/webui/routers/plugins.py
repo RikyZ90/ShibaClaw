@@ -1,5 +1,14 @@
 import sys
 import asyncio
+import re
+import httpx
+import tempfile
+import zipfile
+import shutil
+import importlib
+import subprocess
+from pathlib import Path
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from loguru import logger
@@ -7,11 +16,27 @@ from loguru import logger
 from shibaclaw.integrations.registry import discover_plugins, discover_local_plugins
 from shibaclaw.tts.registry import discover_tts_plugins
 from shibaclaw.config.loader import load_config
+from shibaclaw.config.paths import get_plugins_dir
+from shibaclaw.helpers.system import is_running_as_exe
+from shibaclaw.webui.routers import system as system_router
+from shibaclaw import __version__
+from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+
+_plugin_lock = asyncio.Lock()
+
+def with_plugin_lock(func):
+    import functools
+    @functools.wraps(func)
+    async def wrapper(request: Request, *args, **kwargs):
+        if _plugin_lock.locked():
+            return JSONResponse({"ok": False, "error": "Another plugin operation is in progress. Please wait."}, status_code=409)
+        async with _plugin_lock:
+            return await func(request, *args, **kwargs)
+    return wrapper
 
 async def api_list_plugins(request: Request) -> JSONResponse:
     cfg = load_config()
     installed_channels = {**discover_plugins(), **discover_local_plugins()}
-    from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
 
     integrations = []
     for name, cls in installed_channels.items():
@@ -86,70 +111,46 @@ async def api_list_plugins(request: Request) -> JSONResponse:
     })
 
 
-async def api_install_plugin(request: Request) -> JSONResponse:
+async def _do_restart():
+    await asyncio.sleep(1.5)
+    # Purge any cached plugin modules so re-discovery works
+    stale = [k for k in sys.modules if k.startswith("shibaclaw_")]
+    for k in stale:
+        del sys.modules[k]
 
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+    if system_router._restart_callback is not None:
+        system_router._restart_callback()
+    else:
+        if system_router._shutdown_callback is not None:
+            try:
+                system_router._shutdown_callback()
+            except Exception as _e:
+                logger.debug("Ignored error: {}", _e)
+        system_router._schedule_restart_outside_loop(delay=2.0)
+        system_router._graceful_shutdown_server()
+
+
+async def _install_plugin_exe(package: str) -> JSONResponse:
+    plugins_dir = get_plugins_dir()
+    plugins_dir.mkdir(parents=True, exist_ok=True)
     
-    package = body.get("package")
-    if not package:
-        return JSONResponse({"error": "package is required"}, status_code=400)
-
-    import re
-    if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
-        return JSONResponse({"error": "Only shibaclaw official plugins can be installed"}, status_code=400)
-
-    from shibaclaw.helpers.system import is_running_as_exe
-    is_exe = is_running_as_exe()
-    if is_exe and package == "shibaclaw-rag":
-        return JSONResponse({
-            "ok": False,
-            "error": "The Local RAG plugin requires complex external ML dependencies (langchain, faiss, etc.) which cannot be dynamically installed in the frozen .exe version. Please run ShibaClaw from source to use this feature."
-        }, status_code=400)
-
-    from shibaclaw.webui.routers import system as system_router
-
-    async def _do_restart():
-        await asyncio.sleep(1.5)
-        if system_router._restart_callback is not None:
-            system_router._restart_callback()
-        else:
-            if system_router._shutdown_callback is not None:
-                try:
-                    system_router._shutdown_callback()
-                except Exception as _e:
-                    logger.debug("Ignored error: {}", _e)
-            system_router._schedule_restart_outside_loop(delay=2.0)
-            system_router._graceful_shutdown_server()
-
-    if is_exe:
-        import httpx
-        import tempfile
-        import zipfile
-        import shutil
-        from pathlib import Path
-        from shibaclaw.config.paths import get_plugins_dir
-        from shibaclaw import __version__
-        
-        plugins_dir = get_plugins_dir()
-        plugins_dir.mkdir(parents=True, exist_ok=True)
-        
-        tag = f"v{__version__}" if __version__ != "dev" else "main"
-        zip_url = f"https://github.com/RikyZ90/ShibaClaw/archive/refs/{'tags/' + tag if tag != 'main' else 'heads/main'}.zip"
-        
-        tmp_path = None
-        try:
-            logger.info("Downloading plugin {} from {}", package, zip_url)
-            async with httpx.AsyncClient(follow_redirects=True) as client:
+    tag = f"v{__version__}" if __version__ != "dev" else "main"
+    zip_url = f"https://github.com/RikyZ90/ShibaClaw/archive/refs/{'tags/' + tag if tag != 'main' else 'heads/main'}.zip"
+    
+    try:
+        logger.info("Downloading plugin {} from {}", package, zip_url)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir) / "repo.zip"
+            async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
                 resp = await client.get(zip_url)
+                if resp.status_code == 404 and tag != "main":
+                    logger.warning("Plugin archive for {} not found, falling back to main branch", tag)
+                    zip_url = "https://github.com/RikyZ90/ShibaClaw/archive/refs/heads/main.zip"
+                    resp = await client.get(zip_url)
                 resp.raise_for_status()
-                
-                with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
-                    tmp.write(resp.content)
-                    tmp_path = tmp.name
-                    
+                with open(tmp_path, "wb") as f:
+                    f.write(resp.content)
+            
             logger.info("Extracting plugin {}", package)
             with zipfile.ZipFile(tmp_path, 'r') as z:
                 root_folder = z.namelist()[0].split('/')[0]
@@ -171,40 +172,40 @@ async def api_install_plugin(request: Request) -> JSONResponse:
                     if not rel_path:
                         continue
                     
-                    if rel_path == "pyproject.toml" or rel_path == "README.md":
-                        # Ignoriamo i file root del pacchetto pip, ci serve solo il codice sorgente
+                    if rel_path in ("pyproject.toml", "README.md"):
                         continue
                         
-                    # Manteniamo intatta la struttura della cartella sorgente per evitare
-                    # ModuleNotFoundError causati da absolute imports all'interno dei plugin
                     if rel_path.startswith(f"{pkg_snake_case}/"):
                         dest_path = plugins_dir / rel_path
                         dest_path.parent.mkdir(parents=True, exist_ok=True)
                         with z.open(f) as zf, open(dest_path, "wb") as out:
                             shutil.copyfileobj(zf, out)
-            
-            import importlib
-            importlib.invalidate_caches()
+        
+        importlib.invalidate_caches()
 
-            asyncio.create_task(_do_restart())
-            return JSONResponse({
-                "ok": True,
-                "stdout": f"Plugin {package} downloaded and extracted locally.",
-                "restarting": True
-            })
-            
-        except Exception as e:
-            logger.exception("Plugin installation failed")
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-        finally:
-            if tmp_path:
-                Path(tmp_path).unlink(missing_ok=True)
 
-    from pathlib import Path
+        asyncio.create_task(_do_restart())
+        return JSONResponse({
+            "ok": True,
+            "stdout": f"Plugin {package} downloaded and extracted locally.",
+            "restarting": True
+        })
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return JSONResponse({"ok": False, "error": f"Plugin archive not found for version {tag}. Please update ShibaClaw first."}, status_code=404)
+        logger.exception("Plugin installation failed (HTTP Error)")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    except Exception as e:
+        logger.exception("Plugin installation failed")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+async def _install_plugin_source(package: str) -> JSONResponse:
     workspace_root = Path(__file__).resolve().parent.parent.parent.parent
     local_path = workspace_root / "plugins" / package
+    tag = f"v{__version__}" if __version__ != "dev" else "main"
     
-    import subprocess
     extra_kwargs = {}
     if sys.platform == "win32":
         extra_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -215,15 +216,13 @@ async def api_install_plugin(request: Request) -> JSONResponse:
             cmd = [sys.executable, "-m", "pip", "install", "-e", ".[rag]"]
             extra_kwargs["cwd"] = str(workspace_root)
         else:
-            from shibaclaw import __version__
             target = f"shibaclaw[rag]=={__version__}" if __version__ != "dev" else "shibaclaw[rag]"
             cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir", target]
     elif local_path.is_dir():
         install_target = str(local_path)
         cmd = [sys.executable, "-m", "pip", "install", install_target]
     else:
-        from shibaclaw import __version__
-        tag = f"v{__version__}" if __version__ != "dev" else "main"
+        # tag already computed at function top
         install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@{tag}#subdirectory=plugins/{package}"
         cmd = [sys.executable, "-m", "pip", "install", install_target]
 
@@ -239,14 +238,28 @@ async def api_install_plugin(request: Request) -> JSONResponse:
         stdout, stderr = await proc.communicate()
         
         if proc.returncode != 0:
-            return JSONResponse({
-                "ok": False,
-                "error": stderr.decode().strip(),
-                "stdout": stdout.decode()
-            }, status_code=500)
+            if tag != "main":
+                logger.warning("Pip install for tag {} failed, retrying with main branch...", tag)
+                install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@main#subdirectory=plugins/{package}"
+                cmd[-1] = install_target
+                logger.info("Retrying pip install: {}", " ".join(cmd))
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    **extra_kwargs
+                )
+                stdout, stderr = await proc.communicate()
+
+            if proc.returncode != 0:
+                return JSONResponse({
+                    "ok": False,
+                    "error": stderr.decode().strip(),
+                    "stdout": stdout.decode()
+                }, status_code=500)
             
-        import importlib
         importlib.invalidate_caches()
+
 
         asyncio.create_task(_do_restart())
         return JSONResponse({
@@ -258,8 +271,9 @@ async def api_install_plugin(request: Request) -> JSONResponse:
         logger.exception("Plugin installation failed")
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-async def api_uninstall_plugin(request: Request) -> JSONResponse:
 
+@with_plugin_lock
+async def api_install_plugin(request: Request) -> JSONResponse:
     try:
         body = await request.json()
     except Exception:
@@ -269,44 +283,55 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
     if not package:
         return JSONResponse({"error": "package is required"}, status_code=400)
 
-    import re
+    if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
+        return JSONResponse({"error": "Only shibaclaw official plugins can be installed"}, status_code=400)
+
+    is_exe = is_running_as_exe()
+    if is_exe and package == "shibaclaw-rag":
+        return JSONResponse({
+            "ok": False,
+            "error": "The Local RAG plugin requires complex external ML dependencies (langchain, faiss, etc.) which cannot be dynamically installed in the frozen .exe version. Please run ShibaClaw from source to use this feature."
+        }, status_code=400)
+
+    if is_exe:
+        return await _install_plugin_exe(package)
+    else:
+        return await _install_plugin_source(package)
+
+
+@with_plugin_lock
+async def api_uninstall_plugin(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+    
+    package = body.get("package")
+    if not package:
+        return JSONResponse({"error": "package is required"}, status_code=400)
+
     if not re.match(r"^shibaclaw-[a-zA-Z0-9_\-]+$", package):
         return JSONResponse({"error": "Only shibaclaw official plugins can be uninstalled"}, status_code=400)
 
-    from shibaclaw.helpers.system import is_running_as_exe
     is_exe = is_running_as_exe()
-    
-    from shibaclaw.webui.routers import system as system_router
-
-    async def _do_restart():
-        await asyncio.sleep(1.5)
-        if system_router._restart_callback is not None:
-            system_router._restart_callback()
-        else:
-            if system_router._shutdown_callback is not None:
-                try:
-                    system_router._shutdown_callback()
-                except Exception as _e:
-                    logger.debug("Ignored error: {}", _e)
-            system_router._schedule_restart_outside_loop(delay=2.0)
-            system_router._graceful_shutdown_server()
-
     if is_exe:
         if package == "shibaclaw-rag":
-            return JSONResponse({"ok": False, "error": "RAG is not supported in the .exe version."}, status_code=400)
+            return JSONResponse({
+                "ok": False, 
+                "info": "The Local RAG plugin cannot be uninstalled in the .exe version. Its dependencies are not dynamically managed."
+            }, status_code=400)
             
-        import shutil
-        from shibaclaw.config.paths import get_plugins_dir
-        
         pkg_snake_case = package.replace("-", "_")
         target_dir = get_plugins_dir() / pkg_snake_case
         
         try:
-            if target_dir.exists():
-                shutil.rmtree(target_dir, ignore_errors=True)
+            if not target_dir.exists():
+                return JSONResponse({"ok": False, "error": f"Plugin {package} is not installed locally."}, status_code=404)
 
-            import importlib
+            shutil.rmtree(target_dir)
+
             importlib.invalidate_caches()
+
 
             asyncio.create_task(_do_restart())
             return JSONResponse({
@@ -335,9 +360,9 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
         ]
     else:
         cmd = [sys.executable, "-m", "pip", "uninstall", "-y", package]
+    
     logger.info("Uninstalling plugin: {}", " ".join(cmd))
     
-    import subprocess
     extra_kwargs = {}
     if sys.platform == "win32":
         extra_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -358,7 +383,6 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
                 "stdout": stdout.decode()
             }, status_code=500)
             
-        import importlib
         importlib.invalidate_caches()
 
         asyncio.create_task(_do_restart())

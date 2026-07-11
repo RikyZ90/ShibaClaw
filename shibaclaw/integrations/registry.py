@@ -59,7 +59,7 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
 
     plugins_dir = get_plugins_dir()
     if str(plugins_dir) not in sys.path:
-        sys.path.insert(0, str(plugins_dir))
+        sys.path.append(str(plugins_dir))
 
     plugins: dict[str, type[BaseChannel]] = {}
     if not plugins_dir.exists():
@@ -68,6 +68,9 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
     for _, name, ispkg in pkgutil.iter_modules([str(plugins_dir)]):
         if not ispkg:
             continue
+        # Force re-scan for newly-extracted packages
+        if name in sys.modules:
+            del sys.modules[name]
         try:
             mod = importlib.import_module(name)
             for attr in dir(mod):
@@ -75,10 +78,11 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
                 if isinstance(obj, type) and issubclass(obj, _Base) and obj is not _Base:
                     # Strip 'shibaclaw-channel-' prefix if it exists to get the short name
                     short_name = name.replace("shibaclaw-channel-", "").replace("shibaclaw_channel_", "").replace("shibaclaw_", "")
+                    obj._local_package_name = name  # Preserve for uninstall
                     plugins[short_name] = obj
                     break
         except Exception as e:
-            logger.debug("Failed to load local plugin {}: {}", name, e)
+            logger.warning("Failed to load local plugin {}: {}", name, e)
 
     return plugins
 

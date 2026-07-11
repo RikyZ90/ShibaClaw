@@ -457,10 +457,26 @@ class ServerManager:
     def base_url(self) -> str:
         return f"http://{self._host}:{self._port}"
 
+    @staticmethod
+    def _quiet_exception_handler(loop, context):
+        """Suppress the harmless ConnectionResetError from ProactorEventLoop on Windows.
+
+        When a WebSocket client disconnects abruptly, asyncio's
+        _ProactorBasePipeTransport._call_connection_lost tries to
+        shutdown a socket that is already dead, raising WinError 10054.
+        This is cosmetic and safe to ignore.
+        """
+        exc = context.get("exception")
+        if isinstance(exc, ConnectionResetError):
+            return  # silently swallow
+        # Everything else → default handler
+        loop.default_exception_handler(context)
+
     def _run_in_thread(self) -> None:
         loop = asyncio.new_event_loop()
         self.loop = loop
         asyncio.set_event_loop(loop)
+        loop.set_exception_handler(self._quiet_exception_handler)
         try:
             loop.run_until_complete(self._serve_with_startup_tasks())
         finally:

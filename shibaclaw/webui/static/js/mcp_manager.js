@@ -161,8 +161,8 @@
                     <textarea id="mcp-ed-env" class="form-input mcp-ed-textarea" placeholder='{"API_KEY": "…"}'>${escapeHtml(envVal)}</textarea>
                 </div>
                 <div class="field-row">
-                    <label>Tool Timeout <span class="hint">(seconds)</span></label>
-                    <input id="mcp-ed-timeout" type="number" class="form-input" value="${s.tool_timeout ?? 30}" min="1" max="600">
+                    <label>Tool Timeout <span class="hint">(seconds, 0 for no limit)</span></label>
+                    <input id="mcp-ed-timeout" type="number" class="form-input" value="${s.tool_timeout ?? 30}" min="0">
                 </div>
                 <div class="field-row">
                     <label>Enabled Tools <span class="hint">(comma-sep, * = all)</span></label>

@@ -1233,15 +1233,20 @@
 .mention-chip-inline {
     display: inline-flex;
     align-items: center;
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: 1px 6px;
+    border-radius: 8px;
     margin: 0 2px;
     vertical-align: middle;
     background-color: var(--primary-color-alpha, rgba(99, 102, 241, 0.15));
     color: var(--primary-color, #818cf8);
     border: 1px solid rgba(99, 102, 241, 0.3);
+    gap: 3px;
+}
+
+.mention-chip-inline .material-icons-round {
+    font-size: 14px;
 }
 
 .mention-chip-inline.mention-kb {

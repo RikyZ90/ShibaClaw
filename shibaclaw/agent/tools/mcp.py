@@ -42,7 +42,7 @@ class MCPWrappedTool(Tool):
         try:
             result = await asyncio.wait_for(
                 self._session.call_tool(self._tool_name, arguments=kwargs),
-                timeout=self._timeout,
+                timeout=self._timeout if self._timeout > 0 else None,
             )
         except asyncio.TimeoutError:
             logger.warning(
@@ -82,7 +82,7 @@ class MCPWrappedTool(Tool):
                         try:
                             result = await asyncio.wait_for(
                                 self._session.call_tool(self._tool_name, arguments=kwargs),
-                                timeout=self._timeout,
+                                timeout=self._timeout if self._timeout > 0 else None,
                             )
                             parts = []
                             for block in result.content:
@@ -481,7 +481,7 @@ class MCPCallTool(Tool):
         try:
             result = await asyncio.wait_for(
                 session.call_tool(tool_name, arguments=args),
-                timeout=timeout,
+                timeout=timeout if timeout > 0 else None,
             )
         except asyncio.TimeoutError:
             logger.warning("MCP tool '{}' on server '{}' timed out after {}s", tool_name, server_name, timeout)

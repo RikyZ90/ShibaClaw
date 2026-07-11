@@ -75,10 +75,13 @@ window.installPlugin = async function (explicitName) {
     if (!name) return;
 
     const logEl = document.getElementById("plugin-action-log");
+    const container = input ? input.parentElement : null;
     if (logEl) {
         logEl.style.display = "block";
-        logEl.textContent = `Installing ${name}... please wait.\nThis runs pip install and will automatically restart the server.`;
+        logEl.innerHTML = `<div style="display:flex; align-items:center; gap:8px"><span class="material-icons-round spin" style="color:var(--primary)">autorenew</span> <span>Installing <b>${escapeHtml(name)}</b>...</span></div><div style="font-size:0.8rem; margin-top:4px; color:var(--text-muted)">This runs pip install and will automatically restart the server.</div>`;
+        logEl.classList.add("loading-pulse");
     }
+    if (container) container.style.opacity = "0.5";
 
     try {
         const res = await authFetch("/api/plugins/install", {
@@ -89,16 +92,27 @@ window.installPlugin = async function (explicitName) {
         const data = await res.json();
         
         if (!res.ok) {
-            if (logEl) logEl.textContent = `Error: ${data.error || "Installation failed"}\n\n${data.stdout || ""}`;
+            if (logEl) {
+                logEl.classList.remove("loading-pulse");
+                logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Error:</b> ${escapeHtml(data.error || "Installation failed")}</div><pre style="margin-top:8px; font-size:0.75rem; background:rgba(0,0,0,0.2); padding:8px; border-radius:4px">${escapeHtml(data.stdout || "")}</pre>`;
+            }
+            if (container) container.style.opacity = "1";
             return;
         }
 
-        if (logEl) logEl.textContent = `${data.stdout || "Success!"}\n\nPlugin installed! Restarting server to apply changes...`;
+        if (logEl) {
+            logEl.classList.remove("loading-pulse");
+            logEl.innerHTML = `<div style="color:var(--success)"><span class="material-icons-round">check_circle</span> <b>Success!</b> Plugin installed.</div><div style="font-size:0.8rem; margin-top:4px">Restarting server to apply changes...</div>`;
+        }
         if (input) input.value = "";
         
         await pollForServerRestart();
     } catch (e) {
-        if (logEl) logEl.textContent = `Error: ${e.message || e}`;
+        if (logEl) {
+            logEl.classList.remove("loading-pulse");
+            logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Network Error:</b> ${escapeHtml(e.message || e)}</div>`;
+        }
+        if (container) container.style.opacity = "1";
     }
 };
 
@@ -109,7 +123,8 @@ window.uninstallPlugin = async function (name) {
     const logEl = document.getElementById("plugin-action-log");
     if (logEl) {
         logEl.style.display = "block";
-        logEl.textContent = `Uninstalling ${name}... please wait.\nThis will automatically restart the server.`;
+        logEl.innerHTML = `<div style="display:flex; align-items:center; gap:8px"><span class="material-icons-round spin" style="color:var(--accent-red)">autorenew</span> <span>Uninstalling <b>${escapeHtml(name)}</b>...</span></div><div style="font-size:0.8rem; margin-top:4px; color:var(--text-muted)">This will automatically restart the server.</div>`;
+        logEl.classList.add("loading-pulse");
     }
 
     try {
@@ -121,15 +136,24 @@ window.uninstallPlugin = async function (name) {
         const data = await res.json();
 
         if (!res.ok) {
-            if (logEl) logEl.textContent = `Error: ${data.error || "Uninstallation failed"}\n\n${data.stdout || ""}`;
+            if (logEl) {
+                logEl.classList.remove("loading-pulse");
+                logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Error:</b> ${escapeHtml(data.error || "Uninstallation failed")}</div><pre style="margin-top:8px; font-size:0.75rem; background:rgba(0,0,0,0.2); padding:8px; border-radius:4px">${escapeHtml(data.stdout || "")}</pre>`;
+            }
             return;
         }
 
-        if (logEl) logEl.textContent = `${data.stdout || "Success!"}\n\nPlugin uninstalled! Restarting server to apply...`;
+        if (logEl) {
+            logEl.classList.remove("loading-pulse");
+            logEl.innerHTML = `<div style="color:var(--success)"><span class="material-icons-round">check_circle</span> <b>Success!</b> Plugin uninstalled.</div><div style="font-size:0.8rem; margin-top:4px">Restarting server to apply changes...</div>`;
+        }
         
         await pollForServerRestart();
     } catch (e) {
-        if (logEl) logEl.textContent = `Error: ${e.message || e}`;
+        if (logEl) {
+            logEl.classList.remove("loading-pulse");
+            logEl.innerHTML = `<div style="color:var(--danger)"><span class="material-icons-round">error</span> <b>Network Error:</b> ${escapeHtml(e.message || e)}</div>`;
+        }
     }
 };
 

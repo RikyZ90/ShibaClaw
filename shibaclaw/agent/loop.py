@@ -540,7 +540,7 @@ class ShibaBrain:
         if session_key:
             self._steering_queues[session_key] = []
 
-        while iteration < self.max_iterations:
+        while self.max_iterations == 0 or iteration < self.max_iterations:
             if session_key and session_key in self._steering_queues:
                 steer_msgs = self._steering_queues[session_key]
                 if steer_msgs:
@@ -571,7 +571,7 @@ class ShibaBrain:
                     self._steering_queues[session_key] = []
             # Wall-clock safety: abort if the loop has been running too long
             elapsed = time.monotonic() - loop_start
-            if elapsed > self.loop_wall_timeout:
+            if self.loop_wall_timeout > 0 and elapsed > self.loop_wall_timeout:
                 logger.warning(f"Session wall timeout ({self.loop_wall_timeout}s) reached after {elapsed:.1f}s.")
                 final_content = (
                     f"I reached the maximum time limit for processing "
@@ -682,11 +682,11 @@ class ShibaBrain:
                             try:
                                 await asyncio.wait_for(
                                     asyncio.shield(tool_future),
-                                    timeout=min(_heartbeat, self.tool_timeout - _waited),
+                                    timeout=min(_heartbeat, self.tool_timeout - _waited) if self.tool_timeout > 0 else _heartbeat,
                                 )
                             except asyncio.TimeoutError:
                                 _waited += _heartbeat
-                                if _waited >= self.tool_timeout:
+                                if self.tool_timeout > 0 and _waited >= self.tool_timeout:
                                     break
                                 if on_progress:
                                     await on_progress(
@@ -737,7 +737,7 @@ class ShibaBrain:
                 final_content = response.content
                 break
 
-        if final_content is None and iteration >= self.max_iterations:
+        if final_content is None and self.max_iterations > 0 and iteration >= self.max_iterations:
             logger.warning("Max iterations ({}) reached", self.max_iterations)
             final_content = (
                 f"I reached the maximum number of tool call iterations ({self.max_iterations}) "

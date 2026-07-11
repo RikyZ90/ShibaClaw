@@ -238,6 +238,7 @@ async function uploadToKB(id, inputElem, droppedFiles = null) {
     if (btn) {
         btn.innerHTML = `<span class="material-icons-round spin" style="font-size: 16px;">sync</span> Uploading ${files.length} file(s)...`;
         btn.style.pointerEvents = "none";
+        btn.classList.add("loading-pulse");
     }
     
     let successCount = 0;
@@ -274,6 +275,7 @@ async function uploadToKB(id, inputElem, droppedFiles = null) {
             btn.innerHTML = oldHtml;
             btn.style.pointerEvents = "auto";
             btn.style.borderColor = "";
+            btn.classList.remove("loading-pulse");
         }, 2500);
     }
     
@@ -300,9 +302,9 @@ function renderKBSelectorDropdown() {
     list.innerHTML = allKnowledgeBases.map(kb => {
         const isActive = activeSessionKBs.includes(kb.id);
         return `
-        <div class="model-item ${isActive ? 'selected' : ''}" onclick="toggleSessionKB('${kb.id}', event)">
+        <div class="model-item premium-kb-item ${isActive ? 'selected' : ''}" onclick="toggleSessionKB('${kb.id}', event)">
             <span class="model-item-name">${kb.name}</span>
-            ${isActive ? '<span class="material-icons-round" style="font-size:18px; color: var(--shiba-gold);">check_circle</span>' : '<span class="material-icons-round" style="font-size:18px; color: var(--text-muted); opacity: 0.3;">radio_button_unchecked</span>'}
+            <span class="material-icons-round premium-kb-check" style="font-size:18px;">check_circle</span>
         </div>
         `;
     }).join('');

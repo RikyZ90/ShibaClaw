@@ -1,3 +1,23 @@
+## [0.9.4] - 2026-07-11
+
+### Fixed
+- **Linux Self-Update Stuck on v0.9.2** — Fixed a bug where version resolution reported a stale version from the bundled manifest. It now prefers installed package metadata, ensuring the updater converges correctly.
+- **Windows WebSocket Noise** — Suppressed cosmetic `ConnectionResetError` (WinError 10054) in the WebUI server to clean up logs.
+- **Plugin Path Shadowing** — Changed plugin directory insertion in `sys.path` to use `append` instead of `insert(0)`, preventing accidental overrides of system modules.
+
+### Added
+- **Unlimited Timeouts** — Added support for "no limit" (set to `0`) for agent max iterations, loop wall timeout, tool timeouts, and subagent executions.
+- **Plugin Operation Lock** — Introduced a concurrency lock for WebUI plugin installations to prevent simultaneous modifications.
+- **Robust Plugin Installation** — Added automatic fallback to the `main` branch if a specific version tag is missing from GitHub, and improved timeout and error handling.
+- **Knowledge Base UI Overhaul** — Redesigned the collections dropdown with a premium look and added loading animations for document uploads.
+- **Atomic KB Index Backups** — Implemented a backup-and-restore mechanism during FAISS index updates to prevent data loss during atomic renames.
+
+### Changed
+- **Plugin Management Refactor** — Split WebUI plugin installation into dedicated paths for EXE and source modes for better reliability.
+- **HF Hub Optimization** — Moved Hugging Face environment configurations to the embedding initialization phase to avoid global side effects on import.
+- **Dependency Updates** — Bumped versions for `rich`, `chardet`, `openai`, and `aiofiles`.
+- **UI Polish** — Adjusted mention chips styling and enhanced plugin panel logs with visual status indicators.
+
 ## [0.9.3] - 2025-01-15
 
 ### Fixed

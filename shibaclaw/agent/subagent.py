@@ -111,10 +111,13 @@ class SubagentManager:
         logger.info("Subagent [{}] starting task: {}", task_id, label)
 
         try:
-            return await asyncio.wait_for(
-                self._run_subagent_inner(task_id, task, label, origin),
-                timeout=self.timeout,
-            )
+            if self.timeout > 0:
+                return await asyncio.wait_for(
+                    self._run_subagent_inner(task_id, task, label, origin),
+                    timeout=self.timeout,
+                )
+            else:
+                return await self._run_subagent_inner(task_id, task, label, origin)
         except asyncio.TimeoutError:
             logger.warning("Subagent [{}] timed out after {}s", task_id, self.timeout)
             await self._announce_result(
