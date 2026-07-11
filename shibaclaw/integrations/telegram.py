@@ -191,6 +191,19 @@ class TelegramConfig(Base):
     enabled: bool = False
     token: str = ""
     allow_from: list[str] = Field(default_factory=list)
+
+    def resolve_token(self) -> str | None:
+        """Return the API key from config field or encrypted vault."""
+        if self.token:
+            return self.token
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("channels", "telegram.token")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return None
     proxy: str | None = None
     reply_to_message: bool = False
     group_policy: Literal["open", "mention", "trigger", "mention_or_trigger"] = "mention"
@@ -278,7 +291,7 @@ class TelegramChannel(BaseChannel):
         )
         builder = (
             Application.builder()
-            .token(self.config.token)
+            .token(self.config.resolve_token() or "")
             .request(api_request)
             .get_updates_request(poll_request)
         )
@@ -289,7 +302,7 @@ class TelegramChannel(BaseChannel):
         Calls Application.initialize() so HTTP requests work, but never calls
         start_polling() so only one instance (the gateway) polls Telegram.
         """
-        if not self.config.token:
+        if not self.config.resolve_token():
             logger.warning("Telegram token not configured — outbound sending unavailable")
             return
         self._build_app(proxy=self.config.proxy or None)
@@ -301,7 +314,7 @@ class TelegramChannel(BaseChannel):
 
     async def start(self) -> None:
         """Start the Telegram bot with long polling."""
-        if not self.config.token:
+        if not self.config.resolve_token():
             logger.error("Telegram bot token not configured")
             return
         self._running = True

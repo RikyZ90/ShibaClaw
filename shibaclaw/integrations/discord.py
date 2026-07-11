@@ -40,6 +40,19 @@ class DiscordConfig(Base):
     enabled: bool = False
     token: str = ""
     allow_from: list[str] = Field(default_factory=list)
+
+    def resolve_token(self) -> str | None:
+        """Return the API key from config field or encrypted vault."""
+        if self.token:
+            return self.token
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("channels", "discord.token")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return None
     gateway_url: str = "wss://gateway.discord.gg/?v=10&encoding=json"
     intents: int = 37377
     group_policy: Literal["mention", "open"] = "mention"
@@ -75,7 +88,7 @@ class DiscordChannel(BaseChannel):
 
     async def start(self) -> None:
         """Start the Discord gateway connection."""
-        if not self.config.token:
+        if not self.config.resolve_token():
             logger.error("Discord bot token not configured")
             return
 
@@ -128,7 +141,7 @@ class DiscordChannel(BaseChannel):
 
         chat_id = str(msg.chat_id)
         url = f"{DISCORD_API_BASE}/channels/{chat_id}/messages"
-        headers = {"Authorization": f"Bot {self.config.token}"}
+        headers = {"Authorization": f"Bot {self.config.resolve_token()}"}
         metadata = msg.metadata or {}
         is_progress = bool(metadata.get("_progress"))
         reply_to = self._reply_target(msg)
@@ -443,7 +456,7 @@ class DiscordChannel(BaseChannel):
         identify = {
             "op": 2,
             "d": {
-                "token": self.config.token,
+                "token": self.config.resolve_token(),
                 "intents": self.config.intents,
                 "properties": {
                     "os": "shibaclaw",
@@ -573,7 +586,7 @@ class DiscordChannel(BaseChannel):
 
         async def typing_loop() -> None:
             url = f"{DISCORD_API_BASE}/channels/{channel_id}/typing"
-            headers = {"Authorization": f"Bot {self.config.token}"}
+            headers = {"Authorization": f"Bot {self.config.resolve_token()}"}
             while self._running:
                 try:
                     await self._http.post(url, headers=headers)
