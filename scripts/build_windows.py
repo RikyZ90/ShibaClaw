@@ -36,7 +36,7 @@ def _check_build_environment() -> None:
     for module_name in ("PyInstaller", "PIL", "pystray", "webview", "langchain"):
         try:
             __import__(module_name)
-        except ImportError as e:
+        except ImportError:
             import traceback
             print(f"Error importing {module_name}:")
             traceback.print_exc()
