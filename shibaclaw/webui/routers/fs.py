@@ -11,7 +11,6 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token
 from shibaclaw.webui.utils import _resolve_workspace_path
 
 
@@ -29,7 +28,6 @@ async def api_upload(request: Request):
         upload_dir = agent_manager.config.workspace_path / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        get_auth_token() or ""
         results = []
         for f in files:
             filename = f.filename
@@ -69,7 +67,7 @@ async def api_file_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
 
-    from shibaclaw.webui.auth import _auth_enabled, verify_token_value
+    from shibaclaw.webui.auth import _auth_enabled, _verify_session_token
 
     if _auth_enabled():
         token_candidate = None
@@ -81,7 +79,7 @@ async def api_file_get(request: Request):
             if auth_header.startswith("Bearer "):
                 token_candidate = auth_header[7:].strip()
         
-        if not verify_token_value(token_candidate):
+        if not token_candidate or not _verify_session_token(token_candidate):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
     resolved = _resolve_workspace_path(path_str)

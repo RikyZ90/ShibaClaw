@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
 from shibaclaw.webui.agent_manager import agent_manager
-from shibaclaw.webui.auth import get_auth_token
 
 _LOCAL_HOSTS = frozenset(("0.0.0.0", "::", "", "127.0.0.1", "localhost"))
 
@@ -253,9 +252,6 @@ async def _gateway_request(method: str, path: str) -> dict | None:
     if not hosts:
         return None
 
-    auth_token = get_auth_token()
-    auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
-
     for host in hosts:
         try:
             reader, writer = await asyncio.wait_for(
@@ -313,9 +309,7 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
     if not hosts:
         return None
 
-    auth_token = get_auth_token()
     payload = json.dumps(body, ensure_ascii=False).encode()
-    auth_hdr = f"Authorization: Bearer {auth_token}\r\n" if auth_token else ""
 
     for host in hosts:
         try:
@@ -368,7 +362,6 @@ async def _gateway_chat_stream(payload: dict):
     if not hosts:
         raise ConnectionError("Gateway not configured")
 
-    auth_token = get_auth_token()
     body = json.dumps(payload, ensure_ascii=False).encode()
     last_exc: Exception | None = None
 

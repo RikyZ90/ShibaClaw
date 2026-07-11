@@ -67,15 +67,20 @@ def load_config(config_path: Path | None = None) -> Config:
                 data = _migrate_config(data)
             except Exception:
                 logger.debug("[config] _onboard_plugins failed on existing config", exc_info=True)
-        cfg = Config.model_validate(data)
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
             cm = get_credential_manager()
             if cm.is_setup():
-                if _migrate_config_secrets_inline(cfg, cm):
-                    save_config(cfg, path)
+                if _migrate_secrets_from_raw_dict(data, cm):
+                    # Save the raw data back (now without secrets) before validation
+                    with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as tmp:
+                        json.dump(data, tmp, indent=2, ensure_ascii=False)
+                        tmp_name = tmp.name
+                    os.replace(tmp_name, path)
         except Exception:
             logger.debug("[config] auto-migration of secrets to vault failed", exc_info=True)
+
+        cfg = Config.model_validate(data)
         return cfg
     except (json.JSONDecodeError, ValueError, pydantic.ValidationError) as e:
         logger.warning(f"Failed to load config from {path}: {e}")
@@ -204,49 +209,73 @@ def _migrate_config(data: dict) -> dict:
     return data
 
 
-def _migrate_config_secrets_inline(cfg: Config, cm) -> bool:
-    """Move plain-text secrets from a Config object into the vault and zero them out."""
-    from shibaclaw.config.schema import ProvidersConfig
-
+def _migrate_secrets_from_raw_dict(data: dict, cm) -> bool:
+    """Move plain-text secrets from a raw JSON dict into the vault and remove them."""
     migrated = False
 
     # --- Provider API keys ---
-    for field_name in ProvidersConfig.model_fields:
-        provider_cfg = getattr(cfg.providers, field_name, None)
-        if provider_cfg is None:
-            continue
-        if provider_cfg.api_key:
-            cm.set_secret("providers", f"{field_name}.api_key", provider_cfg.api_key)
-            provider_cfg.api_key = ""
-            migrated = True
+    providers = data.get("providers", {})
+    if isinstance(providers, dict):
+        for provider_name, provider_cfg in providers.items():
+            if not isinstance(provider_cfg, dict):
+                continue
+
+            # Check both camelCase and snake_case for the legacy key
+            api_key = provider_cfg.pop("apiKey", None) or provider_cfg.pop("api_key", None)
+            if api_key:
+                cm.set_secret("providers", f"{provider_name}.api_key", api_key)
+                migrated = True
 
     # --- Web search API key ---
-    if cfg.tools.web.search.api_key:
-        cm.set_secret("tools", "web_search.api_key", cfg.tools.web.search.api_key)
-        cfg.tools.web.search.api_key = ""
-        migrated = True
+    tools = data.get("tools", {})
+    if isinstance(tools, dict):
+        web = tools.get("web", {})
+        if isinstance(web, dict):
+            search = web.get("search", {})
+            if isinstance(search, dict):
+                api_key = search.pop("apiKey", None) or search.pop("api_key", None)
+                if api_key:
+                    cm.set_secret("tools", "web_search.api_key", api_key)
+                    migrated = True
 
     # --- Audio API key ---
-    if cfg.audio.api_key:
-        cm.set_secret("audio", "api_key", cfg.audio.api_key)
-        cfg.audio.api_key = None
-        migrated = True
+    audio = data.get("audio", {})
+    if isinstance(audio, dict):
+        api_key = audio.pop("apiKey", None) or audio.pop("api_key", None)
+        if api_key:
+            cm.set_secret("audio", "api_key", api_key)
+            migrated = True
 
     # --- Channel secrets (email password, bot tokens, etc.) ---
-    if cfg.channels.model_extra:
-        for ch_name, ch_data in cfg.channels.model_extra.items():
+    channels = data.get("channels", {})
+    if isinstance(channels, dict):
+        for ch_name, ch_data in channels.items():
             if not isinstance(ch_data, dict):
                 continue
             secret_keys = [
-                k for k in ch_data
+                k for k in list(ch_data.keys())
                 if any(s in k.lower() for s in ("token", "password", "secret", "key"))
                 and ch_data[k]
                 and isinstance(ch_data[k], str)
             ]
             for sk in secret_keys:
-                cm.set_secret("channels", f"{ch_name}.{sk}", ch_data[sk])
-                ch_data[sk] = ""
+                val = ch_data.pop(sk)
+                cm.set_secret("channels", f"{ch_name}.{sk}", val)
                 migrated = True
+
+    # --- MCP OAuth secrets ---
+    if isinstance(tools, dict):
+        mcp_servers = tools.get("mcpServers", {}) or tools.get("mcp_servers", {})
+        if isinstance(mcp_servers, dict):
+            for server_name, server_cfg in mcp_servers.items():
+                if not isinstance(server_cfg, dict):
+                    continue
+                oauth = server_cfg.get("oauth", {})
+                if isinstance(oauth, dict):
+                    client_secret = oauth.pop("clientSecret", None) or oauth.pop("client_secret", None)
+                    if client_secret:
+                        cm.set_secret("mcp_servers", f"{server_name}.client_secret", client_secret)
+                        migrated = True
 
     return migrated
 

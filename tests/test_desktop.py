@@ -111,15 +111,6 @@ class TestGetAppRoot:
 # webui.auth — uses get_app_root instead of hardcoded path
 # ---------------------------------------------------------------------------
 
-class TestAuthTokenPath:
-    def test_token_file_under_app_root(self):
-        from shibaclaw.config.paths import get_app_root
-        from shibaclaw.webui.auth import AUTH_TOKEN_FILE
-
-        assert AUTH_TOKEN_FILE.parent == get_app_root()
-        assert AUTH_TOKEN_FILE.name == "auth_token"
-
-
 # ---------------------------------------------------------------------------
 # updater.checker — uses get_app_root instead of hardcoded path
 # ---------------------------------------------------------------------------
@@ -277,18 +268,6 @@ class TestDesktopRuntime:
         rt = DesktopRuntime(port=3000, host="127.0.0.1")
         assert rt.base_url == "http://127.0.0.1:3000"
 
-    def test_authed_url_contains_token_when_auth_enabled(self):
-        from shibaclaw.desktop.runtime import DesktopRuntime
-        from shibaclaw.webui.auth import get_auth_token
-
-        token = get_auth_token()
-        rt = DesktopRuntime(port=3000)
-        url = rt.authed_url
-        if token:
-            assert f"token={token}" in url
-        else:
-            assert url == rt.base_url
-
     def test_close_policy_defaults_to_hide_when_no_config(self):
         from shibaclaw.desktop.runtime import DesktopRuntime
 
@@ -327,19 +306,6 @@ class TestDesktopRuntime:
         finally:
             rt.stop()
         assert rt.server_running is False
-
-    def test_start_sets_shared_auth_token_env(self):
-        from shibaclaw.desktop.runtime import DesktopRuntime
-
-        rt = DesktopRuntime(with_gateway=False)
-
-        with mock.patch.object(rt, "_load_config"), \
-             mock.patch.object(rt, "_start_gateway"), \
-             mock.patch.object(rt, "_start_server"), \
-             mock.patch("shibaclaw.webui.auth.get_auth_token", return_value="shared-token"):
-            rt.start()
-
-        assert os.environ.get("SHIBACLAW_AUTH_TOKEN") == "shared-token"
 
     def test_resolve_gateway_ports_uses_fallback_when_configured_ports_busy(self):
         from shibaclaw.config.schema import Config

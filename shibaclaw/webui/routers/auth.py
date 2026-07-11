@@ -6,7 +6,7 @@ from loguru import logger
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from shibaclaw.webui.auth import _auth_enabled, _is_user_setup, verify_token_value
+from shibaclaw.webui.auth import _auth_enabled, _is_user_setup
 
 
 # ------------------------------------------------------------------
@@ -114,7 +114,7 @@ async def api_auth_login(request: Request):
 
 
 async def api_auth_verify(request: Request):
-    """Verify a token (legacy or session)."""
+    """Verify a session token."""
     data = await request.json()
     token = data.get("token", "").strip()
     auth_req = _auth_enabled()
@@ -125,10 +125,6 @@ async def api_auth_verify(request: Request):
     # Try session token
     from shibaclaw.security.credential_manager import CredentialManager
     if CredentialManager.verify_session_token(token):
-        return JSONResponse({"valid": True, "auth_required": True})
-
-    # Try legacy token
-    if verify_token_value(token):
         return JSONResponse({"valid": True, "auth_required": True})
 
     return JSONResponse({"valid": False, "auth_required": True})
@@ -148,6 +144,44 @@ async def api_auth_status(request: Request):
 
 
 # ------------------------------------------------------------------
+# POST /api/auth/change-password
+# ------------------------------------------------------------------
+
+async def api_auth_change_password(request: Request):
+    """Change the admin password."""
+    from shibaclaw.security.credential_manager import get_credential_manager
+
+    cm = get_credential_manager()
+    if not cm.is_setup():
+        return JSONResponse({"error": "Admin user not configured."}, status_code=400)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body."}, status_code=400)
+
+    old_password = (data.get("old_password") or "").strip()
+    new_password = (data.get("new_password") or "").strip()
+
+    if not old_password or not new_password:
+        return JSONResponse({"error": "Both old and new passwords are required."}, status_code=400)
+
+    if len(new_password) < 6:
+        return JSONResponse({"error": "New password must be at least 6 characters."}, status_code=400)
+
+    username = cm.get_admin_username()
+    if not username:
+        return JSONResponse({"error": "Admin user not configured."}, status_code=400)
+
+    ok = cm.change_password(username, old_password, new_password)
+    if not ok:
+        return JSONResponse({"error": "Incorrect old password."}, status_code=401)
+
+    logger.info("Admin password changed successfully.")
+    return JSONResponse({"status": "ok"})
+
+
+# ------------------------------------------------------------------
 # Migration helper
 # ------------------------------------------------------------------
 
@@ -155,54 +189,28 @@ async def api_auth_status(request: Request):
 def _migrate_config_secrets_to_vault(cm) -> None:
     """Move plain-text secrets from config.json into the encrypted vault.
 
-    Called once during setup.  After migration the secrets are zeroed out
-    in config.json and the file is re-saved.
+    Called once during setup.  After migration the secrets are removed from
+    config.json and the file is re-saved.
     """
-    from shibaclaw.config.loader import load_config, save_config
-    from shibaclaw.config.schema import ProvidersConfig
+    import json
+    import os
+    import tempfile
+    from shibaclaw.config.loader import get_config_path, _migrate_secrets_from_raw_dict
 
-    cfg = load_config()
+    path = get_config_path()
+    if not path.exists():
+        return
 
-    migrated = False
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
 
-    # --- Provider API keys ---
-    for field_name in ProvidersConfig.model_fields:
-        provider_cfg = getattr(cfg.providers, field_name, None)
-        if provider_cfg is None:
-            continue
-        if provider_cfg.api_key:
-            cm.set_secret("providers", f"{field_name}.api_key", provider_cfg.api_key)
-            provider_cfg.api_key = ""
-            migrated = True
-
-    # --- Web search API key ---
-    if cfg.tools.web.search.api_key:
-        cm.set_secret("tools", "web_search.api_key", cfg.tools.web.search.api_key)
-        cfg.tools.web.search.api_key = ""
-        migrated = True
-
-    # --- Audio API key ---
-    if cfg.audio.api_key:
-        cm.set_secret("audio", "api_key", cfg.audio.api_key)
-        cfg.audio.api_key = None
-        migrated = True
-
-    # --- Channel secrets (email password, bot tokens, etc.) ---
-    if cfg.channels.model_extra:
-        for ch_name, ch_data in cfg.channels.model_extra.items():
-            if not isinstance(ch_data, dict):
-                continue
-            secret_keys = [
-                k for k in ch_data
-                if any(s in k.lower() for s in ("token", "password", "secret", "key"))
-                and ch_data[k]
-                and isinstance(ch_data[k], str)
-            ]
-            for sk in secret_keys:
-                cm.set_secret("channels", f"{ch_name}.{sk}", ch_data[sk])
-                ch_data[sk] = ""
-                migrated = True
-
-    if migrated:
-        save_config(cfg)
-        logger.info("Migrated plain-text secrets from config.json → encrypted vault.")
+        if _migrate_secrets_from_raw_dict(data, cm):
+            # Save the raw data back (now without secrets)
+            with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as tmp:
+                json.dump(data, tmp, indent=2, ensure_ascii=False)
+                tmp_name = tmp.name
+            os.replace(tmp_name, path)
+            logger.info("Migrated plain-text secrets from config.json → encrypted vault.")
+    except Exception:
+        logger.exception("Failed to run full migration of secrets into vault")

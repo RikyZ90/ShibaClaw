@@ -15,8 +15,6 @@ import httpx
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 
-from .auth import get_auth_token
-
 GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
 GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
@@ -334,14 +332,11 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                             targets = ["127.0.0.1", gateway_hostname]
                         else:
                             targets = [gw.host]
-                        auth = get_auth_token()
                         for h in targets:
                             try:
                                 req = urllib.request.Request(
                                     f"http://{h}:{gw_port}/restart", method="POST", data=b""
                                 )
-                                if auth:
-                                    req.add_header("Authorization", f"Bearer {auth}")
                                 urllib.request.urlopen(req, timeout=2)
                                 break
                             except Exception:

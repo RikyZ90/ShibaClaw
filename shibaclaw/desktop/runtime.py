@@ -66,7 +66,6 @@ class DesktopRuntime:
     def start(self) -> None:
         """Bootstrap config, provider, gateway, and WebUI server."""
         self._load_config()
-        self._ensure_shared_auth_token()
         self._start_gateway()
         self._start_server()
 
@@ -106,21 +105,8 @@ class DesktopRuntime:
         return f"http://{self._host}:{self._port}"
 
     @property
-    def auth_token(self) -> str | None:
-        from shibaclaw.webui.auth import get_auth_token
-
-        return get_auth_token()
-
-    @property
     def authed_url(self) -> str:
-        """Return a URL with the auth token pre-embedded as a query param.
-
-        The WebUI front-end reads ``?token=`` on first load and saves it to
-        localStorage so subsequent requests are authenticated automatically.
-        """
-        token = self.auth_token
-        if token:
-            return f"{self.base_url}/?token={token}"
+        """Return the base URL."""
         return self.base_url
 
     @property
@@ -143,14 +129,6 @@ class DesktopRuntime:
 
         self.config = _load_runtime_config(self._config_path, self._workspace)
         self.provider = _make_provider(self.config, exit_on_error=False)
-
-    def _ensure_shared_auth_token(self) -> None:
-        """Create one token in the parent process and share it with subprocesses."""
-        from shibaclaw.webui.auth import get_auth_token
-
-        token = get_auth_token()
-        if token:
-            os.environ["SHIBACLAW_AUTH_TOKEN"] = token
 
     @property
     def close_policy(self) -> str:
@@ -221,10 +199,8 @@ class DesktopRuntime:
                 )
                 self._start_gateway_monitor()
                 from shibaclaw.webui.gateway_client import gateway_client
-                from shibaclaw.webui.auth import get_auth_token
                 import asyncio
-                token = get_auth_token() or ""
-                gateway_client.configure(gateway_host, gateway_ws_port, token)
+                gateway_client.configure(gateway_host, gateway_ws_port, "")
                 loop = None
                 if self._server_mgr is not None:
                     loop = getattr(self._server_mgr, "loop", None)

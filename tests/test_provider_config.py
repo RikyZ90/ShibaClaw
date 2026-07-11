@@ -40,19 +40,25 @@ def test_make_provider_accepts_env_only_gemini_configuration(monkeypatch):
 
 
 def test_provider_config_strips_whitespace_from_api_base_and_key():
-    cfg = Config.model_validate(
-        {
-            "providers": {
-                "custom": {
-                    "apiBase": "\thttp://localhost:1234/v1\t",
-                    "apiKey": "  lm-studio  \n",
-                }
+    from shibaclaw.config.loader import _migrate_secrets_from_raw_dict
+    from unittest.mock import MagicMock
+
+    mock_cm = MagicMock()
+
+    raw = {
+        "providers": {
+            "custom": {
+                "apiBase": "\thttp://localhost:1234/v1\t",
+                "apiKey": "  lm-studio  \n",
             }
         }
-    )
+    }
+
+    _migrate_secrets_from_raw_dict(raw, mock_cm)
+    cfg = Config.model_validate(raw)
 
     assert cfg.providers.custom.api_base == "http://localhost:1234/v1"
-    assert cfg.providers.custom.api_key == "lm-studio"
+    mock_cm.set_secret.assert_called_with("providers", "custom.api_key", "  lm-studio  \n")
 
 
 def test_shibabrain_resolves_provider_from_session_model(monkeypatch):
@@ -90,6 +96,11 @@ def test_shibabrain_resolves_provider_from_session_model(monkeypatch):
 
 def test_shibabrain_ignores_forced_global_provider_for_session_override(monkeypatch):
     import shibaclaw.cli.base as base_module
+    from unittest.mock import MagicMock
+
+    mock_cm = MagicMock()
+    mock_cm.get_secret.return_value = "sk-or-test"
+    monkeypatch.setattr("shibaclaw.security.credential_manager.get_credential_manager", lambda: mock_cm)
 
     cfg = Config.model_validate(
         {
@@ -100,7 +111,7 @@ def test_shibabrain_ignores_forced_global_provider_for_session_override(monkeypa
                 }
             },
             "providers": {
-                "openrouter": {"apiKey": "sk-or-test"},
+                "openrouter": {},
                 "githubCopilot": {},
             },
         }

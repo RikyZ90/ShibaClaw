@@ -36,15 +36,49 @@ def main(
 
 
 @app.command()
-def print_token():
-    """Print the WebUI authentication token."""
-    from shibaclaw.webui.server import get_auth_token
+def reset_password(
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Specific username to reset"),
+):
+    """Reset the admin user password."""
+    import getpass
+    from shibaclaw.security.credential_manager import get_credential_manager
 
-    token = get_auth_token()
-    if token:
-        safe_print(f"[green]🔑 Token: {token}[/green]")
-    else:
-        safe_print("[yellow]No token found or authentication disabled.[/yellow]")
+    cm = get_credential_manager()
+    if not cm.is_setup():
+        safe_print("[yellow]No admin user configured yet. Run the WebUI setup first.[/yellow]")
+        return
+
+    admin_user = username or cm.get_admin_username()
+    if not admin_user:
+         safe_print("[red]Could not determine admin username.[/red]")
+         return
+
+    safe_print(f"Resetting password for user: [cyan]{admin_user}[/cyan]")
+    new_pwd = getpass.getpass("New Password: ")
+    confirm_pwd = getpass.getpass("Confirm Password: ")
+
+    if new_pwd != confirm_pwd:
+        safe_print("[red]Passwords do not match.[/red]")
+        return
+
+    if len(new_pwd) < 6:
+        safe_print("[red]Password must be at least 6 characters.[/red]")
+        return
+
+    # We cheat the old_password requirement by directly rewriting the hash
+    data = cm._load_all()
+    from hashlib import scrypt
+    import secrets
+    salt = secrets.token_hex(16)
+    hashed = scrypt(
+        new_pwd.encode(), salt=salt.encode(), n=16384, r=8, p=1,
+    ).hex()
+    data["admin_user"]["password_hash"] = hashed
+    data["admin_user"]["salt"] = salt
+    data["admin_user"]["username"] = admin_user
+    cm._save_all(data)
+
+    safe_print("[green]Password reset successful.[/green]")
 
 
 @app.command()
@@ -102,18 +136,13 @@ def web(
     import time
 
     from shibaclaw.helpers.system import find_free_tcp_port, is_tcp_port_available
-    from shibaclaw.webui.server import get_auth_token, run_server
+    from shibaclaw.webui.server import run_server
 
     from .base import _load_runtime_config
 
     setup_shiba_logging()
     cfg = _load_runtime_config(config, workspace)
     provider = _make_provider(cfg, exit_on_error=False)
-
-    # Force a single shared auth token before spawning the gateway subprocess.
-    token = get_auth_token()
-    if token:
-        os.environ["SHIBACLAW_AUTH_TOKEN"] = token
 
     gateway_proc = None
     gateway_host = "127.0.0.1"
@@ -169,8 +198,6 @@ def web(
 
     safe_print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
     safe_print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
-    if token:
-        safe_print(f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token) - 4)}[/bold]")
     if provider is None:
         safe_print("")
         safe_print(

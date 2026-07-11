@@ -172,21 +172,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Wire up login form
     const loginBtn = document.getElementById("btn-login");
-    const loginInput = document.getElementById("login-token");
+    const loginUsernameInput = document.getElementById("login-username");
+    const loginPasswordInput = document.getElementById("login-password");
     const logoutBtn = document.getElementById("btn-logout");
 
+    const handleLoginSubmit = () => {
+        const username = loginUsernameInput.value.trim();
+        const password = loginPasswordInput.value.trim();
+        const mode = loginBtn.dataset.mode;
+        if (username && password) attemptLogin(username, password, mode);
+    };
+
     if (loginBtn) {
-        loginBtn.addEventListener("click", () => {
-            const token = loginInput.value.trim();
-            if (token) attemptLogin(token);
+        loginBtn.addEventListener("click", handleLoginSubmit);
+    }
+    if (loginUsernameInput) {
+        loginUsernameInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") loginPasswordInput.focus();
         });
     }
-    if (loginInput) {
-        loginInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                const token = loginInput.value.trim();
-                if (token) attemptLogin(token);
-            }
+    if (loginPasswordInput) {
+        loginPasswordInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleLoginSubmit();
         });
     }
     if (logoutBtn) {
@@ -221,8 +228,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
 
-        // No valid token — show login
-        showLogin();
+        // No valid token — show login (either setup or normal)
+        showLogin("", data.needs_setup);
     } catch (e) {
         // Can't reach server — start anyway (will show errors naturally)
         startApp();

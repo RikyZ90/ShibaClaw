@@ -24,6 +24,7 @@ from .api import (
     api_auth_setup,
     api_auth_status,
     api_auth_verify,
+    api_auth_change_password,
     api_automation_job_delete,
     api_automation_job_get,
     api_automation_job_trigger,
@@ -87,7 +88,7 @@ from .routers.knowledge import (
     api_knowledge_update,
     api_knowledge_upload,
 )
-from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
+from .auth import AuthMiddleware, _auth_enabled, mask_token
 from .gateway_client import gateway_client
 from .routers.mcp_manager import (
     delete_mcp_server,
@@ -143,6 +144,7 @@ def create_app(
         Route("/api/auth/status", api_auth_status, methods=["GET"]),
         Route("/api/auth/setup", api_auth_setup, methods=["POST"]),
         Route("/api/auth/login", api_auth_login, methods=["POST"]),
+        Route("/api/auth/change-password", api_auth_change_password, methods=["POST"]),
         Route("/api/status", api_status),
         Route("/api/settings", api_settings_get, methods=["GET"]),
         Route("/api/settings", api_settings_post, methods=["POST"]),
@@ -306,8 +308,7 @@ async def _start_gateway_client() -> None:
             agent_manager.load_latest_config()
             cfg = agent_manager.config
         if cfg:
-            token = get_auth_token() or ""
-            gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, token)
+            gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, "")
 
             async def _on_session_notify(msg):
                 payload = msg.get("payload", {})
@@ -342,9 +343,8 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
     if host in ("0.0.0.0", "::") and not os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip():
         logger.warning("Binding to {} — set SHIBACLAW_CORS_ORIGINS for non-loopback clients", host)
 
-    token = get_auth_token()
-    if token:
-        logger.info("🔒 Auth enabled — token: {}", mask_token(token))
+    if _auth_enabled():
+        logger.info("🔒 Auth enabled via CredentialVault")
     else:
         logger.warning("WARNING: Authentication is DISABLED")
 

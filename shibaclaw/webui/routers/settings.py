@@ -59,11 +59,11 @@ def _is_provider_configured(cfg, spec) -> bool:
     provider_cfg = getattr(cfg.providers, spec.name, None)
 
     if spec.name == "custom":
-        return bool(provider_cfg and (provider_cfg.api_base or provider_cfg.api_key))
+        return bool(provider_cfg and (provider_cfg.api_base or provider_cfg.resolve_api_key()))
     if spec.is_oauth:
         return _is_oauth_authenticated(spec)
     if spec.name == "azure_openai":
-        return bool(provider_cfg and provider_cfg.api_key and provider_cfg.api_base)
+        return bool(provider_cfg and provider_cfg.resolve_api_key(spec.name) and provider_cfg.api_base)
     if spec.is_local:
         return bool(provider_cfg and provider_cfg.api_base)
     return cfg._provider_has_credentials(provider_cfg, spec)
@@ -158,6 +158,7 @@ async def api_settings_post(request: Request):
 
         data = await request.json()
         from shibaclaw.config.schema import Config
+        from shibaclaw.config.loader import _migrate_secrets_from_raw_dict
 
         old_cfg = agent_manager.config
         merged = old_cfg.model_dump(mode="json", by_alias=True)
@@ -166,14 +167,26 @@ async def api_settings_post(request: Request):
         filtered_data = _filter_redacted(data)
         _deep_merge(merged, filtered_data)
 
+        from shibaclaw.security.credential_manager import get_credential_manager
+        cm = get_credential_manager()
+        if cm.is_setup():
+            _migrate_secrets_from_raw_dict(merged, cm)
+
         try:
             new_cfg = Config.model_validate(merged)
         except Exception as e:
             return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
 
-        from shibaclaw.config.loader import save_config
-
-        save_config(new_cfg)
+        from shibaclaw.config.loader import get_config_path
+        path = get_config_path()
+        import json
+        import os
+        import tempfile
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as tmp:
+            json.dump(merged, tmp, indent=2, ensure_ascii=False)
+            tmp_name = tmp.name
+        os.replace(tmp_name, path)
         agent_manager.config = new_cfg
 
         # Detect if network-binding gateway settings changed — those require a full restart

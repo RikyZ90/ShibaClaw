@@ -41,17 +41,19 @@
         <div class="login-card">
             <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw" class="login-logo">
             <h1 class="login-title">ShibaClaw</h1>
-            <p class="login-subtitle">Enter your access token to continue</p>
-            <div class="login-input-group">
-                <input type="password" id="login-token" class="login-input" placeholder="Paste access token..."
-                    autocomplete="off" spellcheck="false" aria-label="Paste access token...">
-                <button id="btn-login" class="login-btn">
-                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle">login</span>
-                    Connect
+            <p id="login-subtitle" class="login-subtitle">Enter your credentials to continue</p>
+            <div class="login-input-group" style="flex-direction: column; align-items: stretch;">
+                <input type="text" id="login-username" class="login-input" placeholder="Username"
+                    autocomplete="username" spellcheck="false" aria-label="Username">
+                <input type="password" id="login-password" class="login-input" placeholder="Password"
+                    autocomplete="current-password" spellcheck="false" aria-label="Password">
+                <button id="btn-login" class="login-btn" style="width: 100%; justify-content: center; margin-top: 8px;">
+                    <span id="btn-login-icon" class="material-icons-round" style="font-size:18px;vertical-align:middle">login</span>
+                    <span id="btn-login-text">Connect</span>
                 </button>
             </div>
-            <div id="login-error" class="login-error" style="display:none">Invalid token</div>
-            <p class="login-hint">To get your token, run:<br><code>shibaclaw print-token</code></p>
+            <div id="login-error" class="login-error" style="display:none">Invalid credentials</div>
+            <p id="login-hint" class="login-hint" style="display:none"></p>
         </div>
     </div>
 
@@ -722,6 +724,19 @@
                             class="form-input" placeholder="127.0.0.1"></div>
                     <div class="field-row"><label for="s-gw-port">Port</label><input type="number" id="s-gw-port"
                             class="form-input" value="19999"></div>
+
+                    <div class="settings-section-divider" style="margin-top: 2rem;">
+                        <span class="material-icons-round">security</span>
+                        <span>Security</span>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <p class="settings-note">Change the admin password used to login to the Web UI and encrypt your credential vault.</p>
+                        <button type="button" class="btn-secondary" onclick="openChangePasswordModal()">
+                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle">password</span>
+                            Change Password
+                        </button>
+                    </div>
+
                     <!--
                             Legacy heartbeat fields — kept hidden so saveSettings() still collects them
                             and avoids stripping existing config values. Managed via the Automation panel.
@@ -896,6 +911,36 @@
     <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
 
     <!-- ── Modals ────────────────────────────────────────────── -->
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="modal-backdrop">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Change Admin Password</h2>
+                <button class="modal-close" onclick="closeModal('change-password-modal')" title="Close"><span
+                        class="material-icons-round">close</span></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+                <div class="field-row" style="flex-direction:column; align-items:stretch;">
+                    <label>Current Password</label>
+                    <input type="password" id="cp-old" class="form-input" placeholder="Current password">
+                </div>
+                <div class="field-row" style="flex-direction:column; align-items:stretch;">
+                    <label>New Password</label>
+                    <input type="password" id="cp-new" class="form-input" placeholder="New password (min 6 chars)">
+                </div>
+                <div class="field-row" style="flex-direction:column; align-items:stretch;">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="cp-confirm" class="form-input" placeholder="Confirm new password">
+                </div>
+                <div id="cp-error" class="login-error" style="display:none; margin-top:8px;"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeModal('change-password-modal')">Cancel</button>
+                <button type="button" class="btn-primary" onclick="submitChangePassword()">Change Password</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ══ Automation Modal ══════════════════════════════════════════ -->
     <div id="automation-modal" class="modal-backdrop">

@@ -339,7 +339,6 @@ async def gateway_command(
     from shibaclaw.config.paths import get_automation_dir
     from shibaclaw.helpers.helpers import sync_profiles, sync_skills, sync_workspace_templates
     from shibaclaw.integrations.manager import ChannelManager
-    from shibaclaw.webui.server import get_auth_token
 
     from .commands import _load_runtime_config, _make_provider
 
@@ -356,10 +355,8 @@ async def gateway_command(
     sync_profiles(config.workspace_path)
     sync_workspace_templates(config.workspace_path, silent=True)
 
-    auth_token = get_auth_token()
-
     def _current_auth_token() -> str | None:
-        return get_auth_token(refresh=True)
+        return None
 
     bus = MessageBus(rate_limit_per_minute=config.gateway.rate_limit_per_minute)
     provider = _make_provider(config, exit_on_error=False)
@@ -417,7 +414,7 @@ async def gateway_command(
                     await notify_webui_session(
                         target.session_key,
                         response,
-                        auth_token,
+                        None,
                         source=source,
                         persist=persist,
                         metadata=metadata,
@@ -445,7 +442,7 @@ async def gateway_command(
                 await _broadcast_ws_event("session.notify", sys_payload, session_key="")
             else:
                 await notify_webui_session(
-                    "", response, auth_token, source=source, persist=False, msg_type="notification"
+                    "", response, None, source=source, persist=False, msg_type="notification"
                 )
 
     async def on_heartbeat_execute(
@@ -507,7 +504,7 @@ async def gateway_command(
             notify_webui=notify_webui_session,
             broadcast_ws_event=_broadcast_ws_event,
             has_gateway_ws_clients=bool(_ws_clients),
-            auth_token=auth_token,
+            auth_token=None,
         )
 
         return response
@@ -1097,7 +1094,7 @@ async def gateway_command(
             await notify_webui_session(
                 session_key,
                 content,
-                auth_token,
+                None,
                 source="agent",
                 persist=False,
                 media=media,

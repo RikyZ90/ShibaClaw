@@ -71,18 +71,8 @@ class AgentsConfig(Base):
 class ProviderConfig(Base):
     """LLM provider configuration."""
 
-    api_key: str = ""
     api_base: str | None = None
     extra_headers: dict[str, str] | None = None
-
-    @field_validator("api_key", mode="before")
-    @classmethod
-    def _normalize_api_key(cls, value: object) -> object:
-        if isinstance(value, str):
-            return value.strip()
-        if value is None:
-            return ""
-        return value
 
     @field_validator("api_base", mode="before")
     @classmethod
@@ -93,15 +83,12 @@ class ProviderConfig(Base):
         return value
 
     def resolve_api_key(self, provider_name: str = "") -> str:
-        """Return the API key: from config field, vault, or environment.
+        """Return the API key from the encrypted vault.
 
         Resolution order:
-        1. ``self.api_key`` (plain-text in config, for backward compat).
-        2. Encrypted vault lookup under ``providers/<provider_name>.api_key``.
-        3. Empty string (caller should then try env vars).
+        1. Encrypted vault lookup under ``providers/<provider_name>.api_key``.
+        2. Empty string (caller should then try env vars).
         """
-        if self.api_key:
-            return self.api_key
         if provider_name:
             try:
                 from shibaclaw.security.credential_manager import get_credential_manager
@@ -173,16 +160,25 @@ class WebSearchConfig(Base):
     """Web search tool configuration."""
 
     provider: str = "brave"
-    api_key: str = ""
     base_url: str = ""
     max_results: int = 5
+
+    def resolve_api_key(self) -> str:
+        """Return the API key from the encrypted vault."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("tools", "web_search.api_key")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return ""
 
 
 class AudioConfig(Base):
     """Configuration for Speech capabilities (STT/TTS)."""
 
     provider_url: str | None = None
-    api_key: str | None = None
     model: str = "whisper-large-v3-turbo"
     tts_enabled: bool = False
     tts_provider: str = "browser"
@@ -190,6 +186,17 @@ class AudioConfig(Base):
     tts_speed: float = 1.0
     tts_lang: str = "en"
     tts_model_path: str | None = None
+
+    def resolve_api_key(self) -> str | None:
+        """Return the API key from the encrypted vault."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("audio", "api_key")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return None
 
 
 class WebToolsConfig(Base):
@@ -233,9 +240,19 @@ class MCPOAuthConfig(Base):
     auth_url: str = Field(..., description="Provider's authorisation endpoint URL.")
     token_url: str = Field(..., description="Provider's token exchange endpoint URL.")
     client_id: str = Field(..., description="OAuth application client ID.")
-    client_secret: str | None = Field(default=None)
     scopes: list[str] = Field(default_factory=list)
     callback_timeout: float = Field(default=120.0)
+
+    def resolve_client_secret(self, server_name: str) -> str | None:
+        """Return the client secret from the encrypted vault."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_secret = get_credential_manager().get_secret("mcp_servers", f"{server_name}.client_secret")
+            if vault_secret and isinstance(vault_secret, str):
+                return vault_secret
+        except Exception:
+            pass
+        return None
 
 
 class MCPServerConfig(Base):
@@ -317,9 +334,6 @@ class Config(BaseSettings):
     ) -> bool:
         if not provider:
             return False
-        # Check plain-text field first
-        if provider.api_key:
-            return True
         # Check encrypted vault
         if spec:
             resolved = provider.resolve_api_key(spec.name)
@@ -399,7 +413,7 @@ class Config(BaseSettings):
         p, name = self._match_provider(model)
         if not p:
             return None
-        return p.resolve_api_key(name or "") or p.api_key or None
+        return p.resolve_api_key(name or "") or None
 
     def get_api_base(self, model: str | None = None) -> "str | None":
         from shibaclaw.thinkers.registry import find_by_name
