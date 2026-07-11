@@ -1,0 +1,103 @@
+/* premium.css - Modern WebUI Enhancements */
+/* Adds glassmorphism, smooth transitions, and premium aesthetics */
+
+/* Modals and Cards */
+.modal-content, .dashboard-card, .settings-panel, .premium-dropdown {
+    background: rgba(var(--bg-color-rgb, 30, 30, 30), 0.7) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease !important;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4) !important;
+    border-color: rgba(var(--primary-rgb, 100, 150, 255), 0.3) !important;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary, .btn-command {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary:hover, .btn-secondary:hover, .btn-command:hover {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+}
+
+.btn-primary:active, .btn-secondary:active, .btn-command:active {
+    transform: scale(0.98);
+}
+
+/* List Items (Skills / Plugins / KBs) */
+.skills-list > div, .kb-item {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    margin-bottom: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.3s ease !important;
+}
+
+.skills-list > div:hover, .kb-item:hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    transform: translateX(4px);
+}
+
+/* Loaders and Animations */
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb, 100, 150, 255), 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(var(--primary-rgb, 100, 150, 255), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb, 100, 150, 255), 0); }
+}
+
+.loading-pulse {
+    animation: pulse-glow 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+/* Inputs */
+.form-input {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.form-input:focus {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb, 100, 150, 255), 0.2) !important;
+}
+
+
+.model-item.premium-kb-item {
+    border-radius: 6px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.model-item.premium-kb-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.model-item.premium-kb-item.selected {
+    background: rgba(var(--primary-rgb, 100, 150, 255), 0.1);
+    border-color: rgba(var(--primary-rgb, 100, 150, 255), 0.3);
+}
+
+.premium-kb-check {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--shiba-gold);
+}
+
+.model-item.premium-kb-item.selected .premium-kb-check {
+    opacity: 1;
+    transform: scale(1);
+}
