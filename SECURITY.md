@@ -56,6 +56,15 @@ ShibaClaw implements defense-in-depth across multiple layers:
 - The auth token is never included in file-serving URLs to prevent leakage via server logs or browser history.
 - Socket.IO connections require authentication (not in the public path list).
 
+### Encrypted Credentials Vault
+
+ShibaClaw features an encrypted credentials vault to securely store third-party credentials (API keys, bot tokens, email passwords) instead of writing them in plaintext to `config.json`.
+- **Encryption**: Secrets are stored in `credentials.enc`, encrypted symmetrically using AES-128/256 through Fernet (cryptography library). The key is stored separately in `credentials.key` with strict `0o600` permissions (or locked down via NTFS ACLs/`icacls` on Windows systems).
+- **Robustness & Stability**:
+  - **Vault-First Resolution**: All built-in channels and integrations resolve tokens in a vault-first manner: they query the vault first and only fall back to plaintext configuration fields if the vault is absent.
+  - **Thread Safety**: All writes and mutating actions inside the vault are guarded by a thread lock (`threading.Lock`) to prevent corruption under concurrent WebUI settings updates.
+  - **No Silent Erasure**: If decryption fails (e.g. corruption or invalid keys), the manager raises a `RuntimeError` rather than silently returning an empty configuration, preventing accidental data deletion during the next write cycle.
+
 ### Channel Access Control
 
 - Every channel enforces an `allow_from` whitelist. An empty list denies all access.

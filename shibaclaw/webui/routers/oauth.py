@@ -17,6 +17,12 @@ def get_oauth_providers_status() -> list[dict]:
         {"name": "openrouter", "label": "OpenRouter"},
         {"name": "github_copilot", "label": "GitHub Copilot"},
         {"name": "openai_codex", "label": "OpenAI Codex"},
+        {"name": "anthropic", "label": "Anthropic / Claude"},
+        {"name": "google_gemini_cli", "label": "Google Gemini CLI"},
+        {"name": "xai", "label": "xAI / Grok"},
+        {"name": "qwen_oauth", "label": "Qwen / Alibaba"},
+        {"name": "minimax_portal", "label": "MiniMax"},
+        {"name": "z_ai", "label": "Z.AI / GLM"},
     ]
     result = []
     for p in providers:
@@ -62,6 +68,17 @@ def get_oauth_providers_status() -> list[dict]:
                     if status == "configured"
                     else "No credentials found"
                 )
+            elif p["name"] in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
+                from shibaclaw.security.oauth_store import OAuthTokenStore
+                
+                store = OAuthTokenStore()
+                token = store.load_token(p["name"])
+                if token and token.get("access_token"):
+                    status = "configured"
+                    msg = "Authenticated via OAuth"
+                else:
+                    status = "not_configured"
+                    msg = "No credentials found"
         except Exception as e:
             status, msg = "error", str(e)
         result.append({**p, "status": status, "message": msg})
@@ -74,7 +91,15 @@ async def api_oauth_providers(request: Request):
 async def api_oauth_login(request: Request):
     data = await request.json()
     provider = data.get("provider", "").replace("-", "_")
-    if provider not in ("openrouter", "github_copilot", "openai_codex"):
+    GENERIC_PROVIDERS = {
+        "anthropic": "Anthropic / Claude",
+        "google_gemini_cli": "Google Gemini CLI",
+        "xai": "xAI / Grok",
+        "qwen_oauth": "Qwen / Alibaba",
+        "minimax_portal": "MiniMax",
+        "z_ai": "Z.AI / GLM",
+    }
+    if provider not in ("openrouter", "github_copilot", "openai_codex") and provider not in GENERIC_PROVIDERS:
         return JSONResponse({"error": "Unknown provider"}, status_code=404)
 
     job_id = str(uuid.uuid4())[:8]
@@ -93,6 +118,10 @@ async def api_oauth_login(request: Request):
         from ..oauth_github import start_codex_oauth
 
         return await start_codex_oauth(job_id, jobs)
+    elif provider in GENERIC_PROVIDERS:
+        from ..oauth_generic import start_generic_oauth
+        
+        return await start_generic_oauth(request, job_id, jobs, provider, GENERIC_PROVIDERS[provider])
 
 
 async def api_oauth_openrouter_callback(request: Request):

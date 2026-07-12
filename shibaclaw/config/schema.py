@@ -133,6 +133,11 @@ class ProvidersConfig(Base):
     byteplus_coding_plan: ProviderConfig = Field(default_factory=ProviderConfig)
     openai_codex: ProviderConfig = Field(default_factory=ProviderConfig)
     github_copilot: ProviderConfig = Field(default_factory=ProviderConfig)
+    google_gemini_cli: ProviderConfig = Field(default_factory=ProviderConfig)
+    xai: ProviderConfig = Field(default_factory=ProviderConfig)
+    qwen_oauth: ProviderConfig = Field(default_factory=ProviderConfig)
+    minimax_portal: ProviderConfig = Field(default_factory=ProviderConfig)
+    z_ai: ProviderConfig = Field(default_factory=ProviderConfig)
 
 
 class HeartbeatConfig(Base):

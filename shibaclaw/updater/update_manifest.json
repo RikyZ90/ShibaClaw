@@ -1,31 +1,31 @@
 {
-    "version": "0.9.4",
-    "release_notes": "Fixed Linux self-update stuck on v0.9.2: the bundled update_manifest.json was not bumped alongside releases, causing _get_version() to report a stale version even after a successful pip/pipx upgrade. Version resolution now prefers installed pip metadata over the bundled manifest for pip installations.",
+    "version": "0.9.5",
+    "release_notes": "Implemented an Encrypted Credentials Vault system to secure third-party credentials (API keys, bot tokens, email passwords) via AES-128/256 Fernet encryption. Includes vault-first secret resolution, thread safety locks, anti-corruption safeguards, platform-specific restricted permissions (icacls on Windows), and forced vault writes for WebUI onboarding & OAuth flows.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.4."
+            "note": "Bumped version to 0.9.5."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.4 release notes."
+            "note": "Added v0.9.5 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation version to 0.9.4."
+            "note": "Updated documentation version to 0.9.5 and added vault features."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.4."
+            "note": "Bumped packaged update manifest to v0.9.5."
         },
         {
-            "path": "shibaclaw/__init__.py",
+            "path": "shibaclaw/security/credential_manager.py",
             "overwrite": true,
-            "note": "Fixed version priority: pip installations now prefer installed metadata over bundled manifest."
+            "note": "Hardened vault operations with locks, strict error handling, path-aware caches, and icacls support."
         }
     ]
 }

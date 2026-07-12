@@ -38,6 +38,12 @@ def _is_oauth_authenticated(spec) -> bool:
             return True
         return any(os.path.exists(tp) for tp in token_paths)
 
+    if spec.name in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
+        from shibaclaw.security.oauth_store import OAuthTokenStore
+        store = OAuthTokenStore()
+        token = store.load_token(spec.name)
+        return bool(token and token.get("access_token"))
+
     return False
 
 
@@ -57,6 +63,11 @@ def _oauth_provider_status(spec) -> str:
             return "[dim]not authenticated[/dim]"
 
     if spec.name == "github_copilot":
+        if _is_oauth_authenticated(spec):
+            return "[green]✓ (OAuth authenticated)[/green]"
+        return "[dim]not authenticated[/dim]"
+
+    if spec.name in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
         if _is_oauth_authenticated(spec):
             return "[green]✓ (OAuth authenticated)[/green]"
         return "[dim]not authenticated[/dim]"
@@ -216,3 +227,40 @@ def _login_github_copilot() -> None:
     except Exception as e:
         get_console().print(f"[red]Authentication error: {e}[/red]")
         raise typer.Exit(1)
+
+def _generic_login_handler(provider_name: str, display_name: str) -> None:
+    get_console().print(f"[cyan]Starting authentication flow for {display_name}...[/cyan]\n")
+    get_console().print("[dim]Since real OAuth endpoints are not configured, please manually enter your token.[/dim]")
+    token = typer.prompt("Access Token", hide_input=True)
+    if not token.strip():
+        get_console().print("[red]✗ Authentication failed: token cannot be empty.[/red]")
+        raise typer.Exit(1)
+        
+    from shibaclaw.security.oauth_store import OAuthTokenStore
+    store = OAuthTokenStore()
+    store.save_token(provider_name, {"access_token": token.strip()})
+    get_console().print(f"[green]✓ Successfully authenticated with {display_name}[/green]")
+
+@register_login("anthropic")
+def _login_anthropic() -> None:
+    _generic_login_handler("anthropic", "Anthropic / Claude")
+
+@register_login("google_gemini_cli")
+def _login_google_gemini_cli() -> None:
+    _generic_login_handler("google_gemini_cli", "Google Gemini CLI")
+
+@register_login("xai")
+def _login_xai() -> None:
+    _generic_login_handler("xai", "xAI / Grok")
+
+@register_login("qwen_oauth")
+def _login_qwen_oauth() -> None:
+    _generic_login_handler("qwen_oauth", "Qwen / Alibaba")
+
+@register_login("minimax_portal")
+def _login_minimax_portal() -> None:
+    _generic_login_handler("minimax_portal", "MiniMax")
+
+@register_login("z_ai")
+def _login_z_ai() -> None:
+    _generic_login_handler("z_ai", "Z.AI / GLM")

@@ -1,3 +1,16 @@
+## [0.9.5] - 2026-07-12
+
+### Added
+- **Encrypted Credentials Vault** — Built a new AES-128/256 symmetric encrypted vault (`credentials.enc` and `credentials.key`) using Fernet to secure all third-party integration secrets (API keys, bot tokens, email passwords) away from plaintext configuration files.
+- **Windows File Protection** — Integrated platform-specific fallback using `icacls` to enforce strict user-only access control on keys and vaults under Windows.
+
+### Fixed
+- **Insecure Plaintext Fallbacks** — Refactored WebUI onboarding and Github OAuth settings flow to store retrieved tokens directly in the encrypted vault rather than failing to validate them against schema changes.
+- **Race Conditions in Vault Updates** — Wrapped all modifying credential operations under a `threading.Lock` to guarantee safety during concurrent WebUI updates.
+- **Silent Corruption Data Loss** — Configured the vault loading flow to raise a `RuntimeError` on decrypt failures rather than returning an empty database which would accidentally overwrite existing secrets.
+- **Path-Aware Cryptography Caches** — Replaced global single-key Fernet cache with a path-specific map to prevent key reuse conflicts in script environments.
+- **Complete Channel Vault-First Hardening** — Integrated and verified vault resolution helpers for DingTalk, Feishu, QQ, MoChat, Discord, and the WhatsApp channel plugin.
+
 ## [0.9.4] - 2026-07-11
 
 ### Fixed

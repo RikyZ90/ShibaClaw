@@ -22,9 +22,10 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.4</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.5</b> — Click to see what's new</summary>
 
-- **Linux Self-Update Stuck on v0.9.2** — Fixed a bug where `_get_version()` reported a stale version from the bundled manifest even after a successful pip/pipx upgrade. Version resolution now prefers installed package metadata, ensuring the updater converges correctly.
+- **Encrypted Credentials Vault** — Built a new AES-128/256 symmetric encrypted vault (`credentials.enc` and `credentials.key`) to store API keys, bot tokens, and passwords. It comes with vault-first resolution, thread safety locks, anti-corruption database protection, and restricted permissions on Unix (`0o600`) and Windows (`icacls` ACLs).
+- **Hardened Channel Resolution** — Complete resolution updates for Discord, DingTalk, Feishu, QQ, MoChat, and the WhatsApp channel plugin.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
@@ -91,7 +92,7 @@ Prefer the CLI? `shibaclaw onboard` runs the same guided setup from the terminal
 <td align="center" width="33%">
 
 ### 🛡️ Security-First
-CVE audit, prompt-injection wrap,<br>SSRF guard — <b>on by default</b>
+Encrypted vault, CVE audit,<br>prompt-injection wrap, SSRF guard
 
 </td>
 <td align="center" width="33%">
@@ -397,6 +398,7 @@ ShibaClaw performs exceptionally well even without expensive API usage:
 
 | Security Feature | ShibaClaw | OpenClaw | Hermes Agent | Nanobot | ZeroClaw |
 |---|:---:|:---:|:---:|:---:|:---:|
+| Encrypted Credentials Vault (AES Fernet) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
 | SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |
