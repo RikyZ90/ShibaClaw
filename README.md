@@ -31,9 +31,9 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.5</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.5 (Big Release & Refactor)</b> — Click to see what's new</summary>
 
-- **🔐 Encrypted Credentials Vault** — We've entirely revamped security. ShibaClaw now uses a robust AES-128/256 symmetric encrypted vault (`credentials.enc` and `credentials.key`) to securely store API keys, bot tokens, and passwords. It features vault-first resolution, thread-safety, anti-corruption protection, and strict OS-level permissions (`0o600` on Unix and `icacls` ACLs on Windows).
+- **🔥 Big Security Refactor & 🔐 Encrypted Credentials Vault** — We've entirely revamped security. ShibaClaw now uses a robust AES-128/256 symmetric encrypted vault (`credentials.enc` and `credentials.key`) to securely store API keys, bot tokens, and passwords. It features vault-first resolution, thread-safety, anti-corruption protection, and strict OS-level permissions (`0o600` on Unix and `icacls` ACLs on Windows).
 - **🌐 Native OAuth & Device Code Flows** — Added seamless, native authentication flows directly inside the WebUI. You can now login effortlessly via **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex**, and **OpenRouter** without ever touching an API key!
 - **🤖 New Providers Support** — Added comprehensive integrations for **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax**, and **Z.AI**, giving you immediate access to the best state-of-the-art models on the market.
 - **🛡️ Hardened Channel Resolution** — Complete resolution updates for Discord, DingTalk, Feishu, QQ, MoChat, and the WhatsApp channel plugin.

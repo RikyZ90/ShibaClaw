@@ -33,9 +33,9 @@
 ***
 
 <details open>
-<summary>📢 <b>Neueste Version: v0.9.5</b> — Klicken für Neuerungen</summary>
+<summary>📢 <b>Neueste Version: v0.9.5 (Big Release & Refactor)</b> — Klicken für Neuerungen</summary>
 
-- **🔐 Verschlüsselter Credentials-Tresor** — Wir haben die Sicherheit komplett überarbeitet. ShibaClaw nutzt jetzt einen robusten AES-128/256 symmetrisch verschlüsselten Tresor (`credentials.enc` und `credentials.key`), um API-Schlüssel, Bot-Tokens und Passwörter sicher zu speichern. Features: Tresor-First-Auflösung, Thread-Sicherheit, Anti-Korruptionsschutz und strenge OS-Level-Berechtigungen (`0o600` auf Unix und `icacls` ACLs auf Windows).
+- **🔥 Big Security Refactor & 🔐 Verschlüsselter Credentials-Tresor** — Wir haben die Sicherheit komplett überarbeitet. ShibaClaw nutzt jetzt einen robusten AES-128/256 symmetrisch verschlüsselten Tresor (`credentials.enc` und `credentials.key`), um API-Schlüssel, Bot-Tokens und Passwörter sicher zu speichern. Features: Tresor-First-Auflösung, Thread-Sicherheit, Anti-Korruptionsschutz und strenge OS-Level-Berechtigungen (`0o600` auf Unix und `icacls` ACLs auf Windows).
 - **🌐 Native OAuth- & Device-Code-Flows** — Nahtlose, native Authentifizierungs-Flows direkt in der WebUI hinzugefügt. Sie können sich jetzt mühelos über **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** und **OpenRouter** anmelden, ohne jemals einen API-Schlüssel berühren zu müssen!
 - **🤖 Unterstützung für neue Anbieter** — Umfassende Integrationen für **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** und **Z.AI** hinzugefügt, wodurch Sie sofortigen Zugriff auf die besten State-of-the-Art-Modelle auf dem Markt haben.
 - **🛡️ Gehärtete Kanalauflösung** — Komplette Auflösungs-Updates für Discord, DingTalk, Feishu, QQ, MoChat und das WhatsApp-Kanal-Plugin.

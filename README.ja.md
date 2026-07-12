@@ -33,9 +33,9 @@
 ***
 
 <details open>
-<summary>📢 <b>最新リリース: v0.9.5</b> — クリックで変更点を表示</summary>
+<summary>📢 <b>最新リリース: v0.9.5 (Big Release & Refactor)</b> — クリックで変更点を表示</summary>
 
-- **🔐 暗号化された認証情報ボルト** — セキュリティを全面的に刷新しました。ShibaClaw は、API キー、ボットトークン、パスワードを安全に保存するために、堅牢な AES-128/256 対称暗号化ボルト（`credentials.enc` および `credentials.key`）を使用するようになりました。ボルト優先の解決、スレッドセーフ、破損防止保護、および厳密な OS レベルのアクセス許可（Unix では `0o600`、Windows では `icacls` ACL）を備えています。
+- **🔥 Big Security Refactor & 🔐 暗号化された認証情報ボルト** — セキュリティを全面的に刷新しました。ShibaClaw は、API キー、ボットトークン、パスワードを安全に保存するために、堅牢な AES-128/256 対称暗号化ボルト（`credentials.enc` および `credentials.key`）を使用するようになりました。ボルト優先の解決、スレッドセーフ、破損防止保護、および厳密な OS レベルのアクセス許可（Unix では `0o600`、Windows では `icacls` ACL）を備えています。
 - **🌐 ネイティブ OAuth ＆ デバイスコードフロー** — WebUI 内に直接、シームレスでネイティブな認証フローを追加しました。API キーに一切触れることなく、**xAI / Grok**、**GitHub Copilot**、**Google Gemini CLI**、**OpenAI Codex**、**OpenRouter** 経由で簡単にログインできるようになりました！
 - **🤖 新規プロバイダーのサポート** — **Anthropic（Claude）**、**xAI（Grok）**、**Qwen（Alibaba）**、**MiniMax**、および **Z.AI** の包括的な統合を追加し、市場で最高の最先端モデルに即座にアクセスできるようになりました。
 - **🛡️ チャネル解決の強化** — Discord、DingTalk、Feishu、QQ、MoChat、および WhatsApp チャネルプラグインの完全な解決アップデート。

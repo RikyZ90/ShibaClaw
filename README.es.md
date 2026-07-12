@@ -33,9 +33,9 @@
 ***
 
 <details open>
-<summary>📢 <b>Última versión: v0.9.5</b> — Haz clic para ver las novedades</summary>
+<summary>📢 <b>Última versión: v0.9.5 (Big Release & Refactor)</b> — Haz clic para ver las novedades</summary>
 
-- **🔐 Bóveda de credenciales cifrada** — Hemos renovado la seguridad por completo. ShibaClaw ahora utiliza una robusta bóveda cifrada simétrica AES-128/256 (`credentials.enc` y `credentials.key`) para almacenar de forma segura claves API, tokens de bots y contraseñas. Cuenta con resolución prioritaria de bóveda, seguridad de hilos, protección anticorrupción y permisos estrictos a nivel de sistema operativo (`0o600` en Unix y `icacls` ACLs en Windows).
+- **🔥 Big Security Refactor & 🔐 Bóveda de credenciales cifrada** — Hemos renovado la seguridad por completo. ShibaClaw ahora utiliza una robusta bóveda cifrada simétrica AES-128/256 (`credentials.enc` y `credentials.key`) para almacenar de forma segura claves API, tokens de bots y contraseñas. Cuenta con resolución prioritaria de bóveda, seguridad de hilos, protección anticorrupción y permisos estrictos a nivel de sistema operativo (`0o600` en Unix y `icacls` ACLs en Windows).
 - **🌐 Flujos nativos de OAuth y Device Code** — Flujos de autenticación nativos integrados directamente en la WebUI. ¡Ahora puedes iniciar sesión sin esfuerzo a través de **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** y **OpenRouter** sin tocar nunca una clave API!
 - **🤖 Soporte para nuevos proveedores** — Integraciones completas añadidas para **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** y **Z.AI**, dándote acceso inmediato a los mejores modelos de vanguardia del mercado.
 - **🛡️ Resolución de canales fortalecida** — Actualizaciones completas de resolución para Discord, DingTalk, Feishu, QQ, MoChat y el plugin del canal de WhatsApp.

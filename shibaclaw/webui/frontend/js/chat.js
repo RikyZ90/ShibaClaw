@@ -580,7 +580,7 @@ function updateSendButton() {
             btnSend.title = "Steer the agent";
         } else {
             iconSpan.textContent = "send";
-            btnSend.title = "Send message";
+            btnSend.title = hasText ? "Send message" : "Type a message to send";
         }
     }
 }
