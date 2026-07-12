@@ -17,7 +17,7 @@
   <b>23 Providers · 11 Chat Channels · Built-in WebUI · Security-First Core · MCP Ready</b>
 </p>
 
-<h3 align="center">Built on three pillars: <b>Simplicity · Security · Privacy</b></h3>
+<h3 align="center">Built on three pillars: <b>User Friendly · Security · Privacy </b></h3>
 
 <p align="center">
   🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
