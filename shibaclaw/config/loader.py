@@ -17,6 +17,23 @@ _plugins_onboarded = False
 # Sensitive field name fragments used by _scrub_secrets_from_dump
 _SECRET_FRAGMENTS = ("token", "password", "secret", "key", "api_key", "apiKey")
 
+_CHANNEL_SECRET_FIELDS = {
+    ("telegram", "token"),
+    ("discord", "token"),
+    ("slack", "bot_token"),
+    ("slack", "app_token"),
+    ("email", "imap_password"),
+    ("email", "smtp_password"),
+    ("matrix", "access_token"),
+    ("wecom", "secret"),
+    ("dingtalk", "client_secret"),
+    ("feishu", "app_secret"),
+    ("feishu", "verification_token"),
+    ("qq", "secret"),
+    ("mochat", "claw_token"),
+    ("whatsapp", "bridge_token"),
+}
+
 
 def set_config_path(path: Path) -> None:
     """Set the current config path (used to derive data directory)."""
@@ -76,9 +93,14 @@ def _scrub_secrets_from_dump(data: dict, cm: Any = None) -> dict:
     # --- Channel secrets ---
     channels = data.get("channels", {})
     if isinstance(channels, dict):
-        for ch_cfg in channels.values():
+        for ch_name, ch_cfg in channels.items():
             if isinstance(ch_cfg, dict):
-                _clear_secret_fields(ch_cfg)
+                import re
+                for k in list(ch_cfg.keys()):
+                    k_snake = re.sub(r'(?<!^)(?=[A-Z])', '_', k).lower()
+                    if (ch_name.lower(), k_snake) in _CHANNEL_SECRET_FIELDS:
+                        if isinstance(ch_cfg[k], str) and ch_cfg[k]:
+                            ch_cfg[k] = ""
 
     # --- Audio API key ---
     audio = data.get("audio", {})
@@ -112,7 +134,9 @@ def _get_cm_if_active() -> Any:
     try:
         from shibaclaw.security.credential_manager import get_credential_manager
         cm = get_credential_manager()
-        return cm if cm.is_setup() else None
+        if cm.is_setup() or cm._store_path.exists():
+            return cm
+        return None
     except Exception:
         return None
 
@@ -340,19 +364,21 @@ def _migrate_secrets_from_raw_dict(data: dict, cm: Any) -> bool:
     # --- Channel secrets (email password, bot tokens, etc.) ---
     channels = data.get("channels", {})
     if isinstance(channels, dict):
+        import re
         for ch_name, ch_data in channels.items():
             if not isinstance(ch_data, dict):
                 continue
-            secret_keys = [
-                k for k in list(ch_data.keys())
-                if any(s in k.lower() for s in ("token", "password", "secret", "key"))
-                and ch_data[k]
-                and isinstance(ch_data[k], str)
-            ]
-            for sk in secret_keys:
-                val = ch_data.pop(sk)
-                cm.set_secret("channels", f"{ch_name}.{sk}", val)
-                migrated = True
+            
+            for k in list(ch_data.keys()):
+                val = ch_data[k]
+                if not val or not isinstance(val, str):
+                    continue
+                    
+                k_snake = re.sub(r'(?<!^)(?=[A-Z])', '_', k).lower()
+                if (ch_name.lower(), k_snake) in _CHANNEL_SECRET_FIELDS:
+                    ch_data.pop(k)
+                    cm.set_secret("channels", f"{ch_name}.{k_snake}", val)
+                    migrated = True
 
     # --- MCP OAuth secrets ---
     if isinstance(tools, dict):

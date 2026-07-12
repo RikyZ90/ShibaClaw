@@ -167,6 +167,19 @@ class DingTalkConfig(Base):
     client_secret: str = ""
     allow_from: list[str] = Field(default_factory=list)
 
+    def resolve_client_secret(self) -> str:
+        """Return client_secret from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "dingtalk.client_secret")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.client_secret
+
 
 class DingTalkChannel(BaseChannel):
     """
@@ -211,7 +224,7 @@ class DingTalkChannel(BaseChannel):
                 logger.error("DingTalk Stream SDK not installed. Run: pip install dingtalk-stream")
                 return
 
-            if not self.config.client_id or not self.config.client_secret:
+            if not self.config.client_id or not self.config.resolve_client_secret():
                 logger.error("DingTalk client_id and client_secret not configured")
                 return
 
@@ -230,7 +243,7 @@ class DingTalkChannel(BaseChannel):
                 "Initializing DingTalk Stream Client with Client ID: {}...",
                 self.config.client_id,
             )
-            credential = Credential(self.config.client_id, self.config.client_secret)
+            credential = Credential(self.config.client_id, self.config.resolve_client_secret())
             self._client = DingTalkStreamClient(credential)
 
             # Register standard handler
@@ -272,7 +285,7 @@ class DingTalkChannel(BaseChannel):
         url = "https://api.dingtalk.com/v1.0/oauth2/accessToken"
         data = {
             "appKey": self.config.client_id,
-            "appSecret": self.config.client_secret,
+            "appSecret": self.config.resolve_client_secret(),
         }
 
         if not self._http:

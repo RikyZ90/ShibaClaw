@@ -268,6 +268,16 @@ class MochatConfig(Base):
     reply_delay_mode: str = "non-mention"
     reply_delay_ms: int = 120000
 
+    def resolve_claw_token(self) -> str:
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "mochat.claw_token")
+                if val: return val
+        except Exception: pass
+        return self.claw_token
+
 
 # ---------------------------------------------------------------------------
 # Channel
@@ -319,7 +329,7 @@ class MochatChannel(BaseChannel):
 
     async def start(self) -> None:
         """Start Mochat channel workers and websocket connection."""
-        if not self.config.claw_token:
+        if not self.config.resolve_claw_token():
             logger.error("Mochat claw_token not configured")
             return
 
@@ -366,7 +376,7 @@ class MochatChannel(BaseChannel):
 
     async def send(self, msg: OutboundMessage) -> None:
         """Send outbound message to session or panel."""
-        if not self.config.claw_token:
+        if not self.config.resolve_claw_token():
             logger.warning("Mochat claw_token missing, skip send")
             return
 
@@ -488,7 +498,7 @@ class MochatChannel(BaseChannel):
                 socket_url,
                 transports=["websocket"],
                 socketio_path=socket_path,
-                auth={"token": self.config.claw_token},
+                auth={"token": self.config.resolve_claw_token()},
                 wait_timeout=max(1.0, self.config.socket_connect_timeout_ms / 1000.0),
             )
             return True
@@ -1019,7 +1029,7 @@ class MochatChannel(BaseChannel):
             url,
             headers={
                 "Content-Type": "application/json",
-                "X-Claw-Token": self.config.claw_token,
+                "X-Claw-Token": self.config.resolve_claw_token(),
             },
             json=payload,
         )

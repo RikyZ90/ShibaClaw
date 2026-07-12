@@ -122,19 +122,9 @@ async def api_onboard_submit(request: Request):
     # so it gets written to disk by save_config below.
     if api_key:
         try:
-            from shibaclaw.config.loader import _get_cm_if_active
-            cm = _get_cm_if_active()
-            if cm:
-                cm.set_secret("providers", f"{provider_name}.api_key", api_key)
-            else:
-                # No vault: write into the serialised config so save_config
-                # can persist it to disk in plain text.
-                from shibaclaw.config.schema import Config as _Cfg
-                cfg_dict = cfg.model_dump(mode="json", by_alias=False)
-                providers = cfg_dict.setdefault("providers", {})
-                providers.setdefault(provider_name, {})["api_key"] = api_key
-                cfg = _Cfg.model_validate(cfg_dict)
-                agent_manager.config = cfg
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            cm.set_secret("providers", f"{provider_name}.api_key", api_key)
         except Exception:
             pass
 

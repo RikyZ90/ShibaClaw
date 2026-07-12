@@ -185,15 +185,21 @@ def _inject_vault_placeholders(data: dict) -> dict:
         _maybe_mask("audio", "api_key", audio_cfg, "apiKey")
 
     # --- Channel secrets ---
+    _CHANNEL_SECRET_FIELDS = {
+        ("telegram", "token"), ("discord", "token"), ("slack", "bot_token"),
+        ("slack", "app_token"), ("email", "imap_password"), ("email", "smtp_password"),
+        ("matrix", "access_token"), ("wecom", "secret"), ("dingtalk", "client_secret"),
+        ("feishu", "app_secret"), ("feishu", "verification_token"), ("qq", "secret"),
+        ("mochat", "claw_token"), ("whatsapp", "bridge_token"),
+    }
     for ch_name, ch_cfg in (data.get("channels") or {}).items():
         if not isinstance(ch_cfg, dict):
             continue
+        import re
         for field in list(ch_cfg.keys()):
-            if any(f in field.lower() for f in _SECRET_KEY_FRAGMENTS) and isinstance(ch_cfg.get(field), str):
-                import re
+            if isinstance(ch_cfg.get(field), str):
                 snake = re.sub(r'(?<!^)(?=[A-Z])', '_', field).lower()
-                _maybe_mask("channels", f"{ch_name}.{field}", ch_cfg, field)
-                if ch_cfg.get(field, "") == "" and snake != field:
+                if (ch_name.lower(), snake) in _CHANNEL_SECRET_FIELDS:
                     _maybe_mask("channels", f"{ch_name}.{snake}", ch_cfg, field)
 
     # --- MCP OAuth client secrets ---

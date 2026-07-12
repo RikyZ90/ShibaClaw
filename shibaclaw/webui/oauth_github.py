@@ -130,25 +130,14 @@ async def _persist_openrouter_api_key(api_key: str) -> None:
         raise RuntimeError("No config loaded")
 
     try:
-        from shibaclaw.config.loader import _get_cm_if_active, save_config
+        from shibaclaw.security.credential_manager import get_credential_manager
+        from shibaclaw.config.loader import save_config
 
-        cm = _get_cm_if_active()
-        if cm:
-            # Vault is active — store there and reload without touching the schema.
-            cm.set_secret("providers", "openrouter.api_key", api_key)
-            cfg = agent_manager.config.model_copy(deep=True)
-            save_config(cfg)
-            await agent_manager.reload_config(cfg)
-        else:
-            # No vault — patch the config dict and re-validate so the key is
-            # included in the next save_config call.
-            from shibaclaw.config.schema import Config
-
-            cfg_dict = agent_manager.config.model_dump(mode="json", by_alias=False)
-            cfg_dict.setdefault("providers", {}).setdefault("openrouter", {})["api_key"] = api_key
-            new_cfg = Config.model_validate(cfg_dict)
-            save_config(new_cfg)
-            await agent_manager.reload_config(new_cfg)
+        cm = get_credential_manager()
+        cm.set_secret("providers", "openrouter.api_key", api_key)
+        cfg = agent_manager.config.model_copy(deep=True)
+        save_config(cfg)
+        await agent_manager.reload_config(cfg)
     except Exception as exc:
         raise RuntimeError(f"Failed to persist OpenRouter API key: {exc}") from exc
 

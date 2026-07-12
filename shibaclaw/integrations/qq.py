@@ -60,6 +60,16 @@ class QQConfig(Base):
     allow_from: list[str] = Field(default_factory=list)
     msg_format: Literal["plain", "markdown"] = "plain"
 
+    def resolve_secret(self) -> str:
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "qq.secret")
+                if val: return val
+        except Exception: pass
+        return self.secret
+
 
 class QQChannel(BaseChannel):
     """QQ channel using botpy SDK with WebSocket connection."""
@@ -87,7 +97,7 @@ class QQChannel(BaseChannel):
             logger.error("QQ SDK not installed. Run: pip install qq-botpy")
             return
 
-        if not self.config.app_id or not self.config.secret:
+        if not self.config.app_id or not self.config.resolve_secret():
             logger.error("QQ app_id and secret not configured")
             return
 
@@ -101,7 +111,7 @@ class QQChannel(BaseChannel):
         """Run the bot connection with auto-reconnect."""
         while self._running:
             try:
-                await self._client.start(appid=self.config.app_id, secret=self.config.secret)
+                await self._client.start(appid=self.config.app_id, secret=self.config.resolve_secret())
             except Exception as e:
                 logger.warning("QQ bot error: {}", e)
             if self._running:

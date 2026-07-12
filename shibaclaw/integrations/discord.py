@@ -43,8 +43,6 @@ class DiscordConfig(Base):
 
     def resolve_token(self) -> str | None:
         """Return the API key from config field or encrypted vault."""
-        if self.token:
-            return self.token
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
             vault_key = get_credential_manager().get_secret("channels", "discord.token")
@@ -52,7 +50,7 @@ class DiscordConfig(Base):
                 return vault_key
         except Exception:
             pass
-        return None
+        return self.token or None
     gateway_url: str = "wss://gateway.discord.gg/?v=10&encoding=json"
     intents: int = 37377
     group_policy: Literal["mention", "open"] = "mention"

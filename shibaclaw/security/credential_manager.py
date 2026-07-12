@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import secrets
+import subprocess
+import threading
 import time
 from hashlib import scrypt
 from pathlib import Path
@@ -24,7 +27,7 @@ from loguru import logger
 _STORE_FILENAME = "credentials.enc"
 _KEY_FILENAME = "credentials.key"
 
-_GLOBAL_FERNET_CACHE = None
+_FERNET_CACHE: dict[Path, "Any"] = {}
 _CREDENTIAL_MANAGER_INSTANCE: "CredentialManager | None" = None
 
 # Session tokens issued on login, mapped token → expiry epoch
@@ -49,10 +52,19 @@ def _load_or_create_key(key_path: Path) -> bytes:
     key = Fernet.generate_key()
     key_path.parent.mkdir(parents=True, exist_ok=True)
     key_path.write_bytes(key)
-    try:
-        os.chmod(key_path, 0o600)
-    except OSError:
-        pass
+    if platform.system() != "Windows":
+        try:
+            os.chmod(key_path, 0o600)
+        except OSError:
+            pass
+    else:
+        try:
+            subprocess.run(
+                ["icacls", str(key_path), "/inheritance:r", "/grant:r", f"{os.getlogin()}:F"],
+                capture_output=True
+            )
+        except Exception:
+            pass
     logger.debug("CredentialManager: generated new encryption key at {}", key_path)
     return key
 
@@ -90,16 +102,17 @@ class CredentialManager:
         self._fernet = self._build_fernet()
         self._cache: dict[str, Any] = {}
         self._cache_mtime: float | None = None
+        self._lock = threading.Lock()
 
     def _build_fernet(self):
-        global _GLOBAL_FERNET_CACHE
-        if _GLOBAL_FERNET_CACHE is not None:
-            return _GLOBAL_FERNET_CACHE
+        global _FERNET_CACHE
+        if self._key_path in _FERNET_CACHE:
+            return _FERNET_CACHE[self._key_path]
         from cryptography.fernet import Fernet
 
         key = _load_or_create_key(self._key_path)
-        _GLOBAL_FERNET_CACHE = Fernet(key)
-        return _GLOBAL_FERNET_CACHE
+        _FERNET_CACHE[self._key_path] = Fernet(key)
+        return _FERNET_CACHE[self._key_path]
 
     # ------------------------------------------------------------------
     # Persistence helpers
@@ -119,8 +132,8 @@ class CredentialManager:
             self._cache_mtime = mtime
             return self._cache
         except Exception as exc:
-            logger.warning("CredentialManager: failed to read store: {}", exc)
-            return {}
+            logger.error("CredentialManager: CRITICAL — vault corrupted: {}", exc)
+            raise RuntimeError(f"Credential vault corrupted: {exc}") from exc
 
     def _save_all(self, data: dict[str, Any]) -> None:
         """Serialise and encrypt the entire store to disk."""
@@ -131,10 +144,19 @@ class CredentialManager:
             self._store_path.write_bytes(ciphertext)
             self._cache = data
             self._cache_mtime = self._store_path.stat().st_mtime
-            try:
-                os.chmod(self._store_path, 0o600)
-            except OSError:
-                pass
+            if platform.system() != "Windows":
+                try:
+                    os.chmod(self._store_path, 0o600)
+                except OSError:
+                    pass
+            else:
+                try:
+                    subprocess.run(
+                        ["icacls", str(self._store_path), "/inheritance:r", "/grant:r", f"{os.getlogin()}:F"],
+                        capture_output=True
+                    )
+                except Exception:
+                    pass
         except Exception as exc:
             logger.error("CredentialManager: failed to save store: {}", exc)
 
@@ -149,23 +171,24 @@ class CredentialManager:
 
     def setup_user(self, username: str, password: str) -> bool:
         """Create the single admin user.  Returns ``False`` if already set up."""
-        data = self._load_all()
-        if "admin_user" in data:
-            return False
+        with self._lock:
+            data = self._load_all()
+            if "admin_user" in data:
+                return False
 
-        salt = secrets.token_hex(16)
-        hashed = scrypt(
-            password.encode(), salt=salt.encode(), n=16384, r=8, p=1,
-        ).hex()
+            salt = secrets.token_hex(16)
+            hashed = scrypt(
+                password.encode(), salt=salt.encode(), n=16384, r=8, p=1,
+            ).hex()
 
-        data["admin_user"] = {
-            "username": username,
-            "password_hash": hashed,
-            "salt": salt,
-        }
-        self._save_all(data)
-        logger.info("CredentialManager: admin user '{}' created.", username)
-        return True
+            data["admin_user"] = {
+                "username": username,
+                "password_hash": hashed,
+                "salt": salt,
+            }
+            self._save_all(data)
+            logger.info("CredentialManager: admin user '{}' created.", username)
+            return True
 
     def verify_password(self, username: str, password: str) -> bool:
         """Verify *username* / *password* against the stored admin record."""
@@ -191,18 +214,19 @@ class CredentialManager:
 
     def change_password(self, username: str, old_password: str, new_password: str) -> bool:
         """Change the admin password.  Returns ``False`` on auth failure."""
-        if not self.verify_password(username, old_password):
-            return False
-        data = self._load_all()
-        salt = secrets.token_hex(16)
-        hashed = scrypt(
-            new_password.encode(), salt=salt.encode(), n=16384, r=8, p=1,
-        ).hex()
-        data["admin_user"]["password_hash"] = hashed
-        data["admin_user"]["salt"] = salt
-        self._save_all(data)
-        logger.info("CredentialManager: password changed for '{}'.", username)
-        return True
+        with self._lock:
+            if not self.verify_password(username, old_password):
+                return False
+            data = self._load_all()
+            salt = secrets.token_hex(16)
+            hashed = scrypt(
+                new_password.encode(), salt=salt.encode(), n=16384, r=8, p=1,
+            ).hex()
+            data["admin_user"]["password_hash"] = hashed
+            data["admin_user"]["salt"] = salt
+            self._save_all(data)
+            logger.info("CredentialManager: password changed for '{}'.", username)
+            return True
 
     # ------------------------------------------------------------------
     # Session tokens
@@ -245,9 +269,10 @@ class CredentialManager:
 
     def set_secret(self, namespace: str, key: str, value: Any) -> None:
         """Store a secret value under *namespace* / *key*."""
-        data = self._load_all()
-        data.setdefault("secrets", {}).setdefault(namespace, {})[key] = value
-        self._save_all(data)
+        with self._lock:
+            data = self._load_all()
+            data.setdefault("secrets", {}).setdefault(namespace, {})[key] = value
+            self._save_all(data)
 
     def get_secret(self, namespace: str, key: str) -> Any | None:
         """Retrieve a secret, or ``None`` if missing."""
@@ -256,11 +281,12 @@ class CredentialManager:
 
     def delete_secret(self, namespace: str, key: str) -> None:
         """Delete a single secret."""
-        data = self._load_all()
-        ns = data.get("secrets", {}).get(namespace, {})
-        if key in ns:
-            del ns[key]
-            self._save_all(data)
+        with self._lock:
+            data = self._load_all()
+            ns = data.get("secrets", {}).get(namespace, {})
+            if key in ns:
+                del ns[key]
+                self._save_all(data)
 
     def get_namespace(self, namespace: str) -> dict[str, Any]:
         """Return all secrets in *namespace* as a plain dict."""
@@ -269,16 +295,18 @@ class CredentialManager:
 
     def set_namespace(self, namespace: str, payload: dict[str, Any]) -> None:
         """Overwrite an entire namespace."""
-        data = self._load_all()
-        data.setdefault("secrets", {})[namespace] = payload
-        self._save_all(data)
+        with self._lock:
+            data = self._load_all()
+            data.setdefault("secrets", {})[namespace] = payload
+            self._save_all(data)
 
     def delete_namespace(self, namespace: str) -> None:
         """Remove an entire namespace."""
-        data = self._load_all()
-        if namespace in data.get("secrets", {}):
-            del data["secrets"][namespace]
-            self._save_all(data)
+        with self._lock:
+            data = self._load_all()
+            if namespace in data.get("secrets", {}):
+                del data["secrets"][namespace]
+                self._save_all(data)
 
     def list_namespaces(self) -> list[str]:
         """List all secret namespaces."""
