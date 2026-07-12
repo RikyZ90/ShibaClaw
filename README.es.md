@@ -38,8 +38,26 @@
 <details open>
 <summary>📢 <b>Última versión: v0.9.6</b> — Haz clic para ver las novedades</summary>
 
-- **⚠️ Advertencia de inicio de sesión de WebUI post-actualización** — Se agregó un cuadro de advertencia en la WebUI (modal de Changelog y panel de actualización) para ejecutar `shibaclaw reset-admin` en tu terminal si ocurren problemas de inicio de sesión después de actualizar.
-- **⬆️ Actualización de versión** — Se actualizaron todos los archivos de configuración y proyecto a la versión `v0.9.6`.
+### Añadido
+- **🔐 Bóveda de credenciales cifrada (Actualización de seguridad importante)** — Hemos reformado fundamentalmente la gestión de secretos. ShibaClaw ahora utiliza una robusta bóveda cifrada simétrica AES-128/256 (`credentials.enc` y `credentials.key`) a través de Fernet. Esto aísla por completo todos los secretos de integración de terceros (claves API, tokens de bot, contraseñas de correo electrónico) de los archivos de configuración de texto plano, evitando fugas accidentales.
+- **🌐 Flujos nativos de xAI y OAuth avanzado** — Integración de flujos de código de dispositivo / OAuth nativos directamente en la WebUI. Ahora puede autenticarse sin problemas con **xAI / Grok** utilizando mecanismos oficiales de código de dispositivo, junto con GitHub Copilot, OpenAI Codex y OpenRouter, eliminando por completo la necesidad de tocar las claves API manualmente.
+- **🤖 Ecosistema ampliado de proveedores de modelos** — Se agregó soporte completo e inmediato para los modelos líderes de la industria, incluidos **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** y **Zhipu Z.AI**.
+- **Protección de archivos de Windows** — Se integró un plan de respaldo específico de la plataforma utilizando `icacls` para aplicar un control de acceso estricto solo para el usuario en claves y bóvedas bajo Windows.
+
+### Cambiado
+- **🎨 Rediseño visual completo de la WebUI** — Se renovó toda la interfaz de usuario para establecer una estética seria, profesional y centrada en el producto (inspirada en Linear y Stripe). Se eliminó sistemáticamente la "basura visual" generada por IA, incluidos los fondos de glassmorphism (`backdrop-filter: blur`), el texto con gradiente decorativo, los brillos dorados excesivos y las animaciones flotantes. Se reemplazaron los bordes laterales arbitrarios con tintes de fondo semánticos limpios, se unificó el sistema de radio de borde bajo una escala de token estricta (4px/8px/12px) y se optimizó el contraste de color en temas oscuros para cumplir con los estándares WCAG.
+
+### Solucionado
+- **Respaldos de texto plano inseguros** — Se refactorizó el flujo de incorporación de WebUI y la configuración de Github OAuth para almacenar los tokens recuperados directamente en la bóveda cifrada en lugar de fallar al validarlos contra cambios de esquema.
+- **Condiciones de carrera en actualizaciones de la bóveda** — Se envolvieron todas las operaciones de credenciales modificadoras bajo un `threading.Lock` para garantizar la seguridad durante las actualizaciones simultáneas de la WebUI.
+- **Pérdida de datos por corrupción silenciosa** — Se configuró el flujo de carga de la bóveda para lanzar un `RuntimeError` en fallas de descifrado en lugar de devolver una base de datos vacía que sobrescribiría accidentalmente los secretos existentes.
+- **Cachés de criptografía conscientes de la ruta** — Se reemplazó la caché global de Fernet de clave única con un mapa específico de la ruta para evitar conflictos de reutilización de claves en entornos de scripts.
+- **Endurecimiento completo de la bóveda del canal** — Se integraron y verificaron ayudantes de resolución de bóveda para DingTalk, Feishu, QQ, MoChat, Discord y el complemento de canal de WhatsApp.
+- **Configuración perfecta de aplicaciones conectadas** — Se solucionó un error de UX donde guardar la clave API de Klavis por primera vez requería cerrar y reabrir el menú manualmente. La WebUI ahora actualiza automáticamente los estados de la aplicación y habilita los botones de conexión de inmediato sin necesidad de recargar.
+- **Linting del código base de Python** — Se corrigieron errores de análisis estático de `Ruff`, incluyendo el despliegue de declaraciones multilínea y la limpieza de importaciones no utilizadas y variables no definidas en los módulos principales (`channel.py`, `utils.py`, `gateway.py`).
+
+### Optimizado
+- **Carga de WebUI e inicialización de WebSocket** — Se migraron los activos frontend de WebUI para usar `esbuild` para el empaquetado y la minificación. La arquitectura modular de ES6 ahora se compila en un solo `bundle.js` e `index.css`, reduciendo drásticamente la sobrecarga de solicitudes HTTP y solucionando condiciones de carrera en los bucles de inicialización de la conexión WebSocket.
 
 Consulta el [Changelog](./CHANGELOG.md) para el historial completo de versiones.
 

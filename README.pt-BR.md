@@ -38,8 +38,26 @@
 <details open>
 <summary>📢 <b>Última versão: v0.9.6</b> — Clique para ver as novidades</summary>
 
-- **⚠️ Aviso de login na WebUI pós-atualização** — Adicionada caixa de aviso na WebUI (modal Changelog e painel Update) para executar `shibaclaw reset-admin` no seu terminal caso ocorram problemas de login pós-atualização.
-- **⬆️ Atualização de versão** — Atualizados todos os arquivos de configuração e do projeto para `v0.9.6`.
+### Adicionado
+- **🔐 Cofre de credenciais criptografado (Grande atualização de segurança)** — Reformulamos fundamentalmente o gerenciamento de segredos. O ShibaClaw agora utiliza um cofre criptografado simétrico AES-128/256 robusto (`credentials.enc` e `credentials.key`) via Fernet. Isso isola completamente todos os segredos de integração de terceiros (chaves de API, tokens de bot, senhas de e-mail) dos arquivos de configuração em texto simples, evitando vazamentos acidentais.
+- **🌐 Fluxos nativos de xAI e OAuth avançado** — Integrados fluxos nativos reais de OAuth / Código de dispositivo diretamente na WebUI. Agora você pode se autenticar perfeitamente com o **xAI / Grok** usando mecanismos oficiais de código de dispositivo, junto com o GitHub Copilot, OpenAI Codex e OpenRouter, eliminando completamente a necessidade de tocar em chaves de API manualmente.
+- **🤖 Ecossistema de provedores de modelos expandido** — Adicionado suporte completo e pronto para uso para os principais modelos do setor, incluindo **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** e **Zhipu Z.AI**.
+- **Proteção de arquivos do Windows** — Integrado fallback específico da plataforma usando `icacls` para impor controle de acesso estrito apenas ao usuário em chaves e cofres no Windows.
+
+### Alterado
+- **🎨 Redesenho visual completo da WebUI** — Reformulamos toda a interface do usuário para estabelecer uma estética séria, profissional e focada no produto (inspirada no Linear e Stripe). Removemos sistematicamente o "lixo visual" gerado por IA, incluindo fundos de glassmorphism (`backdrop-filter: blur`), texto decorativo em gradiente, brilhos dourados excessivos e animações de flutuação. Substituímos bordas laterais arbitrárias por tons de fundo semânticos limpos, unificamos o sistema de raio de borda sob uma escala de token estrita (4px/8px/12px) e otimizamos o contraste de cores em temas escuros para atender aos padrões WCAG.
+
+### Corrigido
+- **Fallbacks inseguros em texto simples** — Refatorado o fluxo de integração da WebUI e as configurações do Github OAuth para armazenar tokens recuperados diretamente no cofre criptografado em vez de falhar ao validá-los contra mudanças de esquema.
+- **Condições de corrida em atualizações de cofre** — Envolvidas todas as operações de credenciais modificadoras em um `threading.Lock` para garantir a segurança durante atualizações simultâneas da WebUI.
+- **Perda de dados por corrupção silenciosa** — Configurado o fluxo de carregamento do cofre para lançar um `RuntimeError` em falhas de descriptografia em vez de retornar um banco de dados vazio, o que substituiria acidentalmente os segredos existentes.
+- **Caches de criptografia com reconhecimento de caminho** — Substituído o cache global do Fernet de chave única por um mapa específico do caminho para evitar conflitos de reutilização de chaves em ambientes de script.
+- **Endurecimento completo do cofre de canais** — Integrados e verificados auxiliares de resolução de cofre para DingTalk, Feishu, QQ, MoChat, Discord e o plugin de canal do WhatsApp.
+- **Configuração perfeita de aplicativos conectados** — Corrigido um bug de UX onde salvar a chave de API do Klavis pela primeira vez exigia fechar e reabrir manualmente o menu. A WebUI agora atualiza automaticamente os estados do aplicativo e ativa os botões de conexão imediatamente, sem recarga.
+- **Linting do código base Python** — Corrigidos os erros de análise estática do `Ruff`, incluindo o desdobramento de instruções multilinha e a limpeza de importações não utilizadas e variáveis não definidas em módulos principais (`channel.py`, `utils.py`, `gateway.py`).
+
+### Otimizado
+- **Carregamento da WebUI e inicialização do WebSocket** — Migrados ativos de frontend da WebUI para usar `esbuild` para empacotamento e minificação. A arquitetura ES6 modular agora é compilada em um único `bundle.js` e `index.css`, reduzindo drasticamente a sobrecarga de requisições HTTP e corrigindo condições de corrida em loops de inicialização de conexões WebSocket.
 
 Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 

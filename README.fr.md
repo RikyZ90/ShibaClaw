@@ -38,10 +38,28 @@
 <details open>
 <summary>📢 <b>Dernière version : v0.9.6</b> — Cliquez pour voir les nouveautés</summary>
 
-- **⚠️ Avertissement de connexion WebUI post-mise à jour** — Ajout d'une boîte d'avertissement dans la WebUI (modal de Changelog et panneau de mise à jour) pour exécuter `shibaclaw reset-admin` dans votre terminal si des problèmes de connexion surviennent après la mise à jour.
-- **⬆️ Mise à niveau de version** — Mise à jour de tous les fichiers de configuration et de projet vers la version `v0.9.6`.
+### Ajouté
+- **🔐 Coffre-fort de clés chiffré (Mise à jour de sécurité majeure)** — Nous avons fondamentalement remanié la gestion des secrets. ShibaClaw utilise désormais un coffre-fort chiffré symétrique AES-128/256 robuste (`credentials.enc` et `credentials.key`) via Fernet. Cela isole entièrement tous les secrets d'intégration tiers (clés API, jetons de bot, mots de passe de messagerie) des fichiers de configuration en texte brut, évitant ainsi les fuites accidentelles.
+- **🌐 Flux OAuth natifs xAI et avancés** — Intégration de flux OAuth / code de périphérique natifs directement dans l'interface Web. Vous pouvez désormais vous authentifier de manière transparente avec **xAI / Grok** en utilisant les mécanismes officiels de code de périphérique, aux côtés de GitHub Copilot, OpenAI Codex et OpenRouter, éliminant ainsi complètement le besoin de manipuler manuellement les clés API.
+- **🤖 Écosystème de fournisseurs de modèles élargi** — Ajout d'une prise en charge complète et prête à l'emploi des principaux modèles de l'industrie, notamment **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** et **Zhipu Z.AI**.
+- **Protection des fichiers Windows** — Intégration d'un repli spécifique à la plateforme à l'aide d'`icacls` pour appliquer un contrôle d'accès strict réservé à l'utilisateur sur les clés et les coffres-forts sous Windows.
 
-Consultez le [Changelog](./CHANGELOG.md) pour l'historique complet des versions.
+### Modifié
+- **🎨 Refonte visuelle complète de l'interface Web** — Refonte de l'ensemble de l'interface utilisateur pour établir une esthétique sérieuse, professionnelle et axée sur le produit (inspirée de Linear et Stripe). Suppression systématique du « slop visuel » généré par l'IA, y compris les arrière-plans en glassmorphisme (`backdrop-filter: blur`), le texte en dégradé décoratif, les lueurs dorées excessives et les animations de flottement. Remplacement des bordures latérales arbitraires par des teintes de fond sémantiques propres, unification du système de rayon de bordure sous une échelle de jetons stricte (4px/8px/12px) et optimisation du contraste des couleurs sur les thèmes sombres pour répondre aux normes WCAG.
+
+### Corrigé
+- **Replis en texte brut non sécurisés** — Refactorisation du flux d'intégration de l'interface Web et des paramètres OAuth Github pour stocker les jetons récupérés directement dans le coffre-fort chiffré plutôt que de ne pas les valider par rapport aux modifications de schéma.
+- **Conditions de concurrence dans les mises à jour du coffre-fort** — Encapsulation de toutes les opérations de modification de clés sous un verrou `threading.Lock` pour garantir la sécurité lors des mises à jour simultanées de l'interface Web.
+- **Perde de données par corruption silencieuse** — Configuration du flux de chargement du coffre-fort pour lever une exception `RuntimeError` en cas d'échec du déchiffrement plutôt que de renvoyer une base de données vide, ce qui écraserait accidentellement les secrets existants.
+- **Caches de cryptographie sensibles au chemin** — Remplacement du cache global Fernet à clé unique par une carte spécifique au chemin pour éviter les conflits de réutilisation des clés dans les environnements de script.
+- **Renforcement complet du coffre-fort de canal** — Intégration et vérification des assistants de résolution de coffre-fort pour DingTalk, Feishu, QQ, MoChat, Discord et le plugin de canal WhatsApp.
+- **Configuration transparente des applications connectées** — Correction d'un bug UX où la première sauvegarde de la clé API Klavis nécessitait de fermer et rouvrir manuellement le menu. L'interface Web actualise désormais automatiquement les états de l'application et active immédiatement les boutons de connexion sans rechargement.
+- **Linting de la base de code Python** — Correction des erreurs d'analyse statique de `Ruff`, notamment le déploiement des instructions multilignes et le nettoyage des importations inutilisées et des variables non définies dans les modules principaux (`channel.py`, `utils.py`, `gateway.py`).
+
+### Optimisé
+- **Chargement de l'interface Web et initialisation de WebSocket** — Migration des ressources frontend de l'interface Web pour utiliser `esbuild` pour le regroupement et la minification. L'architecture modulaire ES6 est désormais compilée dans un seul fichier `bundle.js` et `index.css`, réduisant considérablement la surcharge des requêtes HTTP et corrigeant les conditions de concurrence dans les boucles d'initialisation de connexion WebSocket.
+
+Consultez le [Changelog](./CHANGELOG.md) para l'historique complet des versions.
 
 </details>
 
