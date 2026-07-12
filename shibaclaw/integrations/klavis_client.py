@@ -51,6 +51,14 @@ class KlavisLimitError(Exception):
 
 def _load_key_from_config() -> str:
     try:
+        from shibaclaw.security.credential_manager import get_credential_manager
+        vault_key = get_credential_manager().get_secret("connected_apps", "klavis_api_key")
+        if vault_key and isinstance(vault_key, str):
+            return "".join(vault_key.split())
+    except Exception:
+        pass
+
+    try:
         from shibaclaw.webui.agent_manager import agent_manager
         cfg = agent_manager.config
         if not cfg:

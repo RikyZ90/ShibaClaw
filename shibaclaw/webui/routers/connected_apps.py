@@ -540,8 +540,19 @@ async def get_app_status(request: Request) -> JSONResponse:
 
                     # Inject Bearer token headers into MCP server config so
                     # the Strata MCP proxy authenticates the tool calls.
-                    backend_cfg = apps_cfg.get("__backend__") or {}
-                    klavis_api_key = backend_cfg.get("klavis_api_key") or ""
+                    klavis_api_key = ""
+                    try:
+                        from shibaclaw.security.credential_manager import get_credential_manager
+                        vault_key = get_credential_manager().get_secret("connected_apps", "klavis_api_key")
+                        if vault_key and isinstance(vault_key, str):
+                            klavis_api_key = vault_key
+                    except Exception:
+                        pass
+                    
+                    if not klavis_api_key:
+                        backend_cfg = apps_cfg.get("__backend__") or {}
+                        klavis_api_key = backend_cfg.get("klavis_api_key") or ""
+                        
                     if klavis_api_key:
                         strata_mcp_url = _get_strata_meta(cfg_dict).get("mcp_url", "")
                         if strata_mcp_url:
@@ -592,7 +603,15 @@ async def save_backend_settings(request: Request) -> JSONResponse:
     if _CONNECTED_APPS_KEY not in cfg_dict or cfg_dict[_CONNECTED_APPS_KEY] is None:
         cfg_dict[_CONNECTED_APPS_KEY] = {}
 
-    cfg_dict[_CONNECTED_APPS_KEY]["__backend__"] = {"klavis_api_key": api_key}
+    try:
+        from shibaclaw.security.credential_manager import get_credential_manager
+        cm = get_credential_manager()
+        cm.set_secret("connected_apps", "klavis_api_key", api_key)
+    except Exception as exc:
+        logger.warning("Could not save Klavis API key to vault: {}", exc)
+        if "__backend__" not in cfg_dict[_CONNECTED_APPS_KEY]:
+            cfg_dict[_CONNECTED_APPS_KEY]["__backend__"] = {}
+        cfg_dict[_CONNECTED_APPS_KEY]["__backend__"]["klavis_api_key"] = api_key
 
     err = await _save_and_reload(cfg_dict)
     if err:

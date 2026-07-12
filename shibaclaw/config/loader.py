@@ -126,6 +126,13 @@ def _scrub_secrets_from_dump(data: dict, cm: Any = None) -> dict:
                 if isinstance(oauth, dict):
                     _clear_secret_fields(oauth)
 
+    # --- Connected Apps klavis_api_key ---
+    connected_apps = data.get("connectedApps", {}) or data.get("connected_apps", {})
+    if isinstance(connected_apps, dict):
+        backend = connected_apps.get("__backend__")
+        if isinstance(backend, dict) and backend.get("klavis_api_key"):
+            backend["klavis_api_key"] = ""
+
     return data
 
 
@@ -393,5 +400,15 @@ def _migrate_secrets_from_raw_dict(data: dict, cm: Any) -> bool:
                     if client_secret:
                         cm.set_secret("mcp_servers", f"{server_name}.client_secret", client_secret)
                         migrated = True
+
+    # --- Connected Apps klavis_api_key ---
+    connected_apps = data.get("connectedApps", {}) or data.get("connected_apps", {})
+    if isinstance(connected_apps, dict):
+        backend = connected_apps.get("__backend__")
+        if isinstance(backend, dict):
+            klavis_key = backend.pop("klavis_api_key", None)
+            if klavis_key:
+                cm.set_secret("connected_apps", "klavis_api_key", klavis_key)
+                migrated = True
 
     return migrated
