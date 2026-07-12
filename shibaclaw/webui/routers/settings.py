@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 
 from loguru import logger
 from starlette.requests import Request
@@ -189,11 +190,9 @@ def _inject_vault_placeholders(data: dict) -> dict:
             continue
         for field in list(ch_cfg.keys()):
             if any(f in field.lower() for f in _SECRET_KEY_FRAGMENTS) and isinstance(ch_cfg.get(field), str):
-                # Derive vault key: camelCase field → snake_case
                 import re
                 snake = re.sub(r'(?<!^)(?=[A-Z])', '_', field).lower()
                 _maybe_mask("channels", f"{ch_name}.{field}", ch_cfg, field)
-                # Also try snake_case vault key as fallback
                 if ch_cfg.get(field, "") == "" and snake != field:
                     _maybe_mask("channels", f"{ch_name}.{snake}", ch_cfg, field)
 
@@ -234,7 +233,12 @@ async def api_settings_post(request: Request):
 
         data = await request.json()
         from shibaclaw.config.schema import Config
-        from shibaclaw.config.loader import _migrate_secrets_from_raw_dict
+        from shibaclaw.config.loader import (
+            _migrate_secrets_from_raw_dict,
+            _scrub_secrets_from_dump,
+            _get_cm_if_active,
+            get_config_path,
+        )
 
         old_cfg = agent_manager.config
         merged = old_cfg.model_dump(mode="json", by_alias=True)
@@ -243,29 +247,40 @@ async def api_settings_post(request: Request):
         filtered_data = _filter_redacted(data)
         _deep_merge(merged, filtered_data)
 
-        from shibaclaw.security.credential_manager import get_credential_manager
-        cm = get_credential_manager()
-        if cm.is_setup():
-            _migrate_secrets_from_raw_dict(merged, cm)
-
+        # ----------------------------------------------------------------
+        # IMPORTANT: validate new_cfg from the FULL merged dict (with
+        # secrets still present) so the in-memory config always holds the
+        # real values and the webUI can read them back on the next GET.
+        # ----------------------------------------------------------------
         try:
             new_cfg = Config.model_validate(merged)
         except Exception as e:
             return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
 
-        from shibaclaw.config.loader import get_config_path, _scrub_secrets_from_dump
-        path = get_config_path()
+        # ----------------------------------------------------------------
+        # Persist to disk.
+        # Work on a deep copy so we never mutate `merged` (which backs
+        # new_cfg) when migrating/scrubbing for the on-disk representation.
+        # ----------------------------------------------------------------
+        disk_data = copy.deepcopy(merged)
+        cm = _get_cm_if_active()
+        if cm:
+            # Move plaintext secrets into the vault and remove from disk copy.
+            _migrate_secrets_from_raw_dict(disk_data, cm)
+        # Belt-and-suspenders: zero out any residual plaintext only when vault active.
+        _scrub_secrets_from_dump(disk_data, cm)
+
         import json
         import os
         import tempfile
+
+        path = get_config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        # Scrub any residual plaintext secrets before persisting (belt-and-suspenders
-        # on top of _migrate_secrets_from_raw_dict which already popped them from merged)
-        _scrub_secrets_from_dump(merged)
         with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as tmp:
-            json.dump(merged, tmp, indent=2, ensure_ascii=False)
+            json.dump(disk_data, tmp, indent=2, ensure_ascii=False)
             tmp_name = tmp.name
         os.replace(tmp_name, path)
+
         agent_manager.config = new_cfg
 
         # Detect if network-binding gateway settings changed — those require a full restart
