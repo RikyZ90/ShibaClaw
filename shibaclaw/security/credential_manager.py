@@ -53,7 +53,10 @@ def _load_or_create_key(key_path: Path) -> bytes:
         if key_str:
             return key_str.encode("utf-8")
     except Exception as exc:
-        logger.warning("CredentialManager: Failed to access OS keyring: {}", exc)
+        if "No recommended backend" in str(exc):
+            logger.debug("CredentialManager: OS keyring unavailable (no recommended backend). Falling back to file.")
+        else:
+            logger.warning("CredentialManager: Failed to access OS keyring: {}", exc)
 
     if key_path.exists():
         key = key_path.read_bytes()
@@ -71,7 +74,10 @@ def _load_or_create_key(key_path: Path) -> bytes:
         keyring.set_password("shibaclaw_vault", "fernet_key", key.decode("utf-8"))
         logger.debug("CredentialManager: Generated new encryption key and stored in OS keyring.")
     except Exception as exc:
-        logger.warning("CredentialManager: Failed to store key in OS keyring ({}), falling back to file.", exc)
+        if "No recommended backend" in str(exc):
+            logger.debug("CredentialManager: OS keyring unavailable for storing key, falling back to file.")
+        else:
+            logger.warning("CredentialManager: Failed to store key in OS keyring ({}), falling back to file.", exc)
         key_path.parent.mkdir(parents=True, exist_ok=True)
         key_path.write_bytes(key)
         if platform.system() != "Windows":

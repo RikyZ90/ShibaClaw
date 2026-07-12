@@ -46,8 +46,18 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install build tools
         run: pip install hatch
+
+      - name: Build WebUI frontend
+        run: |
+          cd shibaclaw/webui
+          npm install
+          node build.mjs
 
       - name: Build package
         run: hatch build

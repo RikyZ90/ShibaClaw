@@ -13,6 +13,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     build-essential \
     python3-dev \
     libolm-dev \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install uv
 
@@ -24,6 +26,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Copia il resto del codice e installa il progetto
 COPY . .
+RUN cd shibaclaw/webui && npm install && node build.mjs
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --extra telegram
 
