@@ -111,6 +111,13 @@ from .routers.connected_apps import (
 from .ws_handler import ws_endpoint
 
 STATIC_DIR = Path(__file__).parent / "static"
+if not STATIC_DIR.exists():
+    try:
+        STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        import tempfile
+        STATIC_DIR = Path(tempfile.gettempdir()) / "shibaclaw_static_fallback"
+        STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class NoCacheStaticFiles(StaticFiles):

@@ -50,9 +50,26 @@ def _check_build_environment() -> None:
         )
 
 
+def _build_frontend() -> None:
+    webui_dir = ROOT / "shibaclaw" / "webui"
+    if (webui_dir / "build.mjs").exists():
+        print("Building WebUI frontend assets...")
+        import shutil
+        if not shutil.which("node"):
+            print("Warning: Node.js not found in PATH. Skipping frontend build. Ensure static assets are pre-built.")
+            return
+        try:
+            # On Windows, npm needs shell=True
+            if not (webui_dir / "node_modules").exists():
+                subprocess.run(["npm", "install"], check=True, cwd=webui_dir, shell=True)
+            subprocess.run(["node", "build.mjs"], check=True, cwd=webui_dir)
+        except Exception as e:
+            print(f"Warning: Frontend build failed: {e}")
+
 def main() -> None:
     _check_build_environment()
     _sync_packaged_update_manifest()
+    _build_frontend()
     subprocess.run([sys.executable, str(ROOT / "scripts" / "generate_icons.py")], check=True, cwd=ROOT)
 
     pyinstaller_env = os.environ.copy()
