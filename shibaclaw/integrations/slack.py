@@ -43,6 +43,32 @@ class SlackConfig(Base):
     group_allow_from: list[str] = Field(default_factory=list)
     dm: SlackDMConfig = Field(default_factory=SlackDMConfig)
 
+    def resolve_bot_token(self) -> str:
+        """Return bot_token from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "slack.bot_token")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.bot_token
+
+    def resolve_app_token(self) -> str:
+        """Return app_token from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "slack.app_token")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.app_token
+
 
 class SlackChannel(BaseChannel):
     """Slack channel using Socket Mode."""
@@ -65,7 +91,10 @@ class SlackChannel(BaseChannel):
 
     async def start(self) -> None:
         """Start the Slack Socket Mode client."""
-        if not self.config.bot_token or not self.config.app_token:
+        bot_token = self.config.resolve_bot_token()
+        app_token = self.config.resolve_app_token()
+
+        if not bot_token or not app_token:
             logger.error("Slack bot/app token not configured")
             return
         if self.config.mode != "socket":
@@ -74,9 +103,9 @@ class SlackChannel(BaseChannel):
 
         self._running = True
 
-        self._web_client = AsyncWebClient(token=self.config.bot_token)
+        self._web_client = AsyncWebClient(token=bot_token)
         self._socket_client = SocketModeClient(
-            app_token=self.config.app_token,
+            app_token=app_token,
             web_client=self._web_client,
         )
 

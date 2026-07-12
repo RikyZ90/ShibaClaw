@@ -27,6 +27,19 @@ class WecomConfig(Base):
     allow_from: list[str] = Field(default_factory=list)
     welcome_message: str = ""
 
+    def resolve_secret(self) -> str:
+        """Return secret from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "wecom.secret")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.secret
+
 
 # Message type display mapping
 MSG_TYPE_MAP = {
@@ -72,7 +85,8 @@ class WecomChannel(BaseChannel):
             logger.error("WeCom SDK not installed. Run: pip install shibaclaw[wecom]")
             return
 
-        if not self.config.bot_id or not self.config.secret:
+        secret = self.config.resolve_secret()
+        if not self.config.bot_id or not secret:
             logger.error("WeCom bot_id and secret not configured")
             return
 
@@ -86,7 +100,7 @@ class WecomChannel(BaseChannel):
         self._client = WSClient(
             {
                 "bot_id": self.config.bot_id,
-                "secret": self.config.secret,
+                "secret": secret,
                 "reconnect_interval": 1000,
                 "max_reconnect_attempts": -1,  # Infinite reconnect
                 "heartbeat_interval": 30000,
@@ -247,134 +261,4 @@ class WecomChannel(BaseChannel):
                     content_parts.append("[image: download failed]")
 
             elif msg_type == "voice":
-                voice_info = body.get("voice", {})
-                # Voice message already contains transcribed content from WeCom
-                voice_content = voice_info.get("content", "")
-                if voice_content:
-                    content_parts.append(f"[voice] {voice_content}")
-                else:
-                    content_parts.append("[voice]")
-
-            elif msg_type == "file":
-                file_info = body.get("file", {})
-                file_url = file_info.get("url", "")
-                aes_key = file_info.get("aeskey", "")
-                file_name = file_info.get("name", "unknown")
-
-                if file_url and aes_key:
-                    file_path = await self._download_and_save_media(
-                        file_url, aes_key, "file", file_name
-                    )
-                    if file_path:
-                        content_parts.append(f"[file: {file_name}]\n[File: source: {file_path}]")
-                    else:
-                        content_parts.append(f"[file: {file_name}: download failed]")
-                else:
-                    content_parts.append(f"[file: {file_name}: download failed]")
-
-            elif msg_type == "mixed":
-                # Mixed content contains multiple message items
-                msg_items = body.get("mixed", {}).get("item", [])
-                for item in msg_items:
-                    item_type = item.get("type", "")
-                    if item_type == "text":
-                        text = item.get("text", {}).get("content", "")
-                        if text:
-                            content_parts.append(text)
-                    else:
-                        content_parts.append(MSG_TYPE_MAP.get(item_type, f"[{item_type}]"))
-
-            else:
-                content_parts.append(MSG_TYPE_MAP.get(msg_type, f"[{msg_type}]"))
-
-            content = "\n".join(content_parts) if content_parts else ""
-
-            if not content:
-                return
-
-            # Store frame for this chat to enable replies
-            self._chat_frames[chat_id] = frame
-
-            # Forward to message bus
-            # Note: media paths are included in content for broader model compatibility
-            await self._handle_message(
-                sender_id=sender_id,
-                chat_id=chat_id,
-                content=content,
-                media=None,
-                metadata={
-                    "message_id": msg_id,
-                    "msg_type": msg_type,
-                    "chat_type": chat_type,
-                },
-            )
-
-        except Exception as e:
-            logger.error("Error processing WeCom message: {}", e)
-
-    async def _download_and_save_media(
-        self,
-        file_url: str,
-        aes_key: str,
-        media_type: str,
-        filename: str | None = None,
-    ) -> str | None:
-        """
-        Download and decrypt media from WeCom.
-
-        Returns:
-            file_path or None if download failed
-        """
-        try:
-            data, fname = await self._client.download_file(file_url, aes_key)
-
-            if not data:
-                logger.warning("Failed to download media from WeCom")
-                return None
-
-            media_dir = get_media_dir("wecom")
-            if not filename:
-                filename = fname or f"{media_type}_{hash(file_url) % 100000}"
-            filename = os.path.basename(filename)
-
-            file_path = media_dir / filename
-            file_path.write_bytes(data)
-            logger.debug("Downloaded {} to {}", media_type, file_path)
-            return str(file_path)
-
-        except Exception as e:
-            logger.error("Error downloading media: {}", e)
-            return None
-
-    async def send(self, msg: OutboundMessage) -> None:
-        """Send a message through WeCom."""
-        if not self._client:
-            logger.warning("WeCom client not initialized")
-            return
-
-        try:
-            content = msg.content.strip()
-            if not content:
-                return
-
-            # Get the stored frame for this chat
-            frame = self._chat_frames.get(msg.chat_id)
-            if not frame:
-                logger.warning("No frame found for chat {}, cannot reply", msg.chat_id)
-                return
-
-            # Use streaming reply for better UX
-            stream_id = self._generate_req_id("stream")
-
-            # Send as streaming message with finish=True
-            await self._client.reply_stream(
-                frame,
-                stream_id,
-                content,
-                finish=True,
-            )
-
-            logger.debug("WeCom message sent to {}", msg.chat_id)
-
-        except Exception as e:
-            logger.error("Error sending WeCom message: {}", e)
+                voice_info = body.ge

@@ -193,6 +193,19 @@ class MatrixConfig(Base):
     group_allow_from: list[str] = Field(default_factory=list)
     allow_room_mentions: bool = False
 
+    def resolve_access_token(self) -> str:
+        """Return access_token from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "matrix.access_token")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.access_token
+
 
 class MatrixChannel(BaseChannel):
     """Matrix (Element) channel using long-polling sync."""
@@ -242,7 +255,7 @@ class MatrixChannel(BaseChannel):
             ),
         )
         self.client.user_id = self.config.user_id
-        self.client.access_token = self.config.access_token
+        self.client.access_token = self.config.resolve_access_token()
         self.client.device_id = self.config.device_id
 
         self._register_event_callbacks()
@@ -672,7 +685,7 @@ class MatrixChannel(BaseChannel):
                 safe_name, suffix = f"{safe_name}{guessed}", guessed
         stem = (Path(safe_name).stem or attachment_type)[:72]
         suffix = suffix[:16]
-        event_id = safe_filename(str(getattr(event, "event_id", "") or "evt").lstrip("$"))
+        event_id = safe_filename(str(getattr(event, "event_id", "") or "").lstrip("$"))
         event_prefix = (event_id[:24] or "evt").strip("_")
         return self._media_dir() / f"{event_prefix}_{stem}{suffix}"
 
