@@ -39,6 +39,7 @@
 - **🌐 ネイティブ OAuth ＆ デバイスコードフロー** — WebUI 内に直接、シームレスでネイティブな認証フローを追加しました。API キーに一切触れることなく、**xAI / Grok**、**GitHub Copilot**、**Google Gemini CLI**、**OpenAI Codex**、**OpenRouter** 経由で簡単にログインできるようになりました！
 - **🤖 新規プロバイダーのサポート** — **Anthropic（Claude）**、**xAI（Grok）**、**Qwen（Alibaba）**、**MiniMax**、および **Z.AI** の包括的な統合を追加し、市場で最高の最先端モデルに即座にアクセスできるようになりました。
 - **🛡️ チャネル解決の強化** — Discord、DingTalk、Feishu、QQ、MoChat、および WhatsApp チャネルプラグインの完全な解決アップデート。
+- **⚡ 超高速WebUIと洗練されたUX** — 即時ロードのために、フロントエンドを`esbuild`を介して完全にバンドルされたES6アーキテクチャに移行し、Connected AppsのUXをスムーズにして、手動リロードなしでシームレスなKlavisバックエンド設定を可能にしました。
 
 完全なリリース履歴については [Changelog](./CHANGELOG.md) を参照してください。
 

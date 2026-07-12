@@ -39,6 +39,7 @@
 - **🌐 原生 OAuth 和设备代码流** —— 在 WebUI 中直接添加了无缝的、原生的身份验证流程。您现在可以轻松通过 **xAI / Grok**、**GitHub Copilot**、**Google Gemini CLI**、**OpenAI Codex** 和 **OpenRouter** 登录，而无需再接触任何 API 密钥！
 - **🤖 支持新的提供商** —— 增加了对 **Anthropic (Claude)**、**xAI (Grok)**、**Qwen (Alibaba)**、**MiniMax** 和 **Z.AI** 的全面集成，让您能够立即使用市场上最好的前沿模型。
 - **🛡️ 强化的渠道解析** —— 针对 Discord、钉钉（DingTalk）、飞书（Feishu）、QQ、MoChat 以及 WhatsApp 渠道插件的全面解析更新。
+- **⚡ 极速WebUI和完善的UX** —— 通过`esbuild`将前端迁移到完全捆绑的ES6架构以实现即时加载，并优化了Connected Apps的用户体验，无需手动刷新即可无缝配置Klavis后端。
 
 完整版本历史请查看 [Changelog](./CHANGELOG.md)。
 

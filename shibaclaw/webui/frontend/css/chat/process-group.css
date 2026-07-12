@@ -1,0 +1,207 @@
+/* ── Process Groups (collapsible thinking/tool steps) ────────── */
+.process-group {
+    margin: 2px 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    animation: stepFadeIn 0.2s ease-out;
+    flex-shrink: 0;
+}
+
+.process-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--transition-fast);
+}
+
+.process-group-header:hover {
+    background: var(--bg-surface-hover);
+}
+
+/* Expand/collapse arrow — CSS triangle */
+.pg-expand-icon {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 4px 0 4px 6px;
+    border-color: transparent transparent transparent var(--text-secondary);
+    opacity: 0.5;
+    transition: transform 0.2s ease, opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+.process-group-header:hover .pg-expand-icon {
+    opacity: 0.8;
+}
+
+.process-group.expanded .pg-expand-icon {
+    transform: rotate(90deg);
+}
+
+.pg-title {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-body);
+}
+
+/* Active title — subtle opacity pulse instead of gradient-text shimmer */
+.pg-title.shiny-text {
+    animation: titlePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.pg-metrics {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.pg-summary {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 6px;
+    opacity: 0.7;
+}
+
+/* Badge styles (GEN, EXE, END) */
+.step-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.step-badge.GEN {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+}
+
+.step-badge.EXE {
+    color: #ba68c8;
+    background: rgba(186, 104, 200, 0.12);
+}
+
+.step-badge.END {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+}
+
+.step-badge.USE {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+}
+
+/* Process group content (collapsible) */
+.pg-content {
+    display: none;
+    overflow: hidden;
+}
+
+.process-group.expanded .pg-content {
+    display: block;
+}
+
+/* Individual step row */
+.pg-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 3px 12px 3px 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+/* Step expand arrow (for terminal details) */
+.pg-step-arrow {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 3px 0 3px 5px;
+    border-color: transparent transparent transparent var(--text-muted);
+    opacity: 0.4;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.pg-step.expanded .pg-step-arrow {
+    transform: rotate(90deg);
+    opacity: 0.7;
+}
+
+.pg-step-text {
+    flex: 1;
+    word-break: break-word;
+}
+
+/* Step detail (terminal output, expandable) */
+.pg-step-detail {
+    width: 100%;
+    display: none;
+    overflow: hidden;
+}
+
+.pg-step.expanded .pg-step-detail {
+    display: block;
+    margin-top: 4px;
+}
+
+/* Terminal output block (GitHub dark style) */
+.terminal-output {
+    background: #0d1117;
+    border: 1px solid rgba(48, 54, 61, 0.8);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #c9d1d9;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+
+/* Completed process group */
+.process-group.completed {
+    opacity: 0.85;
+}
+
+.process-group.completed .pg-expand-icon {
+    border-left-color: var(--accent-green);
+    opacity: 0.7;
+}

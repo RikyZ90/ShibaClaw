@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ShibaClaw — AI Assistant</title>
     <meta name="description" content="ShibaClaw WebUI — Premium AI Agent Interface">
-    <link rel="icon" type="image/webp" href="/static/shibaclaw_logo.webp">
-    <link rel="apple-touch-icon" href="/static/shibaclaw_logo.webp">
+    <link rel="icon" type="image/webp" href="/shibaclaw_logo.webp">
+    <link rel="apple-touch-icon" href="/shibaclaw_logo.webp">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,19 +20,19 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/index.css?v=2">
-    <link rel="stylesheet" href="/static/css/mcp_manager.css?v=1">
-    <link rel="stylesheet" href="/static/css/connected_apps.css?v=1">
+    <link rel="stylesheet" href="/index.css?v=2">
+    <link rel="stylesheet" href="/css/mcp_manager.css?v=1">
+    <link rel="stylesheet" href="/css/connected_apps.css?v=1">
 
     <!-- WebSocket adapter and Marked.js -->
-    <script src="/static/js/realtime.js"></script>
-    <script src="/static/vendor/marked.min.js"></script>
-    <script src="/static/vendor/purify.min.js"></script>
+    <script src="/js/realtime.js"></script>
+    <script src="/vendor/marked.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
 
 
     <!-- Highlight.js for syntax highlighting -->
-    <link rel="stylesheet" href="/static/vendor/github-dark.min.css">
-    <script src="/static/vendor/highlight.min.js"></script>
+    <link rel="stylesheet" href="/vendor/github-dark.min.css">
+    <script src="/vendor/highlight.min.js"></script>
 
 </head>
 
@@ -40,7 +40,7 @@
     <!-- Login Screen (shown when auth is required) -->
     <div class="login-overlay" id="login-overlay" style="display:none">
         <div class="login-card">
-            <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw" class="login-logo">
+            <img src="/shibaclaw_logo.webp" alt="ShibaClaw" class="login-logo">
             <h1 class="login-title">ShibaClaw</h1>
             <p id="login-subtitle" class="login-subtitle">Enter your credentials to continue</p>
             <div class="login-input-group" style="flex-direction: column; align-items: stretch;">
@@ -63,7 +63,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="logo-icon">
+                    <img src="/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="logo-icon">
                     <div class="logo-text">
                         <h1>ShibaClaw</h1>
                         <div class="header-sub-row">
@@ -220,7 +220,7 @@
             <!-- Welcome Screen -->
             <div class="welcome-screen" id="welcome-screen">
                 <div class="welcome-content">
-                    <img src="/static/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="welcome-logo">
+                    <img src="/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="welcome-logo">
                     <h2 class="welcome-title">Welcome to ShibaClaw</h2>
                     <p class="welcome-subtitle">A powerful AI agent that learns, acts, and secures your workflow.</p>
                     <div class="welcome-hints">
@@ -1334,8 +1334,8 @@
         </div>
     </div>
 
-    <script src="/static/js/state.js?v=2"></script>
-    <script src="/static/js/auth.js?v=2"></script>
+    <script src="/js/state.js?v=2"></script>
+    <script src="/js/auth.js?v=2"></script>
     <!-- Knowledge Base Manager Modal -->
     <div class="modal-backdrop" id="knowledge-modal" data-backdrop-close="false">
         <div class="modal" style="width: 600px; max-width: 95vw;">
@@ -1368,27 +1368,27 @@
         </div>
     </div>
 
-    <script src="/static/js/knowledge.js?v=1"></script>
-    <script src="/static/js/utils.js?v=2"></script>
-    <script src="/static/js/api_socket.js?v=2"></script>
-    <script src="/static/js/chat.js?v=2"></script>
-    <script src="/static/js/files.js?v=2"></script>
-    <script src="/static/js/ui_panels.js?v=2"></script>
-    <script src="/static/js/settings_panel.js?v=2"></script>
-    <script src="/static/js/update_panel.js?v=2"></script>
-    <script src="/static/js/onboard_wizard.js?v=2"></script>
-    <script src="/static/js/model_selector.js?v=2"></script>
-    <script src="/static/js/auth_ui.js?v=2"></script>
-    <script src="/static/js/plugins_panel.js?v=2"></script>
-    <script src="/static/js/automation.js?v=2"></script>
-    <script src="/static/js/notification-center.js?v=2"></script>
-    <script src="/static/js/main.js?v=2"></script>
-    <script src="/static/js/profiles.js?v=2"></script>
-    <script src="/static/js/speech.js?v=2"></script>
-    <script src="/static/select_session.js?v=2"></script>
-    <script src="/static/js/mcp_manager.js?v=1"></script>
-    <script src="/static/js/connected_apps.js?v=1"></script>
-    <script src="/static/js/mentions.js?v=1"></script>
+    <script src="/js/knowledge.js?v=1"></script>
+    <script src="/js/utils.js?v=2"></script>
+    <script src="/js/api_socket.js?v=2"></script>
+    <script src="/js/chat.js?v=2"></script>
+    <script src="/js/files.js?v=2"></script>
+    <script src="/js/ui_panels.js?v=2"></script>
+    <script src="/js/settings_panel.js?v=2"></script>
+    <script src="/js/update_panel.js?v=2"></script>
+    <script src="/js/onboard_wizard.js?v=2"></script>
+    <script src="/js/model_selector.js?v=2"></script>
+    <script src="/js/auth_ui.js?v=2"></script>
+    <script src="/js/plugins_panel.js?v=2"></script>
+    <script src="/js/automation.js?v=2"></script>
+    <script src="/js/notification-center.js?v=2"></script>
+    <script src="/js/main.js?v=2"></script>
+    <script src="/js/profiles.js?v=2"></script>
+    <script src="/js/speech.js?v=2"></script>
+    <script src="/select_session.js?v=2"></script>
+    <script src="/js/mcp_manager.js?v=1"></script>
+    <script src="/js/connected_apps.js?v=1"></script>
+    <script src="/js/mentions.js?v=1"></script>
 </body>
 
 </html>

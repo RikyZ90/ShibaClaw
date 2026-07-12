@@ -40,3 +40,10 @@ node_modules/
 dist/
 *.log
 audit_results.json
+shibaclaw/webui/static/
+
+# Python cache & tools
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/

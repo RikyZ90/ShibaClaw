@@ -1,0 +1,301 @@
+/* ── Input Area ────────────────────────────────────────────── */
+.input-area {
+    padding: 10px 20px 14px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+.input-wrapper {
+    max-width: var(--chat-width);
+    margin: 0 auto;
+}
+
+.thinking-indicator {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    background: var(--shiba-gold-dim);
+    border: 1px solid var(--border-highlight);
+    border-radius: var(--radius-md);
+    animation: indicatorPulse 2s ease-in-out infinite;
+}
+
+.thinking-indicator.active {
+    display: flex;
+}
+
+@keyframes indicatorPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.thinking-dots {
+    display: flex;
+    gap: 3px;
+}
+
+.thinking-dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--shiba-gold);
+    animation: dotBounce 1.4s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.thinking-dots span:nth-child(3) {
+    animation-delay: 0.32s;
+}
+
+@keyframes dotBounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0.6);
+        opacity: 0.4;
+    }
+
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.thinking-text {
+    font-size: 12px;
+    color: var(--shiba-gold);
+    font-weight: 500;
+}
+
+.input-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--bg-surface);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 2px 9px;
+    transition: border-color var(--transition-fast);
+}
+
+.input-container:focus-within {
+    border-color: rgba(255, 255, 255, 0.08);
+    border-bottom-width: 2px;
+    border-bottom-color: var(--shiba-gold);
+}
+
+#chat-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    min-height: 24px;
+    max-height: 200px;
+    padding: 0px 0px 8px 0;
+}
+
+#chat-input::placeholder {
+    color: var(--text-muted);
+}
+
+.btn-attach {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-left: -15px;
+}
+
+.btn-attach:hover {
+    color: var(--shiba-gold);
+    background: var(--bg-surface-hover);
+}
+
+.btn-attach .material-icons-round {
+    font-size: 20px;
+}
+
+.btn-send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--shiba-gold);
+    color: var(--bg-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    opacity: 0.3;
+}
+
+.btn-send:not(:disabled) {
+    opacity: 1;
+}
+
+.btn-send:not(:disabled):hover {
+    background: var(--shiba-gold-light);
+}
+
+.btn-send:not(:disabled):active {
+    transform: scale(0.95);
+}
+
+.btn-send .material-icons-round {
+    font-size: 18px;
+}
+
+.input-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 2px 0;
+}
+
+.input-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.btn-input-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-input-action .material-icons-round {
+    font-size: 16px;
+}
+
+.btn-input-action:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+    border-color: var(--border-color);
+}
+
+.btn-input-action:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Stop button — active (red) when agent is working */
+.btn-stop.active {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.btn-stop.active:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Token usage badge */
+.token-badge {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.token-badge-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: rgba(255, 255, 255, 0.05);
+    z-index: 0;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.token-badge.usage-low .token-badge-fill { background: rgba(74, 222, 128, 0.12); }
+.token-badge.usage-mid .token-badge-fill { background: rgba(232, 163, 23, 0.12); }
+.token-badge.usage-high .token-badge-fill { background: rgba(249, 115, 22, 0.12); }
+.token-badge.usage-crit .token-badge-fill { background: rgba(239, 68, 68, 0.15); }
+
+.token-badge .material-icons-round {
+    font-size: 13px;
+}
+
+.token-badge:hover {
+    color: var(--text-primary);
+    border-color: var(--border-highlight);
+    background: var(--bg-surface-hover);
+}
+
+/* Color tiers based on usage */
+.token-badge.usage-low {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.2);
+}
+
+.token-badge.usage-mid {
+    color: var(--shiba-gold);
+    border-color: rgba(232, 163, 23, 0.2);
+}
+
+.token-badge.usage-high {
+    color: #f97316;
+    border-color: rgba(249, 115, 22, 0.2);
+}
+
+.token-badge.usage-crit {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.input-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}

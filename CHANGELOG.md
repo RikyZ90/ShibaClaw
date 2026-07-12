@@ -15,6 +15,11 @@
 - **Silent Corruption Data Loss** — Configured the vault loading flow to raise a `RuntimeError` on decrypt failures rather than returning an empty database which would accidentally overwrite existing secrets.
 - **Path-Aware Cryptography Caches** — Replaced global single-key Fernet cache with a path-specific map to prevent key reuse conflicts in script environments.
 - **Complete Channel Vault-First Hardening** — Integrated and verified vault resolution helpers for DingTalk, Feishu, QQ, MoChat, Discord, and the WhatsApp channel plugin.
+- **Connected Apps Seamless Configuration** — Fixed a UX bug where saving the Klavis API Key for the first time required manually closing and reopening the menu. The WebUI now automatically refreshes the App states and enables the Connect buttons immediately without a reload.
+- **Python Codebase Linting** — Addressed `Ruff` static analysis errors including unrolling multi-line statements and cleaning up unused imports and undefined variables across core modules (`channel.py`, `utils.py`, `gateway.py`).
+
+### Optimized
+- **WebUI Loading & WebSocket Initialization** — Migrated WebUI frontend assets to use `esbuild` for bundling and minification. The modular ES6 architecture is now compiled into a single `bundle.js` and `index.css`, drastically reducing HTTP request overhead and fixing race conditions in WebSocket connection initialization loops.
 
 ## [0.9.4] - 2026-07-11
 

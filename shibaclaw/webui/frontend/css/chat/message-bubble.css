@@ -1,0 +1,199 @@
+/* ── Message Bubbles ───────────────────────────────────────── */
+.message-group {
+    display: flex;
+    gap: 12px;
+    max-width: 92%;
+    animation: msgFadeIn 0.2s ease-out;
+    flex-shrink: 0;
+    padding: 2px 0;
+}
+
+/* Consecutive messages: less gap */
+.message-group+.message-group.user,
+.message-group+.message-group.agent {
+    margin-top: 0;
+}
+
+.message-group.user+.message-group.agent,
+.message-group.agent+.message-group.user {
+    margin-top: 14px;
+}
+
+@keyframes msgFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    @keyframes msgFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+}
+
+.message-group.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+    max-width: 82%;
+}
+
+.message-group.agent {
+    align-self: flex-start;
+    max-width: 92%;
+}
+
+/* Avatar — compact, shown only on first in group via .show-avatar */
+.message-avatar {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    margin-top: 6px;
+    overflow: hidden;
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.message-group.show-avatar .message-avatar {
+    opacity: 1;
+}
+
+.message-meta {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 10px;
+    align-self: flex-start;
+}
+
+.message-group.user .message-meta {
+    align-self: flex-end;
+}
+
+.message-meta .message-time {
+    padding: 0 4px;
+    transition: color 0.15s;
+    color: transparent;
+}
+
+.message-meta .btn-copy-msg {
+    background: none;
+    border: none;
+    color: transparent;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s;
+}
+
+.message-group:hover .message-meta .message-time,
+.message-group:hover .message-meta .btn-copy-msg {
+    color: var(--text-muted);
+}
+
+.message-meta .material-icons-round {
+    font-size: 14px;
+}
+
+.message-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.message-group.user .message-avatar {
+    display: none;
+    background: transparent;
+    border: none;
+}
+
+.message-group.agent .message-avatar {
+    background: transparent;
+    border: none;
+    width: 50px;
+    height: 50px;
+    min-width: 28px;
+}
+
+.message-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.message-bubble {
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    line-height: 1.7;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+/* User: slightly lighter surface to distinguish from agent */
+.message-group.user .message-bubble {
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+
+/* Agent: clean surface */
+.message-group.agent .message-bubble {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+
+.message-bubble img {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: var(--radius-md);
+    margin-top: 8px;
+    display: block;
+    cursor: zoom-in;
+    border: 1px solid var(--border-color);
+}
+
+.file-attachment-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    text-decoration: none;
+    margin-top: 8px;
+    transition: all var(--transition-fast);
+}
+
+.file-attachment-link:hover {
+    background: var(--bg-surface-hover);
+    border-color: var(--shiba-gold);
+}
+
+.file-attachment-link .material-icons-round {
+    color: var(--shiba-gold);
+}

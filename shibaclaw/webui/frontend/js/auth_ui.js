@@ -75,7 +75,7 @@ async function attemptLogin(username, password, mode) {
             return false;
         }
     } catch (e) {
-        showLogin("Connection error. Is the server running?", mode === "setup");
+        showLogin("Error: " + e.message, mode === "setup");
         return false;
     }
 }

@@ -39,6 +39,7 @@
 - **🌐 Flujos nativos de OAuth y Device Code** — Flujos de autenticación nativos integrados directamente en la WebUI. ¡Ahora puedes iniciar sesión sin esfuerzo a través de **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** y **OpenRouter** sin tocar nunca una clave API!
 - **🤖 Soporte para nuevos proveedores** — Integraciones completas añadidas para **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** y **Z.AI**, dándote acceso inmediato a los mejores modelos de vanguardia del mercado.
 - **🛡️ Resolución de canales fortalecida** — Actualizaciones completas de resolución para Discord, DingTalk, Feishu, QQ, MoChat y el plugin del canal de WhatsApp.
+- **⚡ WebUI ultrarrápida y UX pulida** — Se migró el frontend a una arquitectura ES6 completamente empaquetada a través de `esbuild` para una carga instantánea, y se suavizó la UX de Connected Apps para permitir una configuración de backend de Klavis perfecta sin recargas manuales.
 
 Consulta el [Changelog](./CHANGELOG.md) para el historial completo de versiones.
 

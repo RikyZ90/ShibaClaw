@@ -1,0 +1,37 @@
+/* Mention Chips inside Chat Markdown */
+.mention-chip-inline {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: var(--radius-md);
+    margin: 0 2px;
+    vertical-align: middle;
+    background-color: var(--primary-color-alpha, rgba(99, 102, 241, 0.15));
+    color: var(--primary-color, #818cf8);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    gap: 3px;
+}
+
+.mention-chip-inline .material-icons-round {
+    font-size: 14px;
+}
+
+.mention-chip-inline.mention-kb {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.mention-chip-inline.mention-app {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.mention-chip-inline.mention-mcp {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.3);
+}

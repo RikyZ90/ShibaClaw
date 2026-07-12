@@ -1,0 +1,177 @@
+/* ── Markdown Content in Messages ──────────────────────────── */
+.message-bubble h1,
+.message-bubble h2,
+.message-bubble h3,
+.message-bubble h4,
+.message-bubble h5,
+.message-bubble h6 {
+    margin: 16px 0 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.message-bubble h1 {
+    font-size: 1.4em;
+}
+
+.message-bubble h2 {
+    font-size: 1.25em;
+}
+
+.message-bubble h3 {
+    font-size: 1.1em;
+}
+
+.message-bubble p {
+    margin: 0 0 8px;
+}
+
+.message-group.user .message-bubble p {
+    white-space: pre-wrap;
+}
+
+.message-bubble p:last-child {
+    margin-bottom: 0;
+}
+
+.message-bubble ul,
+.message-bubble ol {
+    padding-left: 20px;
+    margin: 8px 0;
+}
+
+.message-bubble li {
+    margin: 4px 0;
+}
+
+.message-bubble a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.message-bubble a:hover {
+    text-decoration: underline;
+}
+
+.message-bubble strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.message-bubble em {
+    color: var(--text-secondary);
+}
+
+.message-bubble blockquote {
+    padding: 8px 12px;
+    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.message-bubble hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 12px 0;
+}
+
+/* Code blocks */
+.message-bubble code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+}
+
+.message-bubble :not(pre)>code {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    color: var(--shiba-gold-light);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.message-bubble pre {
+    background: #0d1117;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 0;
+    margin: 10px 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.message-bubble pre code {
+    display: block;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-code);
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.btn-copy-code {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-family: var(--font-body);
+    transition: all var(--transition-fast);
+}
+
+.btn-copy-code:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+/* Tables */
+.message-bubble .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 10px 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    -webkit-overflow-scrolling: touch;
+}
+
+.message-bubble table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 13px;
+    display: block;
+    overflow-x: auto;
+}
+
+.message-bubble th {
+    background: var(--bg-elevated);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.message-bubble td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.message-bubble tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}

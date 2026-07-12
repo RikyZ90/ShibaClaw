@@ -536,6 +536,25 @@
       }
       const warn = document.querySelector('.ca-warning-box');
       if (warn && _backendConfigured) warn.style.display = 'none';
+
+      // Full refresh of the panel to ensure app connection buttons work seamlessly
+      const container = document.getElementById('connected-apps-container');
+      if (container) {
+        await _loadApps();
+        _renderPanel(container);
+        
+        // Re-open the backend section to show the success message
+        const section = document.getElementById('ca-backend-section');
+        if (section) section.style.display = 'block';
+        
+        // Ensure success message persists across render
+        const newResultEl = document.getElementById('ca-backend-result');
+        if (newResultEl) {
+          newResultEl.className = 'ca-test-result ca-test-result--success';
+          newResultEl.textContent = '\u2713 Backend settings saved.';
+          newResultEl.style.display = 'block';
+        }
+      }
     } catch (e) {
       _show('error', `Network error: ${e.message}`);
     }
