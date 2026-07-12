@@ -32,8 +32,11 @@
 
 ***
 
+> [!WARNING]
+> If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
+
 <details open>
-<summary>📢 <b>最新リリース: v0.9.6 (ログイン警告通知)</b> — クリックで変更点を表示</summary>
+<summary>📢 <b>最新リリース: v0.9.6</b> — クリックで変更点を表示</summary>
 
 - **⚠️ WebUI アップデート後のログイン警告** — アップデート後にログインの問題が発生した場合にターミナルで `shibaclaw reset-admin` を実行するよう促す警告ボックスを WebUI（変更履歴モーダルおよびアップデートパネル）に追加しました。
 - **⬆️ バージョンアップグレード** — すべての設定およびプロジェクトファイルを `v0.9.6` に更新しました。

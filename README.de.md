@@ -32,8 +32,11 @@
 
 ***
 
+> [!WARNING]
+> If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
+
 <details open>
-<summary>📢 <b>Neueste Version: v0.9.6 (Login-Warnung)</b> — Klicken für Neuerungen</summary>
+<summary>📢 <b>Neueste Version: v0.9.6</b> — Klicken für Neuerungen</summary>
 
 - **⚠️ WebUI Post-Update Login-Warnung** — Warnhinweis in der WebUI (Changelog-Modal und Update-Panel) hinzugefügt, falls nach dem Update Login-Probleme auftreten: Bitte `shibaclaw reset-admin` im Terminal ausführen.
 - **⬆️ Versions-Upgrade** — Aktualisierung aller Konfigurations- und Projektdateien auf `v0.9.6`.

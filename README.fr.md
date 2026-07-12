@@ -32,8 +32,11 @@
 
 ***
 
+> [!WARNING]
+> If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
+
 <details open>
-<summary>📢 <b>Dernière version : v0.9.6 (Avertissement de connexion)</b> — Cliquez pour voir les nouveautés</summary>
+<summary>📢 <b>Dernière version : v0.9.6</b> — Cliquez pour voir les nouveautés</summary>
 
 - **⚠️ Avertissement de connexion WebUI post-mise à jour** — Ajout d'une boîte d'avertissement dans la WebUI (modal de Changelog et panneau de mise à jour) pour exécuter `shibaclaw reset-admin` dans votre terminal si des problèmes de connexion surviennent après la mise à jour.
 - **⬆️ Mise à niveau de version** — Mise à jour de tous les fichiers de configuration et de projet vers la version `v0.9.6`.
