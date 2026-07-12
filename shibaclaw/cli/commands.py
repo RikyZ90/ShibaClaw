@@ -37,52 +37,6 @@ def main(
 
 
 @app.command()
-def reset_password(
-    username: Optional[str] = typer.Option(None, "--username", "-u", help="Specific username to reset"),
-):
-    """Reset the admin user password."""
-    import getpass
-    from shibaclaw.security.credential_manager import get_credential_manager
-
-    cm = get_credential_manager()
-    if not cm.is_setup():
-        safe_print("[yellow]No admin user configured yet. Run the WebUI setup first.[/yellow]")
-        return
-
-    admin_user = username or cm.get_admin_username()
-    if not admin_user:
-         safe_print("[red]Could not determine admin username.[/red]")
-         return
-
-    safe_print(f"Resetting password for user: [cyan]{admin_user}[/cyan]")
-    new_pwd = getpass.getpass("New Password: ")
-    confirm_pwd = getpass.getpass("Confirm Password: ")
-
-    if new_pwd != confirm_pwd:
-        safe_print("[red]Passwords do not match.[/red]")
-        return
-
-    if len(new_pwd) < 6:
-        safe_print("[red]Password must be at least 6 characters.[/red]")
-        return
-
-    # We cheat the old_password requirement by directly rewriting the hash
-    data = cm._load_all()
-    from hashlib import scrypt
-    import secrets
-    salt = secrets.token_hex(16)
-    hashed = scrypt(
-        new_pwd.encode(), salt=salt.encode(), n=16384, r=8, p=1,
-    ).hex()
-    data["admin_user"]["password_hash"] = hashed
-    data["admin_user"]["salt"] = salt
-    data["admin_user"]["username"] = admin_user
-    cm._save_all(data)
-
-    safe_print("[green]Password reset successful.[/green]")
-
-
-@app.command()
 def onboard(
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
     config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config file"),
@@ -117,6 +71,32 @@ def gateway(
             config_path=config,
         )
     )
+@app.command(name="reset-admin")
+def reset_admin(
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt")
+):
+    """Reset the WebUI admin user."""
+    if not yes:
+        confirm = typer.confirm("This will delete your admin user. You will need to set it up again in the WebUI. Are you sure?")
+        if not confirm:
+            safe_print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit()
+            
+    try:
+        from shibaclaw.security.credential_manager import get_credential_manager
+        cm = get_credential_manager()
+        
+        data = cm._load_all()
+        if "admin_user" in data:
+            del data["admin_user"]
+            cm._save_all(data)
+            safe_print("[green]Admin user has been reset successfully.[/green]")
+            safe_print("Please restart the WebUI (if running) and refresh the page to set up a new admin user.")
+        else:
+            safe_print("[yellow]No admin user found to reset.[/yellow]")
+    except Exception as e:
+        safe_print(f"[red]Error resetting admin user: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command()

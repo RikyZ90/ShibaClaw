@@ -159,6 +159,7 @@ input[type="number"].form-input {
     font-size: 0.9rem;
     cursor: pointer;
     transition: background var(--transition-fast), box-shadow var(--transition-fast);
+    text-align: center;
 }
 
 .btn-primary:hover {
@@ -175,6 +176,7 @@ input[type="number"].form-input {
     font-size: 0.9rem;
     cursor: pointer;
     transition: background var(--transition-fast), color var(--transition-fast);
+    text-align: center;
 }
 
 .btn-secondary:hover {
@@ -197,6 +199,7 @@ input[type="number"].form-input {
     font-size: 0.9rem;
     cursor: pointer;
     transition: background var(--transition-fast);
+    text-align: center;
 }
 .btn-danger:hover {
     background: #b91c1c;
@@ -935,7 +938,14 @@ input[type="number"].form-input {
     color: var(--text-muted);
     font-size: 0.9rem;
 }
-.spin { animation: spin 1s linear infinite; }
+.spin { 
+    animation: spin 1s linear infinite; 
+    display: inline-block;
+}
+.material-icons-round.spin {
+    line-height: 1;
+    transform-origin: center center;
+}
 @keyframes spin {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }

@@ -36,7 +36,9 @@ function handleUnauthorized(message = "Session expired. Please re-enter your tok
         });
     }
 
-    if (typeof showLogin === "function") {
+    if (typeof checkAuthAndShowLogin === "function") {
+        checkAuthAndShowLogin(message);
+    } else if (typeof showLogin === "function") {
         showLogin(message);
     }
 }

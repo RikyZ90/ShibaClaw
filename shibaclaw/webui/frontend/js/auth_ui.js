@@ -48,6 +48,18 @@ function showLogin(errorMsg = "", isSetup = false) {
     }, 100);
 }
 
+async function checkAuthAndShowLogin(errorMsg = "") {
+    try {
+        const res = await fetch("/api/auth/status");
+        const data = await res.json();
+        state.authRequired = data.auth_required;
+        showLogin(errorMsg, data.needs_setup);
+    } catch (e) {
+        showLogin(errorMsg, false);
+    }
+}
+
+
 function hideLogin() {
     const overlay = document.getElementById("login-overlay");
     const appContainer = document.getElementById("app-container");
@@ -168,7 +180,7 @@ function logout() {
     setStatusIndicator("disconnected");
     const logoutBtn = document.getElementById("btn-logout");
     if (logoutBtn) logoutBtn.hidden = true;
-    showLogin();
+    checkAuthAndShowLogin();
 }
 
 function startApp() {

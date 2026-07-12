@@ -1215,4 +1215,10 @@ async def gateway_command(
         if os.environ.get("SHIBACLAW_SILENT"):
             sys.exit(0)
         else:
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            try:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            except Exception as e:
+                logger.error("Restart failed: os.execv raised {}. Falling back to subprocess.Popen...", e)
+                import subprocess
+                subprocess.Popen([sys.executable] + sys.argv)
+                sys.exit(1)

@@ -355,7 +355,7 @@ async function loadOAuthPanel() {
 
                 if (jd.user_code && jd.verification_uri) {
                     badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
-                    btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                    btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
                     const codeId = "oauth-code-" + Date.now();
                     logsEl.innerHTML =
                         `<div class="device-auth-ui" style="text-align:center;padding:12px 0">` +
@@ -381,7 +381,7 @@ async function loadOAuthPanel() {
 
                 if (jd.auth_url && p.mode === "browser_redirect") {
                     badge.textContent = "Awaiting auth..."; badge.className = "acc-badge off";
-                    btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting for auth...';
+                    btn.innerHTML = '<span class="material-icons-round spin" style="display:inline-block;width:14px;height:14px;line-height:14px;font-size:14px;vertical-align:middle">progress_activity</span> Waiting...';
                     logsEl.innerHTML =
                         `<div class="oauth-browser-auth-ui" style="text-align:center;padding:12px 0">` +
                         `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Signing in on the official website...</div>` +

@@ -138,10 +138,13 @@ async def api_auth_verify(request: Request):
 
 async def api_auth_status(request: Request):
     """Return auth state: whether auth is required, whether setup is done."""
-    return JSONResponse({
-        "auth_required": _auth_enabled(),
-        "needs_setup": not _is_user_setup(),
-    })
+    return JSONResponse(
+        {
+            "auth_required": _auth_enabled(),
+            "needs_setup": not _is_user_setup(),
+        },
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )
 
 
 # ------------------------------------------------------------------

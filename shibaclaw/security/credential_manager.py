@@ -194,13 +194,19 @@ class CredentialManager:
 
     def is_setup(self) -> bool:
         """Return ``True`` if an admin user has been registered."""
-        data = self._load_all()
-        return "admin_user" in data
+        try:
+            data = self._load_all()
+            return "admin_user" in data
+        except Exception:
+            return False
 
     def setup_user(self, username: str, password: str) -> bool:
         """Create the single admin user.  Returns ``False`` if already set up."""
         with self._lock:
-            data = self._load_all()
+            try:
+                data = self._load_all()
+            except Exception:
+                data = {}
             if "admin_user" in data:
                 return False
 
@@ -270,6 +276,14 @@ class CredentialManager:
     @staticmethod
     def verify_session_token(token: str) -> bool:
         """Return ``True`` if *token* is a valid, non-expired session."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            if not get_credential_manager().is_setup():
+                _ACTIVE_SESSIONS.clear()
+                return False
+        except Exception:
+            return False
+
         expiry = _ACTIVE_SESSIONS.get(token)
         if expiry is None:
             return False

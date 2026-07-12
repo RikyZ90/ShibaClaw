@@ -50,6 +50,7 @@ from .api import (
     api_oauth_code,
     api_oauth_disconnect,
     api_oauth_job,
+    api_oauth_login,
     api_oauth_openrouter_callback,
     api_oauth_providers,
     api_oauth_generic_authorize,
@@ -209,6 +210,7 @@ def create_app(
         Route("/api/apps/{app_id}/status", get_app_status, methods=["GET"]),
         # ───────────────────────────────────────────────────────────────
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
+        Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
         Route("/api/oauth/code", api_oauth_code, methods=["POST"]),
         Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),
         Route("/api/oauth/disconnect", api_oauth_disconnect, methods=["POST"]),
