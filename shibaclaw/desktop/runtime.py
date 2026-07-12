@@ -17,7 +17,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any
+from typing import Any, Callable
 
 from loguru import logger
 
@@ -66,7 +66,6 @@ class DesktopRuntime:
     def start(self) -> None:
         """Bootstrap config, provider, gateway, and WebUI server."""
         self._load_config()
-        self._ensure_shared_auth_token()
         self._start_gateway()
         self._start_server()
 
@@ -91,11 +90,16 @@ class DesktopRuntime:
         self._start_server()
         return self.wait_ready(timeout=15.0)
 
-    def _restart_gateway(self) -> None:
+    def _restart_gateway(self, pre_start_hook: Callable[[], None] | None = None) -> None:
         """Stop then restart the gateway subprocess in place."""
         def _do_restart() -> None:
             logger.info("Restarting gateway subprocess…")
             self._stop_gateway()
+            if pre_start_hook:
+                try:
+                    pre_start_hook()
+                except Exception as e:
+                    logger.error("pre_start_hook failed: {}", e)
             self._start_gateway()
             logger.info("Gateway subprocess restarted")
 
@@ -106,21 +110,8 @@ class DesktopRuntime:
         return f"http://{self._host}:{self._port}"
 
     @property
-    def auth_token(self) -> str | None:
-        from shibaclaw.webui.auth import get_auth_token
-
-        return get_auth_token()
-
-    @property
     def authed_url(self) -> str:
-        """Return a URL with the auth token pre-embedded as a query param.
-
-        The WebUI front-end reads ``?token=`` on first load and saves it to
-        localStorage so subsequent requests are authenticated automatically.
-        """
-        token = self.auth_token
-        if token:
-            return f"{self.base_url}/?token={token}"
+        """Return the base URL."""
         return self.base_url
 
     @property
@@ -144,14 +135,6 @@ class DesktopRuntime:
         self.config = _load_runtime_config(self._config_path, self._workspace)
         self.provider = _make_provider(self.config, exit_on_error=False)
 
-    def _ensure_shared_auth_token(self) -> None:
-        """Create one token in the parent process and share it with subprocesses."""
-        from shibaclaw.webui.auth import get_auth_token
-
-        token = get_auth_token()
-        if token:
-            os.environ["SHIBACLAW_AUTH_TOKEN"] = token
-
     @property
     def close_policy(self) -> str:
         """Return the close-button policy from config, defaulting to 'hide'."""
@@ -172,18 +155,33 @@ class DesktopRuntime:
         self.config.gateway.port = gateway_port
         self.config.gateway.ws_port = gateway_ws_port
 
-        gw_cmd = [
-            sys.executable,
-            "-m",
-            "shibaclaw",
-            "gateway",
-            "--host",
-            gateway_host,
-            "--port",
-            str(gateway_port),
-            "--ws-port",
-            str(gateway_ws_port),
-        ]
+        gw_cmd: list[str]
+        if getattr(sys, "frozen", False):
+            # In a frozen .exe (PyInstaller), `-m shibaclaw` is not available.
+            # The bundled exe supports subcommands directly.
+            gw_cmd = [
+                sys.executable,
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
+        else:
+            gw_cmd = [
+                sys.executable,
+                "-m",
+                "shibaclaw",
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
         if self._workspace:
             gw_cmd.extend(["--workspace", self._workspace])
         if self._config_path:
@@ -221,10 +219,8 @@ class DesktopRuntime:
                 )
                 self._start_gateway_monitor()
                 from shibaclaw.webui.gateway_client import gateway_client
-                from shibaclaw.webui.auth import get_auth_token
                 import asyncio
-                token = get_auth_token() or ""
-                gateway_client.configure(gateway_host, gateway_ws_port, token)
+                gateway_client.configure(gateway_host, gateway_ws_port, "")
                 loop = None
                 if self._server_mgr is not None:
                     loop = getattr(self._server_mgr, "loop", None)

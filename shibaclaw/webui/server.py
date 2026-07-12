@@ -20,8 +20,11 @@ from starlette.staticfiles import StaticFiles
 
 from .agent_manager import agent_manager
 from .api import (
+    api_auth_login,
+    api_auth_setup,
     api_auth_status,
     api_auth_verify,
+    api_auth_change_password,
     api_automation_job_delete,
     api_automation_job_get,
     api_automation_job_trigger,
@@ -45,10 +48,12 @@ from .api import (
     api_notifications_list,
     api_notifications_post,
     api_oauth_code,
+    api_oauth_disconnect,
     api_oauth_job,
-    api_oauth_login,
     api_oauth_openrouter_callback,
     api_oauth_providers,
+    api_oauth_generic_authorize,
+    api_oauth_generic_callback,
     api_onboard_providers,
     api_onboard_submit,
     api_onboard_templates,
@@ -85,7 +90,7 @@ from .routers.knowledge import (
     api_knowledge_update,
     api_knowledge_upload,
 )
-from .auth import AuthMiddleware, _auth_enabled, get_auth_token, mask_token
+from .auth import AuthMiddleware, _auth_enabled
 from .gateway_client import gateway_client
 from .routers.mcp_manager import (
     delete_mcp_server,
@@ -106,6 +111,13 @@ from .routers.connected_apps import (
 from .ws_handler import ws_endpoint
 
 STATIC_DIR = Path(__file__).parent / "static"
+if not STATIC_DIR.exists():
+    try:
+        STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        import tempfile
+        STATIC_DIR = Path(tempfile.gettempdir()) / "shibaclaw_static_fallback"
+        STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -129,7 +141,18 @@ def create_app(
         agent_manager.provider = provider
 
     async def index(request):
-        response = FileResponse(STATIC_DIR / "index.html")
+        index_path = STATIC_DIR / "index.html"
+        if not index_path.exists():
+            from starlette.responses import HTMLResponse
+            return HTMLResponse(
+                "<html><body>🐕 ShibaClaw WebUI is running (fallback)</body></html>",
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                }
+            )
+        response = FileResponse(index_path)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -139,6 +162,9 @@ def create_app(
         Route("/", index),
         Route("/api/auth/verify", api_auth_verify, methods=["POST"]),
         Route("/api/auth/status", api_auth_status, methods=["GET"]),
+        Route("/api/auth/setup", api_auth_setup, methods=["POST"]),
+        Route("/api/auth/login", api_auth_login, methods=["POST"]),
+        Route("/api/auth/change-password", api_auth_change_password, methods=["POST"]),
         Route("/api/status", api_status),
         Route("/api/settings", api_settings_get, methods=["GET"]),
         Route("/api/settings", api_settings_post, methods=["POST"]),
@@ -183,9 +209,12 @@ def create_app(
         Route("/api/apps/{app_id}/status", get_app_status, methods=["GET"]),
         # ───────────────────────────────────────────────────────────────
         Route("/api/oauth/providers", api_oauth_providers, methods=["GET"]),
-        Route("/api/oauth/login", api_oauth_login, methods=["POST"]),
-        Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),
         Route("/api/oauth/code", api_oauth_code, methods=["POST"]),
+        Route("/api/oauth/job/{job_id}", api_oauth_job, methods=["GET"]),
+        Route("/api/oauth/disconnect", api_oauth_disconnect, methods=["POST"]),
+        Route("/auth/callback", api_oauth_openrouter_callback, methods=["GET"]),
+        Route("/api/oauth/generic/authorize", api_oauth_generic_authorize, methods=["GET"]),
+        Route("/api/oauth/generic/callback", api_oauth_generic_callback, methods=["GET", "POST"]),
         Route(
             "/api/oauth/openrouter/callback/{job_id}/{flow_token}",
             api_oauth_openrouter_callback,
@@ -302,8 +331,7 @@ async def _start_gateway_client() -> None:
             agent_manager.load_latest_config()
             cfg = agent_manager.config
         if cfg:
-            token = get_auth_token() or ""
-            gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, token)
+            gateway_client.configure(cfg.gateway.host, cfg.gateway.ws_port, "")
 
             async def _on_session_notify(msg):
                 payload = msg.get("payload", {})
@@ -338,9 +366,8 @@ async def run_server(port: int = 3000, host: str = "127.0.0.1", config=None, pro
     if host in ("0.0.0.0", "::") and not os.environ.get("SHIBACLAW_CORS_ORIGINS", "").strip():
         logger.warning("Binding to {} — set SHIBACLAW_CORS_ORIGINS for non-loopback clients", host)
 
-    token = get_auth_token()
-    if token:
-        logger.info("🔒 Auth enabled — token: {}", mask_token(token))
+    if _auth_enabled():
+        logger.info("🔒 Auth enabled via CredentialVault")
     else:
         logger.warning("WARNING: Authentication is DISABLED")
 

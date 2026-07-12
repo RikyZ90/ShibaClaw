@@ -14,10 +14,10 @@
 </p>
 
 <p align="center">
-  <b>23 Providers · 11 Chat Channels · Built-in WebUI · Security-First Core · MCP Ready</b>
+  <b>28 Providers · 11 Chat Channels · Built-in WebUI · Security-First Core · MCP Ready</b>
 </p>
 
-<h3 align="center">Built on three pillars: <b>Simplicity · Security · Privacy</b></h3>
+<h3 align="center">Built on three pillars: <b>Simplicity · Security · Privacy </b></h3>
 
 <p align="center">
   🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
@@ -31,9 +31,13 @@
 ***
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.4</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.5 (Big Release & Refactor)</b> — Click to see what's new</summary>
 
-- **Linux Self-Update Stuck on v0.9.2** — Fixed a bug where `_get_version()` reported a stale version from the bundled manifest even after a successful pip/pipx upgrade. Version resolution now prefers installed package metadata, ensuring the updater converges correctly.
+- **🔥 Big Security Refactor & 🔐 Encrypted Credentials Vault** — We've entirely revamped security. ShibaClaw now uses a robust AES-128/256 symmetric encrypted vault (`credentials.enc` and `credentials.key`) to securely store API keys, bot tokens, and passwords. It features vault-first resolution, thread-safety, anti-corruption protection, and strict OS-level permissions (`0o600` on Unix and `icacls` ACLs on Windows).
+- **🌐 Native OAuth & Device Code Flows** — Added seamless, native authentication flows directly inside the WebUI. You can now login effortlessly via **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex**, and **OpenRouter** without ever touching an API key!
+- **🤖 New Providers Support** — Added comprehensive integrations for **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax**, and **Z.AI**, giving you immediate access to the best state-of-the-art models on the market.
+- **🛡️ Hardened Channel Resolution** — Complete resolution updates for Discord, DingTalk, Feishu, QQ, MoChat, and the WhatsApp channel plugin.
+- **⚡ Lightning Fast WebUI & Polished UX** — Migrated the frontend to a fully bundled ES6 architecture via `esbuild` for instant loading, and smoothed out the Connected Apps UX to allow seamless Klavis backend configuration without manual reloads.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
@@ -100,7 +104,7 @@ Prefer the CLI? `shibaclaw onboard` runs the same guided setup from the terminal
 <td align="center" width="33%">
 
 ### 🛡️ Security-First
-CVE audit, prompt-injection wrap,<br>SSRF guard — <b>on by default</b>
+Encrypted vault, CVE audit,<br>prompt-injection wrap, SSRF guard
 
 </td>
 <td align="center" width="33%">
@@ -111,7 +115,7 @@ CVE audit, prompt-injection wrap,<br>SSRF guard — <b>on by default</b>
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 Providers
+### 🌐 28 Providers
 Native SDKs, no LiteLLM proxy<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -149,7 +153,7 @@ Most AI agent frameworks treat security as an afterthought, leave you wrestling 
 
 What makes ShibaClaw different:
 - **Security layers built into the core** — CVE auditing at install time, prompt-injection wrapping on every tool result, SSRF/DNS-rebinding protection
-- **Native provider support** — 23 providers via their official SDKs, no proxy layer to debug
+- **Native provider support** — 28 providers via their official SDKs, no proxy layer to debug
 - **One-command setup** — Docker or pip, follow the wizard, you're chatting in about a minute
 - **Runs everywhere** — Terminal, WebUI, Discord, Telegram, WhatsApp, Windows desktop app, and more
 
@@ -406,6 +410,7 @@ ShibaClaw performs exceptionally well even without expensive API usage:
 
 | Security Feature | ShibaClaw | OpenClaw | Hermes Agent | Nanobot | ZeroClaw |
 |---|:---:|:---:|:---:|:---:|:---:|
+| Encrypted Credentials Vault (AES Fernet) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Install-time CVE auditing (pip, npm, apt) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Prompt-injection wrapping on every tool result | ✅ | ❌ | ❌ | ❌ | ❌ |
 | SSRF + DNS-rebinding protection built-in | ✅ | ❌ | ❌ | ❌ | ❌ |

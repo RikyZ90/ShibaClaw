@@ -222,6 +222,12 @@ class SubagentManager:
                             }
                         )
                 else:
+                    if response.finish_reason == "error":
+                        error_msg = response.content or "Unknown LLM error"
+                        logger.error("Subagent [{}] LLM returned error: {}", task_id, error_msg)
+                        await self._announce_result(task_id, label, task, error_msg, origin, "error")
+                        return
+
                     final_result = response.content
                     break
 

@@ -1,0 +1,79 @@
+/* ── Typing Bubble (agent is working) ────────────────────────── */
+.typing-bubble {
+    padding: 10px 14px;
+    min-width: 48px;
+    display: flex;
+    align-items: center;
+    background: var(--bg-secondary);
+}
+
+.typing-dots-inline {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.typing-dots-inline span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dots-inline span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dots-inline span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.3;
+    }
+
+    30% {
+        transform: translateY(-4px);
+        opacity: 0.9;
+    }
+}
+
+.message-time {
+    font-size: 10px;
+    color: transparent;
+    padding: 0 4px;
+    transition: color 0.15s;
+    user-select: none;
+}
+
+.message-group:hover .message-time {
+    color: var(--text-muted);
+}
+
+.btn-copy-msg {
+    background: none;
+    border: none;
+    color: transparent;
+    padding: 0;
+    margin-left: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s;
+}
+
+.message-group:hover .btn-copy-msg {
+    color: var(--text-muted);
+}
+
+.btn-copy-msg .material-icons-round {
+    font-size: 14px;
+}

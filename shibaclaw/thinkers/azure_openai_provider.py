@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+import json
 from typing import Any
 from urllib.parse import urljoin
 
@@ -164,6 +165,101 @@ class AzureOpenAIThinker(Thinker):
                 content=f"Error calling Azure OpenAI: {repr(e)}",
                 finish_reason="error",
             )
+
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        deployment_name = model or self.default_model
+        url = self._build_chat_url(deployment_name)
+        headers = self._build_headers()
+        payload = self._prepare_request_payload(
+            deployment_name, messages, tools, max_tokens, temperature, reasoning_effort, tool_choice=tool_choice
+        )
+        payload["stream"] = True
+
+        try:
+            async with httpx.AsyncClient(timeout=60.0, verify=True) as client:
+                async with client.stream("POST", url, headers=headers, json=payload) as response:
+                    if response.status_code != 200:
+                        text = await response.aread()
+                        return LLMResponse(content=f"Azure OpenAI API Error {response.status_code}: {text.decode('utf-8', 'ignore')}", finish_reason="error")
+                    
+                    content_text = ""
+                    reasoning_content = ""
+                    finish_reason = "stop"
+                    tool_call_chunks: dict[int, dict[str, Any]] = {}
+
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data = line[6:].strip()
+                        if data == "[DONE]":
+                            break
+                        if not data:
+                            continue
+                        try:
+                            chunk = json.loads(data)
+                        except Exception:
+                            continue
+                        
+                        if not chunk.get("choices"):
+                            continue
+                        choice = chunk["choices"][0]
+                        delta = choice.get("delta", {})
+                        if choice.get("finish_reason"):
+                            finish_reason = choice["finish_reason"]
+
+                        if delta.get("content"):
+                            content_text += delta["content"]
+                            if on_token:
+                                await on_token(delta["content"])
+
+                        if delta.get("reasoning_content"):
+                            reasoning_content += delta["reasoning_content"]
+                                
+                        if delta.get("tool_calls"):
+                            for tc_delta in delta["tool_calls"]:
+                                idx = tc_delta.get("index")
+                                if idx not in tool_call_chunks:
+                                    tool_call_chunks[idx] = {"id": "", "name": "", "arguments": ""}
+                                tc = tool_call_chunks[idx]
+                                if tc_delta.get("id"):
+                                    tc["id"] = tc_delta["id"]
+                                fn = tc_delta.get("function", {})
+                                if fn.get("name"):
+                                    tc["name"] += fn["name"]
+                                if fn.get("arguments"):
+                                    tc["arguments"] += fn["arguments"]
+
+                    tool_calls = []
+                    for idx in sorted(tool_call_chunks.keys()):
+                        tc = tool_call_chunks[idx]
+                        args = tc["arguments"]
+                        if args:
+                            try:
+                                args = json_repair.loads(args)
+                            except Exception:
+                                args = {"raw": args}
+                        else:
+                            args = {}
+                        tool_calls.append(ToolCallRequest(id=tc["id"], name=tc["name"], arguments=args))
+                        
+                    return LLMResponse(
+                        content=content_text or None, 
+                        tool_calls=tool_calls, 
+                        finish_reason=finish_reason,
+                        reasoning_content=reasoning_content or None
+                    )
+        except Exception as e:
+            return LLMResponse(content=f"Error calling Azure OpenAI: {repr(e)}", finish_reason="error")
 
     def _parse_response(self, response: dict[str, Any]) -> LLMResponse:
         """Parse Azure OpenAI response into our standard format."""

@@ -20,7 +20,7 @@ DEFAULT_ORIGINATOR = "shibaclaw"
 class OpenAICodexThinker(Thinker):
     """Use Codex OAuth to call the Responses API."""
 
-    def __init__(self, default_model: str = "openai-codex/gpt-5.1-codex"):
+    def __init__(self, default_model: str = "openai-codex/gpt-4o"):
         super().__init__(api_key=None, api_base=None)
         self.default_model = default_model
 
@@ -86,9 +86,82 @@ class OpenAICodexThinker(Thinker):
                 finish_reason="error",
             )
 
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        model = model or self.default_model
+        system_prompt, input_items = _convert_messages(messages)
+
+        token = await asyncio.to_thread(get_codex_token)
+        headers = _build_headers(token.account_id, token.access)
+
+        body: dict[str, Any] = {
+            "model": _strip_model_prefix(model),
+            "store": False,
+            "stream": True,
+            "instructions": system_prompt,
+            "input": input_items,
+            "text": {"verbosity": "medium"},
+            "include": ["reasoning.encrypted_content"],
+            "prompt_cache_key": _prompt_cache_key(messages),
+            "tool_choice": tool_choice or "auto",
+            "parallel_tool_calls": True,
+        }
+
+        if reasoning_effort:
+            body["reasoning"] = {"effort": reasoning_effort}
+
+        if tools:
+            body["tools"] = _convert_tools(tools)
+
+        url = DEFAULT_CODEX_URL
+
+        try:
+            try:
+                content, tool_calls, finish_reason = await _request_codex(
+                    url, headers, body, verify=True, on_token=on_token
+                )
+            except Exception as e:
+                if "CERTIFICATE_VERIFY_FAILED" not in str(e):
+                    raise
+                logger.warning(
+                    "SSL certificate verification failed for Codex API; retrying with verify=False"
+                )
+                content, tool_calls, finish_reason = await _request_codex(
+                    url, headers, body, verify=False, on_token=on_token
+                )
+            return LLMResponse(
+                content=content,
+                tool_calls=tool_calls,
+                finish_reason=finish_reason,
+            )
+        except Exception as e:
+            return LLMResponse(
+                content=f"Error calling Codex: {str(e)}",
+                finish_reason="error",
+            )
+
     def get_default_model(self) -> str:
         return self.default_model
 
+    async def get_available_models(self) -> list[dict[str, str]]:
+        """Return known models since there is no standard /models endpoint."""
+        return [
+            {"id": "openai-codex/gpt-4o", "name": "GPT-4o"},
+            {"id": "openai-codex/gpt-4o-mini", "name": "GPT-4o Mini"},
+            {"id": "openai-codex/o1-preview", "name": "o1-preview"},
+            {"id": "openai-codex/o1-mini", "name": "o1-mini"},
+            {"id": "openai-codex/o3-mini", "name": "o3-mini"},
+            {"id": "openai-codex/gpt-4-turbo", "name": "GPT-4 Turbo"},
+        ]
 
 def _strip_model_prefix(model: str) -> str:
     if model.startswith("openai-codex/") or model.startswith("openai_codex/"):
@@ -113,6 +186,7 @@ async def _request_codex(
     headers: dict[str, str],
     body: dict[str, Any],
     verify: bool,
+    on_token: Any = None,
 ) -> tuple[str, list[ToolCallRequest], str]:
     async with httpx.AsyncClient(timeout=60.0, verify=verify) as client:
         async with client.stream("POST", url, headers=headers, json=body) as response:
@@ -121,7 +195,7 @@ async def _request_codex(
                 raise RuntimeError(
                     _friendly_error(response.status_code, text.decode("utf-8", "ignore"))
                 )
-            return await _consume_sse(response)
+            return await _consume_sse(response, on_token)
 
 
 def _convert_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -259,7 +333,7 @@ async def _iter_sse(response: httpx.Response) -> AsyncGenerator[dict[str, Any], 
         buffer.append(line)
 
 
-async def _consume_sse(response: httpx.Response) -> tuple[str, list[ToolCallRequest], str]:
+async def _consume_sse(response: httpx.Response, on_token: Any = None) -> tuple[str, list[ToolCallRequest], str]:
     content = ""
     tool_calls: list[ToolCallRequest] = []
     tool_call_buffers: dict[str, dict[str, Any]] = {}
@@ -279,7 +353,10 @@ async def _consume_sse(response: httpx.Response) -> tuple[str, list[ToolCallRequ
                     "arguments": item.get("arguments") or "",
                 }
         elif event_type == "response.output_text.delta":
-            content += event.get("delta") or ""
+            delta = event.get("delta") or ""
+            content += delta
+            if on_token and delta:
+                await on_token(delta)
         elif event_type == "response.function_call_arguments.delta":
             call_id = event.get("call_id")
             if call_id and call_id in tool_call_buffers:

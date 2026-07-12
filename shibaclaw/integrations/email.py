@@ -51,6 +51,32 @@ class EmailConfig(Base):
     subject_prefix: str = "Re: "
     allow_from: list[str] = Field(default_factory=list)
 
+    def resolve_imap_password(self) -> str:
+        """Return imap_password from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "email.imap_password")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.imap_password
+
+    def resolve_smtp_password(self) -> str:
+        """Return smtp_password from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "email.smtp_password")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.smtp_password
+
 
 class EmailChannel(BaseChannel):
     """
@@ -210,13 +236,13 @@ class EmailChannel(BaseChannel):
             missing.append("imap_host")
         if not self.config.imap_username:
             missing.append("imap_username")
-        if not self.config.imap_password:
+        if not self.config.resolve_imap_password():
             missing.append("imap_password")
         if not self.config.smtp_host:
             missing.append("smtp_host")
         if not self.config.smtp_username:
             missing.append("smtp_username")
-        if not self.config.smtp_password:
+        if not self.config.resolve_smtp_password():
             missing.append("smtp_password")
 
         if missing:
@@ -225,6 +251,7 @@ class EmailChannel(BaseChannel):
         return True
 
     def _smtp_send(self, msg: EmailMessage) -> None:
+        smtp_password = self.config.resolve_smtp_password()
         timeout = 30
         if self.config.smtp_use_ssl:
             with smtplib.SMTP_SSL(
@@ -232,14 +259,14 @@ class EmailChannel(BaseChannel):
                 self.config.smtp_port,
                 timeout=timeout,
             ) as smtp:
-                smtp.login(self.config.smtp_username, self.config.smtp_password)
+                smtp.login(self.config.smtp_username, smtp_password)
                 smtp.send_message(msg)
             return
 
         with smtplib.SMTP(self.config.smtp_host, self.config.smtp_port, timeout=timeout) as smtp:
             if self.config.smtp_use_tls:
                 smtp.starttls(context=ssl.create_default_context())
-            smtp.login(self.config.smtp_username, self.config.smtp_password)
+            smtp.login(self.config.smtp_username, smtp_password)
             smtp.send_message(msg)
 
     def _fetch_new_messages(self) -> list[dict[str, Any]]:
@@ -316,6 +343,7 @@ class EmailChannel(BaseChannel):
     ) -> None:
         """Fetch messages by arbitrary IMAP search criteria."""
         mailbox = self.config.imap_mailbox or "INBOX"
+        imap_password = self.config.resolve_imap_password()
 
         if self.config.imap_use_ssl:
             client = imaplib.IMAP4_SSL(self.config.imap_host, self.config.imap_port)
@@ -323,7 +351,7 @@ class EmailChannel(BaseChannel):
             client = imaplib.IMAP4(self.config.imap_host, self.config.imap_port)
 
         try:
-            client.login(self.config.imap_username, self.config.imap_password)
+            client.login(self.config.imap_username, imap_password)
             try:
                 status, _ = client.select(mailbox)
             except Exception as exc:

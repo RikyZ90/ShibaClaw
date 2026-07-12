@@ -8,14 +8,14 @@ import pytest
 
 # ── import symbols under test ─────────────────────────────────────────────────
 
-from shibaclaw.webui.routers.connected_apps import (
+from shibaclaw.webui.services.connected_apps_service import (
     CONNECTED_APPS,
-    _get_app_state,
-    _sync_app_to_mcp,
-    _remove_app_from_mcp,
-    _build_app_response,
-    _KLAVIS_API_BASE,
-    _DEFAULT_TRANSPORT,
+    get_app_state,
+    sync_app_to_mcp,
+    remove_app_from_mcp,
+    build_app_response,
+    KLAVIS_API_BASE,
+    DEFAULT_TRANSPORT,
 )
 
 
@@ -27,7 +27,7 @@ def _base_cfg(apps_state: dict | None = None):
         "connected_apps": {
             "klavis": {
                 "bearer_token": "test_token",
-                "endpoint": _KLAVIS_API_BASE,
+                "endpoint": KLAVIS_API_BASE,
             },
             **(apps_state or {}),
         },
@@ -103,17 +103,17 @@ def test_get_klavis_client_clean_empty_when_missing():
 
 # ── 4. App state helpers ──────────────────────────────────────────────────────
 
-def test_get_app_state_returns_empty_when_missing():
+def testget_app_state_returns_empty_when_missing():
     cfg = _base_cfg()
-    state = _get_app_state(cfg, "gmail")
+    state = get_app_state(cfg, "gmail")
     assert state == {}
 
 
-def test_get_app_state_returns_data_when_present():
+def testget_app_state_returns_data_when_present():
     cfg = _base_cfg(apps_state={
         "gmail": {"connected": True, "enabled": True, "server_url": "https://example.com/gmail/"}
     })
-    state = _get_app_state(cfg, "gmail")
+    state = get_app_state(cfg, "gmail")
     assert state["connected"] is True
 
 
@@ -124,7 +124,7 @@ def test_sync_gmail_to_mcp():
 
     cfg = _base_cfg()
 
-    _sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
+    sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
 
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers")
@@ -139,7 +139,7 @@ def test_sync_github_to_mcp():
 
     cfg = _base_cfg()
 
-    _sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
+    sync_app_to_mcp(cfg, app_def, "https://strata.klavis.ai/mcp/" + app_def.id + "/")
 
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers")
@@ -158,7 +158,7 @@ def test_disconnect_gmail_removes_from_mcp():
         "enabled": True,
     }
 
-    _remove_app_from_mcp(cfg, app_def)
+    remove_app_from_mcp(cfg, app_def)
 
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
@@ -169,7 +169,7 @@ def test_disconnect_nonexistent_app_is_noop():
     app_def = CONNECTED_APPS["github"]
     cfg = _base_cfg()
     # no github-klavis in servers — should not raise
-    _remove_app_from_mcp(cfg, app_def)
+    remove_app_from_mcp(cfg, app_def)
     tools = cfg["tools"]
     servers = tools.get("mcpServers") or tools.get("mcp_servers") or {}
     assert "github" not in servers
@@ -177,9 +177,9 @@ def test_disconnect_nonexistent_app_is_noop():
 
 # ── 7. build_app_response shape ───────────────────────────────────────────────
 
-def test_build_app_response_not_connected():
+def testbuild_app_response_not_connected():
     app_def = CONNECTED_APPS["gmail"]
-    resp = _build_app_response(app_def, {})
+    resp = build_app_response(app_def, {})
     assert resp["id"] == "gmail"
     assert resp["name"] == "Gmail"
     assert resp["connected"] is False
@@ -187,10 +187,10 @@ def test_build_app_response_not_connected():
     assert resp["mcp_server_key"] == "gmail"
 
 
-def test_build_app_response_connected():
+def testbuild_app_response_connected():
     app_def = CONNECTED_APPS["slack"]
     state = {"connected": True, "enabled": True, "server_url": "https://strata.klavis.ai/mcp/slack/", "instance_id": "slack-klavis"}
-    resp = _build_app_response(app_def, state)
+    resp = build_app_response(app_def, state)
     assert resp["connected"] is True
     assert resp["mcp_server_key"] == "slack"
 
@@ -215,20 +215,20 @@ def test_dev_apps_category():
 # ── 9. defaults ───────────────────────────────────────────────────────────────
 
 def test_default_klavis_endpoint():
-    assert _KLAVIS_API_BASE == "https://api.klavis.ai"
+    assert KLAVIS_API_BASE == "https://api.klavis.ai"
 
 
 def test_default_transport():
-    assert _DEFAULT_TRANSPORT == "streamableHttp"
+    assert DEFAULT_TRANSPORT == "streamableHttp"
 
 
 # ── 10. Strata lifecycle and OAuth flow cancellation ──────────────────────────
 
 @pytest.mark.asyncio
-async def test_ensure_strata_handles_403_and_404():
+async def testensure_strata_handles_403_and_404():
     from unittest.mock import AsyncMock
     import httpx
-    from shibaclaw.webui.routers.connected_apps import _ensure_strata
+    from shibaclaw.webui.routers.connected_apps import ensure_strata
 
     mock_klavis = AsyncMock()
     # Mock get_strata to raise 403 HTTP error
@@ -254,7 +254,7 @@ async def test_ensure_strata_handles_403_and_404():
         }
     }
 
-    strata_id, mcp_url, is_new, oauth_urls = await _ensure_strata(
+    strata_id, mcp_url, is_new, oauth_urls = await ensure_strata(
         mock_klavis, cfg_dict, "test-user", "Gmail"
     )
 
@@ -306,9 +306,9 @@ async def test_cancel_connect_app_removes_from_klavis():
     mock_klavis = AsyncMock()
     mock_klavis.is_configured = MagicMock(return_value=True)
     with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
+         patch("shibaclaw.webui.routers.connected_apps.cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps.get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps.save_and_reload", return_value=None):
         
         mock_am.config = cfg
         resp = await cancel_connect_app(req)
@@ -370,9 +370,9 @@ async def test_disconnect_app_clears_local_strata_on_404():
     mock_klavis.get_strata.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
 
     with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
+         patch("shibaclaw.webui.routers.connected_apps.cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps.get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps.save_and_reload", return_value=None):
         
         mock_am.config = cfg
         resp = await disconnect_app(req)
@@ -432,9 +432,9 @@ async def test_disconnect_app_retains_local_strata_if_exists():
     mock_klavis.get_strata.return_value = StrataInfo(strata_id="test-strata", mcp_url="https://strata.klavis.ai/old", oauth_urls={})
 
     with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
+         patch("shibaclaw.webui.routers.connected_apps.cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps.get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps.save_and_reload", return_value=None):
         
         mock_am.config = cfg
         resp = await disconnect_app(req)
@@ -495,9 +495,9 @@ async def test_cancel_connect_app_clears_local_strata_on_404():
     mock_klavis.get_strata.side_effect = httpx.HTTPStatusError("Not Found", request=request, response=resp)
 
     with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
+         patch("shibaclaw.webui.routers.connected_apps.cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps.get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps.save_and_reload", return_value=None):
         
         mock_am.config = cfg
         resp = await cancel_connect_app(req)
@@ -557,9 +557,9 @@ async def test_cancel_connect_app_retains_local_strata_if_exists():
     mock_klavis.get_strata.return_value = StrataInfo(strata_id="test-strata", mcp_url="https://strata.klavis.ai/old", oauth_urls={})
 
     with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", return_value=None):
+         patch("shibaclaw.webui.routers.connected_apps.cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps.get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps.save_and_reload", return_value=None):
         
         mock_am.config = cfg
         resp = await cancel_connect_app(req)
@@ -614,9 +614,9 @@ async def test_connect_app_saves_strata_id_immediately_on_failure():
         return None
 
     with patch("shibaclaw.webui.routers.connected_apps.agent_manager") as mock_am, \
-         patch("shibaclaw.webui.routers.connected_apps._cfg_to_dict", return_value=cfg_dict), \
-         patch("shibaclaw.webui.routers.connected_apps._get_klavis_client_clean", return_value=mock_klavis), \
-         patch("shibaclaw.webui.routers.connected_apps._save_and_reload", side_effect=mock_save):
+         patch("shibaclaw.webui.routers.connected_apps.cfg_to_dict", return_value=cfg_dict), \
+         patch("shibaclaw.webui.routers.connected_apps.get_klavis_client_clean", return_value=mock_klavis), \
+         patch("shibaclaw.webui.routers.connected_apps.save_and_reload", side_effect=mock_save):
         
         mock_am.config = cfg
         response = await connect_app(req)

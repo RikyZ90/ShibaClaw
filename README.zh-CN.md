@@ -16,19 +16,32 @@
 </p>
 
 <p align="center">
-  <b>23 家模型提供商 · 11 个聊天渠道 · 内置 WebUI · 安全优先内核 · 兼容 MCP</b>
+  <b>28 家模型提供商 · 11 个聊天渠道 · 内置 WebUI · 安全优先内核 · 兼容 MCP</b>
 </p>
 
 <h3 align="center">基于三大支柱：<b>简洁 · 安全 · 隐私</b></h3>
 
+<p align="center">
+  🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
+  <a href="./README.es.md">Español</a> &nbsp;·&nbsp;
+  <a href="./README.pt-BR.md">Português (BR)</a> &nbsp;·&nbsp;
+  <a href="./README.ja.md">日本語</a> &nbsp;·&nbsp;
+  <a href="./README.de.md">Deutsch</a> &nbsp;·&nbsp;
+  <a href="./README.fr.md">Français</a>
+</p>
+
 ***
 
 <details open>
-<summary>📢 <b>最新版本：v0.9.4</b> —— 点击查看更新内容</summary>
+<summary>📢 <b>最新版本：v0.9.5 (Big Release & Refactor)</b> —— 点击查看更新内容</summary>
 
-- **Linux 自更新卡在 v0.9.2** —— 修复了 `_get_version()` 即便在成功通过 pip/pipx 升级后仍上报打包清单中陈旧版本的问题。版本解析现在优先使用已安装包的元数据，确保更新器正确收敛。
+- **🔥 Big Security Refactor & 🔐 加密凭证保管库** —— 我们全面升级了安全性。ShibaClaw 现在使用强大的 AES-128/256 对称加密保管库（`credentials.enc` 和 `credentials.key`）来安全存储 API 密钥、Bot Token 和密码。它具有优先使用保管库、线程安全、防损坏保护以及严格的操作系统级权限控制（Unix 上为 `0o600`，Windows 上为 `icacls` ACL）。
+- **🌐 原生 OAuth 和设备代码流** —— 在 WebUI 中直接添加了无缝的、原生的身份验证流程。您现在可以轻松通过 **xAI / Grok**、**GitHub Copilot**、**Google Gemini CLI**、**OpenAI Codex** 和 **OpenRouter** 登录，而无需再接触任何 API 密钥！
+- **🤖 支持新的提供商** —— 增加了对 **Anthropic (Claude)**、**xAI (Grok)**、**Qwen (Alibaba)**、**MiniMax** 和 **Z.AI** 的全面集成，让您能够立即使用市场上最好的前沿模型。
+- **🛡️ 强化的渠道解析** —— 针对 Discord、钉钉（DingTalk）、飞书（Feishu）、QQ、MoChat 以及 WhatsApp 渠道插件的全面解析更新。
+- **⚡ 极速WebUI和完善的UX** —— 通过`esbuild`将前端迁移到完全捆绑的ES6架构以实现即时加载，并优化了Connected Apps的用户体验，无需手动刷新即可无缝配置Klavis后端。
 
-完整发布历史见 [Changelog](./CHANGELOG.md)。
+完整版本历史请查看 [Changelog](./CHANGELOG.md)。
 
 </details>
 
@@ -104,7 +117,7 @@ CVE 审计、提示注入包裹、<br>SSRF 防护 —— <b>默认开启</b>
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 家提供商
+### 🌐 28 家提供商
 原生 SDK，无需 LiteLLM 代理<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -142,7 +155,7 @@ CVE 审计、提示注入包裹、<br>SSRF 防护 —— <b>默认开启</b>
 
 ShibaClaw 的不同之处：
 - **核心内置安全层** —— 安装时 CVE 审计、每个工具结果的提示注入包裹、SSRF/DNS 重绑定防护
-- **原生提供商支持** —— 23 家提供商通过其官方 SDK，无需调试代理层
+- **原生提供商支持** —— 28 家提供商通过其官方 SDK，无需调试代理层
 - **一条命令完成设置** —— Docker 或 pip，跟着向导走，约一分钟内即可开始对话
 - **随处运行** —— 终端、WebUI、Discord、Telegram、WhatsApp、Windows 桌面应用等
 

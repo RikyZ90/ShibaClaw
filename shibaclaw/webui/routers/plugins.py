@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import asyncio
 import re
 import httpx
@@ -18,7 +18,6 @@ from shibaclaw.tts.registry import discover_tts_plugins
 from shibaclaw.config.loader import load_config
 from shibaclaw.config.paths import get_plugins_dir
 from shibaclaw.helpers.system import is_running_as_exe
-from shibaclaw.webui.routers import system as system_router
 from shibaclaw import __version__
 from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
 
@@ -111,23 +110,32 @@ async def api_list_plugins(request: Request) -> JSONResponse:
     })
 
 
-async def _do_restart():
+async def _hot_reload_plugins(pre_start_hook=None):
+    """Reload plugin modules and restart only the gateway subprocess.
+
+    Unlike the old ``_do_restart()`` this function does **not** kill the
+    WebUI server process or call ``os._exit()``.  This is critical for
+    frozen ``.exe`` builds (PyInstaller) where ``CTRL_C_EVENT`` +
+    ``os._exit(0)`` causes the application to hang with no way to recover.
+
+    Flow:
+    1. Wait briefly so the HTTP response reaches the client.
+    2. Purge cached ``shibaclaw_*`` modules from ``sys.modules``.
+    3. Invalidate importlib caches for local plugin discovery.
+    4. Restart **only** the gateway subprocess via :func:`restart_gateway_only`.
+    """
     await asyncio.sleep(1.5)
+
     # Purge any cached plugin modules so re-discovery works
     stale = [k for k in sys.modules if k.startswith("shibaclaw_")]
     for k in stale:
         del sys.modules[k]
 
-    if system_router._restart_callback is not None:
-        system_router._restart_callback()
-    else:
-        if system_router._shutdown_callback is not None:
-            try:
-                system_router._shutdown_callback()
-            except Exception as _e:
-                logger.debug("Ignored error: {}", _e)
-        system_router._schedule_restart_outside_loop(delay=2.0)
-        system_router._graceful_shutdown_server()
+    importlib.invalidate_caches()
+
+    # Restart only the gateway subprocess — the WebUI stays alive
+    from shibaclaw.webui.routers.system import restart_gateway_only
+    restart_gateway_only(pre_start_hook=pre_start_hook)
 
 
 async def _install_plugin_exe(package: str) -> JSONResponse:
@@ -162,8 +170,10 @@ async def _install_plugin_exe(package: str) -> JSONResponse:
                 
                 pkg_snake_case = package.replace("-", "_")
                 target_dir = plugins_dir / pkg_snake_case
-                if target_dir.exists():
-                    shutil.rmtree(target_dir, ignore_errors=True)
+                update_dir = plugins_dir / f".update_{pkg_snake_case}"
+                
+                if update_dir.exists():
+                    shutil.rmtree(update_dir, ignore_errors=True)
                 
                 for f in plugin_files:
                     if f.endswith('/'):
@@ -176,15 +186,20 @@ async def _install_plugin_exe(package: str) -> JSONResponse:
                         continue
                         
                     if rel_path.startswith(f"{pkg_snake_case}/"):
-                        dest_path = plugins_dir / rel_path
+                        dest_path = update_dir / rel_path[len(f"{pkg_snake_case}/"):]
                         dest_path.parent.mkdir(parents=True, exist_ok=True)
                         with z.open(f) as zf, open(dest_path, "wb") as out:
                             shutil.copyfileobj(zf, out)
         
         importlib.invalidate_caches()
 
+        def _apply_install():
+            if target_dir.exists():
+                shutil.rmtree(target_dir, ignore_errors=True)
+            if update_dir.exists():
+                shutil.move(str(update_dir), str(target_dir))
 
-        asyncio.create_task(_do_restart())
+        asyncio.create_task(_hot_reload_plugins(pre_start_hook=_apply_install))
         return JSONResponse({
             "ok": True,
             "stdout": f"Plugin {package} downloaded and extracted locally.",
@@ -261,7 +276,7 @@ async def _install_plugin_source(package: str) -> JSONResponse:
         importlib.invalidate_caches()
 
 
-        asyncio.create_task(_do_restart())
+        asyncio.create_task(_hot_reload_plugins())
         return JSONResponse({
             "ok": True,
             "stdout": stdout.decode().strip(),
@@ -328,15 +343,16 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
             if not target_dir.exists():
                 return JSONResponse({"ok": False, "error": f"Plugin {package} is not installed locally."}, status_code=404)
 
-            shutil.rmtree(target_dir)
+            def _apply_uninstall():
+                if target_dir.exists():
+                    shutil.rmtree(target_dir, ignore_errors=True)
 
             importlib.invalidate_caches()
 
-
-            asyncio.create_task(_do_restart())
+            asyncio.create_task(_hot_reload_plugins(pre_start_hook=_apply_uninstall))
             return JSONResponse({
                 "ok": True,
-                "stdout": f"Plugin {package} folder deleted locally.",
+                "stdout": f"Plugin {package} folder scheduled for deletion.",
                 "restarting": True
             })
         except Exception as e:
@@ -385,7 +401,7 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
             
         importlib.invalidate_caches()
 
-        asyncio.create_task(_do_restart())
+        asyncio.create_task(_hot_reload_plugins())
         return JSONResponse({
             "ok": True,
             "stdout": stdout.decode().strip(),

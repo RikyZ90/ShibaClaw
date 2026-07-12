@@ -1,108 +1,36 @@
-"""Encrypted OAuth token store for MCP server credentials."""
+"""Encrypted OAuth token store for MCP server credentials.
+
+Delegates all persistence to :class:`~shibaclaw.security.credential_manager.CredentialManager`
+under the ``oauth_tokens`` namespace while keeping the same public API so that
+existing callers (``OAuthFlow``, MCP connection logic, etc.) continue to work.
+"""
 
 from __future__ import annotations
 
-import json
-import os
 import time
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
 
-_STORE_FILENAME = "oauth_tokens.enc"
-_KEY_FILENAME = "oauth_store.key"
-
-_GLOBAL_FERNET_CACHE = None
-
-def _get_store_dir() -> Path:
-    """Return the stable ~/.shibaclaw directory for token storage."""
-    from shibaclaw.config.paths import get_app_root
-
-    return get_app_root()
-
-
-def _load_or_create_key(key_path: Path) -> bytes:
-    """Load an existing Fernet key or generate and persist a new one."""
-    from cryptography.fernet import Fernet
-
-    if key_path.exists():
-        return key_path.read_bytes()
-
-    key = Fernet.generate_key()
-    key_path.parent.mkdir(parents=True, exist_ok=True)
-    key_path.write_bytes(key)
-    # Owner-read-only permissions on POSIX
-    try:
-        os.chmod(key_path, 0o600)
-    except OSError:
-        pass
-    logger.debug("OAuthTokenStore: generated new encryption key at {}", key_path)
-    return key
+_NAMESPACE = "oauth_tokens"
 
 
 class OAuthTokenStore:
     """
-    Fernet-encrypted, JSON-backed store for OAuth tokens.
+    Thin wrapper around ``CredentialManager`` that provides a per-MCP-server
+    token store with expiry helpers.
 
-    All tokens are stored in a single encrypted file under ~/.shibaclaw/.
-    The encryption key lives in a sibling file with 0o600 permissions.
+    Maintains backward-compatible API surface so ``OAuthFlow`` and all other
+    consumers need no changes.
     """
 
     def __init__(self, store_dir: Path | None = None) -> None:
-        base = store_dir or _get_store_dir()
-        self._store_path = base / _STORE_FILENAME
-        self._key_path = base / _KEY_FILENAME
-        self._fernet = self._build_fernet()
-        self._cache: dict[str, Any] = {}
-        self._cache_mtime: float | None = None
+        # store_dir is accepted for backward-compat but ignored — the
+        # credential manager uses the canonical ~/.shibaclaw location.
+        from shibaclaw.security.credential_manager import get_credential_manager
 
-    def _build_fernet(self):
-        global _GLOBAL_FERNET_CACHE
-        if _GLOBAL_FERNET_CACHE is not None:
-            return _GLOBAL_FERNET_CACHE
-        from cryptography.fernet import Fernet
-
-        key = _load_or_create_key(self._key_path)
-        _GLOBAL_FERNET_CACHE = Fernet(key)
-        return _GLOBAL_FERNET_CACHE
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _load_all(self) -> dict[str, Any]:
-        """Decrypt and deserialise the token store. Returns empty dict on any error."""
-        if not self._store_path.exists():
-            return {}
-        try:
-            mtime = self._store_path.stat().st_mtime
-            if self._cache_mtime == mtime:
-                return self._cache
-            raw = self._store_path.read_bytes()
-            plaintext = self._fernet.decrypt(raw)
-            self._cache = json.loads(plaintext)
-            self._cache_mtime = mtime
-            return self._cache
-        except Exception as exc:
-            logger.warning("OAuthTokenStore: failed to read token store: {}", exc)
-            return {}
-
-    def _save_all(self, data: dict[str, Any]) -> None:
-        """Serialise and encrypt the entire token store to disk."""
-        try:
-            plaintext = json.dumps(data).encode()
-            ciphertext = self._fernet.encrypt(plaintext)
-            self._store_path.parent.mkdir(parents=True, exist_ok=True)
-            self._store_path.write_bytes(ciphertext)
-            self._cache = data
-            self._cache_mtime = self._store_path.stat().st_mtime
-            try:
-                os.chmod(self._store_path, 0o600)
-            except OSError:
-                pass
-        except Exception as exc:
-            logger.error("OAuthTokenStore: failed to save token store: {}", exc)
+        self._cm = get_credential_manager()
 
     # ------------------------------------------------------------------
     # Public API
@@ -110,24 +38,20 @@ class OAuthTokenStore:
 
     def save_token(self, server_name: str, token_data: dict[str, Any]) -> None:
         """Persist *token_data* for *server_name*, adding a ``_saved_at`` timestamp."""
-        all_tokens = self._load_all()
         token_data = dict(token_data)  # defensive copy
         token_data["_saved_at"] = int(time.time())
-        all_tokens[server_name] = token_data
-        self._save_all(all_tokens)
+        self._cm.set_secret(_NAMESPACE, server_name, token_data)
         logger.debug("OAuthTokenStore: saved token for server '{}'", server_name)
 
     def load_token(self, server_name: str) -> dict[str, Any] | None:
         """Return the stored token dict for *server_name*, or ``None`` if absent."""
-        return self._load_all().get(server_name)
+        val = self._cm.get_secret(_NAMESPACE, server_name)
+        return val if isinstance(val, dict) else None
 
     def delete_token(self, server_name: str) -> None:
         """Remove the stored token for *server_name* (no-op if not present)."""
-        all_tokens = self._load_all()
-        if server_name in all_tokens:
-            del all_tokens[server_name]
-            self._save_all(all_tokens)
-            logger.debug("OAuthTokenStore: deleted token for server '{}'", server_name)
+        self._cm.delete_secret(_NAMESPACE, server_name)
+        logger.debug("OAuthTokenStore: deleted token for server '{}'", server_name)
 
     def is_expired(self, server_name: str, *, buffer_seconds: int = 60) -> bool:
         """
@@ -161,4 +85,4 @@ class OAuthTokenStore:
 
     def list_servers(self) -> list[str]:
         """Return the names of all servers with stored tokens."""
-        return list(self._load_all().keys())
+        return list(self._cm.get_namespace(_NAMESPACE).keys())

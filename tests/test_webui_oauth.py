@@ -310,7 +310,6 @@ class TestCustomMCPOAuth:
             auth_url="https://example.com/auth",
             token_url="https://example.com/token",
             client_id="my-client-id",
-            client_secret="my-client-secret",
             scopes=["scope1"],
         )
 
@@ -340,7 +339,6 @@ class TestCustomMCPOAuth:
         assert token_data["access_token"] == "token-urlencoded-123"
         assert token_data["refresh_token"] == "refresh-123"
         assert observed_payloads[0]["code"] == "code-123"
-        assert observed_payloads[0]["client_secret"] == "my-client-secret"
 
         # Now save it and test refresh
         store.save_token("test-server", token_data)

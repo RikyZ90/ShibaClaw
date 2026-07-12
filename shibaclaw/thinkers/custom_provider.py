@@ -74,6 +74,92 @@ class CustomThinker(Thinker):
                 return LLMResponse(content=f"Error: {body.strip()[:500]}", finish_reason="error")
             return LLMResponse(content=f"Error: {e}", finish_reason="error")
 
+    async def chat_streaming(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Any = None,
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        reasoning_effort: str | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> LLMResponse:
+        resolved_model = self._strip_provider_prefix(model or self.default_model, "custom") or (model or self.default_model)
+        kwargs: dict[str, Any] = {
+            "model": resolved_model,
+            "messages": self._sanitize_empty_content(messages),
+            "max_tokens": max(1, max_tokens),
+            "temperature": temperature,
+            "stream": True,
+        }
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
+        if tools:
+            kwargs.update(tools=tools, tool_choice=tool_choice or "auto")
+            
+        try:
+            stream = await self._client.chat.completions.create(**kwargs)
+            content_text = ""
+            reasoning_content = ""
+            finish_reason = "stop"
+            tool_call_chunks: dict[int, dict[str, Any]] = {}
+            
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                choice = chunk.choices[0]
+                delta = choice.delta
+                if choice.finish_reason:
+                    finish_reason = choice.finish_reason
+                    
+                if getattr(delta, "content", None):
+                    content_text += delta.content
+                    if on_token:
+                        await on_token(delta.content)
+                        
+                if getattr(delta, "reasoning_content", None):
+                    reasoning_content += delta.reasoning_content
+                    
+                if getattr(delta, "tool_calls", None):
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in tool_call_chunks:
+                            tool_call_chunks[idx] = {"id": "", "name": "", "arguments": ""}
+                        tc = tool_call_chunks[idx]
+                        if getattr(tc_delta, "id", None):
+                            tc["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if getattr(tc_delta.function, "name", None):
+                                tc["name"] += tc_delta.function.name
+                            if getattr(tc_delta.function, "arguments", None):
+                                tc["arguments"] += tc_delta.function.arguments
+                                
+            tool_calls = []
+            for idx in sorted(tool_call_chunks.keys()):
+                tc = tool_call_chunks[idx]
+                args = tc["arguments"]
+                if args:
+                    try:
+                        args = json_repair.loads(args)
+                    except Exception:
+                        args = {"raw": args}
+                else:
+                    args = {}
+                tool_calls.append(ToolCallRequest(id=tc["id"], name=tc["name"], arguments=args))
+                
+            return LLMResponse(
+                content=content_text or None,
+                tool_calls=tool_calls,
+                finish_reason=finish_reason,
+                reasoning_content=reasoning_content or None
+            )
+        except Exception as e:
+            body = getattr(e, "doc", None) or getattr(getattr(e, "response", None), "text", None)
+            if body and body.strip():
+                return LLMResponse(content=f"Error: {body.strip()[:500]}", finish_reason="error")
+            return LLMResponse(content=f"Error: {e}", finish_reason="error")
+
     def _parse(self, response: Any) -> LLMResponse:
         if not response.choices:
             return LLMResponse(

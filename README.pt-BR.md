@@ -16,19 +16,32 @@
 </p>
 
 <p align="center">
-  <b>23 Provedores · 11 Canais de Chat · WebUI Embutida · Núcleo com Segurança Primeiro · Pronto para MCP</b>
+  <b>28 Provedores · 11 Canais de Chat · WebUI Embutida · Núcleo com Segurança Primeiro · Pronto para MCP</b>
 </p>
 
 <h3 align="center">Construído sobre três pilares: <b>Simplicidade · Segurança · Privacidade</b></h3>
 
+<p align="center">
+  🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
+  <a href="./README.es.md">Español</a> &nbsp;·&nbsp;
+  <a href="./README.pt-BR.md">Português (BR)</a> &nbsp;·&nbsp;
+  <a href="./README.ja.md">日本語</a> &nbsp;·&nbsp;
+  <a href="./README.de.md">Deutsch</a> &nbsp;·&nbsp;
+  <a href="./README.fr.md">Français</a>
+</p>
+
 ***
 
 <details open>
-<summary>📢 <b>Última versão: v0.9.4</b> — Clique para ver as novidades</summary>
+<summary>📢 <b>Última versão: v0.9.5 (Big Release & Refactor)</b> — Clique para ver as novidades</summary>
 
-- **Auto-atualização no Linux travada em v0.9.2** — Corrigido bug onde `_get_version()` reportava uma versão obsoleta do manifesto empacotado mesmo após upgrade pip/pipx bem-sucedido. A resolução de versão agora prefere metadados do pacote instalado, garantindo convergência correta.
+- **🔥 Big Security Refactor & 🔐 Cofre de Credenciais Criptografado** — Renovamos totalmente a segurança. O ShibaClaw agora usa um robusto cofre criptografado simétrico AES-128/256 (`credentials.enc` e `credentials.key`) para armazenar com segurança chaves de API, tokens de bots e senhas. Possui resolução com prioridade para o cofre, thread-safety, proteção contra corrupção e permissões estritas no nível do SO (`0o600` no Unix e `icacls` ACLs no Windows).
+- **🌐 Fluxos Nativos OAuth e Device Code** — Adicionados fluxos de autenticação nativos diretamente na WebUI. Agora você pode fazer login sem esforço via **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** e **OpenRouter** sem nunca tocar em uma chave de API!
+- **🤖 Suporte a Novos Provedores** — Integrações abrangentes adicionadas para **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** e **Z.AI**, oferecendo acesso imediato aos melhores modelos de ponta do mercado.
+- **🛡️ Resolução de Canais Reforçada** — Atualizações completas de resolução para Discord, DingTalk, Feishu, QQ, MoChat e o plugin do canal do WhatsApp.
+- **⚡ WebUI ultrarrápida e UX aprimorada** — O frontend foi migrado para uma arquitetura ES6 totalmente empacotada via `esbuild` para carregamento instantâneo, e a UX dos Connected Apps foi suavizada para permitir a configuração contínua do backend Klavis sem recarregamentos manuais.
 
-Veja o [Changelog](./CHANGELOG.md) para o histórico completo.
+Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 
 </details>
 
@@ -60,7 +73,7 @@ iwr -useb https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.
 curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
 ```
 
-> **Nota**: No Windows, isso baixa o app de desktop pré-compilado da última GitHub Release — não requer Python. Atalhos na Área de Trabalho e Menu Iniciar são criados automaticamente, e o app aparece em Aplicativos e Recursos para desinstalação limpa. No Linux/macOS, o script instala via pip em ambiente virtual isolado.
+> **Nota**: No Windows, isso baixa o app de desktop pré-construído da última GitHub Release — não requer Python. Atalhos na Área de Trabalho e Menu Iniciar são criados automaticamente, e o app aparece em Aplicativos e Recursos para desinstalação limpa. No Linux/macOS, o script instala via pip em ambiente virtual isolado.
 
 ### Docker
 
@@ -104,7 +117,7 @@ Sistema de 3 níveis com aprendizado<br>proativo e auto-compactação
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 Provedores
+### 🌐 28 Provedores
 SDKs nativos, sem proxy LiteLLM<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -138,11 +151,11 @@ Conecte qualquer servidor MCP,<br>ferramentas auto-registradas
 > **Cansado de agentes que precisam mais babá que o seu próprio trabalho?**  
 > ShibaClaw é construído em torno de um princípio: <b>simplesmente funciona</b> — com segurança, confiabilidade e sem manutenção constante.
 
-A maioria dos frameworks de agentes trata a segurança como pensamento tardio, deixa você brigando com compatibilidade de provedores ou força a babá de configurações. ShibaClaw muda o jogo: a segurança não é parafusada, é <b>a fundação</b>.
+A maioria dos frameworks de agentes de IA trata a segurança como pensamento tardio, deixa você brigando com compatibilidade de provedores ou força a babá de configurações. ShibaClaw muda o jogo: a segurança não é parafusada, é <b>a fundação</b>.
 
 O que torna ShibaClaw diferente:
 - **Camadas de segurança no núcleo** — auditoria CVE na instalação, envelopamento de injeção de prompt em cada resultado, proteção SSRF/DNS-rebinding
-- **Suporte nativo a provedores** — 23 provedores via SDKs oficiais, sem camada proxy para depurar
+- **Suporte nativo a provedores** — 28 provedores via SDKs oficiais, sem camada proxy para depurar
 - **Configuração em um comando** — Docker ou pip, siga o assistente, conversa em cerca de um minuto
 - **Roda em todo lugar** — Terminal, WebUI, Discord, Telegram, WhatsApp, app desktop Windows e mais
 
@@ -169,9 +182,9 @@ Defesas normalmente espalhadas pelo glue da app ou proxies externos — no Shiba
 
 Em vez de simplesmente devolver saídas cruas ao LLM, ShibaClaw envelopa cada resultado em uma fronteira tipo XML gerada dinamicamente com um <b>nonce aleatório</b> (ex., `<tool_output_a1b2c3d4>`).
 
-> 💡 <b>Defesa Independente</b>: Este mecanismo central (Envelopamento Aleatório de Saída de Ferramenta) foi desacoplado e empacotado como biblioteca Python independente sem dependências, [Muzzle](https://github.com/RikyZ90/Muzzle). Use para proteger qualquer framework (LangChain, LlamaIndex, CrewAI, AutoGen ou loops LLM custom).
+> 💡 <b>Defesa Independente</b>: Este mecanismo central (Envelopamento Aleatório de Saída de Ferramenta) foi desacoplado e empacotado como biblioteca Python independente sem dependências, [Muzzle](https://github.com/RikyZ90/Muzzle). Use para proteger qualquer framework de agentes (LangChain, LlamaIndex, CrewAI, AutoGen ou loops LLM custom).
 
-Por que importa: atacantes frequentemente tentam fechar prematuramente tags ou injetar instruções de sistema falsas dentro de saídas (como conteúdo web). Com fronteira aleatória por iteração, o agente distingue de forma confiável instruções reais de cargas injetadas. Qualquer tentativa de injetar a tag de fechamento específica é automaticamente sanitizada e escapada, mantendo o sandbox hermético.
+Por que importa: atacantes frequentemente tentam fechar prematuramente tags ou injetar instruções de sistema falsas dentro de saídas (como conteúdo web). Com fronteira aleatória por iteração, o agente distingue de forma confiável instruções reais de cargas injetadas. Além disso, qualquer tentativa de injetar a tag de fechamento específica é automaticamente sanitizada e escapada, mantendo o sandbox hermético.
 
 ### 🔍 Auto-scan de Pacotes na Instalação
 
@@ -198,7 +211,7 @@ Se instalou via `pip`:
 shibaclaw desktop
 ```
 
-Ou baixe o executável Windows pré-compilado da última versão:
+Ou baixe o executável Windows pré-construído da última versão:
 
 > **[⬇ Baixar ShibaClaw.exe (última)](https://github.com/RikyZ90/ShibaClaw/releases/latest/download/ShibaClaw-windows.zip)**  
 > Notas → [github.com/RikyZ90/ShibaClaw/releases/latest](https://github.com/RikyZ90/ShibaClaw/releases/latest)
@@ -220,18 +233,18 @@ Exponha na rede local e abra a mesma URL no celular ou tablet — sem apps extra
 - **Chat** — conversas multi-sessão com streaming ao vivo de chamadas de ferramenta, blocos de pensamento, tempo e troca de modelo por sessão
 - **RAG Local e Bases de Conhecimento** — arraste ou suba documentos (PDF, CSV, HTML, TXT) para criar coleções locais, consulte via busca semântica
 - **Menções de Contexto (@)** — autocomplete e vincule bases, servidores MCP e apps conectados usando `@`
-- **Busca de modelos multi-provedor** — seletor único funde modelos de todos os provedores, mostra rótulos e troca o provedor em runtime
+- **Busca de modelos multi-provedor** — seletor único funde modelos de todos os provedores, mostra rótulos e troca o provedor runtime
 - **Perfis de Agente** — troque personas por sessão (Hacker, Builder, Planner, Reviewer) com avatares dinâmicos
 - **Navegador de arquivos** — navegue, veja e edite arquivos do workspace no navegador (sandbox)
 - **Voz** — speech-to-text via APIs de áudio compatíveis com OpenAI e TTS nativo do navegador
 - **Configurações** — defina modelo de sessão, memória, provedores, ferramentas, servidores MCP, canais, skills e OAuth num painel
 - **Assistente de onboard** — setup guiado: escolha provedor, API key ou OAuth, modelo
-- **Visualizador de contexto** — inspecione o system prompt e o uso de tokens
+- **Visualizador de contexto** — inspecione o system prompt completo e o uso de tokens
 - **Monitor de gateway** — health check e reinício com um clique
 - **Fluxos OAuth** — GitHub Copilot, OpenAI Codex e OpenRouter configuráveis nas configurações
-- **Renderização endurecida** — Markdown escapa HTML cru, nomes de arquivo via DOM seguro
+- **Renderização endurecida** — Markdown escapa HTML cru, nomes de arquivo via DOM seguro, auth expirada volta limpo ao login
 - **Auto-update** — checa GitHub a cada 12h, notifica na UI e canais
-- **Central de Notificações (WIP)** — sino com badge, push WebSocket em tempo real, deep-link por notificação
+- **Central de Notificações (WIP)** — sino com badge, push WebSocket tempo real, deep-link por notificação
 - **Responsivo** — funciona em desktop e mobile
 
 ### ⚡ Seleção Dinâmica de Modelo
@@ -242,7 +255,7 @@ Exponha na rede local e abra a mesma URL no celular ou tablet — sem apps extra
 
 Troque modelos por sessão — não mais um modelo global, mas escolha flexível por conversa.
 
-- **Busca Multi-Provedor**: Busque todos os modelos de todos os provedores num dropdown.
+- **Busca Multi-Provedor**: Busque todos os modelos de todos os provedores (OpenRouter, GitHub Copilot, Anthropic, etc.) num dropdown.
 - **Roteamento Consciente de Sessão**: Cada sessão lembra seu modelo. Tenha sessão de código com `Claude 3.5 Sonnet` e de pesquisa com `Gemma 4` simultaneamente.
 - **Troca em Runtime**: Troque instantaneamente sem reiniciar; o gateway resolve o endpoint correto.
 - **Modelo de Memória Dedicado**: Configure modelo e provedor separados para consolidação e aprendizado proativo.
@@ -266,7 +279,7 @@ A memória do ShibaClaw não é só um buffer de chat; é um sistema proativo es
 - **`MEMORY.md` (Estado Operacional):** Conhecimento de trabalho do agente. Rastreia detalhes do ambiente, entidades recorrentes e estado do projeto.
 - **`HISTORY.md` (Arquivo de Sessões):** Ledger só-apend, buscável, com resumos marcados por tempo.
 
-Em vez de inflar o system prompt com milhares de mensagens, ShibaClaw tem um **loop de Aprendizado Proativo**. A cada N mensagens, um processo LLM em background extrai fatos e atualiza `USER.md` e `MEMORY.md` sem interromper. Quando `MEMORY.md` cresce demais, rotina de auto-compactação resume e dedup, priorizando estado recente. Quando precisa de contexto antigo, busca `HISTORY.md` via TF-IDF e recência.
+Em vez de inflar o system prompt com milhares de mensagens, ShibaClaw tem um **loop de Aprendizado Proativo**. A cada N mensagens, um processo LLM em background extrai fatos e atualiza `USER.md` e `MEMORY.md` sem interromper. Quando `MEMORY.md` cresce demais, rotina de auto-compactação resume e dedup, priorizando estado recente. Quando o agente precisa de contexto antigo, busca `HISTORY.md` via TF-IDF e recência.
 
 ***
 
@@ -283,12 +296,12 @@ Em vez de inflar o system prompt com milhares de mensagens, ShibaClaw tem um **l
 | Ferramenta | O que faz |
 |------|-------------|
 | `exec` | Comandos shell com 20+ padrões de negação, normalização de encoding e scan CVE |
-| `read_file` / `write_file` / `edit_file` | Leituras paginadas, replace difuso, criação de diretórios pais |
+| `read_file` / `write_file` / `edit_file` | Leituras paginadas, replace difuso, criação de diretórios pai |
 | `web_search` | Brave, Tavily, SearXNG, Jina ou DuckDuckGo (fallback sem key) |
 | `web_fetch` | HTTP com proteção SSRF, defesa DNS-rebinding e validação de redirecionamento |
 | `memory_search` | Busca rankeada sobre histórico (TF-IDF + recência + importância) |
 | `knowledge_search` | Busca semântica sobre coleções locais (FAISS) |
-| `message` | Mensageria cross-channel com anexos |
+| `message` | Mensageria cross-canal com anexos |
 | `automation` | Gerencia ou agenda tarefas (cron, intervalos, datas ISO, timezone) |
 | `spawn` | Worker de background opcional para tarefa focada |
 | MCP | Conecte qualquer servidor MCP (stdio, SSE ou HTTP) — ferramentas auto-registradas como `mcp_<server>_<tool>` |
@@ -308,7 +321,7 @@ Todos os canais roteiam pelo mesmo message bus. WhatsApp usa bridge Node.js (Bai
 - **Motor de Automações** — tarefas agendadas persistentes e rotinas de background, gerenciadas via UI e salvas em `automation.json`. Suporta `every`, `cron` e `at`. Tarefas perdidas são adiantadas no startup.
 - **Integração TASK.md** — o motor usa `TASK.md` como fonte de verdade; pula o LLM quando vazio.
 
-Se atualizando de versão antiga, `HEARTBEAT.md` foi descontinuado. Migre para `TASK.md` e a nova UI de Automações.
+Se atualizando de versão antiga, `HEARTBEAT.md` foi deprecado. Migre para `TASK.md` e a nova UI de Automações.
 
 ### 🔌 Plugins e TTS
 
@@ -320,9 +333,9 @@ Se atualizando de versão antiga, `HEARTBEAT.md` foi descontinuado. Migre para `
 
 ## 🔌 Ecossistema MCP
 
-ShibaClaw é totalmente compatível com o **Model Context Protocol (MCP)**, transformando o agente em um hub de IA plug-and-play.
+ShibaClaw é totalmente compatível com o **Model Context Protocol (MCP)**, transformando o agente em hub de IA plug-and-play.
 
-Em vez de depender só de skills embutidas, ShibaClaw conecta a qualquer servidor MCP, concedendo acesso a fontes externas sem modificar o núcleo.
+Em vez de depender só de skills embutidas, ShibaClaw conecta a qualquer servidor MCP, concedendo acesso a vasto universo de fontes de dados externas e ferramentas profissionais sem modificar o núcleo.
 
 Por que importa:
 - **Extensibilidade Instantânea**: Plugue servidores MCP da comunidade para Google Drive, Slack, GitHub, PostgreSQL e mais.
@@ -337,14 +350,14 @@ Para facilitar a configuração de ferramentas SaaS populares (Gmail, Google Dri
 
 Em vez de criar credenciais manualmente por serviço, gerencie tudo via **Connected Apps**:
 - **Uma só API Key**: Pegue uma key em [klavis.ai](https://klavis.ai) e salve nas configurações.
-- **Conexões em um Clique**: Conecte ou desconecte serviços via OAuth seguro gerenciado pela Klavis.
-- **Servidores MCP Auto-Gerados**: Ao conectar, ShibaClaw configura o servidor MCP adequado e registra suas ferramentas.
+- **Conexões em um Clique**: Conecte ou desconecte Gmail, Slack e outros via OAuth seguro gerenciado pelo gateway Klavis.
+- **Servidores MCP Auto-Gerados**: Ao conectar, ShibaClaw configura o servidor MCP apropriado e registra suas ferramentas.
 
 ***
 
 ## 🌐 Provedores Suportados
 
-ShibaClaw usa SDKs nativos (sem proxy LiteLLM) e resolve o provedor ativo a partir do modelo selecionado ou ID canônico com prefixo. Na WebUI, todos os catálogos são fundidos numa lista buscável.
+ShibaClaw usa SDKs nativos (sem proxy LiteLLM) e resolve o provedor ativo a partir do modelo selecionado ou ID canônico com prefixo. Na WebUI, todos os catálogos são fundidos numa lista buscável, cada sessão mantendo seu modelo.
 
 ### API Key
 
@@ -360,7 +373,7 @@ ShibaClaw usa SDKs nativos (sem proxy LiteLLM) e resolve o provedor ativo a part
 | Zhipu AI | `ZAI_API_KEY` |
 | DashScope | `DASHSCOPE_API_KEY` |
 
-¹ Definir `GEMINI_API_KEY` no ambiente é suficiente. O endpoint OpenAI-compatible do Google vem pré-configurado.
+¹ Definir `GEMINI_API_KEY` no ambiente é suficiente. O endpoint OpenAI-compatível do Google vem pré-configurado.
 
 ### Gateway / Proxy
 
@@ -368,30 +381,31 @@ OpenRouter · AiHubMix · SiliconFlow · VolcEngine · BytePlus — auto-detecta
 
 ### Local
 
-Ollama (`http://localhost:11434`) · LM Studio · llama.cpp · vLLM · qualquer endpoint OpenAI-compatible (`http://localhost:1234/v1`)
+Ollama (`http://localhost:11434`) · LM Studio · llama.cpp · vLLM · qualquer endpoint OpenAI-compatível(`http://localhost:1234/v1`)
 
-> **Nota para Docker:** Se roda via Docker Compose, `localhost` aponta dentro do container. Para conectar a um servidor local no host use `http://host.docker.internal:1234/v1` (ou `11434` para Ollama). No Linux nativo use `http://172.17.0.1:port`.
+> **Nota para Docker:** Se roda via Docker Compose, `localhost` aponta dentro do container. Para conectar a servidor local no host (LM Studio ou Ollama no Windows/Mac), use:
+> `http://host.docker.internal:1234/v1` (ou `11434` para Ollama). No Linux nativo use `http://172.17.0.1:port`.
 
 ### OAuth
 
 | Provedor | Fluxo | Configuração |
 |----------|------|-------|
 | OpenRouter | Fluxo PKCE navegador, salva a API key devolvida | Configurações WebUI |
-| GitHub Copilot | Fluxo device, refresh automático | `shibaclaw provider login github-copilot` ou Configurações |
+| GitHub Copilot | Fluxo device, auto-refresh de token | `shibaclaw provider login github-copilot` ou Configurações |
 | OpenAI Codex | Fluxo PKCE navegador | `shibaclaw provider login openai-codex` ou Configurações |
 
-Para OpenRouter, o callback reusa a URL/porta da WebUI por padrão. Se exponha atrás de proxy reverso, defina `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL=https://your-public-webui-host` antes de iniciar.
+Para OpenRouter, o callback reusa a URL/porta da WebUI por padrão, então `http://localhost:3000` não é porta OAuth dedicada. Se expõe a WebUI atrás de proxy reverso ou precisa de origem de callback pública diferente, defina `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL=https://your-public-webui-host` antes de iniciar.
 
 ### 💡 Dica Pro: Modelos Econômicos e Premium
 
-- **Modelos Gratis/Abertos:** Recomendamos **OpenRouter** para modelos gratuitos como `nvidia/nemotron-3-super-120b-a12b:free` ou `gemma-4-31b-it:free`.
-- **Premium Ilimitado:** Com **GitHub Copilot** OAuth você ganha modelos premium como `raptor` (`oswe-vscode-prime`) a custo zero.
+- **Modelos Gratis/Abertos:** Recomendamos **OpenRouter** para modelos gratuitos potentes como `nvidia/nemotron-3-super-120b-a12b:free` ou `gemma-4-31b-it:free`.
+- **Premium Ilimitado:** Com **GitHub Copilot** OAuth você acessa modelos premium como `raptor` (`oswe-vscode-prime`) a custo zero.
 
 ***
 
 ## 📊 Comparativo ShibaClaw (Segurança Primeiro)
 
-> Esta tabela é um **snapshot aproximado focado em segurança**, baseado só no documentado publicamente até maio de 2026.  
+> Esta tabela é um **snapshot aproximado focado em segurança**, baseado só no documentado publicamente até maio 2026.  
 > `❓` significa "não claramente documentado / não verificado", <b>não</b> "não existe".
 
 | Recurso de Segurança | ShibaClaw | OpenClaw | Hermes Agent | Nanobot | ZeroClaw |
@@ -400,7 +414,7 @@ Para OpenRouter, o callback reusa a URL/porta da WebUI por padrão. Se exponha a
 | Envelopamento de injeção de prompt em cada resultado | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Proteção SSRF + DNS-rebinding embutida | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-ShibaClaw foca em entregar essas defesas no núcleo, ativadas por padrão.
+ShibaClaw foca em entregar essas defesas no motor do núcleo, ativadas por padrão.
 
 ***
 
@@ -439,7 +453,7 @@ Ambos compartilham o volume `~/.shibaclaw/` (config, workspace, memória, jobs, 
 | Gateway | ~120 MB | ~350 MB |
 | WebUI | ~120 MB | ~350 MB |
 
-Docker Compose define limite de 512 MB / 256 MB de reserva por container. Saída de ferramentas é transmitida com buffers limitados.
+Docker Compose define limite de 512 MB / reserva de 256 MB por container. Saída de ferramentas é transmitida com buffers limitados.
 
 ***
 
@@ -452,10 +466,10 @@ shibaclaw onboard           # Assistente de setup via CLI
 shibaclaw agent -m "Hello"  # Mensagem única via terminal
 shibaclaw agent             # REPL interativo com histórico
 shibaclaw status            # Health check de provedor, workspace, OAuth
-shibaclaw print-token       # Mostra o token de auth WebUI
+shibaclaw print-token       # Mostra token de auth WebUI
 shibaclaw channels status   # Lista canais habilitados
 shibaclaw provider login <p># Login OAuth (github-copilot, openai-codex)
-shibaclaw desktop           # Lança o app desktop Windows
+shibaclaw desktop           # Lança app desktop Windows
 ```
 
 ***
@@ -485,7 +499,7 @@ Integradores de gateway: veja [`docs/GATEWAY_PROTOCOL.md`](./docs/GATEWAY_PROTOC
 ## 🌟 Junte-se à Matilha ShibaClaw
 
 ShibaClaw é construído por um desenvolvedor, mantido pela comunidade e crescendo rápido.  
-Se te poupou tempo, protegeu seu fluxo ou só te fez sorrir — <b>deixe uma estrela</b> ⭐
+Se te poupou tempo, protegeu seu fluxo, ou só te fez sorrir — <b>deixe uma estrela</b> ⭐
 
 > "O agente de IA que simplesmente funciona. Sem babá." 🐕
 

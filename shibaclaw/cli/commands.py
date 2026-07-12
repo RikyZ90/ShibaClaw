@@ -6,6 +6,7 @@ import asyncio
 from typing import Optional
 
 import typer
+from loguru import logger
 
 from shibaclaw import __logo__, __version__
 from shibaclaw.helpers.logging import setup_shiba_logging
@@ -36,15 +37,49 @@ def main(
 
 
 @app.command()
-def print_token():
-    """Print the WebUI authentication token."""
-    from shibaclaw.webui.server import get_auth_token
+def reset_password(
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Specific username to reset"),
+):
+    """Reset the admin user password."""
+    import getpass
+    from shibaclaw.security.credential_manager import get_credential_manager
 
-    token = get_auth_token()
-    if token:
-        safe_print(f"[green]🔑 Token: {token}[/green]")
-    else:
-        safe_print("[yellow]No token found or authentication disabled.[/yellow]")
+    cm = get_credential_manager()
+    if not cm.is_setup():
+        safe_print("[yellow]No admin user configured yet. Run the WebUI setup first.[/yellow]")
+        return
+
+    admin_user = username or cm.get_admin_username()
+    if not admin_user:
+         safe_print("[red]Could not determine admin username.[/red]")
+         return
+
+    safe_print(f"Resetting password for user: [cyan]{admin_user}[/cyan]")
+    new_pwd = getpass.getpass("New Password: ")
+    confirm_pwd = getpass.getpass("Confirm Password: ")
+
+    if new_pwd != confirm_pwd:
+        safe_print("[red]Passwords do not match.[/red]")
+        return
+
+    if len(new_pwd) < 6:
+        safe_print("[red]Password must be at least 6 characters.[/red]")
+        return
+
+    # We cheat the old_password requirement by directly rewriting the hash
+    data = cm._load_all()
+    from hashlib import scrypt
+    import secrets
+    salt = secrets.token_hex(16)
+    hashed = scrypt(
+        new_pwd.encode(), salt=salt.encode(), n=16384, r=8, p=1,
+    ).hex()
+    data["admin_user"]["password_hash"] = hashed
+    data["admin_user"]["salt"] = salt
+    data["admin_user"]["username"] = admin_user
+    cm._save_all(data)
+
+    safe_print("[green]Password reset successful.[/green]")
 
 
 @app.command()
@@ -102,18 +137,13 @@ def web(
     import time
 
     from shibaclaw.helpers.system import find_free_tcp_port, is_tcp_port_available
-    from shibaclaw.webui.server import get_auth_token, run_server
+    from shibaclaw.webui.server import run_server
 
     from .base import _load_runtime_config
 
     setup_shiba_logging()
     cfg = _load_runtime_config(config, workspace)
     provider = _make_provider(cfg, exit_on_error=False)
-
-    # Force a single shared auth token before spawning the gateway subprocess.
-    token = get_auth_token()
-    if token:
-        os.environ["SHIBACLAW_AUTH_TOKEN"] = token
 
     gateway_proc = None
     gateway_host = "127.0.0.1"
@@ -137,26 +167,44 @@ def web(
         os.environ["SHIBACLAW_GATEWAY_HOST"] = gateway_host
         os.environ["SHIBACLAW_WEBUI_URL"] = f"http://127.0.0.1:{port}"
         cfg.gateway.host = gateway_host
-        safe_print("[cyan]➜ Starting Gateway process background...[/cyan]")
+        safe_print("[cyan]➤ Starting Gateway process background...[/cyan]")
         safe_print("[dim]  (Optimized memory: ~128MB UI + ~512MB Gateway)[/dim]")
-        gw_cmd = [
-            sys.executable,
-            "-m",
-            "shibaclaw",
-            "gateway",
-            "--host",
-            gateway_host,
-            "--port",
-            str(gateway_port),
-            "--ws-port",
-            str(gateway_ws_port),
-        ]
+        if getattr(sys, "frozen", False):
+            # Frozen .exe (PyInstaller): -m flag is not available
+            gw_cmd = [
+                sys.executable,
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
+        else:
+            gw_cmd = [
+                sys.executable,
+                "-m",
+                "shibaclaw",
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
         if workspace:
             gw_cmd.extend(["--workspace", workspace])
         if config:
             gw_cmd.extend(["--config", config])
 
-        gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy())
+        gw_extra_kwargs: dict = {}
+        if sys.platform == "win32":
+            create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            gw_extra_kwargs["creationflags"] = create_no_window
+
+        gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy(), **gw_extra_kwargs)
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
             if gateway_proc.poll() is not None:
@@ -168,9 +216,7 @@ def web(
                 time.sleep(0.1)
 
     safe_print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
-    safe_print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
-    if token:
-        safe_print(f"  [green]🔑 Token:[/green] [bold]{token[:4] + '*' * (len(token) - 4)}[/bold]")
+    safe_print(f"  [cyan]➤ http://{host}:{port}[/cyan]")
     if provider is None:
         safe_print("")
         safe_print(
@@ -180,7 +226,7 @@ def web(
     def stop_gateway_proc():
         nonlocal gateway_proc
         if gateway_proc:
-            safe_print("[yellow]➜ Terminating Gateway process...[/yellow]")
+            safe_print("[yellow]➤ Terminating Gateway process...[/yellow]")
             try:
                 gateway_proc.terminate()
                 gateway_proc.wait(timeout=5)
@@ -191,9 +237,42 @@ def web(
                     pass
             gateway_proc = None
 
-    from shibaclaw.webui.routers.system import set_shutdown_callback
+    def restart_gateway_proc(pre_start_hook=None):
+        """Stop and relaunch the managed gateway subprocess.
+
+        Used as the restart callback for plugin install/uninstall so that
+        only the gateway is recycled — the WebUI server stays alive.
+        """
+        nonlocal gateway_proc
+        if gateway_proc:
+            try:
+                gateway_proc.terminate()
+                gateway_proc.wait(timeout=5)
+            except Exception:
+                try:
+                    gateway_proc.kill()
+                except Exception:
+                    pass
+            gateway_proc = None
+
+        if pre_start_hook:
+            try:
+                pre_start_hook()
+            except Exception as e:
+                logger.error("pre_start_hook failed: {}", e)
+
+        if with_gateway:
+            gw_restart_kwargs: dict = {}
+            if sys.platform == "win32":
+                _cnw = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                gw_restart_kwargs["creationflags"] = _cnw
+            gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy(), **gw_restart_kwargs)
+
+    from shibaclaw.webui.routers.system import set_restart_callback, set_shutdown_callback
 
     set_shutdown_callback(stop_gateway_proc)
+    if with_gateway:
+        set_restart_callback(restart_gateway_proc)
 
     try:
         asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
@@ -241,7 +320,7 @@ def agent(
     message: Optional[str] = typer.Argument(None, help="Message to send to the agent"),
     session_id: str = typer.Option("cli:direct", "--session", "-s", help="Session ID"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
-    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Path to config file"),
     markdown: bool = typer.Option(
         True, "--markdown/--no-markdown", help="Render output as Markdown"
     ),
@@ -282,7 +361,14 @@ def status():
                         f"[green]✓ {p.api_base}[/green]" if p.api_base else "[dim]not set[/dim]"
                     )
                 else:
-                    status_text = "[green]✓[/green]" if p.api_key else "[dim]not set[/dim]"
+                    # ProviderConfig no longer has a plain api_key field;
+                    # resolve from vault (also falls back to env vars via
+                    # _provider_has_credentials in the caller chain).
+                    status_text = (
+                        "[green]✓[/green]"
+                        if p.resolve_api_key(spec.name)
+                        else "[dim]not set[/dim]"
+                    )
                 safe_print(f"{spec.label}: {status_text}")
 
 

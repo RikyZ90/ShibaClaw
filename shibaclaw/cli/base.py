@@ -65,13 +65,17 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         from shibaclaw.thinkers.custom_provider import CustomThinker
 
         provider = CustomThinker(
-            api_key=p.api_key if p else "no-key",
+            api_key=p.resolve_api_key("custom") if p else "no-key",
             api_base=config.get_api_base(model) or "http://localhost:8000/v1",
             default_model=model,
             extra_headers=p.extra_headers if p else None,
         )
     elif provider_name == "azure_openai":
-        provider = AzureOpenAIThinker(api_key=p.api_key, api_base=p.api_base, default_model=model)
+        provider = AzureOpenAIThinker(
+            api_key=p.resolve_api_key("azure_openai") if p else None,
+            api_base=p.api_base if p else None,
+            default_model=model
+        )
     elif provider_name == "github_copilot" or model.startswith("github_copilot/"):
         from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
 
@@ -81,7 +85,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         has_env_key = bool(spec and spec.env_key and os.environ.get(spec.env_key))
         current_ready = (
             model.startswith("bedrock/")
-            or (p and p.api_key)
+            or (p and p.resolve_api_key(provider_name or ""))
             or has_env_key
             or (spec and (spec.is_oauth or spec.is_local))
         )
@@ -102,7 +106,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
                         break
                 else:
                     lp = getattr(config.providers, s.name, None)
-                    if (lp and lp.api_key) or (s.env_key and os.environ.get(s.env_key)):
+                    if (lp and lp.resolve_api_key(s.name)) or (s.env_key and os.environ.get(s.env_key)):
                         any_ready = True
                         break
 
@@ -123,7 +127,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
             from shibaclaw.thinkers.anthropic_provider import AnthropicThinker
 
             provider = AnthropicThinker(
-                api_key=p.api_key if p else None,
+                api_key=p.resolve_api_key(provider_name or "") if p else None,
                 api_base=config.get_api_base(model),
                 default_model=model,
                 extra_headers=p.extra_headers if p else None,
@@ -132,7 +136,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
             from shibaclaw.thinkers.openai_provider import OpenAIThinker
 
             provider = OpenAIThinker(
-                api_key=p.api_key if p else None,
+                api_key=p.resolve_api_key(provider_name or "") if p else None,
                 api_base=config.get_api_base(model),
                 default_model=model,
                 extra_headers=p.extra_headers if p else None,

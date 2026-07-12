@@ -82,6 +82,7 @@ class Thinker(ABC):
 
     _CHAT_RETRY_DELAYS = (1, 2, 4)
     _TRANSIENT_ERROR_MARKERS = (
+        "404",
         "429",
         "rate limit",
         "500",
@@ -285,6 +286,7 @@ class Thinker(ABC):
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            logger.exception("LLM Provider encountered an unexpected error")
             return LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
 
     async def chat_with_retry(
@@ -382,6 +384,7 @@ class Thinker(ABC):
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                logger.exception("LLM Provider encountered an unexpected error during streaming (attempt {})", attempt)
                 response = LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
 
             if response.finish_reason != "error":
@@ -423,6 +426,7 @@ class Thinker(ABC):
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            logger.exception("LLM Provider encountered an unexpected error during final streaming attempt")
             return LLMResponse(content=f"Error calling LLM: {exc}", finish_reason="error")
 
     @abstractmethod

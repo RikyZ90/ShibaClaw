@@ -58,11 +58,11 @@ async def api_update_manifest(request: Request):
 
 _ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli", "desktop"})
 
-_restart_callback: "Callable[[], None] | None" = None
+_restart_callback: "Callable[[Callable[[], None] | None], None] | None" = None
 _shutdown_callback: "Callable[[], None] | None" = None
 
 
-def set_restart_callback(fn: "Callable[[], None]") -> None:
+def set_restart_callback(fn: "Callable[[Callable[[], None] | None], None]") -> None:
     """Register a callback to be called when the WebUI requests a restart.
 
     In Desktop mode the callback restarts just the gateway subprocess instead
@@ -141,6 +141,46 @@ def _schedule_restart_outside_loop(delay: float = 2.0) -> None:
 
     t = threading.Thread(target=_restart_thread, daemon=False)
     t.start()
+
+
+def restart_gateway_only(pre_start_hook: "Callable[[], None] | None" = None) -> None:
+    """Restart only the gateway subprocess without touching the WebUI server.
+
+    This is safe for frozen .exe environments where a full process restart
+    (CTRL_C_EVENT + os._exit) would cause the application to hang.
+
+    - Desktop mode: uses the registered ``_restart_callback`` which stops
+      and relaunches the gateway subprocess via :class:`DesktopRuntime`.
+    - CLI ``web --with-gateway`` mode: uses the registered ``_restart_callback``
+      which terminates and respawns the managed gateway subprocess.
+    - Standalone CLI (no callback): sends ``POST /restart`` to the gateway
+      HTTP endpoint so the gateway can self-restart.
+    """
+    if _restart_callback is not None:
+        logger.info("restart_gateway_only: using registered restart callback")
+        try:
+            _restart_callback(pre_start_hook)
+        except Exception as exc:
+            logger.error("restart_gateway_only callback failed: {}", exc)
+        return
+
+    # Fallback: poke the gateway's own /restart HTTP endpoint.
+    # The gateway manages its own restart loop (see cli/gateway.py).
+    logger.info("restart_gateway_only: no callback — sending POST /restart to gateway")
+    try:
+        import urllib.request
+        from shibaclaw.config.loader import load_config
+
+        cfg = load_config()
+        host = cfg.gateway.host or "127.0.0.1"
+        port = cfg.gateway.port
+        req = urllib.request.Request(
+            f"http://{host}:{port}/restart", method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=5):
+            pass
+    except Exception as exc:
+        logger.warning("restart_gateway_only: failed to contact gateway: {}", exc)
 
 
 async def api_update_apply(request: Request):

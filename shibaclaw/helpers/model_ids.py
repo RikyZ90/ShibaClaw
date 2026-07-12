@@ -41,11 +41,23 @@ def configured_provider_names(cfg: Config | None) -> list[str]:
         provider_cfg = getattr(cfg.providers, spec.name, None)
 
         if spec.name == "custom":
-            ready = bool(provider_cfg and (provider_cfg.api_base or provider_cfg.api_key))
+            # ProviderConfig no longer has a plain api_key field; use resolve_api_key().
+            ready = bool(
+                provider_cfg
+                and (
+                    provider_cfg.api_base
+                    or provider_cfg.resolve_api_key("custom")
+                )
+            )
         elif spec.is_oauth:
             ready = _is_oauth_authenticated(spec)
         elif spec.name == "azure_openai":
-            ready = bool(provider_cfg and provider_cfg.api_key and provider_cfg.api_base)
+            # resolve_api_key() covers both vault and env-var fallbacks.
+            ready = bool(
+                provider_cfg
+                and provider_cfg.resolve_api_key("azure_openai")
+                and provider_cfg.api_base
+            )
         elif spec.is_local:
             ready = bool(provider_cfg and provider_cfg.api_base)
         else:
@@ -85,7 +97,11 @@ def canonicalize_model_id(
     provider_names = list(
         dict.fromkeys(
             normalize_provider_name(name)
-            for name in (configured_names if configured_names is not None else configured_provider_names(cfg))
+            for name in (
+                configured_names
+                if configured_names is not None
+                else configured_provider_names(cfg)
+            )
             if normalize_provider_name(name)
         )
     )

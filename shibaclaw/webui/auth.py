@@ -1,82 +1,50 @@
-"""Authentication and middleware for the WebUI."""
+"""Authentication and middleware for the WebUI.
+
+Supports User/password authentication — admin user configured via the WebUI
+setup wizard; login produces a session token verified on every request.
+"""
 
 from __future__ import annotations
 
-import hmac
 import os
-import secrets
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from shibaclaw.config.paths import get_app_root
 
-AUTH_TOKEN_FILE = get_app_root() / "auth_token"
+# ------------------------------------------------------------------
+# Feature flag
+# ------------------------------------------------------------------
 
 
 def _auth_enabled() -> bool:
     return os.environ.get("SHIBACLAW_AUTH", "true").lower() not in ("false", "0", "no", "off")
 
 
-def _load_or_generate_token() -> str:
-    env_token = os.environ.get("SHIBACLAW_AUTH_TOKEN", "").strip()
-    if env_token:
-        return env_token
-    if AUTH_TOKEN_FILE.exists():
-        saved = AUTH_TOKEN_FILE.read_text().strip()
-        if saved:
-            return saved
-    token = secrets.token_hex(16)
-    AUTH_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    AUTH_TOKEN_FILE.write_text(token)
+# ------------------------------------------------------------------
+# Session-based auth (new)
+# ------------------------------------------------------------------
+
+
+def _is_user_setup() -> bool:
+    """Return True if an admin user has been registered in the credential vault."""
     try:
-        AUTH_TOKEN_FILE.chmod(0o600)
-    except OSError:
-        pass
-    return token
+        from shibaclaw.security.credential_manager import get_credential_manager
+        return get_credential_manager().is_setup()
+    except Exception:
+        return False
 
 
-def _read_existing_token() -> str:
-    """Read the current auth token from env or disk without generating a new one."""
-    env_token = os.environ.get("SHIBACLAW_AUTH_TOKEN", "").strip()
-    if env_token:
-        return env_token
-    if AUTH_TOKEN_FILE.exists():
-        saved = AUTH_TOKEN_FILE.read_text().strip()
-        if saved:
-            return saved
-    return ""
+def _verify_session_token(token: str) -> bool:
+    """Return True if *token* is a valid, non-expired session token."""
+    from shibaclaw.security.credential_manager import CredentialManager
+    return CredentialManager.verify_session_token(token)
 
 
-_AUTH_TOKEN: str = _load_or_generate_token() if _auth_enabled() else ""
-
-
-def get_auth_token(refresh: bool = False) -> str | None:
-    global _AUTH_TOKEN
-
-    if not _auth_enabled():
-        return None
-
-    if refresh:
-        refreshed = _read_existing_token()
-        if refreshed:
-            _AUTH_TOKEN = refreshed
-
-    if not _AUTH_TOKEN:
-        _AUTH_TOKEN = _load_or_generate_token()
-
-    if _AUTH_TOKEN:
-        return _AUTH_TOKEN
-    return None
-
-
-def verify_token_value(token_candidate: str | None) -> bool:
-    auth_token = get_auth_token(refresh=True)
-    if not _auth_enabled() or not auth_token:
-        return True
-    candidate = (token_candidate or "").strip()
-    return bool(candidate) and hmac.compare_digest(candidate, auth_token)
+# ------------------------------------------------------------------
+# Unified token check
+# ------------------------------------------------------------------
 
 
 def mask_token(token: str) -> str:
@@ -86,12 +54,32 @@ def mask_token(token: str) -> str:
 
 
 def check_token(request: Request) -> bool:
+    """Validate a request's credentials.
+
+    Accepts:
+    - ``Authorization: Bearer <session_token>`` (from user/password login)
+    """
     auth_header = request.headers.get("authorization", "")
     token_candidate = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
-    return verify_token_value(token_candidate)
+
+    if not token_candidate:
+        return False
+
+    # Verify session token (user/password login)
+    return _verify_session_token(token_candidate)
 
 
-PUBLIC_PATHS = ("/static/", "/api/auth/", "/api/file-get", "/api/oauth/openrouter/callback")
+# ------------------------------------------------------------------
+# Paths that bypass auth
+# ------------------------------------------------------------------
+
+PUBLIC_PATHS = (
+    "/static/",
+    "/api/auth/",
+    "/api/file-get",
+    "/api/oauth/openrouter/callback",
+    "/api/oauth/generic/",
+)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

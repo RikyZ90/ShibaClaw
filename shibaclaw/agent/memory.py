@@ -406,6 +406,10 @@ class ScentKeeper:
                 tools=[],
                 model=model,
             )
+            if response.finish_reason == "error":
+                logger.error("Memory compaction failed: LLM returned error {}", response.content)
+                return False
+
             compacted = (response.content or "").strip()
             if not compacted:
                 logger.warning("Memory compaction returned empty — skipping")
@@ -485,7 +489,11 @@ class ScentKeeper:
                 tool_choice={"type": "function", "function": {"name": "update_long_term_memory"}},
             )
 
-            if response.finish_reason == "error" or not response.has_tool_calls:
+            if response.finish_reason == "error":
+                logger.error("Proactive Learning failed: LLM returned error {}", response.content)
+                return False
+
+            if not response.has_tool_calls:
                 response = await provider.chat_with_retry(
                     messages=chat_messages,
                     tools=_PROACTIVE_LEARN_TOOL,
@@ -515,8 +523,8 @@ class ScentKeeper:
                 )
 
             return True
-        except Exception as e:
-            logger.debug("Proactive Learning failed (swallowed): {}", e)
+        except Exception:
+            logger.exception("Proactive Learning failed")
             return False
 
     async def _fail_or_raw_archive(self, messages: list[dict]) -> bool:

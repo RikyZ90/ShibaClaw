@@ -308,12 +308,7 @@ def _try_restart_gateway(config) -> None:
 
     # Send restart
     try:
-        from shibaclaw.webui.server import get_auth_token
-
-        token = get_auth_token()
         req = urllib.request.Request(f"http://{host}:{port}/restart", method="POST")
-        if token:
-            req.add_header("Authorization", f"Bearer {token}")
         with urllib.request.urlopen(req, timeout=5):
             pass
         get_console().print(

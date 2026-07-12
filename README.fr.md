@@ -16,19 +16,32 @@
 </p>
 
 <p align="center">
-  <b>23 Fournisseurs · 11 Canaux de Chat · WebUI Intégrée · Cœur Sécurité-d'abord · Prêt pour MCP</b>
+  <b>28 Fournisseurs · 11 Canaux de Chat · WebUI Intégrée · Cœur Sécurité-d'abord · Prêt pour MCP</b>
 </p>
 
 <h3 align="center">Bâti sur trois piliers : <b>Simplicité · Sécurité · Vie privée</b></h3>
 
+<p align="center">
+  🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
+  <a href="./README.es.md">Español</a> &nbsp;·&nbsp;
+  <a href="./README.pt-BR.md">Português (BR)</a> &nbsp;·&nbsp;
+  <a href="./README.ja.md">日本語</a> &nbsp;·&nbsp;
+  <a href="./README.de.md">Deutsch</a> &nbsp;·&nbsp;
+  <a href="./README.fr.md">Français</a>
+</p>
+
 ***
 
 <details open>
-<summary>📢 <b>Dernière version : v0.9.4</b> — Cliquez pour voir les nouveautés</summary>
+<summary>📢 <b>Dernière version : v0.9.5 (Big Release & Refactor)</b> — Cliquez pour voir les nouveautés</summary>
 
-- **Auto-update Linux bloqué sur v0.9.2** — Correction d'un bug où `_get_version()` renvoyait une version obsolète du manifeste même après une mise à jour pip/pipx réussie. La résolution de version préfère désormais les métadonnées du paquet installé, garantissant la convergence correcte.
+- **🔥 Big Security Refactor & 🔐 Coffre-fort d'identifiants chiffré** — Nous avons entièrement revu la sécurité. ShibaClaw utilise désormais un coffre-fort chiffré symétrique robuste AES-128/256 (`credentials.enc` et `credentials.key`) pour stocker en toute sécurité les clés API, les jetons de bot et les mots de passe. Il comprend une résolution prioritaire du coffre-fort, une sécurité des threads, une protection contre la corruption et des autorisations strictes au niveau du système d'exploitation (`0o600` sur Unix et `icacls` ACLs sur Windows).
+- **🌐 Flux OAuth & Device Code natifs** — Ajout de flux d'authentification natifs et fluides directement dans l'interface Web (WebUI). Vous pouvez désormais vous connecter sans effort via **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** et **OpenRouter** sans jamais manipuler de clé API !
+- **🤖 Nouveaux fournisseurs pris en charge** — Ajout d'intégrations complètes pour **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** et **Z.AI**, vous donnant un accès immédiat aux meilleurs modèles de pointe du marché.
+- **🛡️ Résolution de canaux renforcée** — Mises à jour complètes de la résolution pour Discord, DingTalk, Feishu, QQ, MoChat et le plugin de canal WhatsApp.
+- **⚡ WebUI ultra-rapide & UX soignée** — Migration du frontend vers une architecture ES6 entièrement groupée via `esbuild` pour un chargement instantané, et amélioration de l'UX des Connected Apps pour permettre une configuration backend Klavis fluide sans rechargement manuel.
 
-Voir le [Changelog](./CHANGELOG.md) pour l'historique complet.
+Consultez le [Changelog](./CHANGELOG.md) pour l'historique complet des versions.
 
 </details>
 
@@ -104,7 +117,7 @@ Système à 3 niveaux avec apprentissage<br>proactif et auto-compaction
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 Fournisseurs
+### 🌐 28 Fournisseurs
 SDK natifs, aucun proxy LiteLLM<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -142,7 +155,7 @@ La plupart des frameworks d'agents IA traitent la sécurité comme une réflexio
 
 Ce qui rend ShibaClaw différent :
 - **Couches de sécurité intégrées au cœur** — audit CVE à l'installation, encapsulage d'injection de prompt sur chaque résultat d'outil, protection SSRF/rebinding DNS
-- **Support natif des fournisseurs** — 23 fournisseurs via leurs SDK officiels, aucune couche proxy à déboguer
+- **Support natif des fournisseurs** — 28 fournisseurs via leurs SDK officiels, aucune couche proxy à déboguer
 - **Configuration en une commande** — Docker ou pip, suivez l'assistant, vous discutez en environ une minute
 - **Fonctionne partout** — Terminal, WebUI, Discord, Telegram, WhatsApp, app de bureau Windows et plus
 

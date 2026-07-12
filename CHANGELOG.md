@@ -1,3 +1,26 @@
+## [0.9.5] - 2026-07-12
+
+### Added
+- **🔐 Encrypted Credentials Vault (Major Security Update)** — We have fundamentally overhauled secret management. ShibaClaw now utilizes a robust AES-128/256 symmetric encrypted vault (`credentials.enc` and `credentials.key`) via Fernet. This entirely isolates all third-party integration secrets (API keys, bot tokens, email passwords) from plaintext config files, preventing accidental leaks.
+- **🌐 Native xAI & Advanced OAuth Flows** — Integrated real, native OAuth / Device Code flows directly into the WebUI. You can now authenticate seamlessly with **xAI / Grok** using official device code mechanisms, alongside GitHub Copilot, OpenAI Codex, and OpenRouter, completely removing the need to touch API keys manually.
+- **🤖 Expanded Model Providers Ecosystem** — Added full, out-of-the-box support for the industry's leading models including **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax**, and **Zhipu Z.AI**.
+- **Windows File Protection** — Integrated platform-specific fallback using `icacls` to enforce strict user-only access control on keys and vaults under Windows.
+
+### Changed
+- **🎨 Complete WebUI Visual Redesign** — Overhauled the entire user interface to establish a serious, professional, and product-focused aesthetic (inspired by Linear and Stripe). Systematically removed AI-generated "visual slop" including glassmorphism backgrounds (`backdrop-filter: blur`), decorative gradient text, excessive gold glows, and float animations. Replaced arbitrary side-stripe borders with clean, semantic background tints, unified the border-radius system under a strict token scale (4px/8px/12px), and optimized color contrast across dark themes to meet WCAG standards.
+
+### Fixed
+- **Insecure Plaintext Fallbacks** — Refactored WebUI onboarding and Github OAuth settings flow to store retrieved tokens directly in the encrypted vault rather than failing to validate them against schema changes.
+- **Race Conditions in Vault Updates** — Wrapped all modifying credential operations under a `threading.Lock` to guarantee safety during concurrent WebUI updates.
+- **Silent Corruption Data Loss** — Configured the vault loading flow to raise a `RuntimeError` on decrypt failures rather than returning an empty database which would accidentally overwrite existing secrets.
+- **Path-Aware Cryptography Caches** — Replaced global single-key Fernet cache with a path-specific map to prevent key reuse conflicts in script environments.
+- **Complete Channel Vault-First Hardening** — Integrated and verified vault resolution helpers for DingTalk, Feishu, QQ, MoChat, Discord, and the WhatsApp channel plugin.
+- **Connected Apps Seamless Configuration** — Fixed a UX bug where saving the Klavis API Key for the first time required manually closing and reopening the menu. The WebUI now automatically refreshes the App states and enables the Connect buttons immediately without a reload.
+- **Python Codebase Linting** — Addressed `Ruff` static analysis errors including unrolling multi-line statements and cleaning up unused imports and undefined variables across core modules (`channel.py`, `utils.py`, `gateway.py`).
+
+### Optimized
+- **WebUI Loading & WebSocket Initialization** — Migrated WebUI frontend assets to use `esbuild` for bundling and minification. The modular ES6 architecture is now compiled into a single `bundle.js` and `index.css`, drastically reducing HTTP request overhead and fixing race conditions in WebSocket connection initialization loops.
+
 ## [0.9.4] - 2026-07-11
 
 ### Fixed

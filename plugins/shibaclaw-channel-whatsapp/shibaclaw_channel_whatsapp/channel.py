@@ -21,6 +21,18 @@ class WhatsAppConfig(Base):
     bridge_token: str = ""
     allow_from: list[str] = Field(default_factory=list)
 
+    def resolve_bridge_token(self) -> str:
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "whatsapp.bridge_token")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.bridge_token
+
 
 class WhatsAppChannel(BaseChannel):
     """
@@ -72,9 +84,9 @@ class WhatsAppChannel(BaseChannel):
             try:
                 async with websockets.connect(bridge_url) as ws:
                     self._ws = ws
-                    if self.config.bridge_token:
+                    if self.config.resolve_bridge_token():
                         await ws.send(
-                            json.dumps({"type": "auth", "token": self.config.bridge_token})
+                            json.dumps({"type": "auth", "token": self.config.resolve_bridge_token()})
                         )
                     self._connected = True
                     logger.info("Connected to WhatsApp bridge")

@@ -216,6 +216,42 @@ class FeishuConfig(Base):
     group_policy: Literal["open", "mention"] = "mention"
     reply_to_message: bool = False
 
+    def resolve_app_secret(self) -> str:
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "feishu.app_secret")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.app_secret
+
+    def resolve_encrypt_key(self) -> str:
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "feishu.encrypt_key")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.encrypt_key
+
+    def resolve_verification_token(self) -> str:
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "feishu.verification_token")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.verification_token
+
 
 class FeishuChannel(BaseChannel):
     """
@@ -256,7 +292,7 @@ class FeishuChannel(BaseChannel):
         if not FEISHU_AVAILABLE:
             logger.error("Feishu SDK not installed. Run: pip install lark-oapi")
             return
-        if not self.config.app_id or not self.config.app_secret:
+        if not self.config.app_id or not self.config.resolve_app_secret():
             logger.error("Feishu app_id and app_secret not configured")
             return
         import lark_oapi as lark
@@ -266,13 +302,13 @@ class FeishuChannel(BaseChannel):
         self._client = (
             lark.Client.builder()
             .app_id(self.config.app_id)
-            .app_secret(self.config.app_secret)
+            .app_secret(self.config.resolve_app_secret())
             .log_level(lark.LogLevel.INFO)
             .build()
         )
         builder = lark.EventDispatcherHandler.builder(
-            self.config.encrypt_key or "",
-            self.config.verification_token or "",
+            self.config.resolve_encrypt_key() or "",
+            self.config.resolve_verification_token() or "",
         ).register_p2_im_message_receive_v1(self._on_message_sync)
         builder = self._register_optional_event(
             builder, "register_p2_im_message_reaction_created_v1", self._on_reaction_created
@@ -288,7 +324,7 @@ class FeishuChannel(BaseChannel):
         event_handler = builder.build()
         self._ws_client = lark.ws.Client(
             self.config.app_id,
-            self.config.app_secret,
+            self.config.resolve_app_secret(),
             event_handler=event_handler,
             log_level=lark.LogLevel.INFO,
         )

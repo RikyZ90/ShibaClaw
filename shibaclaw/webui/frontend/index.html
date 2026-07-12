@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ShibaClaw — AI Assistant</title>
+    <meta name="description" content="ShibaClaw WebUI — Premium AI Agent Interface">
+    <link rel="icon" type="image/webp" href="/shibaclaw_logo.webp">
+    <link rel="apple-touch-icon" href="/shibaclaw_logo.webp">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/index.css?v=2">
+    <link rel="stylesheet" href="/css/mcp_manager.css?v=1">
+    <link rel="stylesheet" href="/css/connected_apps.css?v=1">
+
+    <!-- WebSocket adapter and Marked.js -->
+    <script src="/js/realtime.js"></script>
+    <script src="/vendor/marked.min.js"></script>
+    <script src="/vendor/purify.min.js"></script>
+
+
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="/vendor/github-dark.min.css">
+    <script src="/vendor/highlight.min.js"></script>
+
+</head>
+
+<body>
+    <!-- Login Screen (shown when auth is required) -->
+    <div class="login-overlay" id="login-overlay" style="display:none">
+        <div class="login-card">
+            <img src="/shibaclaw_logo.webp" alt="ShibaClaw" class="login-logo">
+            <h1 class="login-title">ShibaClaw</h1>
+            <p id="login-subtitle" class="login-subtitle">Enter your credentials to continue</p>
+            <div class="login-input-group" style="flex-direction: column; align-items: stretch;">
+                <input type="text" id="login-username" class="login-input" placeholder="Username"
+                    autocomplete="username" spellcheck="false" aria-label="Username">
+                <input type="password" id="login-password" class="login-input" placeholder="Password"
+                    autocomplete="current-password" spellcheck="false" aria-label="Password">
+                <button id="btn-login" class="login-btn" style="width: 100%; justify-content: center; margin-top: 8px;">
+                    <span id="btn-login-icon" class="material-icons-round" style="font-size:18px;vertical-align:middle">login</span>
+                    <span id="btn-login-text">Connect</span>
+                </button>
+            </div>
+            <div id="login-error" class="login-error" style="display:none">Invalid credentials</div>
+            <p id="login-hint" class="login-hint" style="display:none"></p>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="logo-icon">
+                    <div class="logo-text">
+                        <h1>ShibaClaw</h1>
+                        <div class="header-sub-row">
+                            <span class="version" id="sidebar-version" onclick="openChangelog()"
+                                title="View what's new">loading...</span>
+                            <div class="status-micro" id="status-card">
+                                <div class="status-dot disconnected" id="status-dot"></div>
+                                <span class="status-text" id="status-text">Connecting...</span>
+                                <button class="btn-restart" id="btn-restart" onclick="restartGateway()"
+                                    title="Restart Gateway" tabindex="-1" aria-label="Restart Gateway">
+                                    <span class="material-icons-round">refresh</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+                    <span class="material-icons-round">menu</span>
+                </button>
+            </div>
+
+            <div class="sidebar-actions">
+                <button class="btn-action btn-new-chat" id="btn-new-session">
+                    <span class="material-icons-round">add_circle</span>
+                    <span>New Session</span>
+                </button>
+            </div>
+
+
+            <div class="sidebar-section">
+                <div class="section-title">TOOLS</div>
+                <button class="btn-command" onclick="openModal('fs-modal')">
+                    <span class="material-icons-round">folder_open</span> Files
+                </button>
+                <button class="btn-command" onclick="openModal('automation-modal')">
+                    <span class="material-icons-round">event_repeat</span> Automation
+                    <span class="automation-badge-mini" id="automation-badge-mini" style="display:none"></span>
+                </button>
+                <button class="btn-command" onclick="openModal('knowledge-modal')">
+                    <span class="material-icons-round">library_books</span> Knowledge Base
+                </button>
+                <button class="btn-command" onclick="openModal('connected-apps-modal')">
+                    <span class="material-icons-round">apps</span> Apps
+                </button>
+                <button class="btn-command" onclick="openModal('settings-modal')">
+                    <span class="material-icons-round">settings</span> Settings
+                </button>
+            </div>
+
+            <!-- History Section -->
+            <div class="sidebar-section history-section">
+                <div class="section-title">SESSIONS</div>
+                <div id="history-list" class="history-list">
+                    <div class="history-item loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Workspace Summary -->
+            <div class="sidebar-section workspace-summary-section" id="workspace-summary">
+                <div class="summary-row" title="Active Channels">
+                    <div class="status-dot disconnected" id="summary-ch-dot"></div>
+                    <span>Channel: <strong id="summary-channels">--</strong></span>
+                </div>
+                <div class="summary-row" title="Configured Provider">
+                    <div class="status-dot disconnected" id="summary-provider-dot"></div>
+                    <span>Provider: <strong id="summary-provider">--</strong></span>
+                </div>
+                <div class="summary-row" title="Restrict agent to workspace directory">
+                    <div class="status-dot disconnected" id="summary-restrict-dot"></div>
+                    <span>Restrict WP: <strong id="summary-restrict-badge">--</strong></span>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="footer-actions">
+                    <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" rel="noopener noreferrer"
+                        class="btn-command btn-github" title="GitHub" aria-label="GitHub">
+                        <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                            </path>
+                        </svg>
+                    </a>
+                    <button class="btn-command btn-logout btn-icon-only" id="btn-logout" type="button" title="Logout"
+                        aria-label="Logout from ShibaClaw" hidden>
+                        <span class="material-icons-round" aria-hidden="true">logout</span>
+                    </button>
+                </div>
+                <div class="footer-info" aria-label="Local time">
+                    <span class="material-icons-round" aria-hidden="true">schedule</span>
+                    <span class="footer-info-label">Local time</span>
+                    <span id="clock">--:--</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-area" id="chat-area">
+            <!-- Top Bar -->
+            <header class="chat-header">
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open mobile menu">
+                    <span class="material-icons-round">menu</span>
+                </button>
+                <div class="chat-header-info">
+                    <div class="profile-selector" id="profile-selector">
+                        <button class="btn-profile" id="btn-profile" title="Agent Profile">
+                            <span class="material-icons-round">smart_toy</span>
+                            <span class="profile-label" id="profile-label">Default</span>
+                            <span class="material-icons-round" style="font-size:16px">expand_more</span>
+                        </button>
+                        <div class="profile-dropdown" id="profile-dropdown"></div>
+                    </div>
+                </div>
+                <div class="notification-center" id="notification-center">
+                    <button class="notification-bell" id="notification-bell" title="Notifications"
+                        aria-label="Notifications">
+                        <span class="material-icons-round">notifications</span>
+                        <span class="notification-badge" id="notification-badge" hidden>0</span>
+                    </button>
+                    <div class="notification-dropdown" id="notification-dropdown" aria-hidden="true">
+                        <div class="notification-dropdown-header">
+                            <div>
+                                <div class="notification-dropdown-title">Notifications</div>
+                                <div class="notification-dropdown-subtitle" id="notification-subtitle">Loading...</div>
+                            </div>
+                            <div class="notification-dropdown-actions">
+                                <button type="button" class="notification-action-btn" id="notification-mark-all">Mark
+                                    all read</button>
+                                <button type="button" class="notification-action-btn"
+                                    id="notification-clear-all">Clear</button>
+                            </div>
+                        </div>
+                        <div class="notification-list" id="notification-list">
+                            <div class="notification-empty">Loading notifications...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="width-toggle-wrapper">
+                    <button class="btn-width-toggle" id="btn-width-toggle" title="Adjust chat width"
+                        aria-label="Adjust chat width">
+                        <span class="material-icons-round">view_column</span>
+                    </button>
+                    <div class="width-popover" id="width-popover">
+                        <div class="width-presets">
+                            <button class="width-preset" data-width="600">Narrow</button>
+                            <button class="width-preset active" data-width="860">Default</button>
+                            <button class="width-preset" data-width="1100">Wide</button>
+                            <button class="width-preset" data-width="1400">Full</button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcome-screen">
+                <div class="welcome-content">
+                    <img src="/shibaclaw_logo.webp" alt="ShibaClaw Logo" class="welcome-logo">
+                    <h2 class="welcome-title">Welcome to ShibaClaw</h2>
+                    <p class="welcome-subtitle">A powerful AI agent that learns, acts, and secures your workflow.</p>
+                    <div class="welcome-hints">
+                        <button class="hint-card"
+                            data-hint="Help me set up my personal info. Ask me one question at a time and build a clean profile I can refine later.">
+                            <span class="material-icons-round">manage_accounts</span>
+                            <span>Set up my profile</span>
+                        </button>
+                        <button class="hint-card"
+                            data-hint="Help me start a new project. Ask what I want to build, then propose the stack, structure, and first files.">
+                            <span class="material-icons-round">rocket_launch</span>
+                            <span>New project setup</span>
+                        </button>
+                        <button class="hint-card"
+                            data-hint="Help me schedule something. Ask what needs to happen, when it should run, and whether it should repeat.">
+                            <span class="material-icons-round">event_repeat</span>
+                            <span>Schedule a task</span>
+                        </button>
+                        <button class="hint-card"
+                            data-hint="Analyze this workspace and give me a clear map of the project, key files, entry points, and what matters first.">
+                            <span class="material-icons-round">travel_explore</span>
+                            <span>Explore this repo</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat History -->
+            <div class="chat-history" id="chat-history"></div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <div class="thinking-indicator" id="thinking-indicator">
+                        <div class="thinking-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="thinking-text" id="thinking-text">Thinking...</span>
+                    </div>
+                    <div id="attachment-staging" class="attachment-staging" style="display:none">
+                        <!-- Staged files appear here -->
+                    </div>
+                    <div class="input-container">
+                        <button class="btn-attach" id="btn-mic" title="Voice Message (Auto-Stop on silence)"
+                            aria-label="Record voice message">
+                            <span class="material-icons-round">mic</span>
+                        </button>
+                        <button class="btn-attach" id="btn-attach" title="Attach files or images"
+                            aria-label="Attach files or images">
+                            <span class="material-icons-round">attach_file</span>
+                        </button>
+                        <input type="file" id="file-input" multiple style="display:none">
+                        <textarea id="chat-input" placeholder="Send a message to ShibaClaw..." rows="1"
+                            aria-label="Chat message" autofocus></textarea>
+                        <button class="btn-send" id="btn-send" disabled aria-label="Send message">
+                            <span class="material-icons-round">send</span>
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <div class="input-actions">
+                            <!-- Model Selector Dropdown -->
+                            <div class="model-selector-wrapper" id="model-selector-wrapper" style="position: relative;">
+                                <button class="btn-input-action" id="btn-model-select"
+                                    title="Change active model for session">
+                                    <span class="material-icons-round">auto_awesome</span>
+                                    <span id="active-model-display">Default</span>
+                                    <span class="material-icons-round"
+                                        style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
+                                </button>
+                            </div>
+                            <!-- Knowledge Base Selector Dropdown -->
+                            <div class="model-selector-wrapper" id="kb-selector-wrapper" style="position: relative;">
+                                <button class="btn-input-action" id="btn-kb-select"
+                                    title="Select active Knowledge Bases">
+                                    <span class="material-icons-round">library_books</span>
+                                    <span id="active-kb-display">KBs (0)</span>
+                                    <span class="material-icons-round"
+                                        style="margin-left: 4px; font-size: 16px;">arrow_drop_up</span>
+                                </button>
+                                <div class="model-dropdown-menu premium-dropdown" id="kb-dropdown-menu"
+                                    style="display: none; bottom: calc(100% + 12px); top: auto; min-width: 180px; width: max-content; padding: 0; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; background: var(--bg-secondary);">
+                                    <div style="padding: 10px 12px 6px 12px; display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600;">Collections</span>
+                                        <span class="material-icons-round" onclick="openModal('knowledge-modal'); document.getElementById('kb-dropdown-menu').style.display = 'none';" style="font-size: 16px; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--text-color)'" onmouseout="this.style.color='var(--text-muted)'" title="Manage Collections">settings</span>
+                                    </div>
+                                    <div class="model-dropdown-list" id="kb-dropdown-list" style="max-height: 250px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px;">
+                                        <!-- populated dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="model-dropdown-menu" id="model-dropdown-menu" style="display: none;">
+                                <input type="text" id="model-search-input" placeholder="Search models..."
+                                    autocomplete="off" aria-label="Search models...">
+                                <div class="model-list" id="model-list-container">
+                                    <!-- Models injected here -->
+                                    <div
+                                        style="padding: 10px; color: var(--text-2); text-align: center; font-size: 0.85rem;">
+                                        Loading models...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <button class="btn-input-action" id="btn-context" onclick="openModal('context-modal')"
+                                title="View context">
+                                <span class="material-icons-round">psychology</span>
+                                <span>Context</span>
+                            </button>
+                            <button class="btn-input-action btn-stop" id="btn-stop" disabled title="Stop agent">
+                                <span class="material-icons-round">stop_circle</span>
+                                <span>Stop</span>
+                            </button>
+                        </div>
+                        
+                        <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+                            <span class="input-hint">Shift + <span class="material-icons-round"
+                                style="font-size: 12px; vertical-align: middle; margin-bottom: 2px;">keyboard_return</span>
+                                for new line</span>
+                            <div class="token-badge" id="token-badge" title="Click to view full context"
+                                onclick="openModal('context-modal')">
+                                <div class="token-badge-fill" id="token-badge-fill"></div>
+                                <span class="material-icons-round" style="z-index: 1;">data_usage</span>
+                                <span class="token-badge-text" id="token-badge-text" style="z-index: 1;">-- / --</span>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+    </div>
+    </main>
+
+    <!-- Settings View (Dedicated Page) -->
+    <div id="settings-view" class="settings-view" style="display:none">
+        <header class="settings-header">
+            <div class="settings-header-left">
+                <button class="settings-back-btn" onclick="closeSettingsView()" title="Back to Chat"
+                    aria-label="Back to Chat">
+                    <span class="material-icons-round">arrow_back</span>
+                </button>
+                <div>
+                    <h2>Settings</h2>
+                    <span class="settings-subtitle" id="settings-current-tab-title">Agent</span>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="saveSettings()">
+                <span class="material-icons-round" style="font-size:1rem;vertical-align:middle">save</span> Save Changes
+            </button>
+        </header>
+
+        <div class="settings-layout">
+            <!-- Vertical sidebar nav -->
+            <nav class="settings-sidebar" id="settings-sidebar">
+                <button class="settings-sidebar-item active" data-tab="agent" onclick="switchSettingsTab('agent')">
+                    <span class="material-icons-round">smart_toy</span><span>Agent</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
+                    <span class="material-icons-round">key</span><span>Provider</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
+                    <span class="material-icons-round">lock_open</span><span>OAuth</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
+                    <span class="material-icons-round">mic</span><span>Voice & Audio</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
+                    <span class="material-icons-round">build</span><span>Tools</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="mcp" onclick="switchSettingsTab('mcp')">
+                    <span class="material-icons-round">hub</span><span>MCP</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
+                    <span class="material-icons-round">dns</span><span>Gateway</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
+                    <span class="material-icons-round">forum</span><span>Channels</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
+                    <span class="material-icons-round">menu_book</span><span>Skills</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="plugins" onclick="switchSettingsTab('plugins')">
+                    <span class="material-icons-round">extension</span><span>Plugins</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
+                    <span class="material-icons-round">system_update</span><span>Update</span>
+                </button>
+            </nav>
+
+            <!-- Mobile category list dashboard -->
+            <div class="settings-mobile-dashboard" id="settings-mobile-dashboard">
+                <div class="mobile-dashboard-grid">
+                    <button class="dashboard-card" onclick="switchSettingsTab('agent')">
+                        <span class="material-icons-round dash-icon">smart_toy</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Agent</div>
+                            <div class="dash-desc">Workspace, default model, thought settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('providers')">
+                        <span class="material-icons-round dash-icon">key</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Provider</div>
+                            <div class="dash-desc">Configure API keys & endpoints</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('oauth')">
+                        <span class="material-icons-round dash-icon">lock_open</span>
+                        <div class="dash-content">
+                            <div class="dash-title">OAuth</div>
+                            <div class="dash-desc">Link OpenRouter, GitHub, etc.</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('audio')">
+                        <span class="material-icons-round dash-icon">mic</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Voice & Audio</div>
+                            <div class="dash-desc">Speech to text & audio settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('tools')">
+                        <span class="material-icons-round dash-icon">build</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Tools</div>
+                            <div class="dash-desc">Web search, proxy & execution options</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('mcp')">
+                        <span class="material-icons-round dash-icon">hub</span>
+                        <div class="dash-content">
+                            <div class="dash-title">MCP</div>
+                            <div class="dash-desc">Model Context Protocol servers</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('gateway')">
+                        <span class="material-icons-round dash-icon">dns</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Gateway</div>
+                            <div class="dash-desc">Server port, host & connection settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('channels')">
+                        <span class="material-icons-round dash-icon">forum</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Channels</div>
+                            <div class="dash-desc">Progress reporting & notifications</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('skills')">
+                        <span class="material-icons-round dash-icon">menu_book</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Skills</div>
+                            <div class="dash-desc">Browse, pin & import workspace skills</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('plugins')">
+                        <span class="material-icons-round dash-icon">extension</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Plugins</div>
+                            <div class="dash-desc">Manage custom extensions and TTS voice engines</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('update')">
+                        <span class="material-icons-round dash-icon">system_update</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Update</div>
+                            <div class="dash-desc">Check for updates & onboard wizard</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content pane -->
+            <div class="settings-content" id="settings-body">
+                <!-- Mobile detail header back button -->
+                <button class="settings-mobile-back" id="settings-mobile-back" onclick="backToSettingsDashboard()">
+                    <span class="material-icons-round">arrow_back</span> Back to settings list
+                </button>
+
+                <!-- Loading spinner -->
+                <div id="settings-loading" class="settings-loader">
+                    <span class="material-icons-round spin">progress_activity</span>
+                    Loading settings...
+                </div>
+
+                <!-- Tab: Agent -->
+                <div class="settings-panel" id="panel-agent">
+                    <div class="field-row"><label for="s-agent-workspace">Workspace</label><input type="text"
+                            id="s-agent-workspace" class="form-input" placeholder="~/.shibaclaw/workspace"></div>
+                    <div class="field-row field-row-stack">
+                        <label for="s-agent-model-button">Default Model For New Sessions</label>
+                        <p class="settings-note">Used when you create a new chat. Provider routing is inferred
+                            automatically from the selected model.</p>
+                        <div class="settings-model-picker" id="s-agent-model-picker">
+                            <input type="hidden" id="s-agent-model">
+                            <button type="button" class="form-input settings-model-button" id="s-agent-model-button">
+                                <span class="settings-model-button-main">
+                                    <span class="settings-model-button-label" id="s-agent-model-display">Select a
+                                        default model</span>
+                                    <span class="settings-model-button-provider" id="s-agent-model-provider">New
+                                        sessions</span>
+                                </span>
+                                <span class="material-icons-round">arrow_drop_down</span>
+                            </button>
+                            <div class="settings-model-menu" id="s-agent-model-menu" style="display:none">
+                                <input type="text" id="s-agent-model-search" class="form-input settings-model-search"
+                                    placeholder="Search models..." autocomplete="off" aria-label="Search models...">
+                                <div class="settings-model-list" id="s-agent-model-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <label for="s-agent-consolidationModel-button">Memory / Consolidation Model</label>
+                        <p class="settings-note">Optional. Leave it empty to reuse the default session model for
+                            proactive learning and long-term memory consolidation.</p>
+                        <div class="settings-model-picker" id="s-agent-consolidationModel-picker">
+                            <input type="hidden" id="s-agent-consolidationModel">
+                            <button type="button" class="form-input settings-model-button"
+                                id="s-agent-consolidationModel-button">
+                                <span class="settings-model-button-main">
+                                    <span class="settings-model-button-label"
+                                        id="s-agent-consolidationModel-display">Same as default session model</span>
+                                    <span
+                                        class="settings-model-button-provider settings-model-button-provider-placeholder"
+                                        id="s-agent-consolidationModel-provider">Inherits</span>
+                                </span>
+                                <span class="material-icons-round">arrow_drop_down</span>
+                            </button>
+                            <div class="settings-model-menu" id="s-agent-consolidationModel-menu" style="display:none">
+                                <input type="text" id="s-agent-consolidationModel-search"
+                                    class="form-input settings-model-search" placeholder="Search models..."
+                                    autocomplete="off" aria-label="Search models...">
+                                <div class="settings-model-list" id="s-agent-consolidationModel-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field-row"><label for="s-agent-maxTokens">Max Tokens</label><input type="number"
+                            id="s-agent-maxTokens" class="form-input" value="8192"></div>
+                    <div class="field-row"><label for="s-agent-ctxTokens">Context Window Tokens</label><input
+                            type="number" id="s-agent-ctxTokens" class="form-input" value="65536"></div>
+                    <div class="field-row"><label for="s-agent-temp">Temperature</label><input type="text"
+                            id="s-agent-temp" class="form-input" value="0.1"></div>
+                    <div class="field-row"><label for="s-agent-maxIter">Max Tool Iterations</label><input type="number"
+                            id="s-agent-maxIter" class="form-input" value="40" min="0"
+                            title="Max tool iterations (0 for no limit)"></div>
+                    <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s)</label><input type="number"
+                            id="s-agent-toolTimeout" class="form-input" value="660" min="0"
+                            title="Max seconds for all tool executions combined (0 for no timeout)"></div>
+                    <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s)</label><input
+                            type="number" id="s-agent-loopWallTimeout" class="form-input" value="600" min="0"
+                            title="Max seconds for the entire agent loop (0 for no timeout)"></div>
+                    <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s)</label><input
+                            type="number" id="s-agent-subagentTimeout" class="form-input" value="600" min="0"
+                            title="Max seconds for a single subagent execution (0 for no timeout)"></div>
+                    <div class="field-row"><label for="s-agent-reasoning">Reasoning Effort</label><input type="text"
+                            id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
+
+                    <div class="field-row">
+                        <label for="s-ui-hide-thoughts">Thought Blocks (Reasoning Models)</label>
+                        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                                <label class="toggle" title="Hide &lt;think&gt; blocks"><input type="checkbox"
+                                        id="s-ui-hide-thoughts"><span class="toggle-slider"></span></label>
+                                <span class="settings-note">Hide reasoning content (&lt;think&gt; tags)</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                                <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
+                                        class="toggle-slider"></span></label>
+                                <span class="settings-note">Collapse Thought Blocks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field-row">
+                        <label for="s-ui-mobile-enter-newline">Mobile: Enter inserts newline</label>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <label class="toggle"><input type="checkbox" id="s-ui-mobile-enter-newline"><span
+                                    class="toggle-slider"></span></label>
+                            <span class="settings-note" style="margin-left:6px">On mobile devices, pressing Enter
+                                inserts a newline instead of sending the message</span>
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Tab: Providers (card grid) -->
+                <div class="settings-panel" id="panel-providers" style="display:none">
+                    <div class="provider-stats-bar">
+                        <div class="provider-search-wrap">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" id="provider-search" class="provider-search-input"
+                                placeholder="Filter providers..." aria-label="Filter providers...">
+                        </div>
+                        <div class="provider-stats-count" id="provider-stats"></div>
+                    </div>
+                    <div class="provider-grid" id="providers-list"></div>
+                </div>
+
+
+                <!-- Tab: OAuth Providers -->
+                <div class="settings-panel" id="panel-oauth" style="display:none">
+                    <div class="oauth-list" id="oauth-list">
+                        <div class="field-row" style="grid-template-columns:1fr">Loading OAuth providers...</div>
+                    </div>
+                </div>
+
+
+                <!-- Tab: Audio -->
+                <div class="settings-panel" id="panel-audio" style="display:none">
+                    <div class="field-row field-row-stack">
+                        <label for="s-audio-providerUrl">STT Provider URL</label>
+                        <p class="settings-note">
+                            Leave empty to use OpenAI official endpoint. For <strong>Groq</strong> (free tier,
+                            ultra-fast)
+                            use: <code>https://api.groq.com/openai/v1</code>
+                        </p>
+                        <input type="text" id="s-audio-providerUrl" class="form-input"
+                            placeholder="https://api.groq.com/openai/v1">
+                    </div>
+                    <div class="field-row"><label for="s-audio-apiKey">STT API Key</label><input type="password"
+                            id="s-audio-apiKey" class="form-input" placeholder="gsk_... (Groq) or sk-... (OpenAI)">
+                    </div>
+                    <div class="field-row"><label for="s-audio-model">STT Model</label><input type="text"
+                            id="s-audio-model" class="form-input" placeholder="whisper-large-v3-turbo"></div>
+                    <div class="field-row"><label for="tts-toggle">Text-To-Speech (Bot Voice)</label><label
+                            class="toggle"><input type="checkbox" id="tts-toggle"><span
+                                class="toggle-slider"></span></label></div>
+                    <div class="field-row" id="tts-provider-row" style="display:none">
+                        <label for="s-audio-ttsProvider">TTS Provider</label>
+                        <select id="s-audio-ttsProvider" class="form-input">
+                            <option value="browser">Browser Native Synthesis</option>
+                            <option value="supertonic">Supertonic TTS (Local ONNX)</option>
+                        </select>
+                    </div>
+                    <div class="field-row" id="tts-voice-row" style="display:none">
+                        <label for="s-audio-ttsVoice">TTS Voice</label>
+                        <select id="s-audio-ttsVoice" class="form-input">
+                            <option value="F1">Female 1 (en_female)</option>
+                            <option value="M1">Male 1 (en_male)</option>
+                        </select>
+                    </div>
+                    <div class="field-row" id="tts-lang-row" style="display:none">
+                        <label for="s-audio-ttsLang">TTS Language</label>
+                        <select id="s-audio-ttsLang" class="form-input">
+                            <option value="en">English (en)</option>
+                            <option value="it">Italiano (it)</option>
+                            <option value="es">Español (es)</option>
+                            <option value="fr">Français (fr)</option>
+                            <option value="de">Deutsch (de)</option>
+                            <option value="ja">日本語 (ja)</option>
+                            <option value="na">Auto-detect (na)</option>
+                        </select>
+                    </div>
+                    <div class="field-row" id="tts-speed-row" style="display:none">
+                        <label for="s-audio-ttsSpeed">TTS Speed</label>
+                        <input type="number" id="s-audio-ttsSpeed" class="form-input" min="0.5" max="2.0" step="0.1"
+                            value="1.0">
+                    </div>
+                </div>
+
+                <!-- Tab: Tools -->
+                <div class="settings-panel" id="panel-tools" style="display:none">
+                    <div class="field-row"><label for="s-tool-searchProvider">Search Provider</label><input type="text"
+                            id="s-tool-searchProvider" class="form-input" placeholder="brave, tavily..."></div>
+                    <div class="field-row"><label for="s-tool-searchKey">Search API Key</label><input type="password"
+                            id="s-tool-searchKey" class="form-input" placeholder="API key"></div>
+                    <div class="field-row"><label for="s-tool-searchMax">Max Search Results</label><input type="number"
+                            id="s-tool-searchMax" class="form-input" value="5"></div>
+                    <div class="field-row"><label for="s-tool-proxy">Proxy URL</label><input type="text"
+                            id="s-tool-proxy" class="form-input" placeholder="(optional)"></div>
+                    <div class="field-row"><label for="s-tool-execEnable">Shell Exec Enabled</label><label
+                            class="toggle"><input type="checkbox" id="s-tool-execEnable"><span
+                                class="toggle-slider"></span></label>
+                    </div>
+                    <div class="field-row"><label for="s-tool-execTimeout">Exec Timeout (s)</label><input type="number"
+                            id="s-tool-execTimeout" class="form-input" value="60"></div>
+                    <div class="field-row"><label for="s-tool-restrict">Restrict to Workspace</label><label
+                            class="toggle"><input type="checkbox" id="s-tool-restrict"><span
+                                class="toggle-slider"></span></label>
+                    </div>
+                </div>
+
+                <!-- Tab: MCP Servers -->
+                <div class="settings-panel" id="panel-mcp" style="display:none">
+                    <div id="mcp-manager-container"></div>
+                </div>
+
+                <!-- Tab: Gateway -->
+                <div class="settings-panel" id="panel-gateway" style="display:none">
+                    <div class="field-row"><label for="s-gw-host">Host</label><input type="text" id="s-gw-host"
+                            class="form-input" placeholder="127.0.0.1"></div>
+                    <div class="field-row"><label for="s-gw-port">Port</label><input type="number" id="s-gw-port"
+                            class="form-input" value="19999"></div>
+
+                    <div class="settings-section-divider" style="margin-top: 2rem;">
+                        <span class="material-icons-round">security</span>
+                        <span>Security</span>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <p class="settings-note">Change the admin password used to login to the Web UI and encrypt your credential vault.</p>
+                        <button type="button" class="btn-secondary" onclick="openChangePasswordModal()">
+                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle">password</span>
+                            Change Password
+                        </button>
+                    </div>
+
+                    <!--
+                            Legacy heartbeat fields — kept hidden so saveSettings() still collects them
+                            and avoids stripping existing config values. Managed via the Automation panel.
+                        -->
+                    <input type="hidden" id="s-hb-enabled" value="true">
+                    <input type="hidden" id="s-hb-interval" value="30">
+                    <input type="hidden" id="s-hb-model" value="">
+                    <input type="hidden" id="s-hb-profile" value="">
+                    <select id="s-hb-target-channel" style="display:none"></select>
+                    <input type="hidden" id="s-hb-target-id" value="">
+                </div>
+
+                <!-- Tab: Channels (split layout) -->
+                <div class="settings-panel" id="panel-channels" style="display:none">
+                    <div class="channel-top-bar">
+                        <div class="channel-top-chip">
+                            <span>Send Progress</span>
+                            <label class="toggle"><input type="checkbox" id="s-ch-sendProgress"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="channel-top-chip">
+                            <span>Send Tool Hints</span>
+                            <label class="toggle"><input type="checkbox" id="s-ch-sendToolHints"><span
+                                    class="toggle-slider"></span></label>
+                        </div>
+                        <div class="channel-top-stats" id="channel-stats"></div>
+                    </div>
+                    <div class="channel-split">
+                        <div class="channel-list" id="channel-list"></div>
+                        <div class="channel-detail-pane" id="channel-detail-pane">
+                            <div class="channel-detail-empty">
+                                <span class="material-icons-round">touch_app</span>
+                                Select a channel to configure
+                            </div>
+                        </div>
+                    </div>
+                    <div id="channels-detail" style="display:none"></div>
+                </div>
+
+                <!-- Tab: Skills -->
+                <div class="settings-panel" id="panel-skills" style="display:none">
+                    <!-- Skills toolbar -->
+                    <div class="skills-toolbar">
+                        <input type="text" id="skills-search" class="form-input"
+                            placeholder="Filter skills by name or description..."
+                            aria-label="Filter skills by name or description...">
+                        <div class="skills-toolbar-actions">
+                            <select id="skills-profile-select" class="form-select"
+                                style="min-width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); margin-right: 8px;"
+                                aria-label="Select profile for skills" onchange="loadSkillsPanel()">
+                                <option value="default">Default Profile</option>
+                            </select>
+                            <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">refresh</span> Refresh
+                            </button>
+                            <button type="button" class="btn-secondary"
+                                onclick="window.open('https://clawhub.ai/','_blank')">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">store</span> ClawHub
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Always Active pinning section -->
+                    <div class="skills-pinned-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">push_pin</span>
+                            <span>Always Active</span>
+                            <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
+                        </div>
+                        <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills.
+                            Injected every turn.</p>
+                        <div id="skills-pinned-list" class="skills-pinned-list"></div>
+                    </div>
+
+                    <!-- All skills browse -->
+                    <div class="skills-browse-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">menu_book</span>
+                            <span>Installed Skills</span>
+                        </div>
+                        <div id="skills-list" class="skills-list">
+                            <div class="settings-loader"><span
+                                    class="material-icons-round spin">progress_activity</span> Loading skills...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Import section -->
+                    <div class="skills-import-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">upload_file</span>
+                            <span>Import Skills (.zip)</span>
+                        </div>
+                        <div class="skills-import-form">
+                            <input type="file" id="skills-import-file" accept=".zip" style="display:none"
+                                onchange="handleSkillsFileSelect(event)">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('skills-import-file').click()">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
+                            </button>
+                            <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
+                            <button type="button" class="btn-primary" id="skills-import-btn" onclick="importSkills()"
+                                disabled>
+                                Import
+                            </button>
+                        </div>
+                        <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
+                    </div>
+                </div>
+
+                <div class="settings-panel" id="panel-plugins" style="display:none">
+                    <div class="skills-toolbar">
+                        <input type="text" id="plugin-install-name" class="form-input"
+                            placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL..."
+                            aria-label="Plugin package name or Git URL">
+                        <div class="skills-toolbar-actions">
+                            <button type="button" class="btn-primary" onclick="installPlugin()">
+                                <span class="material-icons-round"
+                                    style="font-size:16px;vertical-align:middle">download</span> Install
+                            </button>
+                        </div>
+                    </div>
+                    <div id="plugin-action-log" class="console-box"
+                        style="display:none; font-family:var(--font-mono); font-size:0.75rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:16px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--text-secondary)">
+                    </div>
+                    <div class="skills-browse-section">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">extension</span>
+                            <span>Installed Plugins</span>
+                        </div>
+                        <div id="installed-plugins-list" class="skills-list"></div>
+                    </div>
+                    <div class="skills-browse-section" style="margin-top: 1.5rem;">
+                        <div class="skills-section-header">
+                            <span class="material-icons-round">cloud_download</span>
+                            <span>Available Plugins</span>
+                        </div>
+                        <div id="available-plugins-list" class="skills-list"></div>
+                    </div>
+                </div>
+
+                <!-- Tab: Update -->
+                <div class="settings-panel" id="panel-update" style="display:none">
+                    <div id="update-status-container">
+                        <div class="update-checking"><span class="material-icons-round spin">progress_activity</span>
+                            Loading...</div>
+                    </div>
+
+                    <div class="settings-section-divider" style="margin-top: 2rem;">
+                        <span class="material-icons-round">rocket_launch</span>
+                        <span>Setup Wizard</span>
+                    </div>
+                    <div class="field-row field-row-stack">
+                        <p class="settings-note">Reopen the guided setup to configure provider, credentials, model
+                            and workspace templates.</p>
+                        <button type="button" class="btn-secondary settings-onboard-btn"
+                            onclick="openOnboardFromSettings()">
+                            <span class="material-icons-round"
+                                style="font-size:16px;vertical-align:middle">rocket_launch</span>
+                            Open onboarding wizard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
+    <!-- ── Modals ────────────────────────────────────────────── -->
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="modal-backdrop">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Change Admin Password</h2>
+                <button class="modal-close" onclick="closeModal('change-password-modal')" title="Close"><span
+                        class="material-icons-round">close</span></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+                <div class="field-row" style="flex-direction:column; align-items:stretch;">
+                    <label>Current Password</label>
+                    <input type="password" id="cp-old" class="form-input" placeholder="Current password">
+                </div>
+                <div class="field-row" style="flex-direction:column; align-items:stretch;">
+                    <label>New Password</label>
+                    <input type="password" id="cp-new" class="form-input" placeholder="New password (min 6 chars)">
+                </div>
+                <div class="field-row" style="flex-direction:column; align-items:stretch;">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="cp-confirm" class="form-input" placeholder="Confirm new password">
+                </div>
+                <div id="cp-error" class="login-error" style="display:none; margin-top:8px;"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeModal('change-password-modal')">Cancel</button>
+                <button type="button" class="btn-primary" onclick="submitChangePassword()">Change Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Automation Modal ══════════════════════════════════════════ -->
+    <div id="automation-modal" class="modal-backdrop">
+        <div class="modal modal-automation">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">event_repeat</span> Automation</h2>
+                <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('automation-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="automation-modal-toolbar">
+                <div class="automation-status-row" id="automation-status-row">
+                    <span class="material-icons-round spin" style="font-size:16px">progress_activity</span>
+                    <span id="automation-status-text">Loading...</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center">
+                    <button class="btn-secondary btn-sm" id="btn-auto-clear-completed" onclick="clearCompletedJobs()"
+                        style="display:none">
+                        <span class="material-icons-round"
+                            style="font-size:15px;vertical-align:middle">delete_sweep</span>
+                        Clear Completed
+                    </button>
+                    <button class="btn-primary btn-sm" onclick="openJobForm()">
+                        <span class="material-icons-round" style="font-size:15px;vertical-align:middle">add</span>
+                        New Job
+                    </button>
+                </div>
+            </div>
+
+            <div class="automation-tabs">
+                <button class="auto-tab active" data-tab="active" onclick="switchAutoTab('active')">
+                    <span class="material-icons-round">bolt</span> Active
+                </button>
+                <button class="auto-tab" data-tab="completed" onclick="switchAutoTab('completed')">
+                    <span class="material-icons-round">check_circle</span> Inactive
+                </button>
+            </div>
+
+            <div class="modal-body automation-modal-body">
+                <!-- Job list -->
+                <div id="automation-job-list">
+                    <div class="automation-empty-state">
+                        <span class="material-icons-round">event_repeat</span>
+                        <p>No automation jobs yet.<br>Click <strong>New Job</strong> to create one.</p>
+                    </div>
+                </div>
+
+                <!-- Inline form (hidden by default) -->
+                <div id="automation-job-form" class="automation-job-form" style="display:none">
+                    <div class="automation-form-header">
+                        <span id="automation-form-title">New Job</span>
+                        <button class="btn-icon" aria-label="Close" title="Close" onclick="closeJobForm()">
+                            <span class="material-icons-round">close</span>
+                        </button>
+                    </div>
+
+                    <div class="automation-form-body">
+                        <div class="field-row">
+                            <label for="ajf-name">Name</label>
+                            <input type="text" id="ajf-name" class="form-input" placeholder="e.g. Daily Report">
+                        </div>
+
+                        <div class="field-row field-row-stack">
+                            <label for="ajf-message">Message to agent</label>
+                            <p class="settings-note">What should the agent do when this job runs?</p>
+                            <textarea id="ajf-message" class="form-input" rows="3"
+                                placeholder="E.g. Check my latest emails and summarize them..."></textarea>
+                        </div>
+
+                        <!-- Schedule -->
+                        <div class="field-row">
+                            <label for="ajf-sched-kind">Schedule</label>
+                            <select id="ajf-sched-kind" class="form-input" onchange="onSchedKindChange()">
+                                <option value="every">Every N minutes</option>
+                                <option value="cron">Cron expression</option>
+                                <option value="at">One-shot (specific datetime)</option>
+                            </select>
+                        </div>
+                        <div id="ajf-sched-every" class="field-row">
+                            <label for="ajf-every-min">Interval (min)</label>
+                            <input type="number" id="ajf-every-min" class="form-input" value="30" min="1">
+                        </div>
+                        <div id="ajf-sched-cron" class="field-row" style="display:none">
+                            <label for="ajf-cron-expr">Cron expr</label>
+                            <input type="text" id="ajf-cron-expr" class="form-input" placeholder="0 9 * * 1-5">
+                        </div>
+                        <div id="ajf-tz-row" class="field-row" style="display:none">
+                            <label for="ajf-tz">Timezone</label>
+                            <input type="text" id="ajf-tz" class="form-input" placeholder="Europe/Rome (optional)">
+                        </div>
+                        <div id="ajf-sched-at" class="field-row" style="display:none">
+                            <label for="ajf-at-dt">Run at</label>
+                            <input type="datetime-local" id="ajf-at-dt" class="form-input">
+                        </div>
+
+                        <details style="margin-top: 24px;">
+                            <summary
+                                style="cursor: pointer; color: var(--text-muted); font-size: 13px; user-select: none; font-weight: 500;">
+                                Advanced Options</summary>
+                            <div
+                                style="margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--border-color);">
+                                <!-- Delivery -->
+                                <div class="field-row">
+                                    <label for="ajf-deliver">Deliver result</label>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="ajf-deliver" onchange="onDeliverChange()">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div id="ajf-delivery-fields" style="display:none">
+                                    <div class="field-row">
+                                        <label for="ajf-channel">Channel</label>
+                                        <select id="ajf-channel" class="form-input">
+                                            <option value="">Auto-detect</option>
+                                            <option value="webui">Web UI</option>
+                                            <option value="telegram">Telegram</option>
+                                            <option value="discord">Discord</option>
+                                            <option value="slack">Slack</option>
+                                        </select>
+                                    </div>
+                                    <div class="field-row">
+                                        <label for="ajf-target-id">Target ID</label>
+                                        <input type="text" id="ajf-target-id" class="form-input"
+                                            placeholder="chat_id / channel">
+                                    </div>
+                                </div>
+
+                                <!-- Other Advanced -->
+                                <div class="field-row">
+                                    <label for="ajf-session-key">Session key</label>
+                                    <input type="text" id="ajf-session-key" class="form-input" placeholder="(auto)">
+                                </div>
+                                <div class="field-row">
+                                    <label for="ajf-profile">Agent profile</label>
+                                    <select id="ajf-profile" class="form-input">
+                                        <option value="">Default</option>
+                                    </select>
+                                </div>
+                                <div class="field-row">
+                                    <label for="ajf-delete-after">Delete after run</label>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="ajf-delete-after">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="field-row">
+                                    <label for="ajf-enabled">Enabled</label>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="ajf-enabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="automation-form-footer">
+                        <button class="btn-secondary" onclick="closeJobForm()">Cancel</button>
+                        <button class="btn-primary" id="ajf-save-btn" onclick="saveJobForm()">
+                            <span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span>
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" id="automation-job-form-footer" style="display:none">
+                <button class="btn-secondary" onclick="closeJobForm()">Cancel</button>
+                <button class="btn-primary" id="ajf-save-btn-footer" onclick="saveJobForm()">
+                    <span class="material-icons-round" style="font-size:15px;vertical-align:middle">save</span>
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Connected Apps Modal ══════════════════════════════════════════ -->
+    <div id="connected-apps-modal" class="modal-backdrop">
+        <div class="modal" style="width: 720px; max-width: 95vw;">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">apps</span> Connected Apps</h2>
+                <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('connected-apps-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 24px; overflow-y: auto;">
+                <div id="connected-apps-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Modal -->
+    <div id="context-modal" class="modal-backdrop">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">psychology</span> Active Context</h2>
+                <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('context-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body markdown-body" id="context-content">
+                <div class="loader">Loading context...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div id="changelog-modal" class="modal-backdrop">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">new_releases</span> What's New</h2>
+                <div style="flex:1"></div>
+                <a id="changelog-github-btn" href="#" target="_blank" class="btn-secondary"
+                    style="margin-right: 12px; display: none; text-decoration: none;">
+                    <span class="material-icons-round" style="font-size:16px;vertical-align:middle">open_in_new</span>
+                    GitHub
+                </a>
+                <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('changelog-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body markdown-body" id="changelog-content">
+                <div class="loader">Fetching release notes...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Explorer Modal -->
+    <div id="fs-modal" class="modal-backdrop" data-backdrop-close="false">
+        <div class="modal large">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">folder_open</span> File Explorer</h2>
+                <button class="btn-icon" aria-label="Refresh" onclick="loadFs(state.currentFsPath || '.')"
+                    title="Refresh">
+                    <span class="material-icons-round">refresh</span>
+                </button>
+                <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('fs-modal')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="fs-breadcrumb" id="fs-breadcrumb">
+                <!-- Current path breadcrumbs -->
+            </div>
+            <div class="modal-body fs-body" id="fs-content">
+                <div class="loader">Loading files...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop Overlay -->
+    <div id="drag-overlay" class="drag-overlay">
+        <div class="drag-message">
+            <span class="material-icons-round">cloud_upload</span>
+            <p>Drop files here to attach</p>
+        </div>
+    </div>
+
+    <div id="onboard-modal" class="modal-backdrop" data-backdrop-close="false" style="z-index: 2000;">
+        <div class="modal modal-onboard">
+            <div class="modal-header">
+                <h2><span class="material-icons-round">rocket_launch</span> Welcome to ShibaClaw</h2>
+                <button class="btn-icon" aria-label="Close" title="Close" onclick="closeModal('onboard-modal')"><span
+                        class="material-icons-round">close</span></button>
+            </div>
+            <div class="ob-steps">
+                <div class="ob-step active" data-step="1"><span class="ob-dot">1</span><span
+                        class="ob-label">Provider</span></div>
+                <div class="ob-line"></div>
+                <div class="ob-step" data-step="2"><span class="ob-dot">2</span><span
+                        class="ob-label">Credentials</span></div>
+                <div class="ob-line"></div>
+                <div class="ob-step" data-step="3"><span class="ob-dot">3</span><span class="ob-label">Model</span>
+                </div>
+                <div class="ob-line"></div>
+                <div class="ob-step" data-step="4"><span class="ob-dot">4</span><span class="ob-label">Finish</span>
+                </div>
+            </div>
+            <div class="modal-body ob-body" id="ob-body">
+                <div class="ob-panel" id="ob-step-1">
+                    <p class="ob-subtitle">Choose your LLM provider</p>
+                    <div class="provider-grid" id="ob-provider-grid">
+                        <div style="text-align:center;padding:2rem;color:var(--text-muted)"><span
+                                class="material-icons-round spin">progress_activity</span></div>
+                    </div>
+                    <p class="ob-extra-note"><span class="material-icons-round">info</span>More providers can be
+                        configured later in Settings > Provider.</p>
+                </div>
+                <div class="ob-panel" id="ob-step-2" style="display:none">
+                    <p class="ob-subtitle" id="ob-key-title">Enter your API key</p>
+                    <div id="ob-key-section">
+                        <div class="ob-key-wrap">
+                            <input type="password" id="ob-api-key" class="form-input ob-key-input" placeholder="sk-..."
+                                autocomplete="off" aria-label="API Key">
+                            <button class="ob-eye" id="ob-eye-toggle" type="button"
+                                aria-label="Toggle password visibility" title="Toggle password visibility"><span
+                                    class="material-icons-round">visibility_off</span></button>
+                        </div>
+                        <p class="ob-hint" id="ob-key-hint"></p>
+                    </div>
+                    <div id="ob-oauth-section" style="display:none">
+                        <p class="ob-hint">This provider uses OAuth authentication.</p>
+                        <button class="btn-primary" id="ob-oauth-btn" style="margin-top:1rem"><span
+                                class="material-icons-round"
+                                style="font-size:16px;vertical-align:middle">lock_open</span> Login with OAuth</button>
+                        <div id="ob-oauth-status" style="margin-top:1rem"></div>
+                    </div>
+                    <div id="ob-local-section" style="display:none">
+                        <div style="text-align:center;padding:2rem">
+                            <span class="material-icons-round" style="font-size:48px;color:var(--shiba-gold)">dns</span>
+                            <p style="margin-top:1rem;color:var(--text-secondary)">No API key needed for local
+                                providers.<br>Make sure the server is running locally.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="ob-panel" id="ob-step-3" style="display:none">
+                    <p class="ob-subtitle">Choose your model</p>
+                    <p class="ob-hint" id="ob-model-hint" style="margin-bottom:1rem"></p>
+                    <div class="model-selector-wrapper" id="ob-model-selector-wrapper" style="position: relative;">
+                        <input type="text" id="ob-model-input" class="form-input" placeholder="e.g. gpt-4o"
+                            autocomplete="off" style="padding-right: 30px;" aria-label="Model">
+                        <span class="material-icons-round"
+                            style="position: absolute; right: 10px; top: 12px; color: var(--text-muted); pointer-events: none; font-size: 18px;">expand_more</span>
+                        <div class="model-dropdown-menu" id="ob-model-dropdown-menu" style="display: none;">
+                            <div class="model-list" id="ob-model-list-container"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ob-panel" id="ob-step-4" style="display:none">
+                    <div id="ob-tpl-section" style="display:none">
+                        <p class="ob-subtitle">Workspace Templates</p>
+                        <p class="ob-hint" style="margin-bottom:0.8rem">These template files already exist in your
+                            workspace. Check any you'd like to reset to defaults:</p>
+                        <div id="ob-tpl-list" class="ob-tpl-list"></div>
+                    </div>
+                    <div class="ob-summary" id="ob-summary">
+                        <span class="material-icons-round"
+                            style="font-size:48px;color:var(--shiba-gold)">check_circle</span>
+                        <h3 style="margin:0.5rem 0">Ready to go!</h3>
+                        <div class="ob-summary-row"><span>Provider</span><strong id="ob-sum-provider"></strong></div>
+                        <div class="ob-summary-row"><span>Model</span><strong id="ob-sum-model"></strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer ob-footer">
+                <button class="btn-secondary" id="ob-btn-back" onclick="obGoStep(-1)" style="display:none"><span
+                        class="material-icons-round" style="font-size:16px;vertical-align:middle">arrow_back</span>
+                    Back</button>
+                <div style="flex:1"></div>
+                <button class="btn-primary" id="ob-btn-next" onclick="obGoStep(1)">Next <span
+                        class="material-icons-round"
+                        style="font-size:16px;vertical-align:middle">arrow_forward</span></button>
+                <button class="btn-primary" id="ob-btn-finish" onclick="obSubmit()" style="display:none"><span
+                        class="material-icons-round" style="font-size:16px;vertical-align:middle">check</span> Finish
+                    Setup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm dialog -->
+    <div id="confirm-dialog" class="modal-backdrop" style="z-index: 3000;">
+        <div class="modal modal-confirm">
+            <div class="modal-header">
+                <span id="confirm-title">Confirm</span>
+            </div>
+            <div class="modal-body" style="padding: 1.2rem 1.5rem;">
+                <p id="confirm-message" style="margin:0; color: var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+                <button class="btn-primary" id="confirm-ok">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GitHub Star Popup -->
+    <div id="gh-star-popup">
+        <div class="gh-star-icon">
+            <span class="material-icons-round">star</span>
+        </div>
+        <div class="gh-star-content">
+            <div class="gh-star-title">Support ShibaClaw</div>
+            <div class="gh-star-text">If you like ShibaClaw, please consider giving us a star on GitHub to help us grow!
+            </div>
+        </div>
+        <div class="gh-star-actions">
+            <a href="https://github.com/RikyZ90/ShibaClaw" target="_blank" class="gh-star-btn" id="gh-star-link">
+                <span class="material-icons-round" style="font-size:14px">star_border</span> Star
+            </a>
+            <button class="gh-star-close" id="gh-star-dismiss">Maybe later</button>
+        </div>
+    </div>
+
+    <script src="/js/state.js?v=2"></script>
+    <script src="/js/auth.js?v=2"></script>
+    <!-- Knowledge Base Manager Modal -->
+    <div class="modal-backdrop" id="knowledge-modal" data-backdrop-close="false">
+        <div class="modal" style="width: 600px; max-width: 95vw;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-icons-round">library_books</span>
+                    <h2>Knowledge Bases</h2>
+                </div>
+                <button class="btn-icon" onclick="closeModal('knowledge-modal')" aria-label="Close modal">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="margin-bottom:16px; color:var(--text-muted)">Manage collections of documents for the agent to
+                    reference.</p>
+                <div style="display:flex; gap:8px; margin-bottom: 16px;">
+                    <input type="text" id="kb-new-name" class="form-input" placeholder="New collection name"
+                        style="flex:1">
+                    <button class="btn-primary" onclick="createKB()" style="width: auto; min-width: 80px;"
+                        id="kb-btn-create">Create</button>
+                </div>
+                <div id="kb-feedback-msg"
+                    style="display:none; margin-bottom: 16px; font-size: 13px; font-weight: 500; padding: 8px 12px; border-radius: var(--radius-md);">
+                </div>
+                <div id="kb-list-container"
+                    style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/knowledge.js?v=1"></script>
+    <script src="/js/utils.js?v=2"></script>
+    <script src="/js/api_socket.js?v=2"></script>
+    <script src="/js/chat.js?v=2"></script>
+    <script src="/js/files.js?v=2"></script>
+    <script src="/js/ui_panels.js?v=2"></script>
+    <script src="/js/settings_panel.js?v=2"></script>
+    <script src="/js/update_panel.js?v=2"></script>
+    <script src="/js/onboard_wizard.js?v=2"></script>
+    <script src="/js/model_selector.js?v=2"></script>
+    <script src="/js/auth_ui.js?v=2"></script>
+    <script src="/js/plugins_panel.js?v=2"></script>
+    <script src="/js/automation.js?v=2"></script>
+    <script src="/js/notification-center.js?v=2"></script>
+    <script src="/js/main.js?v=2"></script>
+    <script src="/js/profiles.js?v=2"></script>
+    <script src="/js/speech.js?v=2"></script>
+    <script src="/select_session.js?v=2"></script>
+    <script src="/js/mcp_manager.js?v=1"></script>
+    <script src="/js/connected_apps.js?v=1"></script>
+    <script src="/js/mentions.js?v=1"></script>
+</body>
+
+</html>

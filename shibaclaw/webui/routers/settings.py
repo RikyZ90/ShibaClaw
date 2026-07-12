@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 
 from loguru import logger
 from starlette.requests import Request
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse
 
 from shibaclaw.webui.agent_manager import agent_manager
 from shibaclaw.webui.utils import _deep_merge, _redact_secrets
 from typing import Any
+
+# Sensitive key-name fragments used for vault-backed placeholder injection
+_SECRET_KEY_FRAGMENTS = ("token", "password", "secret", "key", "api_key", "apikey")
 
 
 def _filter_redacted(data: Any) -> Any:
@@ -59,11 +64,11 @@ def _is_provider_configured(cfg, spec) -> bool:
     provider_cfg = getattr(cfg.providers, spec.name, None)
 
     if spec.name == "custom":
-        return bool(provider_cfg and (provider_cfg.api_base or provider_cfg.api_key))
+        return bool(provider_cfg and (provider_cfg.api_base or provider_cfg.resolve_api_key()))
     if spec.is_oauth:
         return _is_oauth_authenticated(spec)
     if spec.name == "azure_openai":
-        return bool(provider_cfg and provider_cfg.api_key and provider_cfg.api_base)
+        return bool(provider_cfg and provider_cfg.resolve_api_key(spec.name) and provider_cfg.api_base)
     if spec.is_local:
         return bool(provider_cfg and provider_cfg.api_base)
     return cfg._provider_has_credentials(provider_cfg, spec)
@@ -135,6 +140,80 @@ async def _fetch_all_configured_provider_models(cfg) -> tuple[list[dict[str, str
     return models, errors
 
 
+async def _inject_vault_placeholders(data: dict) -> dict:
+    """For sensitive fields that are empty in the serialized config but have a value
+    stored in the vault, inject a '***' placeholder so the webUI knows the secret
+    is configured and shows a masked input instead of a blank field.
+
+    This mirrors what _redact_secrets does for plaintext values, but targets the
+    vault-backed case where the plain field is empty string.
+    """
+    try:
+        from shibaclaw.security.credential_manager import get_credential_manager
+        cm = get_credential_manager()
+        if not await run_in_threadpool(cm.is_setup):
+            return data
+    except Exception:
+        return data
+
+    async def _maybe_mask(section: str, vault_key: str, cfg: dict, field: str) -> None:
+        """If cfg[field] is empty but vault has a value, set cfg[field] = '***'."""
+        if cfg.get(field, "") != "":
+            return
+        try:
+            val = await run_in_threadpool(cm.get_secret, section, vault_key)
+            if val:
+                cfg[field] = "***"
+        except Exception:
+            pass
+
+    # --- Provider API keys ---
+    for provider_name, provider_cfg in (data.get("providers") or {}).items():
+        if isinstance(provider_cfg, dict):
+            await _maybe_mask("providers", f"{provider_name}.api_key", provider_cfg, "apiKey")
+
+    # --- Web search API key ---
+    try:
+        search_cfg = data["tools"]["web"]["search"]
+        if isinstance(search_cfg, dict):
+            await _maybe_mask("tools", "web_search.api_key", search_cfg, "apiKey")
+    except (KeyError, TypeError):
+        pass
+
+    # --- Audio API key ---
+    audio_cfg = data.get("audio", {})
+    if isinstance(audio_cfg, dict):
+        await _maybe_mask("audio", "api_key", audio_cfg, "apiKey")
+
+    # --- Channel secrets ---
+    channel_secret_fields = {
+        ("telegram", "token"), ("discord", "token"), ("slack", "bot_token"),
+        ("slack", "app_token"), ("email", "imap_password"), ("email", "smtp_password"),
+        ("matrix", "access_token"), ("wecom", "secret"), ("dingtalk", "client_secret"),
+        ("feishu", "app_secret"), ("feishu", "verification_token"), ("qq", "secret"),
+        ("mochat", "claw_token"), ("whatsapp", "bridge_token"),
+    }
+    for ch_name, ch_cfg in (data.get("channels") or {}).items():
+        if not isinstance(ch_cfg, dict):
+            continue
+        import re
+        for field in list(ch_cfg.keys()):
+            if isinstance(ch_cfg.get(field), str):
+                snake = re.sub(r'(?<!^)(?=[A-Z])', '_', field).lower()
+                if (ch_name.lower(), snake) in channel_secret_fields:
+                    await _maybe_mask("channels", f"{ch_name}.{snake}", ch_cfg, field)
+
+    # --- MCP OAuth client secrets ---
+    for server_name, server_cfg in (data.get("tools", {}).get("mcpServers") or {}).items():
+        if not isinstance(server_cfg, dict):
+            continue
+        oauth = server_cfg.get("oauth", {})
+        if isinstance(oauth, dict):
+            await _maybe_mask("mcp_servers", f"{server_name}.client_secret", oauth, "clientSecret")
+
+    return data
+
+
 async def api_settings_get(request: Request):
     """Get the current configuration (redacted)."""
     if not agent_manager.config:
@@ -142,6 +221,9 @@ async def api_settings_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     data = agent_manager.config.model_dump(mode="json", by_alias=True)
+    # Inject '***' for vault-backed secrets that have an empty plain field so
+    # the webUI shows a masked placeholder instead of a blank input.
+    data = await _inject_vault_placeholders(data)
     return JSONResponse(_redact_secrets(data))
 
 
@@ -158,6 +240,12 @@ async def api_settings_post(request: Request):
 
         data = await request.json()
         from shibaclaw.config.schema import Config
+        from shibaclaw.config.loader import (
+            _migrate_secrets_from_raw_dict,
+            _scrub_secrets_from_dump,
+            _get_cm_if_active,
+            get_config_path,
+        )
 
         old_cfg = agent_manager.config
         merged = old_cfg.model_dump(mode="json", by_alias=True)
@@ -166,14 +254,40 @@ async def api_settings_post(request: Request):
         filtered_data = _filter_redacted(data)
         _deep_merge(merged, filtered_data)
 
+        # ----------------------------------------------------------------
+        # IMPORTANT: validate new_cfg from the FULL merged dict (with
+        # secrets still present) so the in-memory config always holds the
+        # real values and the webUI can read them back on the next GET.
+        # ----------------------------------------------------------------
         try:
             new_cfg = Config.model_validate(merged)
         except Exception as e:
             return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
 
-        from shibaclaw.config.loader import save_config
+        # ----------------------------------------------------------------
+        # Persist to disk.
+        # Work on a deep copy so we never mutate `merged` (which backs
+        # new_cfg) when migrating/scrubbing for the on-disk representation.
+        # ----------------------------------------------------------------
+        disk_data = copy.deepcopy(merged)
+        cm = _get_cm_if_active()
+        if cm:
+            # Move plaintext secrets into the vault and remove from disk copy.
+            _migrate_secrets_from_raw_dict(disk_data, cm)
+        # Belt-and-suspenders: zero out any residual plaintext only when vault active.
+        _scrub_secrets_from_dump(disk_data, cm)
 
-        save_config(new_cfg)
+        import json
+        import os
+        import tempfile
+
+        path = get_config_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as tmp:
+            json.dump(disk_data, tmp, indent=2, ensure_ascii=False)
+            tmp_name = tmp.name
+        os.replace(tmp_name, path)
+
         agent_manager.config = new_cfg
 
         # Detect if network-binding gateway settings changed — those require a full restart

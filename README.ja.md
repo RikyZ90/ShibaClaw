@@ -16,19 +16,32 @@
 </p>
 
 <p align="center">
-  <b>23のプロバイダー · 11のチャットチャンネル · 内蔵WebUI · セキュリティ優先コア · MCP対応</b>
+  <b>28のプロバイダー · 11のチャットチャンネル · 内蔵WebUI · セキュリティ優先コア · MCP対応</b>
 </p>
 
 <h3 align="center">3つの柱: <b>シンプル · セキュリティ · プライバシー</b></h3>
 
+<p align="center">
+  🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
+  <a href="./README.es.md">Español</a> &nbsp;·&nbsp;
+  <a href="./README.pt-BR.md">Português (BR)</a> &nbsp;·&nbsp;
+  <a href="./README.ja.md">日本語</a> &nbsp;·&nbsp;
+  <a href="./README.de.md">Deutsch</a> &nbsp;·&nbsp;
+  <a href="./README.fr.md">Français</a>
+</p>
+
 ***
 
 <details open>
-<summary>📢 <b>最新リリース: v0.9.4</b> — クリックで変更点を表示</summary>
+<summary>📢 <b>最新リリース: v0.9.5 (Big Release & Refactor)</b> — クリックで変更点を表示</summary>
 
-- **Linuxの自己更新がv0.9.2で止まる** — 正常にpip/pipxアップグレードしても `_get_version()` が古いマニフェストのバージョンを返す不具合を修正。バージョン解決はインストール済みパッケージのメタデータを優先するようになり、アップデータが正しく収束します。
+- **🔥 Big Security Refactor & 🔐 暗号化された認証情報ボルト** — セキュリティを全面的に刷新しました。ShibaClaw は、API キー、ボットトークン、パスワードを安全に保存するために、堅牢な AES-128/256 対称暗号化ボルト（`credentials.enc` および `credentials.key`）を使用するようになりました。ボルト優先の解決、スレッドセーフ、破損防止保護、および厳密な OS レベルのアクセス許可（Unix では `0o600`、Windows では `icacls` ACL）を備えています。
+- **🌐 ネイティブ OAuth ＆ デバイスコードフロー** — WebUI 内に直接、シームレスでネイティブな認証フローを追加しました。API キーに一切触れることなく、**xAI / Grok**、**GitHub Copilot**、**Google Gemini CLI**、**OpenAI Codex**、**OpenRouter** 経由で簡単にログインできるようになりました！
+- **🤖 新規プロバイダーのサポート** — **Anthropic（Claude）**、**xAI（Grok）**、**Qwen（Alibaba）**、**MiniMax**、および **Z.AI** の包括的な統合を追加し、市場で最高の最先端モデルに即座にアクセスできるようになりました。
+- **🛡️ チャネル解決の強化** — Discord、DingTalk、Feishu、QQ、MoChat、および WhatsApp チャネルプラグインの完全な解決アップデート。
+- **⚡ 超高速WebUIと洗練されたUX** — 即時ロードのために、フロントエンドを`esbuild`を介して完全にバンドルされたES6アーキテクチャに移行し、Connected AppsのUXをスムーズにして、手動リロードなしでシームレスなKlavisバックエンド設定を可能にしました。
 
-全履歴は [Changelog](./CHANGELOG.md) を参照。
+完全なリリース履歴については [Changelog](./CHANGELOG.md) を参照してください。
 
 </details>
 
@@ -104,7 +117,7 @@ CVE監査、プロンプトインジェクション<br>ラップ、SSRFガード
 </td>
 <td align="center" width="33%">
 
-### 🌐 23のプロバイダー
+### 🌐 28のプロバイダー
 ネイティブSDK、LiteLLMプロキシ不要<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -142,7 +155,7 @@ WebUIをLANに公開し、<br>同じエージェントをスマホから
 
 ShibaClawの違い：
 - **コアに組み込まれたセキュリティ層** — インストール時CVE監査、各ツール結果のプロンプトインジェクションラップ、SSRF/DNSリバインディング保護
-- **ネイティブプロバイダー対応** — 公式SDK経由の23プロバイダー、デバッグするプロキシ層なし
+- **ネイティブプロバイダー対応** — 公式SDK経由の28プロバイダー、デバッグするプロキシ層なし
 - **1コマンドセットアップ** — Dockerまたはpip、ウィザードに従うだけで約1分でチャット
 - **どこでも動く** — ターミナル、WebUI、Discord、Telegram、WhatsApp、Windowsデスクトップ等
 

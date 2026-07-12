@@ -15,8 +15,6 @@ import httpx
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 
-from .auth import get_auth_token
-
 GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98"
 GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
@@ -118,8 +116,12 @@ async def _exchange_openrouter_code_for_key(code: str, code_verifier: str) -> st
 
 
 async def _persist_openrouter_api_key(api_key: str) -> None:
-    from shibaclaw.config.loader import save_config
+    """Save the OpenRouter API key obtained via OAuth.
 
+    ProviderConfig no longer exposes a plain ``api_key`` field — secrets live
+    exclusively in the vault (when active) or in the serialised config dict
+    (plain-text fallback for vault-less installs).
+    """
     from .agent_manager import agent_manager
 
     if not agent_manager.config:
@@ -127,10 +129,17 @@ async def _persist_openrouter_api_key(api_key: str) -> None:
     if not agent_manager.config:
         raise RuntimeError("No config loaded")
 
-    cfg = agent_manager.config.model_copy(deep=True)
-    cfg.providers.openrouter.api_key = api_key
-    save_config(cfg)
-    await agent_manager.reload_config(cfg)
+    try:
+        from shibaclaw.security.credential_manager import get_credential_manager
+        from shibaclaw.config.loader import save_config
+
+        cm = get_credential_manager()
+        cm.set_secret("providers", "openrouter.api_key", api_key)
+        cfg = agent_manager.config.model_copy(deep=True)
+        save_config(cfg)
+        await agent_manager.reload_config(cfg)
+    except Exception as exc:
+        raise RuntimeError(f"Failed to persist OpenRouter API key: {exc}") from exc
 
 
 async def start_openrouter_oauth(request: Request, job_id: str, jobs: dict):
@@ -320,7 +329,6 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                 with open(os.path.join(token_dir, "access-token"), "w") as f:
                     f.write(access_token)
 
-                # Attempt gateway restart (use same host resolution as api.py)
                 try:
                     from .agent_manager import agent_manager
 
@@ -334,14 +342,11 @@ async def _poll_github_token(job_id, jobs, device_code, interval, expires_in):
                             targets = ["127.0.0.1", gateway_hostname]
                         else:
                             targets = [gw.host]
-                        auth = get_auth_token()
                         for h in targets:
                             try:
                                 req = urllib.request.Request(
                                     f"http://{h}:{gw_port}/restart", method="POST", data=b""
                                 )
-                                if auth:
-                                    req.add_header("Authorization", f"Bearer {auth}")
                                 urllib.request.urlopen(req, timeout=2)
                                 break
                             except Exception:

@@ -1,0 +1,193 @@
+/* ── Login Screen ──────────────────────────────────────────── */
+.login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-login, 9999);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+}
+
+.login-card {
+    text-align: center;
+    padding: 3rem 2.5rem;
+    max-width: 400px;
+    width: 90%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.login-logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
+}
+
+.login-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem;
+}
+
+.login-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 1.5rem;
+}
+
+.login-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 0.75rem;
+}
+
+.login-input {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+.login-input:focus {
+    border-color: var(--shiba-gold);
+    box-shadow: 0 0 0 2px var(--shiba-gold-dim);
+}
+
+.login-input::placeholder {
+    color: var(--text-muted);
+    font-family: var(--font-body);
+}
+
+.login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--bg-primary);
+    background: var(--shiba-gold);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    white-space: nowrap;
+}
+
+.login-btn:hover {
+    background: var(--shiba-gold-light);
+}
+
+.login-btn:active {
+    opacity: 0.9;
+}
+
+.login-error {
+    font-size: 0.8rem;
+    color: var(--accent-red);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.login-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 1rem 0 0;
+}
+
+.login-hint code {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--shiba-gold-light);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    user-select: all;
+}
+
+.width-toggle-wrapper {
+    position: relative;
+    margin-left: auto;
+}
+.btn-width-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-md);
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+.btn-width-toggle:hover {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+}
+.btn-width-toggle .material-icons-round {
+    font-size: 20px;
+}
+.width-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    box-shadow: var(--shadow-md);
+    display: none;
+    z-index: var(--z-dropdown);
+}
+.width-popover.open {
+    display: block;
+}
+.width-presets {
+    display: flex;
+    gap: 6px;
+}
+.width-preset {
+    padding: 5px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+.width-preset:hover, .width-preset.active {
+    border-color: var(--shiba-gold);
+    color: var(--shiba-gold);
+    background: var(--shiba-gold-dim);
+}
+
+/* Shake animation for invalid credentials */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+.login-card.shake {
+    animation: shake 0.5s ease;
+}
+
+/* Logout button */
+.btn-logout[hidden] {
+    display: none !important;
+}

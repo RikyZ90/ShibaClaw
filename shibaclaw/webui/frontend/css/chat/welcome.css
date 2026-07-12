@@ -1,0 +1,71 @@
+/* ── Welcome Screen ────────────────────────────────────────── */
+.welcome-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.welcome-content {
+    text-align: center;
+    max-width: 600px;
+}
+
+.welcome-logo {
+    width: 88px;
+    height: 88px;
+    object-fit: contain;
+    margin-bottom: 1.5rem;
+}
+
+.welcome-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.welcome-subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+}
+
+.welcome-hints {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.hint-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+.hint-card:hover {
+    background: var(--bg-surface-hover);
+    border-color: var(--border-highlight);
+    color: var(--text-primary);
+}
+
+.hint-card .material-icons-round {
+    font-size: 18px;
+    color: var(--shiba-gold);
+    opacity: 0.8;
+}

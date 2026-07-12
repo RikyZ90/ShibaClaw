@@ -1,4 +1,4 @@
-﻿# Channel Plugin Guide
+# Channel Plugin Guide
 
 Build a custom shibaclaw channel in three steps: subclass, package, install.
 
@@ -222,7 +222,49 @@ def default_config(cls) -> dict[str, Any]:
 ```
 
 If not overridden, the base class returns `{"enabled": false}`.
-
+ 
+## Handling Secrets (Vault Integration)
+ 
+If your channel requires sensitive credentials (API keys, bot tokens, passwords), **do not** read them directly from the plaintext config file without a fallback. Instead, you should integrate with ShibaClaw's encrypted credentials vault:
+ 
+1. **Define a `resolve_*` method** on your configuration class.
+2. Query the `CredentialManager` vault namespace `"channels"` under `"{channel_name}.{secret_field_name}"`.
+3. Fall back to the plain class field if the vault is not configured.
+ 
+Here is an example:
+ 
+```python
+from pydantic import Field
+from shibaclaw.config.schema import Base
+ 
+class WebhookConfig(Base):
+    enabled: bool = False
+    port: int = 9000
+    allow_from: list[str] = Field(default_factory=list)
+    secret_token: str = ""
+ 
+    def resolve_secret_token(self) -> str:
+        """Retrieve token from vault (vault-first) with plaintext config fallback."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup() or cm._store_path.exists():
+                val = cm.get_secret("channels", "webhook.secret_token")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.secret_token
+```
+ 
+Inside your channel's execution logic, always invoke this resolver helper instead of accessing `self.config.secret_token` directly:
+ 
+```python
+    async def start(self) -> None:
+        token = self.config.resolve_secret_token()
+        # ... authenticate using token ...
+```
+ 
 ## Naming Convention
 
 | What | Format | Example |

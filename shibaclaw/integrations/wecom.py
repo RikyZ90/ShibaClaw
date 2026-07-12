@@ -27,6 +27,19 @@ class WecomConfig(Base):
     allow_from: list[str] = Field(default_factory=list)
     welcome_message: str = ""
 
+    def resolve_secret(self) -> str:
+        """Return secret from vault (if set up) or the plain field."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            cm = get_credential_manager()
+            if cm.is_setup():
+                val = cm.get_secret("channels", "wecom.secret")
+                if val:
+                    return val
+        except Exception:
+            pass
+        return self.secret
+
 
 # Message type display mapping
 MSG_TYPE_MAP = {
@@ -72,7 +85,8 @@ class WecomChannel(BaseChannel):
             logger.error("WeCom SDK not installed. Run: pip install shibaclaw[wecom]")
             return
 
-        if not self.config.bot_id or not self.config.secret:
+        secret = self.config.resolve_secret()
+        if not self.config.bot_id or not secret:
             logger.error("WeCom bot_id and secret not configured")
             return
 
@@ -86,7 +100,7 @@ class WecomChannel(BaseChannel):
         self._client = WSClient(
             {
                 "bot_id": self.config.bot_id,
-                "secret": self.config.secret,
+                "secret": secret,
                 "reconnect_interval": 1000,
                 "max_reconnect_attempts": -1,  # Infinite reconnect
                 "heartbeat_interval": 30000,
@@ -225,6 +239,7 @@ class WecomChannel(BaseChannel):
             chat_id = body.get("chatid", sender_id)
 
             content_parts = []
+            media_paths: list[str] = []
 
             if msg_type == "text":
                 text = body.get("text", {}).get("content", "")
@@ -240,7 +255,8 @@ class WecomChannel(BaseChannel):
                     file_path = await self._download_and_save_media(file_url, aes_key, "image")
                     if file_path:
                         filename = os.path.basename(file_path)
-                        content_parts.append(f"[image: {filename}]\n[Image: source: {file_path}]")
+                        media_paths.append(file_path)
+                        content_parts.append(f"[image: {filename}]")
                     else:
                         content_parts.append("[image: download failed]")
                 else:
@@ -248,133 +264,152 @@ class WecomChannel(BaseChannel):
 
             elif msg_type == "voice":
                 voice_info = body.get("voice", {})
-                # Voice message already contains transcribed content from WeCom
-                voice_content = voice_info.get("content", "")
-                if voice_content:
-                    content_parts.append(f"[voice] {voice_content}")
+                file_url = voice_info.get("url", "")
+                aes_key = voice_info.get("aeskey", "")
+
+                if file_url and aes_key:
+                    file_path = await self._download_and_save_media(file_url, aes_key, "voice")
+                    if file_path:
+                        transcription = await self.transcribe_audio(file_path)
+                        if transcription:
+                            content_parts.append(f"[transcription: {transcription}]")
+                        else:
+                            media_paths.append(file_path)
+                            content_parts.append(f"[voice: {os.path.basename(file_path)}]")
+                    else:
+                        content_parts.append("[voice: download failed]")
                 else:
-                    content_parts.append("[voice]")
+                    content_parts.append("[voice: download failed]")
 
             elif msg_type == "file":
                 file_info = body.get("file", {})
                 file_url = file_info.get("url", "")
                 aes_key = file_info.get("aeskey", "")
-                file_name = file_info.get("name", "unknown")
+                filename = file_info.get("filename", "file")
 
                 if file_url and aes_key:
-                    file_path = await self._download_and_save_media(
-                        file_url, aes_key, "file", file_name
-                    )
+                    file_path = await self._download_and_save_media(file_url, aes_key, "file", filename=filename)
                     if file_path:
-                        content_parts.append(f"[file: {file_name}]\n[File: source: {file_path}]")
+                        media_paths.append(file_path)
+                        content_parts.append(f"[file: {os.path.basename(file_path)}]")
                     else:
-                        content_parts.append(f"[file: {file_name}: download failed]")
+                        content_parts.append(f"[file: {filename} — download failed]")
                 else:
-                    content_parts.append(f"[file: {file_name}: download failed]")
+                    content_parts.append(f"[file: {filename}]")
 
             elif msg_type == "mixed":
-                # Mixed content contains multiple message items
-                msg_items = body.get("mixed", {}).get("item", [])
-                for item in msg_items:
-                    item_type = item.get("type", "")
-                    if item_type == "text":
+                mixed_list = body.get("mixed", {}).get("items", [])
+                for item in mixed_list:
+                    itype = item.get("type", "")
+                    if itype == "text":
                         text = item.get("text", {}).get("content", "")
                         if text:
                             content_parts.append(text)
-                    else:
-                        content_parts.append(MSG_TYPE_MAP.get(item_type, f"[{item_type}]"))
+                    elif itype == "image":
+                        image_info = item.get("image", {})
+                        file_url = image_info.get("url", "")
+                        aes_key = image_info.get("aeskey", "")
+                        if file_url and aes_key:
+                            file_path = await self._download_and_save_media(file_url, aes_key, "image")
+                            if file_path:
+                                media_paths.append(file_path)
+                                content_parts.append(f"[image: {os.path.basename(file_path)}]")
+                            else:
+                                content_parts.append("[image: download failed]")
 
-            else:
-                content_parts.append(MSG_TYPE_MAP.get(msg_type, f"[{msg_type}]"))
+            content = "\n".join(content_parts) if content_parts else MSG_TYPE_MAP.get(msg_type, f"[{msg_type}]")
 
-            content = "\n".join(content_parts) if content_parts else ""
-
-            if not content:
+            if not self.is_allowed(sender_id):
+                logger.debug("WeCom: ignoring message from unauthorised sender {}", sender_id)
                 return
 
-            # Store frame for this chat to enable replies
+            logger.debug("WeCom message from {}: {}...", sender_id, content[:50])
+
+            # Store frame for reply
             self._chat_frames[chat_id] = frame
 
-            # Forward to message bus
-            # Note: media paths are included in content for broader model compatibility
             await self._handle_message(
                 sender_id=sender_id,
                 chat_id=chat_id,
                 content=content,
-                media=None,
+                media=media_paths if media_paths else None,
                 metadata={
-                    "message_id": msg_id,
                     "msg_type": msg_type,
                     "chat_type": chat_type,
+                    "msg_id": msg_id,
+                    "wecom_frame": frame,
                 },
             )
 
         except Exception as e:
             logger.error("Error processing WeCom message: {}", e)
 
+    async def send(self, msg: OutboundMessage) -> None:
+        """Send a message through WeCom."""
+        if not self._client:
+            raise RuntimeError("WeCom bot not running")
+
+        chat_id = str(msg.chat_id)
+        frame = self._chat_frames.get(chat_id)
+
+        if not frame:
+            logger.warning("WeCom: no frame stored for chat_id {}, cannot send reply", chat_id)
+            return
+
+        content = msg.content or ""
+        if not content or content == "[empty message]":
+            return
+
+        try:
+            await self._client.reply(
+                frame,
+                {
+                    "msgtype": "text",
+                    "text": {"content": content},
+                },
+            )
+        except Exception as e:
+            logger.error("Error sending WeCom message: {}", e)
+            raise
+
     async def _download_and_save_media(
         self,
-        file_url: str,
+        url: str,
         aes_key: str,
         media_type: str,
         filename: str | None = None,
     ) -> str | None:
-        """
-        Download and decrypt media from WeCom.
-
-        Returns:
-            file_path or None if download failed
-        """
+        """Download and decrypt WeCom media, save to disk. Returns local file path or None."""
         try:
-            data, fname = await self._client.download_file(file_url, aes_key)
-
-            if not data:
-                logger.warning("Failed to download media from WeCom")
-                return None
+            import aiohttp
+            from wecom_aibot_sdk.utils import decrypt_file
 
             media_dir = get_media_dir("wecom")
-            if not filename:
-                filename = fname or f"{media_type}_{hash(file_url) % 100000}"
-            filename = os.path.basename(filename)
+            ext_map = {"image": ".jpg", "voice": ".amr", "file": ""}
+            if filename:
+                ext = os.path.splitext(filename)[1] or ext_map.get(media_type, "")
+                save_name = filename
+            else:
+                import uuid
+                ext = ext_map.get(media_type, "")
+                save_name = f"{uuid.uuid4().hex}{ext}"
 
-            file_path = media_dir / filename
-            file_path.write_bytes(data)
-            logger.debug("Downloaded {} to {}", media_type, file_path)
-            return str(file_path)
+            save_path = media_dir / save_name
 
-        except Exception as e:
-            logger.error("Error downloading media: {}", e)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        logger.warning("WeCom media download failed: HTTP {}", resp.status)
+                        return None
+                    encrypted_data = await resp.read()
+
+            decrypted_data = decrypt_file(encrypted_data, aes_key)
+            save_path.write_bytes(decrypted_data)
+            return str(save_path)
+
+        except ImportError:
+            logger.warning("WeCom media download requires aiohttp: pip install aiohttp")
             return None
-
-    async def send(self, msg: OutboundMessage) -> None:
-        """Send a message through WeCom."""
-        if not self._client:
-            logger.warning("WeCom client not initialized")
-            return
-
-        try:
-            content = msg.content.strip()
-            if not content:
-                return
-
-            # Get the stored frame for this chat
-            frame = self._chat_frames.get(msg.chat_id)
-            if not frame:
-                logger.warning("No frame found for chat {}, cannot reply", msg.chat_id)
-                return
-
-            # Use streaming reply for better UX
-            stream_id = self._generate_req_id("stream")
-
-            # Send as streaming message with finish=True
-            await self._client.reply_stream(
-                frame,
-                stream_id,
-                content,
-                finish=True,
-            )
-
-            logger.debug("WeCom message sent to {}", msg.chat_id)
-
         except Exception as e:
-            logger.error("Error sending WeCom message: {}", e)
+            logger.warning("WeCom media download/decrypt failed: {}", e)
+            return None

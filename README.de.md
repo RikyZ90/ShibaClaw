@@ -16,17 +16,30 @@
 </p>
 
 <p align="center">
-  <b>23 Anbieter · 11 Chat-Kanäle · Integrierte WebUI · Sicherheits-Fokus · MCP-bereit</b>
+  <b>28 Anbieter · 11 Chat-Kanäle · Integrierte WebUI · Sicherheits-Fokus · MCP-bereit</b>
 </p>
 
 <h3 align="center">Auf drei Säulen gebaut: <b>Einfachheit · Sicherheit · Privatsphäre</b></h3>
 
+<p align="center">
+  🌐 <a href="./README.zh-CN.md">简体中文</a> &nbsp;·&nbsp;
+  <a href="./README.es.md">Español</a> &nbsp;·&nbsp;
+  <a href="./README.pt-BR.md">Português (BR)</a> &nbsp;·&nbsp;
+  <a href="./README.ja.md">日本語</a> &nbsp;·&nbsp;
+  <a href="./README.de.md">Deutsch</a> &nbsp;·&nbsp;
+  <a href="./README.fr.md">Français</a>
+</p>
+
 ***
 
 <details open>
-<summary>📢 <b>Neueste Version: v0.9.4</b> — Klicken für Neuerungen</summary>
+<summary>📢 <b>Neueste Version: v0.9.5 (Big Release & Refactor)</b> — Klicken für Neuerungen</summary>
 
-- **Linux-Selbstupdate in v0.9.2 steckengeblieben** — Behoben: `_get_version()` lieferte selbst nach erfolgreichem pip/pipx-Upgrade eine veraltete Version aus dem gebündelten Manifest. Die Versionsauflösung bevorzugt jetzt Metadaten des installierten Pakets, sodass der Updater korrekt konvergiert.
+- **🔥 Big Security Refactor & 🔐 Verschlüsselter Credentials-Tresor** — Wir haben die Sicherheit komplett überarbeitet. ShibaClaw nutzt jetzt einen robusten AES-128/256 symmetrisch verschlüsselten Tresor (`credentials.enc` und `credentials.key`), um API-Schlüssel, Bot-Tokens und Passwörter sicher zu speichern. Features: Tresor-First-Auflösung, Thread-Sicherheit, Anti-Korruptionsschutz und strenge OS-Level-Berechtigungen (`0o600` auf Unix und `icacls` ACLs auf Windows).
+- **🌐 Native OAuth- & Device-Code-Flows** — Nahtlose, native Authentifizierungs-Flows direkt in der WebUI hinzugefügt. Sie können sich jetzt mühelos über **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** und **OpenRouter** anmelden, ohne jemals einen API-Schlüssel berühren zu müssen!
+- **🤖 Unterstützung für neue Anbieter** — Umfassende Integrationen für **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** und **Z.AI** hinzugefügt, wodurch Sie sofortigen Zugriff auf die besten State-of-the-Art-Modelle auf dem Markt haben.
+- **🛡️ Gehärtete Kanalauflösung** — Komplette Auflösungs-Updates für Discord, DingTalk, Feishu, QQ, MoChat und das WhatsApp-Kanal-Plugin.
+- **⚡ Blitzschnelle WebUI & Polierte UX** — Das Frontend wurde auf eine vollständig gebündelte ES6-Architektur via `esbuild` für sofortiges Laden migriert, und die Connected Apps UX wurde geglättet, um eine nahtlose Klavis-Backend-Konfiguration ohne manuelles Neuladen zu ermöglichen.
 
 Vollständiger Verlauf im [Changelog](./CHANGELOG.md).
 
@@ -104,7 +117,7 @@ CVE-Audit, Prompt-Injection-<br>Wrap, SSRF-Guard — <b>standardmäßig an</b>
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 Anbieter
+### 🌐 28 Anbieter
 Native SDKs, kein LiteLLM-Proxy<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -142,7 +155,7 @@ Die meisten KI-Agenten-Frameworks behandeln Sicherheit als Afterthought, lassen 
 
 Was ShibaClaw anders macht:
 - **Sicherheitsschichten im Kern** — CVE-Audit bei Installation, Prompt-Injection-Wrap bei jedem Tool-Ergebnis, SSRF/DNS-Rebinding-Schutz
-- **Native Anbieter-Unterstützung** — 23 Anbieter über deren offizielle SDKs, keine Proxy-Schicht zum Debuggen
+- **Native Anbieter-Unterstützung** — 28 Anbieter über deren offizielle SDKs, keine Proxy-Schicht zum Debuggen
 - **Setup mit einem Befehl** — Docker oder pip, dem Wizard folgen, in etwa einer Minute chatten
 - **Überall lauffähig** — Terminal, WebUI, Discord, Telegram, WhatsApp, Windows-Desktop-App und mehr
 
@@ -169,9 +182,9 @@ Abwehrmaßnahmen, die normalerweise in App-Glue oder externe Proxies verstreut s
 
 Anstatt rohe Tool-Ausgaben einfach zurück an das LLM zu füttern, kapselt ShibaClaw jedes Ergebnis in eine dynamisch generierte XML-artige Grenze mit einem <b>zufälligen Nonce</b> (z. B. `<tool_output_a1b2c3d4>`).
 
-> 💡 <b> Eigenständige Verteidigung</b>: Dieser Kern-Sicherheitsmechanismus (Randomized Tool Output Wrapping) wurde als eigenständige, abhängigkeitsfreie Python-Bibliothek [Muzzle](https://github.com/RikyZ90/Muzzle) ausgekoppelt. Du kannst Muzzle nutzen, um jedes Agenten-Framework (LangChain, LlamaIndex, CrewAI, AutoGen oder eigene LLM-Loops) mit derselben Technik zu schützen.
+> 💡 <b>Eigenständige Verteidigung</b>: Dieser Kern-Sicherheitsmechanismus (Randomized Tool Output Wrapping) wurde als eigenständige, abhängigkeitsfreie Python-Bibliothek [Muzzle](https://github.com/RikyZ90/Muzzle) ausgekoppelt. Du kannst Muzzle nutzen, um jedes Agenten-Framework (LangChain, LlamaIndex, CrewAI, AutoGen oder eigene LLM-Loops) mit derselben Technik zu schützen.
 
-Warum das wichtig ist: Angreifer versuchen oft, Tags vorzeitig zu schließen oder gefälschte Systemanweisungen in Tool-Ausgaben (wie Webseiteninhalte) einzuschleusen. Durch eine pro Iteration zufällig erzeugte Grenze kann der Agent echte Systemanweisungen zuverlässig von injizierten Payloads unterscheiden. Zudem wird jeder Versuch, das spezifische schließende Tag im Inhalt einzuschleusen, automatisch bereinigt und escapt — die Sandbox bleibt dicht und der ursprüngliche System-Prompt hat Vorrang.
+Warum das wichtig ist: Angreifer versuchen oft, Tags vorzeitig zu schließen oder gefälschte Systemanweisungen in Tool-Ausgaben (wie Webseiteninhalte) einzuschleusen. Durch eine pro Iteration zufällig erzeugte Grenze kann der Agent echte Systemanweisungen zuverlässig von injizierten Payloads unterscheiden. Zudem wird jeder Versuch, das spezifische schließende Tag im Inhalt einzuschleusen, automatisch bereinigt und escaped — die Sandbox bleibt dicht und der ursprüngliche System-Prompt hat Vorrang.
 
 ### 🔍 Paket-Auto-Scan bei Installation
 
@@ -179,7 +192,7 @@ Bevor ShibaClaw einen `pip`-, `npm`- oder `apt`-Installationsbefehl ausführt, f
 
 Warum das wichtig ist: Es verschiebt die Sicherheit vollständig nach links. Statt Paketmanager blind zu blockieren oder auf Post-Install-Scans zu vertrauen, wird der exakte Abhängigkeitsbaum <i>vor</i> der Ausführung bewertet. Enthält ein Paket kritische/hohe CVEs oder werden verdächtige Flags (wie `--allow-unauthenticated` für `apt`) erkannt, wird die Installation blockiert. So kann die KI autonom Software bauen, ohne den Host zur Last zu machen.
 
-Offenlegungsrichtlinie und unterstützte Versionen: [SECURITY.md](./SECURITY.md).
+Offenlegungsrichtlinie und unterstützte Versionen: [SECURITY.md](./SECURITY.md)
 
 ***
 
@@ -264,7 +277,7 @@ ShibaClaws Memory ist kein rollender Chat-Puffer, sondern ein strukturiertes, pr
 
 - **`USER.md` (Identität & Präferenzen):** Speichert dauerhafte persönliche Fakten, Kommunikationsstile und Sprachpräferenzen.
 - **`MEMORY.md` (Operativer Zustand):** Das Arbeitswissen des Agenten. Verfolgt Umgebungsdetails, wiederkehrende Entitäten und Projektstatus.
-- **`HISTORY.md` (Session-Archiv):** Nur-anhängbares, durchsuchbares Ledger vergangener Sessions mit zeitstempelten, getaggten Zusammenfassungen.
+- **`HISTORY.md` (Session-Archiv):** Nur-anhängbares, durchsuchbares Ledger vergangener Sessions mit zeitgestempelten, getaggten Zusammenfassungen.
 
 Statt den System-Prompt mit tausenden Nachrichten aufzublähen, verfügt ShibaClaw über eine **Proactive Learning-Schleife**. Alle N Nachrichten extrahiert ein Hintergrund-LLM-Prozess still neue dauerhafte Fakten und aktualisiert `USER.md` und `MEMORY.md`, ohne das Gespräch zu unterbrechen. Wird `MEMORY.md` zu groß, fasst eine Auto-Kompaktierungsroutine zusammen und dedupliziert, priorisiert kürzlichen Zustand und hält das Token-Budget ein. Braucht der Agent älteren Kontext, kann er `HISTORY.md` autonom via TF-IDF und Aktualitäts-Scoring durchsuchen.
 
@@ -308,7 +321,7 @@ Alle Kanäle laufen über denselben Message-Bus. WhatsApp nutzt eine Node.js-Bri
 - **Automatisierungs-Engine** — persistente, zeitzonenbewusste geplante Jobs und Hintergrund-Intervalle, verwaltet via einheitlichem UI-Modal und in `automation.json` gespeichert. Unterstützt `every`, `cron` und `at`. Verpasste Jobs werden beim Start automatisch vorgespult.
 - **TASK.md-Integration** — die Engine nutzt `TASK.md` als alleinige Quelle der Wahrheit für Hintergrund-Routinen und überspringt das LLM, wenn Aufgaben leer sind.
 
-Beim Upgrade von einer älteren Version wurde `HEARTBEAT.md` veraltet und entfernt. Migriere deine Aufgaben und Zeitpläne zu `TASK.md` und der neuen Automatisierungs-UI.
+Beim Upgrade von einer älteren Release wurde `HEARTBEAT.md` veraltet und entfernt. Migriere deine Aufgaben und Zeitpläne zu `TASK.md` und der neuen Automatisierungs-UI.
 
 ### 🔌 Plugins & TTS (Text-to-Speech)
 
@@ -369,7 +382,7 @@ OpenRouter · AiHubMix · SiliconFlow · VolcEngine · BytePlus — automatisch 
 
 ### Lokal
 
-Ollama (`http://localhost:11434`) · LM Studio · llama.cpp · vLLM · beliebiger OpenAI-kompatibler Endpunkt (`http://localhost:1234/v1`)
+Ollama (`http://localhost:11434`) · LM Studio · llama.cpp · vLLM · beliebiger OpenAI-kompatibler Endpunkt(`http://localhost:1234/v1`)
 
 > **Hinweis für Docker-Nutzer:** Wenn du ShibaClaw via Docker Compose ausführst, zeigt `localhost` in den Container selbst. Um dich mit einem auf deinem Host laufenden lokalen Server (wie LM Studio oder Ollama auf Windows/Mac) zu verbinden, nutze:
 > `http://host.docker.internal:1234/v1` (oder `11434` für Ollama). Auf nativem Linux nutze `http://172.17.0.1:port`.

@@ -228,7 +228,7 @@ async def api_notifications_delete(request: Request):
 
 
 # ── Re-exports (server.py imports everything from here) ──────────────
-from .routers.auth import api_auth_status, api_auth_verify  # noqa: E402, F401
+from .routers.auth import api_auth_login, api_auth_setup, api_auth_status, api_auth_verify, api_auth_change_password  # noqa: E402, F401
 from .routers.automation import (  # noqa: E402, F401
     api_automation_job_delete,
     api_automation_job_get,
@@ -244,10 +244,15 @@ from .routers.gateway import api_gateway_health, api_gateway_restart  # noqa: E4
 from .routers.heartbeat import api_heartbeat_status, api_heartbeat_trigger  # noqa: E402, F401  (legacy shim)
 from .routers.oauth import (  # noqa: E402, F401
     api_oauth_code,
+    api_oauth_disconnect,
     api_oauth_job,
     api_oauth_login,
     api_oauth_openrouter_callback,
     api_oauth_providers,
+)
+from .oauth_generic import (  # noqa: E402, F401
+    api_oauth_generic_authorize,
+    api_oauth_generic_callback,
 )
 from .routers.onboard import (  # noqa: E402, F401
     api_onboard_providers,

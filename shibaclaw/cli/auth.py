@@ -38,6 +38,12 @@ def _is_oauth_authenticated(spec) -> bool:
             return True
         return any(os.path.exists(tp) for tp in token_paths)
 
+    if spec.name in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
+        from shibaclaw.security.oauth_store import OAuthTokenStore
+        store = OAuthTokenStore()
+        token = store.load_token(spec.name)
+        return bool(token and token.get("access_token"))
+
     return False
 
 
@@ -57,6 +63,11 @@ def _oauth_provider_status(spec) -> str:
             return "[dim]not authenticated[/dim]"
 
     if spec.name == "github_copilot":
+        if _is_oauth_authenticated(spec):
+            return "[green]✓ (OAuth authenticated)[/green]"
+        return "[dim]not authenticated[/dim]"
+
+    if spec.name in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
         if _is_oauth_authenticated(spec):
             return "[green]✓ (OAuth authenticated)[/green]"
         return "[dim]not authenticated[/dim]"
@@ -216,3 +227,163 @@ def _login_github_copilot() -> None:
     except Exception as e:
         get_console().print(f"[red]Authentication error: {e}[/red]")
         raise typer.Exit(1)
+
+def _prompt_token_login(provider_name: str, display_name: str, instruction: str) -> None:
+    get_console().print(f"[cyan]Starting authentication for {display_name}...[/cyan]\n")
+    get_console().print(f"[dim]{instruction}[/dim]")
+    token = typer.prompt("Access Token / API Key", hide_input=True)
+    if not token.strip():
+        get_console().print("[red]✗ Authentication failed: token cannot be empty.[/red]")
+        raise typer.Exit(1)
+        
+    from shibaclaw.security.oauth_store import OAuthTokenStore
+    store = OAuthTokenStore()
+    store.save_token(provider_name, {"access_token": token.strip()})
+    get_console().print(f"[green]✓ Successfully authenticated with {display_name}[/green]")
+
+@register_login("anthropic")
+def _login_anthropic() -> None:
+    _prompt_token_login(
+        "anthropic", 
+        "Anthropic / Claude", 
+        "Please get an API Key from the Anthropic Console: https://console.anthropic.com/settings/keys"
+    )
+
+@register_login("google_gemini_cli")
+def _login_google_gemini_cli() -> None:
+    _prompt_token_login(
+        "google_gemini_cli", 
+        "Google Gemini CLI", 
+        "Please get an API Key from Google AI Studio (https://aistudio.google.com/app/apikey) or enter your Google OAuth refresh token."
+    )
+
+@register_login("xai")
+def _login_xai() -> None:
+    get_console().print("[cyan]Starting xAI Grok device flow...[/cyan]\n")
+
+    xai_client_id = "b1a00492-073a-47ea-816f-4c329264a828"
+    xai_device_code_url = "https://accounts.x.ai/oauth/device/code"
+    xai_access_token_url = "https://accounts.x.ai/oauth/token"
+
+    async def _run_flow():
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    xai_device_code_url,
+                    headers={"Accept": "application/json"},
+                    json={"client_id": xai_client_id, "scope": "openid profile email offline_access"},
+                    timeout=10,
+                )
+                resp_json = resp.json()
+        except Exception as e:
+            get_console().print(f"[yellow]⚠️ Failed to connect to xAI device code API ({e}). Falling back to manual API key setup...[/yellow]")
+            token = typer.prompt("Access Token / API Key", hide_input=True)
+            if not token.strip():
+                get_console().print("[red]✗ Authentication failed: key cannot be empty.[/red]")
+                raise typer.Exit(1)
+            from shibaclaw.security.oauth_store import OAuthTokenStore
+            OAuthTokenStore().save_token("xai", {"access_token": token.strip()})
+            get_console().print("[green]✓ Successfully authenticated with xAI / Grok[/green]")
+            return
+
+        user_code = resp_json.get("user_code", "")
+        verification_uri = resp_json.get("verification_uri", "https://accounts.x.ai/oauth2/device")
+        device_code = resp_json.get("device_code", "")
+        interval = resp_json.get("interval", 5)
+        expires_in = resp_json.get("expires_in", 900)
+
+        if not device_code or not user_code:
+            get_console().print("[yellow]⚠️ xAI device flow failed to initialize. Falling back to manual API key setup...[/yellow]")
+            token = typer.prompt("Access Token / API Key", hide_input=True)
+            if not token.strip():
+                get_console().print("[red]✗ Authentication failed: key cannot be empty.[/red]")
+                raise typer.Exit(1)
+            from shibaclaw.security.oauth_store import OAuthTokenStore
+            OAuthTokenStore().save_token("xai", {"access_token": token.strip()})
+            get_console().print("[green]✓ Successfully authenticated with xAI / Grok[/green]")
+            return
+
+        get_console().print(f"1. Go to: [bold blue]{verification_uri}[/bold blue]")
+        get_console().print(f"2. Enter code: [bold yellow]{user_code}[/bold yellow]")
+        get_console().print("\n[dim]Waiting for authorization...[/dim]")
+
+        max_attempts = expires_in // interval
+        for _ in range(max_attempts):
+            await asyncio.sleep(interval)
+            try:
+                async with httpx.AsyncClient() as c:
+                    tr = await c.post(
+                        xai_access_token_url,
+                        headers={"Accept": "application/json"},
+                        json={
+                            "client_id": xai_client_id,
+                            "device_code": device_code,
+                            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                        },
+                        timeout=10,
+                    )
+                    tj = tr.json()
+
+                error = tj.get("error")
+                if error == "authorization_pending":
+                    continue
+                elif error == "slow_down":
+                    await asyncio.sleep(5)
+                    continue
+                elif error == "expired_token":
+                    get_console().print("[red]❌ Device code expired. Try again.[/red]")
+                    raise typer.Exit(1)
+                elif error == "access_denied":
+                    get_console().print("[red]❌ Access denied by user.[/red]")
+                    raise typer.Exit(1)
+                elif error:
+                    get_console().print(f"[red]❌ xAI error: {error}[/red]")
+                    raise typer.Exit(1)
+
+                access_token = tj.get("access_token")
+                if access_token:
+                    from shibaclaw.security.oauth_store import OAuthTokenStore
+                    OAuthTokenStore().save_token("xai", tj)
+                    get_console().print(
+                        "[green]✓ Successfully authenticated with xAI / Grok[/green]"
+                    )
+                    return
+
+            except Exception as httperr:
+                get_console().print(f"[red]❌ Network error during polling: {httperr}[/red]")
+                continue
+
+        get_console().print("[red]❌ Timed out waiting for authorization[/red]")
+        raise typer.Exit(1)
+
+    try:
+        asyncio.run(_run_flow())
+    except typer.Exit:
+        raise
+    except Exception as e:
+        get_console().print(f"[red]Authentication error: {e}[/red]")
+        raise typer.Exit(1)
+
+@register_login("qwen_oauth")
+def _login_qwen_oauth() -> None:
+    _prompt_token_login(
+        "qwen_oauth", 
+        "Qwen / Alibaba", 
+        "Please copy your portal token from the Alibaba Cloud Qwen Portal: https://portal.qwen.ai/"
+    )
+
+@register_login("minimax_portal")
+def _login_minimax_portal() -> None:
+    _prompt_token_login(
+        "minimax_portal", 
+        "MiniMax", 
+        "Please get your portal token from the MiniMax Developer Platform: https://platform.minimaxi.com/"
+    )
+
+@register_login("z_ai")
+def _login_z_ai() -> None:
+    _prompt_token_login(
+        "z_ai", 
+        "Z.AI / GLM", 
+        "Please get your API Key from the Zhipu BigModel Platform: https://open.bigmodel.cn/"
+    )
