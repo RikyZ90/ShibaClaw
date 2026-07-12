@@ -90,11 +90,16 @@ class DesktopRuntime:
         self._start_server()
         return self.wait_ready(timeout=15.0)
 
-    def _restart_gateway(self) -> None:
+    def _restart_gateway(self, pre_start_hook: "typing.Callable[[], None] | None" = None) -> None:
         """Stop then restart the gateway subprocess in place."""
         def _do_restart() -> None:
             logger.info("Restarting gateway subprocess…")
             self._stop_gateway()
+            if pre_start_hook:
+                try:
+                    pre_start_hook()
+                except Exception as e:
+                    logger.error("pre_start_hook failed: {}", e)
             self._start_gateway()
             logger.info("Gateway subprocess restarted")
 

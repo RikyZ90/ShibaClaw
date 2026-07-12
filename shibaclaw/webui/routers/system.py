@@ -58,11 +58,11 @@ async def api_update_manifest(request: Request):
 
 _ALLOWED_SUBCOMMANDS = frozenset({"web", "gateway", "cli", "desktop"})
 
-_restart_callback: "Callable[[], None] | None" = None
+_restart_callback: "Callable[[Callable[[], None] | None], None] | None" = None
 _shutdown_callback: "Callable[[], None] | None" = None
 
 
-def set_restart_callback(fn: "Callable[[], None]") -> None:
+def set_restart_callback(fn: "Callable[[Callable[[], None] | None], None]") -> None:
     """Register a callback to be called when the WebUI requests a restart.
 
     In Desktop mode the callback restarts just the gateway subprocess instead
@@ -143,7 +143,7 @@ def _schedule_restart_outside_loop(delay: float = 2.0) -> None:
     t.start()
 
 
-def restart_gateway_only() -> None:
+def restart_gateway_only(pre_start_hook: "Callable[[], None] | None" = None) -> None:
     """Restart only the gateway subprocess without touching the WebUI server.
 
     This is safe for frozen .exe environments where a full process restart
@@ -159,7 +159,7 @@ def restart_gateway_only() -> None:
     if _restart_callback is not None:
         logger.info("restart_gateway_only: using registered restart callback")
         try:
-            _restart_callback()
+            _restart_callback(pre_start_hook)
         except Exception as exc:
             logger.error("restart_gateway_only callback failed: {}", exc)
         return

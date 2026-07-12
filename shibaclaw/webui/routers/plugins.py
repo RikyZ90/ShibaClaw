@@ -110,7 +110,7 @@ async def api_list_plugins(request: Request) -> JSONResponse:
     })
 
 
-async def _hot_reload_plugins():
+async def _hot_reload_plugins(pre_start_hook=None):
     """Reload plugin modules and restart only the gateway subprocess.
 
     Unlike the old ``_do_restart()`` this function does **not** kill the
@@ -135,7 +135,7 @@ async def _hot_reload_plugins():
 
     # Restart only the gateway subprocess — the WebUI stays alive
     from shibaclaw.webui.routers.system import restart_gateway_only
-    restart_gateway_only()
+    restart_gateway_only(pre_start_hook=pre_start_hook)
 
 
 async def _install_plugin_exe(package: str) -> JSONResponse:
@@ -170,8 +170,10 @@ async def _install_plugin_exe(package: str) -> JSONResponse:
                 
                 pkg_snake_case = package.replace("-", "_")
                 target_dir = plugins_dir / pkg_snake_case
-                if target_dir.exists():
-                    shutil.rmtree(target_dir, ignore_errors=True)
+                update_dir = plugins_dir / f".update_{pkg_snake_case}"
+                
+                if update_dir.exists():
+                    shutil.rmtree(update_dir, ignore_errors=True)
                 
                 for f in plugin_files:
                     if f.endswith('/'):
@@ -184,15 +186,20 @@ async def _install_plugin_exe(package: str) -> JSONResponse:
                         continue
                         
                     if rel_path.startswith(f"{pkg_snake_case}/"):
-                        dest_path = plugins_dir / rel_path
+                        dest_path = update_dir / rel_path[len(f"{pkg_snake_case}/"):]
                         dest_path.parent.mkdir(parents=True, exist_ok=True)
                         with z.open(f) as zf, open(dest_path, "wb") as out:
                             shutil.copyfileobj(zf, out)
         
         importlib.invalidate_caches()
 
+        def _apply_install():
+            if target_dir.exists():
+                shutil.rmtree(target_dir, ignore_errors=True)
+            if update_dir.exists():
+                shutil.move(str(update_dir), str(target_dir))
 
-        asyncio.create_task(_hot_reload_plugins())
+        asyncio.create_task(_hot_reload_plugins(pre_start_hook=_apply_install))
         return JSONResponse({
             "ok": True,
             "stdout": f"Plugin {package} downloaded and extracted locally.",
@@ -336,15 +343,16 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
             if not target_dir.exists():
                 return JSONResponse({"ok": False, "error": f"Plugin {package} is not installed locally."}, status_code=404)
 
-            shutil.rmtree(target_dir)
+            def _apply_uninstall():
+                if target_dir.exists():
+                    shutil.rmtree(target_dir, ignore_errors=True)
 
             importlib.invalidate_caches()
 
-
-            asyncio.create_task(_hot_reload_plugins())
+            asyncio.create_task(_hot_reload_plugins(pre_start_hook=_apply_uninstall))
             return JSONResponse({
                 "ok": True,
-                "stdout": f"Plugin {package} folder deleted locally.",
+                "stdout": f"Plugin {package} folder scheduled for deletion.",
                 "restarting": True
             })
         except Exception as e:

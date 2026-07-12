@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <b>23 家模型提供商 · 11 个聊天渠道 · 内置 WebUI · 安全优先内核 · 兼容 MCP</b>
+  <b>28 家模型提供商 · 11 个聊天渠道 · 内置 WebUI · 安全优先内核 · 兼容 MCP</b>
 </p>
 
 <h3 align="center">基于三大支柱：<b>简洁 · 安全 · 隐私</b></h3>
@@ -117,7 +117,7 @@ CVE 审计、提示注入包裹、<br>SSRF 防护 —— <b>默认开启</b>
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 家提供商
+### 🌐 28 家提供商
 原生 SDK，无需 LiteLLM 代理<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -155,7 +155,7 @@ CVE 审计、提示注入包裹、<br>SSRF 防护 —— <b>默认开启</b>
 
 ShibaClaw 的不同之处：
 - **核心内置安全层** —— 安装时 CVE 审计、每个工具结果的提示注入包裹、SSRF/DNS 重绑定防护
-- **原生提供商支持** —— 23 家提供商通过其官方 SDK，无需调试代理层
+- **原生提供商支持** —— 28 家提供商通过其官方 SDK，无需调试代理层
 - **一条命令完成设置** —— Docker 或 pip，跟着向导走，约一分钟内即可开始对话
 - **随处运行** —— 终端、WebUI、Discord、Telegram、WhatsApp、Windows 桌面应用等
 

@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <b>23 Anbieter · 11 Chat-Kanäle · Integrierte WebUI · Sicherheits-Fokus · MCP-bereit</b>
+  <b>28 Anbieter · 11 Chat-Kanäle · Integrierte WebUI · Sicherheits-Fokus · MCP-bereit</b>
 </p>
 
 <h3 align="center">Auf drei Säulen gebaut: <b>Einfachheit · Sicherheit · Privatsphäre</b></h3>
@@ -117,7 +117,7 @@ CVE-Audit, Prompt-Injection-<br>Wrap, SSRF-Guard — <b>standardmäßig an</b>
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 Anbieter
+### 🌐 28 Anbieter
 Native SDKs, kein LiteLLM-Proxy<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -155,7 +155,7 @@ Die meisten KI-Agenten-Frameworks behandeln Sicherheit als Afterthought, lassen 
 
 Was ShibaClaw anders macht:
 - **Sicherheitsschichten im Kern** — CVE-Audit bei Installation, Prompt-Injection-Wrap bei jedem Tool-Ergebnis, SSRF/DNS-Rebinding-Schutz
-- **Native Anbieter-Unterstützung** — 23 Anbieter über deren offizielle SDKs, keine Proxy-Schicht zum Debuggen
+- **Native Anbieter-Unterstützung** — 28 Anbieter über deren offizielle SDKs, keine Proxy-Schicht zum Debuggen
 - **Setup mit einem Befehl** — Docker oder pip, dem Wizard folgen, in etwa einer Minute chatten
 - **Überall lauffähig** — Terminal, WebUI, Discord, Telegram, WhatsApp, Windows-Desktop-App und mehr
 

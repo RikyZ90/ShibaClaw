@@ -236,7 +236,7 @@ def web(
                     pass
             gateway_proc = None
 
-    def restart_gateway_proc():
+    def restart_gateway_proc(pre_start_hook=None):
         """Stop and relaunch the managed gateway subprocess.
 
         Used as the restart callback for plugin install/uninstall so that
@@ -253,6 +253,12 @@ def web(
                 except Exception:
                     pass
             gateway_proc = None
+
+        if pre_start_hook:
+            try:
+                pre_start_hook()
+            except Exception as e:
+                logger.error("pre_start_hook failed: {}", e)
 
         if with_gateway:
             gw_restart_kwargs: dict = {}

@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <b>23 Fournisseurs · 11 Canaux de Chat · WebUI Intégrée · Cœur Sécurité-d'abord · Prêt pour MCP</b>
+  <b>28 Fournisseurs · 11 Canaux de Chat · WebUI Intégrée · Cœur Sécurité-d'abord · Prêt pour MCP</b>
 </p>
 
 <h3 align="center">Bâti sur trois piliers : <b>Simplicité · Sécurité · Vie privée</b></h3>
@@ -117,7 +117,7 @@ Système à 3 niveaux avec apprentissage<br>proactif et auto-compaction
 </td>
 <td align="center" width="33%">
 
-### 🌐 23 Fournisseurs
+### 🌐 28 Fournisseurs
 SDK natifs, aucun proxy LiteLLM<br>OpenAI · Anthropic · Gemini · DeepSeek...
 
 </td>
@@ -155,7 +155,7 @@ La plupart des frameworks d'agents IA traitent la sécurité comme une réflexio
 
 Ce qui rend ShibaClaw différent :
 - **Couches de sécurité intégrées au cœur** — audit CVE à l'installation, encapsulage d'injection de prompt sur chaque résultat d'outil, protection SSRF/rebinding DNS
-- **Support natif des fournisseurs** — 23 fournisseurs via leurs SDK officiels, aucune couche proxy à déboguer
+- **Support natif des fournisseurs** — 28 fournisseurs via leurs SDK officiels, aucune couche proxy à déboguer
 - **Configuration en une commande** — Docker ou pip, suivez l'assistant, vous discutez en environ une minute
 - **Fonctionne partout** — Terminal, WebUI, Discord, Telegram, WhatsApp, app de bureau Windows et plus
 
