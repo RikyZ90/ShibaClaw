@@ -141,7 +141,18 @@ def create_app(
         agent_manager.provider = provider
 
     async def index(request):
-        response = FileResponse(STATIC_DIR / "index.html")
+        index_path = STATIC_DIR / "index.html"
+        if not index_path.exists():
+            from starlette.responses import HTMLResponse
+            return HTMLResponse(
+                "<html><body>🐕 ShibaClaw WebUI is running (fallback)</body></html>",
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                }
+            )
+        response = FileResponse(index_path)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
