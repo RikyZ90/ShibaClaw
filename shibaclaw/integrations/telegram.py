@@ -30,7 +30,6 @@ _PTB_LOGGERS = (
     "telegram.ext.Application",
     "telegram.ext._extbot",
     "telegram.ext._updater",
-    "telegram.ext.Updater",
     "telegram.ext._utils",
 )
 _PREVIOUS_LEVELS: dict[str, int] = {}
@@ -193,9 +192,13 @@ class TelegramConfig(Base):
     allow_from: list[str] = Field(default_factory=list)
 
     def resolve_token(self) -> str | None:
-        """Return the API key from config field or encrypted vault."""
-        if self.token:
-            return self.token
+        """Return the bot token from the encrypted vault (vault-first), falling back
+        to the plain ``token`` field for backwards compatibility.
+
+        Resolution order:
+        1. Encrypted vault lookup under ``channels/telegram.token``.
+        2. Plain ``token`` field (legacy / not-yet-migrated configs).
+        """
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
             vault_key = get_credential_manager().get_secret("channels", "telegram.token")
@@ -203,7 +206,8 @@ class TelegramConfig(Base):
                 return vault_key
         except Exception:
             pass
-        return None
+        return self.token or None
+
     proxy: str | None = None
     reply_to_message: bool = False
     group_policy: Literal["open", "mention", "trigger", "mention_or_trigger"] = "mention"

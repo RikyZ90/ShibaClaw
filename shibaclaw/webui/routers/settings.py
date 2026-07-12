@@ -10,6 +10,9 @@ from shibaclaw.webui.agent_manager import agent_manager
 from shibaclaw.webui.utils import _deep_merge, _redact_secrets
 from typing import Any
 
+# Sensitive key-name fragments used for vault-backed placeholder injection
+_SECRET_KEY_FRAGMENTS = ("token", "password", "secret", "key", "api_key", "apikey")
+
 
 def _filter_redacted(data: Any) -> Any:
     if isinstance(data, dict):
@@ -135,6 +138,76 @@ async def _fetch_all_configured_provider_models(cfg) -> tuple[list[dict[str, str
     return models, errors
 
 
+def _inject_vault_placeholders(data: dict) -> dict:
+    """For sensitive fields that are empty in the serialized config but have a value
+    stored in the vault, inject a '***' placeholder so the webUI knows the secret
+    is configured and shows a masked input instead of a blank field.
+
+    This mirrors what _redact_secrets does for plaintext values, but targets the
+    vault-backed case where the plain field is empty string.
+    """
+    try:
+        from shibaclaw.security.credential_manager import get_credential_manager
+        cm = get_credential_manager()
+        if not cm.is_setup():
+            return data
+    except Exception:
+        return data
+
+    def _maybe_mask(section: str, vault_key: str, cfg: dict, field: str) -> None:
+        """If cfg[field] is empty but vault has a value, set cfg[field] = '***'."""
+        if cfg.get(field, "") != "":
+            return
+        try:
+            val = cm.get_secret(section, vault_key)
+            if val:
+                cfg[field] = "***"
+        except Exception:
+            pass
+
+    # --- Provider API keys ---
+    for provider_name, provider_cfg in (data.get("providers") or {}).items():
+        if isinstance(provider_cfg, dict):
+            _maybe_mask("providers", f"{provider_name}.api_key", provider_cfg, "apiKey")
+
+    # --- Web search API key ---
+    try:
+        search_cfg = data["tools"]["web"]["search"]
+        if isinstance(search_cfg, dict):
+            _maybe_mask("tools", "web_search.api_key", search_cfg, "apiKey")
+    except (KeyError, TypeError):
+        pass
+
+    # --- Audio API key ---
+    audio_cfg = data.get("audio", {})
+    if isinstance(audio_cfg, dict):
+        _maybe_mask("audio", "api_key", audio_cfg, "apiKey")
+
+    # --- Channel secrets ---
+    for ch_name, ch_cfg in (data.get("channels") or {}).items():
+        if not isinstance(ch_cfg, dict):
+            continue
+        for field in list(ch_cfg.keys()):
+            if any(f in field.lower() for f in _SECRET_KEY_FRAGMENTS) and isinstance(ch_cfg.get(field), str):
+                # Derive vault key: camelCase field → snake_case
+                import re
+                snake = re.sub(r'(?<!^)(?=[A-Z])', '_', field).lower()
+                _maybe_mask("channels", f"{ch_name}.{field}", ch_cfg, field)
+                # Also try snake_case vault key as fallback
+                if ch_cfg.get(field, "") == "" and snake != field:
+                    _maybe_mask("channels", f"{ch_name}.{snake}", ch_cfg, field)
+
+    # --- MCP OAuth client secrets ---
+    for server_name, server_cfg in (data.get("tools", {}).get("mcpServers") or {}).items():
+        if not isinstance(server_cfg, dict):
+            continue
+        oauth = server_cfg.get("oauth", {})
+        if isinstance(oauth, dict):
+            _maybe_mask("mcp_servers", f"{server_name}.client_secret", oauth, "clientSecret")
+
+    return data
+
+
 async def api_settings_get(request: Request):
     """Get the current configuration (redacted)."""
     if not agent_manager.config:
@@ -142,6 +215,9 @@ async def api_settings_get(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
     data = agent_manager.config.model_dump(mode="json", by_alias=True)
+    # Inject '***' for vault-backed secrets that have an empty plain field so
+    # the webUI shows a masked placeholder instead of a blank input.
+    data = _inject_vault_placeholders(data)
     return JSONResponse(_redact_secrets(data))
 
 
@@ -177,12 +253,15 @@ async def api_settings_post(request: Request):
         except Exception as e:
             return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
 
-        from shibaclaw.config.loader import get_config_path
+        from shibaclaw.config.loader import get_config_path, _scrub_secrets_from_dump
         path = get_config_path()
         import json
         import os
         import tempfile
         path.parent.mkdir(parents=True, exist_ok=True)
+        # Scrub any residual plaintext secrets before persisting (belt-and-suspenders
+        # on top of _migrate_secrets_from_raw_dict which already popped them from merged)
+        _scrub_secrets_from_dump(merged)
         with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, encoding="utf-8") as tmp:
             json.dump(merged, tmp, indent=2, ensure_ascii=False)
             tmp_name = tmp.name

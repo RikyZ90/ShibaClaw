@@ -13,6 +13,9 @@ from shibaclaw.config.schema import Config
 _current_config_path: Path | None = None
 _plugins_onboarded = False
 
+# Sensitive field name fragments used by _scrub_secrets_from_dump
+_SECRET_FRAGMENTS = ("token", "password", "secret", "key", "api_key", "apiKey")
+
 
 def set_config_path(path: Path) -> None:
     """Set the current config path (used to derive data directory)."""
@@ -25,6 +28,66 @@ def get_config_path() -> Path:
     if _current_config_path:
         return _current_config_path
     return Path.home() / ".shibaclaw" / "config.json"
+
+
+def _scrub_secrets_from_dump(data: dict) -> dict:
+    """Zero-out sensitive plaintext fields in a model_dump dict before writing to disk.
+
+    Operates in-place on *data* and also returns it for convenience.
+    Only clears string values whose key name contains a known secret fragment;
+    empty strings and non-string values are left untouched.
+    """
+    # --- Provider API keys ---
+    providers = data.get("providers", {})
+    if isinstance(providers, dict):
+        for provider_cfg in providers.values():
+            if not isinstance(provider_cfg, dict):
+                continue
+            for k in list(provider_cfg):
+                if any(f in k.lower() for f in _SECRET_FRAGMENTS) and isinstance(provider_cfg[k], str) and provider_cfg[k]:
+                    provider_cfg[k] = ""
+
+    # --- Channel secrets ---
+    channels = data.get("channels", {})
+    if isinstance(channels, dict):
+        for ch_cfg in channels.values():
+            if not isinstance(ch_cfg, dict):
+                continue
+            for k in list(ch_cfg):
+                if any(f in k.lower() for f in _SECRET_FRAGMENTS) and isinstance(ch_cfg[k], str) and ch_cfg[k]:
+                    ch_cfg[k] = ""
+
+    # --- Audio API key ---
+    audio = data.get("audio", {})
+    if isinstance(audio, dict):
+        for k in list(audio):
+            if any(f in k.lower() for f in _SECRET_FRAGMENTS) and isinstance(audio[k], str) and audio[k]:
+                audio[k] = ""
+
+    # --- Web search API key ---
+    tools = data.get("tools", {})
+    if isinstance(tools, dict):
+        web = tools.get("web", {})
+        if isinstance(web, dict):
+            search = web.get("search", {})
+            if isinstance(search, dict):
+                for k in list(search):
+                    if any(f in k.lower() for f in _SECRET_FRAGMENTS) and isinstance(search[k], str) and search[k]:
+                        search[k] = ""
+
+        # --- MCP OAuth client secrets ---
+        mcp_servers = tools.get("mcpServers", {}) or tools.get("mcp_servers", {})
+        if isinstance(mcp_servers, dict):
+            for server_cfg in mcp_servers.values():
+                if not isinstance(server_cfg, dict):
+                    continue
+                oauth = server_cfg.get("oauth", {})
+                if isinstance(oauth, dict):
+                    for k in list(oauth):
+                        if any(f in k.lower() for f in _SECRET_FRAGMENTS) and isinstance(oauth[k], str) and oauth[k]:
+                            oauth[k] = ""
+
+    return data
 
 
 def load_config(config_path: Path | None = None) -> Config:
@@ -92,6 +155,10 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     """
     Save configuration to file atomically.
 
+    Sensitive fields (tokens, passwords, API keys, secrets) are zeroed-out
+    before writing so that a save never reintroduces plaintext credentials
+    that were already migrated to the vault.
+
     Writes to a temporary file first, then renames it over the target so that
     a crash mid-write never leaves an empty or corrupt config.json.
 
@@ -103,6 +170,8 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     data = config.model_dump(mode="json", by_alias=True)
+    # Strip any plaintext secrets before writing to disk.
+    _scrub_secrets_from_dump(data)
     payload = json.dumps(data, indent=2, ensure_ascii=False)
 
     # Write to a sibling temp file then rename — atomic on all major OSes.
@@ -278,4 +347,3 @@ def _migrate_secrets_from_raw_dict(data: dict, cm) -> bool:
                         migrated = True
 
     return migrated
-
