@@ -33,13 +33,10 @@
 ***
 
 <details open>
-<summary>📢 <b>Última versão: v0.9.5 (Big Release & Refactor)</b> — Clique para ver as novidades</summary>
+<summary>📢 <b>Última versão: v0.9.6 (Aviso de login)</b> — Clique para ver as novidades</summary>
 
-- **🔥 Big Security Refactor & 🔐 Cofre de Credenciais Criptografado** — Renovamos totalmente a segurança. O ShibaClaw agora usa um robusto cofre criptografado simétrico AES-128/256 (`credentials.enc` e `credentials.key`) para armazenar com segurança chaves de API, tokens de bots e senhas. Possui resolução com prioridade para o cofre, thread-safety, proteção contra corrupção e permissões estritas no nível do SO (`0o600` no Unix e `icacls` ACLs no Windows).
-- **🌐 Fluxos Nativos OAuth e Device Code** — Adicionados fluxos de autenticação nativos diretamente na WebUI. Agora você pode fazer login sem esforço via **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** e **OpenRouter** sem nunca tocar em uma chave de API!
-- **🤖 Suporte a Novos Provedores** — Integrações abrangentes adicionadas para **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** e **Z.AI**, oferecendo acesso imediato aos melhores modelos de ponta do mercado.
-- **🛡️ Resolução de Canais Reforçada** — Atualizações completas de resolução para Discord, DingTalk, Feishu, QQ, MoChat e o plugin do canal do WhatsApp.
-- **⚡ WebUI ultrarrápida e UX aprimorada** — O frontend foi migrado para uma arquitetura ES6 totalmente empacotada via `esbuild` para carregamento instantâneo, e a UX dos Connected Apps foi suavizada para permitir a configuração contínua do backend Klavis sem recarregamentos manuais.
+- **⚠️ Aviso de login na WebUI pós-atualização** — Adicionada caixa de aviso na WebUI (modal Changelog e painel Update) para executar `shibaclaw reset-admin` no seu terminal caso ocorram problemas de login pós-atualização.
+- **⬆️ Atualização de versão** — Atualizados todos os arquivos de configuração e do projeto para `v0.9.6`.
 
 Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 

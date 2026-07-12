@@ -20,7 +20,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/bundle.css?v=1783889597354">
+    <link rel="stylesheet" href="/static/bundle.css?v=1783890140699">
     <link rel="stylesheet" href="/static/css/mcp_manager.css?v=1">
     <link rel="stylesheet" href="/static/css/connected_apps.css?v=1">
 
@@ -1162,8 +1162,16 @@
                     <span class="material-icons-round">close</span>
                 </button>
             </div>
-            <div class="modal-body markdown-body" id="changelog-content">
-                <div class="loader">Fetching release notes...</div>
+            <div class="modal-body markdown-body">
+                <div style="border: 1px solid var(--accent-red); background: rgba(248, 113, 113, 0.05); padding: 12px; border-radius: var(--radius-md); display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px;">
+                    <span class="material-icons-round" style="color: var(--accent-red); font-size: 18px; margin-top: 2px;">warning</span>
+                    <div style="color: var(--text-primary); font-size: 0.85rem; line-height: 1.4;">
+                        If you experience login issues with the WebUI post-update, please run <code>shibaclaw reset-admin</code> in your terminal/console.
+                    </div>
+                </div>
+                <div id="changelog-content">
+                    <div class="loader">Fetching release notes...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -1365,7 +1373,7 @@
         </div>
     </div>
 
-        <script src="/static/bundle.js?v=1783889597354"></script>
+        <script src="/static/bundle.js?v=1783890140699"></script>
 </body>
 
 </html>

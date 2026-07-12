@@ -7,6 +7,19 @@ function _updateValue(data, key) {
 
 function _renderUpdateManifestSection(manifest, personalFiles) {
     let section = "";
+    
+    // Add the post-update troubleshooting alert at the top, in red
+    section += `
+        <div class="update-notes" style="border: 1px solid var(--accent-red); background: rgba(248, 113, 113, 0.05); margin-bottom: 12px;">
+            <div class="update-notes-title" style="color: var(--accent-red);">
+                <span class="material-icons-round" style="color: var(--accent-red);">warning</span>
+                Login Troubleshooting
+            </div>
+            <div class="update-notes-body" style="color: var(--text-primary); font-size: 0.85rem;">
+                If you experience login issues with the WebUI post-update, please run <code>shibaclaw reset-admin</code> in your terminal/console.
+            </div>
+        </div>`;
+
     if (manifest && manifest.release_notes) {
         section += `
             <div class="update-notes">

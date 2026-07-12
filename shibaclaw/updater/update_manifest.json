@@ -1,31 +1,36 @@
 {
-    "version": "0.9.5",
-    "release_notes": "Implemented an Encrypted Credentials Vault system to secure third-party credentials (API keys, bot tokens, email passwords) via AES-128/256 Fernet encryption. Includes vault-first secret resolution, thread safety locks, anti-corruption safeguards, platform-specific restricted permissions (icacls on Windows), and forced vault writes for WebUI onboarding & OAuth flows.",
+    "version": "0.9.6",
+    "release_notes": "Added a WebUI login troubleshooting warning advising users experiencing post-update login issues to run 'shibaclaw reset-admin' to restore access. Version bumped all components to v0.9.6.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.5."
+            "note": "Bumped version to 0.9.6."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.5 release notes."
+            "note": "Added v0.9.6 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation version to 0.9.5 and added vault features."
+            "note": "Updated documentation version to 0.9.6."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.5."
+            "note": "Bumped packaged update manifest to v0.9.6."
         },
         {
-            "path": "shibaclaw/security/credential_manager.py",
+            "path": "shibaclaw/webui/frontend/index.html",
             "overwrite": true,
-            "note": "Hardened vault operations with locks, strict error handling, path-aware caches, and icacls support."
+            "note": "Added WebUI login troubleshooting notice."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/update_panel.js",
+            "overwrite": true,
+            "note": "Added WebUI login troubleshooting notice to update settings."
         }
     ]
 }

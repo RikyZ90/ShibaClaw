@@ -33,13 +33,10 @@
 ***
 
 <details open>
-<summary>📢 <b>Dernière version : v0.9.5 (Big Release & Refactor)</b> — Cliquez pour voir les nouveautés</summary>
+<summary>📢 <b>Dernière version : v0.9.6 (Avertissement de connexion)</b> — Cliquez pour voir les nouveautés</summary>
 
-- **🔥 Big Security Refactor & 🔐 Coffre-fort d'identifiants chiffré** — Nous avons entièrement revu la sécurité. ShibaClaw utilise désormais un coffre-fort chiffré symétrique robuste AES-128/256 (`credentials.enc` et `credentials.key`) pour stocker en toute sécurité les clés API, les jetons de bot et les mots de passe. Il comprend une résolution prioritaire du coffre-fort, une sécurité des threads, une protection contre la corruption et des autorisations strictes au niveau du système d'exploitation (`0o600` sur Unix et `icacls` ACLs sur Windows).
-- **🌐 Flux OAuth & Device Code natifs** — Ajout de flux d'authentification natifs et fluides directement dans l'interface Web (WebUI). Vous pouvez désormais vous connecter sans effort via **xAI / Grok**, **GitHub Copilot**, **Google Gemini CLI**, **OpenAI Codex** et **OpenRouter** sans jamais manipuler de clé API !
-- **🤖 Nouveaux fournisseurs pris en charge** — Ajout d'intégrations complètes pour **Anthropic (Claude)**, **xAI (Grok)**, **Qwen (Alibaba)**, **MiniMax** et **Z.AI**, vous donnant un accès immédiat aux meilleurs modèles de pointe du marché.
-- **🛡️ Résolution de canaux renforcée** — Mises à jour complètes de la résolution pour Discord, DingTalk, Feishu, QQ, MoChat et le plugin de canal WhatsApp.
-- **⚡ WebUI ultra-rapide & UX soignée** — Migration du frontend vers une architecture ES6 entièrement groupée via `esbuild` pour un chargement instantané, et amélioration de l'UX des Connected Apps pour permettre une configuration backend Klavis fluide sans rechargement manuel.
+- **⚠️ Avertissement de connexion WebUI post-mise à jour** — Ajout d'une boîte d'avertissement dans la WebUI (modal de Changelog et panneau de mise à jour) pour exécuter `shibaclaw reset-admin` dans votre terminal si des problèmes de connexion surviennent après la mise à jour.
+- **⬆️ Mise à niveau de version** — Mise à jour de tous les fichiers de configuration et de projet vers la version `v0.9.6`.
 
 Consultez le [Changelog](./CHANGELOG.md) pour l'historique complet des versions.
 

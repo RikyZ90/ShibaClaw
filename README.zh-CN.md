@@ -33,13 +33,10 @@
 ***
 
 <details open>
-<summary>📢 <b>最新版本：v0.9.5 (Big Release & Refactor)</b> —— 点击查看更新内容</summary>
+<summary>📢 <b>最新版本：v0.9.6 (登录警告提示)</b> —— 点击查看更新内容</summary>
 
-- **🔥 Big Security Refactor & 🔐 加密凭证保管库** —— 我们全面升级了安全性。ShibaClaw 现在使用强大的 AES-128/256 对称加密保管库（`credentials.enc` 和 `credentials.key`）来安全存储 API 密钥、Bot Token 和密码。它具有优先使用保管库、线程安全、防损坏保护以及严格的操作系统级权限控制（Unix 上为 `0o600`，Windows 上为 `icacls` ACL）。
-- **🌐 原生 OAuth 和设备代码流** —— 在 WebUI 中直接添加了无缝的、原生的身份验证流程。您现在可以轻松通过 **xAI / Grok**、**GitHub Copilot**、**Google Gemini CLI**、**OpenAI Codex** 和 **OpenRouter** 登录，而无需再接触任何 API 密钥！
-- **🤖 支持新的提供商** —— 增加了对 **Anthropic (Claude)**、**xAI (Grok)**、**Qwen (Alibaba)**、**MiniMax** 和 **Z.AI** 的全面集成，让您能够立即使用市场上最好的前沿模型。
-- **🛡️ 强化的渠道解析** —— 针对 Discord、钉钉（DingTalk）、飞书（Feishu）、QQ、MoChat 以及 WhatsApp 渠道插件的全面解析更新。
-- **⚡ 极速WebUI和完善的UX** —— 通过`esbuild`将前端迁移到完全捆绑的ES6架构以实现即时加载，并优化了Connected Apps的用户体验，无需手动刷新即可无缝配置Klavis后端。
+- **⚠️ WebUI 更新后登录警告** —— 在 WebUI（更新日志模态框和更新设置面板）中添加了警告框，如果更新后出现登录问题，请在终端中运行 `shibaclaw reset-admin`。
+- **⬆️ 版本升级** —— 将所有配置文件和项目文件更新为 `v0.9.6`。
 
 完整版本历史请查看 [Changelog](./CHANGELOG.md)。
 

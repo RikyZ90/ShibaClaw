@@ -1,3 +1,11 @@
+## [0.9.6] - 2026-07-12
+
+### Added
+- **⚠️ WebUI Post-Update Login Warning** — Added troubleshooting notices in the WebUI (Changelog modal and Update settings panel) warning users experiencing post-update login issues to run `shibaclaw reset-admin` in their terminal to restore access.
+
+### Changed
+- **⬆️ Version Upgrade** — Bumped version to `v0.9.6` across all configuration, packaging, and readme files.
+
 ## [0.9.5] - 2026-07-12
 
 ### Added
