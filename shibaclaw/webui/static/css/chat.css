@@ -4,7 +4,6 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    /* fallback */
     height: 100dvh;
     overflow: hidden;
     background: var(--bg-primary);
@@ -55,38 +54,17 @@
 }
 
 .welcome-logo {
-    width: 96px;
-    height: 96px;
+    width: 88px;
+    height: 88px;
     object-fit: contain;
     margin-bottom: 1.5rem;
-    animation: float 6s ease-in-out infinite;
-    filter: drop-shadow(0 0 15px var(--shiba-gold-glow));
-}
-
-@keyframes float {
-
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-
-    50% {
-        transform: translateY(-8px);
-    }
 }
 
 .welcome-title {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
     margin-bottom: 8px;
     color: var(--text-primary);
-}
-
-.gradient-text {
-    background: linear-gradient(135deg, var(--shiba-gold), var(--shiba-gold-light), var(--accent-blue));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 .welcome-subtitle {
@@ -123,8 +101,6 @@
     background: var(--bg-surface-hover);
     border-color: var(--border-highlight);
     color: var(--text-primary);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
 }
 
 .hint-card .material-icons-round {
@@ -183,6 +159,13 @@
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    @keyframes msgFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+}
+
 .message-group.user {
     align-self: flex-end;
     flex-direction: row-reverse;
@@ -207,7 +190,6 @@
     margin-top: 6px;
     overflow: hidden;
     opacity: 0;
-    /* hidden by default, shown on first in group */
     flex-shrink: 0;
 }
 
@@ -294,22 +276,20 @@
     max-width: 100%;
 }
 
-/* User: minimal — just a subtle right-side accent, no heavy background */
+/* User: slightly lighter surface to distinguish from agent */
 .message-group.user .message-bubble {
-    background: var(--bg-surface);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-right: 2px solid var(--shiba-gold);
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-md);
-    border-bottom-right-radius: 4px;
+    border-bottom-right-radius: var(--radius-sm);
     color: var(--text-primary);
 }
 
-/* Agent: clean surface, subtle top border */
+/* Agent: clean surface */
 .message-group.agent .message-bubble {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    border-bottom-left-radius: 4px;
+    border-bottom-left-radius: var(--radius-sm);
     color: var(--text-primary);
 }
 
@@ -348,11 +328,11 @@
 
 /* ── Typing Bubble (agent is working) ────────────────────────── */
 .typing-bubble {
-    padding: 10px 14px !important;
+    padding: 10px 14px;
     min-width: 48px;
     display: flex;
     align-items: center;
-    background: var(--bg-secondary) !important;
+    background: var(--bg-secondary);
 }
 
 .typing-dots-inline {
@@ -429,11 +409,11 @@
 /* ── Process Groups (collapsible thinking/tool steps) ────────── */
 .process-group {
     margin: 2px 0;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     overflow: hidden;
-    animation: stepFadeIn 0.3s ease-out;
+    animation: stepFadeIn 0.2s ease-out;
     flex-shrink: 0;
 }
 
@@ -482,14 +462,18 @@
     font-family: var(--font-body);
 }
 
-/* Shiny text animation for active title */
+/* Active title — subtle opacity pulse instead of gradient-text shimmer */
 .pg-title.shiny-text {
-    color: transparent !important;
-    background: linear-gradient(90deg, var(--text-secondary) 40%, var(--shiba-gold) 50%, var(--text-secondary) 60%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    animation: shimmer 1.5s linear infinite;
+    animation: titlePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
 }
 
 .pg-metrics {
@@ -644,15 +628,14 @@
     gap: 8px;
     padding: 8px 14px;
     background: var(--bg-elevated);
-    border-radius: var(--radius-sm);
-    border-left: 3px solid var(--shiba-gold);
+    border-radius: var(--radius-md);
     font-size: 12px;
     color: var(--text-secondary);
-    animation: stepFadeIn 0.3s ease-out;
+    animation: stepFadeIn 0.2s ease-out;
 }
 
 .thinking-step.tool {
-    border-left-color: var(--accent-purple);
+    background: rgba(167, 139, 250, 0.06);
 }
 
 .thinking-step .step-icon {
@@ -671,12 +654,19 @@
 @keyframes stepFadeIn {
     from {
         opacity: 0;
-        transform: translateX(-8px);
+        transform: translateY(4px);
     }
 
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    @keyframes stepFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
     }
 }
 
@@ -742,7 +732,7 @@
 }
 
 .message-bubble strong {
-    color: var(--shiba-gold-light);
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -751,12 +741,12 @@
 }
 
 .message-bubble blockquote {
-    border-left: 3px solid var(--shiba-gold);
     padding: 8px 12px;
     margin: 8px 0;
-    background: var(--shiba-gold-dim);
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
+    border: 1px solid var(--border-color);
 }
 
 .message-bubble hr {
@@ -774,7 +764,7 @@
 .message-bubble :not(pre)>code {
     background: rgba(255, 255, 255, 0.06);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     color: var(--shiba-gold-light);
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -816,7 +806,7 @@
     color: var(--text-muted);
     cursor: pointer;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     font-family: var(--font-body);
     transition: all var(--transition-fast);
@@ -951,18 +941,17 @@
     align-items: flex-end;
     gap: 8px;
     background: var(--bg-surface);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-md);
     padding: 2px 9px;
     transition: border-color var(--transition-fast);
 }
 
 .input-container:focus-within {
-    border-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.08);
     border-bottom-width: 2px;
     border-bottom-color: var(--shiba-gold);
-    box-shadow: none;
 }
 
 #chat-input {
@@ -1031,8 +1020,6 @@
 
 .btn-send:not(:disabled):hover {
     background: var(--shiba-gold-light);
-    transform: scale(1.05);
-    box-shadow: var(--shadow-glow);
 }
 
 .btn-send:not(:disabled):active {
@@ -1084,7 +1071,7 @@
     cursor: not-allowed;
 }
 
-/* Stop button — active (red glow) when agent is working */
+/* Stop button — active (red) when agent is working */
 .btn-stop.active {
     color: #ef4444;
     border-color: rgba(239, 68, 68, 0.3);
@@ -1096,7 +1083,7 @@
     border-color: rgba(239, 68, 68, 0.5);
 }
 
-/* Token usage badge — always visible next to buttons */
+/* Token usage badge */
 .token-badge {
     position: relative;
     overflow: hidden;
@@ -1105,9 +1092,9 @@
     gap: 5px;
     margin-left: auto;
     padding: 3px 10px;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     font-size: 0.72rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     color: var(--text-muted);
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
@@ -1127,10 +1114,10 @@
     transition: width 0.3s ease, background 0.3s ease;
 }
 
-.token-badge.usage-low .token-badge-fill { background: rgba(74, 222, 128, 0.15); }
-.token-badge.usage-mid .token-badge-fill { background: rgba(232, 163, 23, 0.15); }
-.token-badge.usage-high .token-badge-fill { background: rgba(249, 115, 22, 0.15); }
-.token-badge.usage-crit .token-badge-fill { background: rgba(239, 68, 68, 0.2); }
+.token-badge.usage-low .token-badge-fill { background: rgba(74, 222, 128, 0.12); }
+.token-badge.usage-mid .token-badge-fill { background: rgba(232, 163, 23, 0.12); }
+.token-badge.usage-high .token-badge-fill { background: rgba(249, 115, 22, 0.12); }
+.token-badge.usage-crit .token-badge-fill { background: rgba(239, 68, 68, 0.15); }
 
 .token-badge .material-icons-round {
     font-size: 13px;
@@ -1145,23 +1132,23 @@
 /* Color tiers based on usage */
 .token-badge.usage-low {
     color: #4ade80;
-    border-color: rgba(74, 222, 128, 0.25);
+    border-color: rgba(74, 222, 128, 0.2);
 }
 
 .token-badge.usage-mid {
     color: var(--shiba-gold);
-    border-color: rgba(232, 163, 23, 0.25);
+    border-color: rgba(232, 163, 23, 0.2);
 }
 
 .token-badge.usage-high {
     color: #f97316;
-    border-color: rgba(249, 115, 22, 0.25);
+    border-color: rgba(249, 115, 22, 0.2);
 }
 
 .token-badge.usage-crit {
     color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.06);
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.04);
 }
 
 .input-hint {
@@ -1172,10 +1159,9 @@
 /* ── Thought Blocks (Native Reasoning) ────────────────────────── */
 .thought-block {
     margin: 8px 0;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-left: 3px solid var(--text-muted);
     overflow: hidden;
     transition: all var(--transition-fast);
 }
@@ -1183,7 +1169,6 @@
 .thought-block[open] {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .thought-block summary {
@@ -1236,7 +1221,7 @@
     font-size: 11.5px;
     font-weight: 500;
     padding: 1px 6px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     margin: 0 2px;
     vertical-align: middle;
     background-color: var(--primary-color-alpha, rgba(99, 102, 241, 0.15));
@@ -1250,19 +1235,19 @@
 }
 
 .mention-chip-inline.mention-kb {
-    background-color: rgba(16, 185, 129, 0.15); /* Emerald */
+    background-color: rgba(16, 185, 129, 0.15);
     color: #34d399;
     border-color: rgba(16, 185, 129, 0.3);
 }
 
 .mention-chip-inline.mention-app {
-    background-color: rgba(245, 158, 11, 0.15); /* Amber */
+    background-color: rgba(245, 158, 11, 0.15);
     color: #fbbf24;
     border-color: rgba(245, 158, 11, 0.3);
 }
 
 .mention-chip-inline.mention-mcp {
-    background-color: rgba(59, 130, 246, 0.15); /* Blue */
+    background-color: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
     border-color: rgba(59, 130, 246, 0.3);
-}
+}

@@ -113,8 +113,8 @@
 }
 
 .history-item.active {
-    background: rgba(212, 163, 115, 0.1);
-    border-color: var(--shiba-gold-glow);
+    background: var(--shiba-gold-dim);
+    border-color: var(--border-highlight);
     color: var(--shiba-gold);
 }
 

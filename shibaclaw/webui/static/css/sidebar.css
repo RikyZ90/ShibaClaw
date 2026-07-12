@@ -3,14 +3,13 @@
     width: var(--sidebar-width);
     min-width: var(--sidebar-width);
     height: 100vh;
-    /* fallback */
     height: 100dvh;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     transition: transform var(--transition-base), opacity var(--transition-base);
-    z-index: 100;
+    z-index: var(--z-sidebar);
     overflow: hidden;
 }
 
@@ -19,7 +18,7 @@
 }
 
 .sidebar-header {
-    padding: 20px 16px 16px;
+    padding: 18px 16px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -33,19 +32,15 @@
 }
 
 .logo-icon {
-    width: 74px;
-    height: 74px;
+    width: 68px;
+    height: 68px;
     object-fit: contain;
-    filter: drop-shadow(0 0 4px var(--shiba-gold-glow));
 }
 
 .logo-text h1 {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--shiba-gold), var(--shiba-gold-light));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--shiba-gold);
     letter-spacing: -0.02em;
 }
 
@@ -57,9 +52,9 @@
     transition: all var(--transition-fast);
     display: inline-flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -73,9 +68,8 @@
 
 .version:hover {
     color: var(--shiba-gold);
-    background: rgba(232, 163, 23, 0.12);
-    border-color: rgba(232, 163, 23, 0.3);
-    box-shadow: 0 0 6px rgba(232, 163, 23, 0.15);
+    background: var(--shiba-gold-dim);
+    border-color: var(--border-highlight);
 }
 
 .sidebar-toggle {
@@ -85,7 +79,7 @@
     color: var(--text-secondary);
     cursor: pointer;
     padding: 4px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     transition: color var(--transition-fast);
 }
 
@@ -115,10 +109,12 @@
 }
 
 .btn-action:hover {
-    background: rgba(232, 163, 23, 0.25);
+    background: rgba(232, 163, 23, 0.2);
     border-color: var(--shiba-gold);
-    box-shadow: var(--shadow-glow);
-    transform: translateY(-1px);
+}
+
+.btn-action:active {
+    background: rgba(232, 163, 23, 0.28);
 }
 
 .btn-action .material-icons-round {
@@ -152,7 +148,7 @@
 
 .sidebar-section.history-section::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
 }
 
 .sidebar-section.history-section::-webkit-scrollbar-thumb:hover {
@@ -197,8 +193,8 @@
     align-items: center;
     gap: 4px;
     padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -213,26 +209,22 @@
 
 .status-dot.connected {
     background: var(--accent-green);
-    box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
     animation: heartbeat 1.5s ease-in-out infinite;
 }
 
 .status-dot.working {
     background: var(--shiba-gold);
-    box-shadow: 0 0 8px var(--shiba-gold-glow);
     animation: heartbeat 0.8s ease-in-out infinite;
 }
 
 .status-dot.gateway-down {
     background: #f97316;
-    box-shadow: 0 0 6px rgba(249, 115, 22, 0.4);
-    animation: pulse-orange 1.5s infinite;
+    animation: pulse-state 1.5s infinite;
 }
 
 .status-dot.model-offline {
     background: #eab308;
-    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
-    animation: pulse-yellow 1.5s infinite;
+    animation: pulse-state 1.5s infinite;
 }
 
 .status-dot.disconnected {
@@ -241,14 +233,12 @@
 
 .status-dot.restarting {
     background: #fbbf24;
-    box-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
     animation: spin 1s linear infinite;
 }
 
 .status-dot.starting {
     background: #3b82f6;
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-    animation: pulse-blue 1.5s infinite;
+    animation: pulse-state 1.5s infinite;
 }
 
 /* Restart button */
@@ -259,7 +249,7 @@
     color: var(--text-muted);
     cursor: pointer;
     padding: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     transition: color var(--transition-fast), background var(--transition-fast);
@@ -311,8 +301,7 @@
     }
 }
 
-@keyframes pulse-orange {
-
+@keyframes pulse-state {
     0%,
     100% {
         opacity: 1;
@@ -320,30 +309,6 @@
 
     50% {
         opacity: 0.4;
-    }
-}
-
-@keyframes pulse-yellow {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-}
-
-@keyframes pulse-blue {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
     }
 }
 
@@ -367,7 +332,7 @@
     padding: 8px 12px;
     background: transparent;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     color: var(--text-secondary);
     font-family: var(--font-body);
     font-size: 13px;
@@ -402,21 +367,19 @@
 }
 
 .automation-badge-mini.badge-normal {
-    background: linear-gradient(135deg, var(--shiba-gold), var(--shiba-gold-light));
-    color: #1a1a1a;
-    box-shadow: 0 0 8px var(--shiba-gold-glow);
+    background: var(--shiba-gold);
+    color: #0d0d0d;
 }
 
 .automation-badge-mini.badge-error {
-    background: linear-gradient(135deg, #ef4444, #f87171);
+    background: var(--accent-red);
     color: #ffffff;
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
     animation: badge-pulse 2s infinite;
 }
 
 @keyframes badge-pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
     }
     70% {
         box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
@@ -428,7 +391,7 @@
 
 .sidebar-footer {
     margin-top: auto;
-    padding: 16px;
+    padding: 14px 16px;
     border-top: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
@@ -446,7 +409,7 @@
 }
 
 .footer-info .material-icons-round {
-    font-size: 13px !important;
+    font-size: 13px;
 }
 
 .footer-info-label {
@@ -475,7 +438,7 @@
     min-height: 34px;
     padding: 8px 12px;
     border: 1px solid var(--border-color);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .footer-actions .btn-command .material-icons-round {
@@ -502,8 +465,8 @@
 
 .btn-logout:hover {
     color: #fca5a5;
-    background: rgba(248, 113, 113, 0.1);
-    border-color: rgba(248, 113, 113, 0.26);
+    background: rgba(248, 113, 113, 0.08);
+    border-color: rgba(248, 113, 113, 0.2);
 }
 
 .btn-github:focus-visible,
@@ -511,7 +474,7 @@
     outline: none;
     background: var(--bg-surface-hover);
     border-color: var(--border-highlight);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
 }
 
 /* Compact layout for GitHub footer button */

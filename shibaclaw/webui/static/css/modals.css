@@ -163,7 +163,6 @@ input[type="number"].form-input {
 
 .btn-primary:hover {
     background: var(--shiba-gold-light);
-    box-shadow: var(--shadow-glow);
 }
 
 .btn-secondary {
