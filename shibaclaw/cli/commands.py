@@ -166,7 +166,7 @@ def web(
         os.environ["SHIBACLAW_GATEWAY_HOST"] = gateway_host
         os.environ["SHIBACLAW_WEBUI_URL"] = f"http://127.0.0.1:{port}"
         cfg.gateway.host = gateway_host
-        safe_print("[cyan]➜ Starting Gateway process background...[/cyan]")
+        safe_print("[cyan]➤ Starting Gateway process background...[/cyan]")
         safe_print("[dim]  (Optimized memory: ~128MB UI + ~512MB Gateway)[/dim]")
         gw_cmd = [
             sys.executable,
@@ -197,7 +197,7 @@ def web(
                 time.sleep(0.1)
 
     safe_print(f"{__logo__} [bold gold1]ShibaClaw WebUI[/bold gold1]")
-    safe_print(f"  [cyan]➜ http://{host}:{port}[/cyan]")
+    safe_print(f"  [cyan]➤ http://{host}:{port}[/cyan]")
     if provider is None:
         safe_print("")
         safe_print(
@@ -207,7 +207,7 @@ def web(
     def stop_gateway_proc():
         nonlocal gateway_proc
         if gateway_proc:
-            safe_print("[yellow]➜ Terminating Gateway process...[/yellow]")
+            safe_print("[yellow]➤ Terminating Gateway process...[/yellow]")
             try:
                 gateway_proc.terminate()
                 gateway_proc.wait(timeout=5)
@@ -268,7 +268,7 @@ def agent(
     message: Optional[str] = typer.Argument(None, help="Message to send to the agent"),
     session_id: str = typer.Option("cli:direct", "--session", "-s", help="Session ID"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
-    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Path to config file"),
     markdown: bool = typer.Option(
         True, "--markdown/--no-markdown", help="Render output as Markdown"
     ),
@@ -309,7 +309,14 @@ def status():
                         f"[green]✓ {p.api_base}[/green]" if p.api_base else "[dim]not set[/dim]"
                     )
                 else:
-                    status_text = "[green]✓[/green]" if p.api_key else "[dim]not set[/dim]"
+                    # ProviderConfig no longer has a plain api_key field;
+                    # resolve from vault (also falls back to env vars via
+                    # _provider_has_credentials in the caller chain).
+                    status_text = (
+                        "[green]✓[/green]"
+                        if p.resolve_api_key(spec.name)
+                        else "[dim]not set[/dim]"
+                    )
                 safe_print(f"{spec.label}: {status_text}")
 
 
