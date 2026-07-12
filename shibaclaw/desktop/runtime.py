@@ -150,18 +150,33 @@ class DesktopRuntime:
         self.config.gateway.port = gateway_port
         self.config.gateway.ws_port = gateway_ws_port
 
-        gw_cmd = [
-            sys.executable,
-            "-m",
-            "shibaclaw",
-            "gateway",
-            "--host",
-            gateway_host,
-            "--port",
-            str(gateway_port),
-            "--ws-port",
-            str(gateway_ws_port),
-        ]
+        gw_cmd: list[str]
+        if getattr(sys, "frozen", False):
+            # In a frozen .exe (PyInstaller), `-m shibaclaw` is not available.
+            # The bundled exe supports subcommands directly.
+            gw_cmd = [
+                sys.executable,
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
+        else:
+            gw_cmd = [
+                sys.executable,
+                "-m",
+                "shibaclaw",
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
         if self._workspace:
             gw_cmd.extend(["--workspace", self._workspace])
         if self._config_path:

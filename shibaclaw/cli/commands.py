@@ -168,24 +168,42 @@ def web(
         cfg.gateway.host = gateway_host
         safe_print("[cyan]➤ Starting Gateway process background...[/cyan]")
         safe_print("[dim]  (Optimized memory: ~128MB UI + ~512MB Gateway)[/dim]")
-        gw_cmd = [
-            sys.executable,
-            "-m",
-            "shibaclaw",
-            "gateway",
-            "--host",
-            gateway_host,
-            "--port",
-            str(gateway_port),
-            "--ws-port",
-            str(gateway_ws_port),
-        ]
+        if getattr(sys, "frozen", False):
+            # Frozen .exe (PyInstaller): -m flag is not available
+            gw_cmd = [
+                sys.executable,
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
+        else:
+            gw_cmd = [
+                sys.executable,
+                "-m",
+                "shibaclaw",
+                "gateway",
+                "--host",
+                gateway_host,
+                "--port",
+                str(gateway_port),
+                "--ws-port",
+                str(gateway_ws_port),
+            ]
         if workspace:
             gw_cmd.extend(["--workspace", workspace])
         if config:
             gw_cmd.extend(["--config", config])
 
-        gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy())
+        gw_extra_kwargs: dict = {}
+        if sys.platform == "win32":
+            create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            gw_extra_kwargs["creationflags"] = create_no_window
+
+        gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy(), **gw_extra_kwargs)
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
             if gateway_proc.poll() is not None:
@@ -218,9 +236,36 @@ def web(
                     pass
             gateway_proc = None
 
-    from shibaclaw.webui.routers.system import set_shutdown_callback
+    def restart_gateway_proc():
+        """Stop and relaunch the managed gateway subprocess.
+
+        Used as the restart callback for plugin install/uninstall so that
+        only the gateway is recycled — the WebUI server stays alive.
+        """
+        nonlocal gateway_proc
+        if gateway_proc:
+            try:
+                gateway_proc.terminate()
+                gateway_proc.wait(timeout=5)
+            except Exception:
+                try:
+                    gateway_proc.kill()
+                except Exception:
+                    pass
+            gateway_proc = None
+
+        if with_gateway:
+            gw_restart_kwargs: dict = {}
+            if sys.platform == "win32":
+                _cnw = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                gw_restart_kwargs["creationflags"] = _cnw
+            gateway_proc = subprocess.Popen(gw_cmd, env=os.environ.copy(), **gw_restart_kwargs)
+
+    from shibaclaw.webui.routers.system import set_restart_callback, set_shutdown_callback
 
     set_shutdown_callback(stop_gateway_proc)
+    if with_gateway:
+        set_restart_callback(restart_gateway_proc)
 
     try:
         asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
