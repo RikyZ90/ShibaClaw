@@ -1,0 +1,95 @@
+/* ── Responsive Settings & Dedicated View ──────────────────── */
+@media (max-width: 768px) {
+    .settings-view .settings-layout {
+        flex-direction: column;
+    }
+
+    /* Hide sidebar, use landing dashboard on mobile */
+    .settings-view .settings-sidebar {
+        display: none !important;
+    }
+
+    .settings-mobile-dashboard {
+        display: block;
+    }
+
+    /* Adjust content slot on mobile */
+    .settings-view .settings-content {
+        padding: 1rem;
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    }
+
+    .settings-mobile-back {
+        display: inline-flex;
+    }
+
+    /* Strip container double borders/backgrounds for settings panels on mobile */
+    .settings-view .settings-panel {
+        background: transparent;
+        border: none;
+        padding: 0;
+        box-shadow: none;
+        margin-bottom: 0;
+        max-width: 100%;
+    }
+
+    .settings-header {
+        padding: 0 1rem;
+    }
+
+    .settings-header-left h2 {
+        font-size: 1.05rem;
+    }
+
+    .settings-subtitle {
+        font-size: 0.72rem;
+    }
+
+    /* Responsive Form fields inside settings view */
+    .field-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 0.85rem 0;
+    }
+
+    .skills-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .skills-toolbar-actions {
+        margin-left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: stretch;
+    }
+
+    .skills-toolbar-actions button {
+        flex: 1;
+    }
+
+    .skills-import-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-card {
+        padding: 0.95rem 1rem;
+        gap: 12px;
+    }
+
+    .dash-icon {
+        font-size: 20px;
+        padding: 6px;
+    }
+
+    .dash-title {
+        font-size: 0.9rem;
+    }
+
+    .dash-desc {
+        font-size: 0.74rem;
+    }
+}

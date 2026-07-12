@@ -1,0 +1,187 @@
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-lg);
+        width: min(86vw, 320px);
+        min-width: min(86vw, 320px);
+        z-index: 200;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar-toggle {
+        display: flex;
+    }
+
+    .mobile-menu-btn {
+        display: flex;
+    }
+
+    .welcome-hints {
+        grid-template-columns: 1fr;
+    }
+
+    .message-group.user,
+    .message-group.agent {
+        max-width: 95%;
+    }
+
+    /* Width toggle is useless on mobile (chat is already full-width) */
+    .width-toggle-wrapper {
+        display: none;
+    }
+
+    /* Reduce header gap to prevent overflow on small screens */
+    .chat-header {
+        gap: 8px;
+        padding: 0 12px;
+    }
+
+    /* Input action buttons: icon-only on mobile */
+    .btn-input-action span:not(.material-icons-round) {
+        display: none;
+    }
+
+    .btn-input-action {
+        padding: 3px 7px;
+    }
+
+    /* Token badge: compact on mobile */
+    .token-badge-text {
+        max-width: 70px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Hide "Enter to send" hint — irrelevant on touch keyboards */
+    .input-hint {
+        display: none;
+    }
+
+    /* Reduce padding to reclaim space for chat */
+    .chat-history {
+        padding: 16px 12px 60px;
+    }
+
+    /* Sidebar: ensure session list is scrollable */
+    .sidebar-footer {
+        padding: 10px 14px;
+        flex-shrink: 0;
+    }
+
+    .footer-actions {
+        flex-direction: row;
+    }
+
+    .footer-actions .btn-command {
+        min-height: 38px;
+    }
+
+    /* Sidebar header: compact on mobile */
+    .sidebar-header {
+        padding: 12px 14px 10px;
+    }
+
+    .logo-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .logo-text h1 {
+        font-size: 20px;
+    }
+
+    /* Sidebar actions: compact */
+    .sidebar-actions {
+        padding: 8px 14px;
+    }
+
+    /* Status section: compact */
+    .sidebar-section:not(.history-section):not(.automation-section) {
+        padding: 8px 14px;
+    }
+
+    /* History section: guaranteed scrollable space on mobile */
+    .sidebar-section.history-section {
+        min-height: 120px;
+    }
+
+    /* Automation section: shrinkable on mobile so history can scroll */
+    .sidebar-section.automation-section {
+        flex-shrink: 1;
+        overflow-y: auto;
+        max-height: 140px;
+        padding: 8px 14px;
+    }
+
+    /* iOS: previene auto-zoom su input < 16px */
+    #chat-input {
+        font-size: 16px;
+    }
+
+    /* Safe area per home bar (iPhone X+) */
+    .chat-input-wrapper,
+    .input-wrapper,
+    .input-area {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-base);
+        z-index: 150;
+    }
+
+    .sidebar-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-title {
+        font-size: 24px;
+    }
+
+    .welcome-logo {
+        width: 64px;
+        height: 64px;
+    }
+
+    .footer-info {
+        font-size: 11px;
+    }
+
+    .footer-info-label {
+        display: none;
+    }
+
+    .chat-header {
+        gap: 6px;
+        padding: 0 8px;
+    }
+
+    .chat-history {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    /* Even more compact profile label */
+    .profile-label {
+        max-width: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

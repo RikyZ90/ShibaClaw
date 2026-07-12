@@ -1,0 +1,31 @@
+/* premium.css — Functional enhancements only */
+/* No glassmorphism, no !important, no decorative transforms */
+
+/* KB item selection state */
+.model-item.premium-kb-item {
+    border-radius: var(--radius-md);
+    margin-bottom: 2px;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+}
+
+.model-item.premium-kb-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.model-item.premium-kb-item.selected {
+    background: var(--shiba-gold-dim);
+    border-color: var(--border-highlight);
+}
+
+.premium-kb-check {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all var(--transition-fast);
+    color: var(--shiba-gold);
+}
+
+.model-item.premium-kb-item.selected .premium-kb-check {
+    opacity: 1;
+    transform: scale(1);
+}
