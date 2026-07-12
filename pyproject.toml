@@ -143,7 +143,7 @@ packages = ["shibaclaw"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "assets" = "shibaclaw/assets"
-"shibaclaw/webui/static" = "shibaclaw/webui/static"
+
 
 [tool.hatch.build.targets.sdist]
 include = [
