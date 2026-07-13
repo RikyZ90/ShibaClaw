@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import weakref
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
