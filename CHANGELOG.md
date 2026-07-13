@@ -4,9 +4,20 @@
 - **Local RAG Windows EXE Bundling** — Fixed a bug where installing the packaged Windows `.exe` release prevented using the Local RAG & Knowledge Base plugin. Dependencies (`langchain`, `faiss-cpu`, `sentence-transformers`, `pypdf`, `beautifulsoup4`) are now bundled into the release `.exe` via `shibaclaw.spec` hiddenimports and CI pipeline extras.
 - **Real-time Hot-Reload for Local RAG Install & Uninstall** — Refactored `knowledge_manager.py` and `plugins.py` to dynamically verify `langchain`, `langchain_community`, and `faiss` disk specs and purge Python's in-memory `sys.modules` cache upon uninstallation. Both installation and uninstallation of the Local RAG plugin now reflect in the WebUI in real-time without requiring a server restart.
 - **Clean RAG Dependency Uninstallation** — Explicitly included `langchain-core` and `langchain-text-splitters` in the plugin uninstallation pipeline so no residual sub-dependencies remain in `site-packages`.
+- **Memory Leaks** — Fixed memory leaks in WebSocket handlers and message queues (`shibaclaw/agent/context.py`, `loop.py`).
+- **Concurrency Locks** — Implemented strong reference lock storage in `PackMemory` & `ShibaBrain` to prevent concurrency race conditions.
+- **MCP Deadlocks** — Resolved reconnect deadlock in `MCPManager`.
+- **Timeout Clamping** — Clamped timeouts to `max(0.1, ...)` in `ExecTool` and the execution loop.
+- **Session Saves** — Fixed missing `import os` and implemented atomic `.jsonl.tmp` session saves in `manager.py`.
+- **Initialization Safety** — Added null-checks in subagent provider initialization and timestamp safety in `memory.py`.
 
 ### Changed
 - **CI Pipeline & Build Environment Hardening** — Configured Windows CI workflow steps to use `shell: bash` to avoid PowerShell bracket/quote parsing issues during multi-extra `pip install` commands, and added pre-flight import checks in `scripts/build_windows.py`.
+
+### Optimized
+- **FAISS Vectorstore Caching & Locks** — Optimized FAISS vectorstore caching and added Windows file lock fallback (`shibaclaw/agent/knowledge_manager.py`).
+- **O(1) History Append** — Implemented $O(1)$ history append mode in `ScentKeeper` (`shibaclaw/agent/memory.py`).
+- **Config & Skill Caching** — Added Mtime-based config loader and skill summary caching (`shibaclaw/config/loader.py`, `shibaclaw/agent/skills.py`).
 
 ## [0.9.6] - 2026-07-12
 
