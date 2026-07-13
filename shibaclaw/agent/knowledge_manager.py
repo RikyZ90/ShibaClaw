@@ -33,6 +33,20 @@ except ImportError:
 
 def is_rag_available() -> bool:
     global RAG_AVAILABLE, Document
+    import importlib.util
+    import sys
+
+    importlib.invalidate_caches()
+    spec = importlib.util.find_spec("langchain_core")
+    if spec is None or spec.origin is None or not os.path.exists(spec.origin):
+        for mod_name in list(sys.modules.keys()):
+            if mod_name.startswith(("langchain", "faiss", "sentence_transformers")):
+                sys.modules.pop(mod_name, None)
+        class Document:
+            pass
+        RAG_AVAILABLE = False
+        return False
+
     try:
         from langchain_core.documents import Document as _Document
         from langchain_community.document_loaders import (  # noqa: F401
