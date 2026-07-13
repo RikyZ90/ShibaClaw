@@ -122,6 +122,7 @@ class SubagentManager:
                         "session_key": origin["session_key"],
                         "label": display_label,
                     },
+                    # Use "subagent_status" so realtime.js fires the dedicated handler
                     msg_type="subagent_status",
                 )
             except Exception as _e:
@@ -135,12 +136,12 @@ class SubagentManager:
                     del self._session_tasks[session_key]
             
             # Emit UI event for completion
-            asyncio.create_task(_notify_status("completed", f"🤖 Subagent [{display_label}] completed."))
+            asyncio.create_task(_notify_status("completed", f"\U0001f916 Subagent [{display_label}] completed."))
 
         bg_task.add_done_callback(_cleanup)
 
         # Emit UI event for start
-        asyncio.create_task(_notify_status("running", f"🤖 Subagent [{display_label}] started."))
+        asyncio.create_task(_notify_status("running", f"\U0001f916 Subagent [{display_label}] started."))
 
         logger.info("Spawned subagent [{}]: {}", task_id, display_label)
         return f"Subagent [{display_label}] started (id: {task_id}). I'll notify you when it completes."
@@ -293,7 +294,7 @@ class SubagentManager:
                             half = self._TOOL_RESULT_MAX_CHARS // 2
                             result = (
                                 result[:half]
-                                + f"\n...[TRUNCATED — {len(result)} chars total]...\n"
+                                + f"\n...[TRUNCATED \u2014 {len(result)} chars total]...\n"
                                 + result[-half:]
                             )
                         messages.append(
@@ -364,12 +365,16 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
                     try:
                         from shibaclaw.webui.ws_handler import deliver_to_browsers
 
+                        # Use msg_type="response" so realtime.js _dispatch maps it
+                        # to fire("agent_response", msg) and the frontend handler
+                        # in api_socket.js renders the bubble immediately without
+                        # requiring a page refresh.
                         await deliver_to_browsers(
                             origin["session_key"],
                             outbound.content,
                             media=outbound.media,
                             metadata=outbound.metadata,
-                            msg_type="agent_response",
+                            msg_type="response",
                         )
                     except Exception as _e:
                         logger.debug("Failed to deliver real-time subagent result to WebUI: {}", _e)

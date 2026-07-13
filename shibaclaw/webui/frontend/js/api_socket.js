@@ -217,6 +217,11 @@ function initSocket() {
             addAgentMessage(data.id, data.content, data.attachments || []);
         }
 
+        // Dismiss subagent skeleton/drawer if this response comes from a subagent task
+        if (data.metadata && data.metadata.task_id && window.subagentUI) {
+            window.subagentUI.finishSubagent(data.metadata.task_id);
+        }
+
         // Play text-to-speech if enabled and no audio file is attached
         const hasAudioAttachment = data.attachments && data.attachments.some(file => typeof file.type === "string" && file.type.startsWith("audio/"));
         if (window.speechTTS && window.speechTTS.enabled && data.content && !hasAudioAttachment) {
@@ -238,7 +243,7 @@ function initSocket() {
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         hideThinking();
-        addAgentMessage("error", `⚠️ ${data.message}`);
+        addAgentMessage("error", `\u26a0\ufe0f ${data.message}`);
         state.processing = false;
         setWorkingState(false);
         updateSendButton();
@@ -609,5 +614,3 @@ window.restartGateway = async function () {
         console.error("Restart error:", e);
     }
 };
-
-
