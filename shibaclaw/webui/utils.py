@@ -280,6 +280,7 @@ async def _gateway_post(path: str, body: dict) -> dict | None:
 
     _path_to_action = {
         "/restart": "restart",
+        "/reload": "reload",
         "/heartbeat/trigger": "heartbeat.trigger",
         "/api/archive": "archive",
     }

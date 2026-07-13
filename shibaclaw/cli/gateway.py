@@ -655,6 +655,10 @@ async def gateway_command(
                 _state["restart"] = True
                 asyncio.ensure_future(_trigger_restart())
 
+            elif action == "reload":
+                await ws.send(_ok({"status": "reloading"}))
+                asyncio.create_task(_do_reload())
+
             # --- Automation (new unified actions) ---
             elif action == "automation.list":
                 await ws.send(
