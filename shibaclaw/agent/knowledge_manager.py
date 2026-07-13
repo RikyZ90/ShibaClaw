@@ -30,6 +30,29 @@ except ImportError:
         pass
     RAG_AVAILABLE = False
 
+
+def is_rag_available() -> bool:
+    global RAG_AVAILABLE, Document
+    try:
+        from langchain_core.documents import Document as _Document
+        from langchain_community.document_loaders import (  # noqa: F401
+            BSHTMLLoader,
+            CSVLoader,
+            PyPDFLoader,
+            TextLoader,
+        )
+        from langchain_community.vectorstores import FAISS  # noqa: F401
+        from langchain_huggingface import HuggingFaceEmbeddings  # noqa: F401
+        from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: F401
+        Document = _Document
+        RAG_AVAILABLE = True
+        return True
+    except Exception:
+        class Document:
+            pass
+        RAG_AVAILABLE = False
+        return False
+
 logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)

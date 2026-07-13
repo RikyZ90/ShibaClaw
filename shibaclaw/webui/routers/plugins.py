@@ -19,7 +19,7 @@ from shibaclaw.config.loader import load_config
 from shibaclaw.config.paths import get_plugins_dir
 from shibaclaw.helpers.system import is_running_as_exe
 from shibaclaw import __version__
-from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+from shibaclaw.agent.knowledge_manager import is_rag_available
 
 _plugin_lock = asyncio.Lock()
 
@@ -65,8 +65,9 @@ async def api_list_plugins(request: Request) -> JSONResponse:
             "installed": True
         })
 
+    rag_available = is_rag_available()
     rag = []
-    if RAG_AVAILABLE:
+    if rag_available:
         rag.append({
             "name": "shibaclaw-rag",
             "display_name": "Local RAG & Knowledge Base",
@@ -77,7 +78,7 @@ async def api_list_plugins(request: Request) -> JSONResponse:
 
     available = []
 
-    if not RAG_AVAILABLE:
+    if not rag_available:
         available.append({
             "name": "shibaclaw-rag",
             "display_name": "Local RAG & Knowledge Base",
@@ -255,7 +256,10 @@ async def _install_plugin_source(package: str) -> JSONResponse:
         if proc.returncode != 0:
             if tag != "main":
                 logger.warning("Pip install for tag {} failed, retrying with main branch...", tag)
-                install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@main#subdirectory=plugins/{package}"
+                if package == "shibaclaw-rag":
+                    install_target = "shibaclaw[rag] @ git+https://github.com/RikyZ90/ShibaClaw.git@main"
+                else:
+                    install_target = f"git+https://github.com/RikyZ90/ShibaClaw.git@main#subdirectory=plugins/{package}"
                 cmd[-1] = install_target
                 logger.info("Retrying pip install: {}", " ".join(cmd))
                 proc = await asyncio.create_subprocess_exec(
@@ -303,9 +307,14 @@ async def api_install_plugin(request: Request) -> JSONResponse:
 
     is_exe = is_running_as_exe()
     if is_exe and package == "shibaclaw-rag":
+        if is_rag_available():
+            return JSONResponse({
+                "ok": True,
+                "info": "The Local RAG plugin is already bundled in this .exe version. No installation needed."
+            })
         return JSONResponse({
             "ok": False,
-            "error": "The Local RAG plugin requires complex external ML dependencies (langchain, faiss, etc.) which cannot be dynamically installed in the frozen .exe version. Please run ShibaClaw from source to use this feature."
+            "error": "The Local RAG plugin is not bundled in this .exe version. Please update ShibaClaw to the latest version, or run from source with `pip install 'shibaclaw[rag]'`."
         }, status_code=400)
 
     if is_exe:
