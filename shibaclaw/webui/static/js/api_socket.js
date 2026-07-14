@@ -149,9 +149,16 @@ function initSocket() {
         _finalizeStreamBubble(data.id);
     });
 
+    function _isSameSessionKey(keyA, keyB) {
+        if (!keyA || !keyB) return true;
+        const cleanA = String(keyA).replace(/^webui:/, "").trim();
+        const cleanB = String(keyB).replace(/^webui:/, "").trim();
+        return cleanA === cleanB;
+    }
+
     // ── Streaming response chunks ──
     realtime.on("agent_response_chunk", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
 
@@ -179,7 +186,7 @@ function initSocket() {
     });
 
     realtime.on("agent_response", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         hideThinking();
@@ -210,6 +217,11 @@ function initSocket() {
             addAgentMessage(data.id, data.content, data.attachments || []);
         }
 
+        // Dismiss subagent skeleton/drawer if this response comes from a subagent task
+        if (data.metadata && data.metadata.task_id && window.subagentUI) {
+            window.subagentUI.finishSubagent(data.metadata.task_id);
+        }
+
         // Play text-to-speech if enabled and no audio file is attached
         const hasAudioAttachment = data.attachments && data.attachments.some(file => typeof file.type === "string" && file.type.startsWith("audio/"));
         if (window.speechTTS && window.speechTTS.enabled && data.content && !hasAudioAttachment) {
@@ -227,11 +239,11 @@ function initSocket() {
     });
 
     realtime.on("error", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         hideThinking();
-        addAgentMessage("error", `⚠️ ${data.message}`);
+        addAgentMessage("error", `\u26a0\ufe0f ${data.message}`);
         state.processing = false;
         setWorkingState(false);
         updateSendButton();
@@ -243,10 +255,26 @@ function initSocket() {
     });
 
     realtime.on("message_ack", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         setWorkingState(true);
         clearTimeout(state._typingBubbleTimeout);
         state._typingBubbleTimeout = setTimeout(() => showTypingBubble(), 150);
+    });
+
+    realtime.on("subagent_status", (data) => {
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
+        const meta = data.metadata || data;
+        const status = meta.status;
+        const taskId = meta.task_id || data.id;
+        const label = meta.label || "Subagent Task";
+
+        if (window.subagentUI) {
+            if (status === "running") {
+                window.subagentUI.startSubagent(taskId, label, "Executing background task...");
+            } else if (status === "completed" || status === "failed") {
+                window.subagentUI.finishSubagent(taskId);
+            }
+        }
     });
 
     realtime.on("session_reset", (data) => {
@@ -586,5 +614,3 @@ window.restartGateway = async function () {
         console.error("Restart error:", e);
     }
 };
-
-
