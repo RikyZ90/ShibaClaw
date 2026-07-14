@@ -80,8 +80,8 @@ def test_chat_streaming_preserves_provider_specific_tool_call_fields():
 
     thinker = object.__new__(OpenAIThinker)
     thinker.default_model = "gemini-3.1-flash-lite-preview"
+    thinker._provider_name = "openai"
     thinker._gateway = None
-    thinker._provider_name = "test_provider"
     thinker._client = SimpleNamespace(
         chat=SimpleNamespace(
             completions=FakeCompletions([
