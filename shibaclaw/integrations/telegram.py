@@ -660,6 +660,8 @@ class TelegramChannel(BaseChannel):
                 **(thread_kwargs or {}),
             )
             return
+        except (NetworkError, RetryAfter, TimedOut):
+            raise
         except Exception as e:
             err_str = str(e).lower()
             if "parse" not in err_str and "entit" not in err_str:
@@ -674,6 +676,8 @@ class TelegramChannel(BaseChannel):
                 **(thread_kwargs or {}),
             )
             return
+        except (NetworkError, RetryAfter, TimedOut):
+            raise
         except Exception as e2:
             logger.error("Error sending Telegram message: {}", e2)
             raise

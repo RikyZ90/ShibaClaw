@@ -69,3 +69,20 @@ def test_telegram_channel_threads_eviction():
     assert ("chat_abc", 9) not in channel._message_threads
     assert ("chat_abc", 10) in channel._message_threads
     assert ("chat_abc", 1009) in channel._message_threads
+
+
+@pytest.mark.asyncio
+async def test_telegram_channel_network_error_re_raises():
+    from telegram.error import NetworkError
+
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    channel = TelegramChannel(config, bus)
+
+    channel._app = MagicMock()
+    channel._app.bot = MagicMock()
+
+    channel._call_with_retry = AsyncMock(side_effect=NetworkError("Network timeout"))
+
+    with pytest.raises(NetworkError):
+        await channel._send_text(chat_id=123, text="Hello...")
