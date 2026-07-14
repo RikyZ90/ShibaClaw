@@ -109,26 +109,6 @@ class SubagentManager:
                         },
                     )
                 )
-            try:
-                from shibaclaw.cli.gateway_utils import notify_webui_session
-
-                await notify_webui_session(
-                    session_key=origin["session_key"],
-                    response=content_val or " ",
-                    auth_token=None,
-                    source="agent",
-                    persist=False,
-                    metadata={
-                        "system_event": "subagent_status",
-                        "status": status_val,
-                        "task_id": task_id,
-                        "session_key": origin["session_key"],
-                        "label": display_label,
-                    },
-                    msg_type="subagent_status",
-                )
-            except Exception as _e:
-                logger.debug("Failed to deliver subagent_status to WebUI: {}", _e)
 
         def _cleanup(_: asyncio.Task) -> None:
             self._running_tasks.pop(task_id, None)
@@ -366,21 +346,6 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
                     outbound.metadata["label"] = label
                     if self.bus:
                         await self.bus.publish_outbound(outbound)
-                    try:
-                        from shibaclaw.cli.gateway_utils import notify_webui_session
-
-                        await notify_webui_session(
-                            session_key=origin["session_key"],
-                            response=outbound.content,
-                            auth_token=None,
-                            source="agent",
-                            persist=False,
-                            media=outbound.media,
-                            metadata=outbound.metadata,
-                            msg_type="response",
-                        )
-                    except Exception as _e:
-                        logger.debug("Failed to deliver real-time subagent result to WebUI: {}", _e)
 
                 logger.info(
                     "Subagent [{}] result successfully processed by main agent for session {}",

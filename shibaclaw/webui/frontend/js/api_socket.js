@@ -219,11 +219,6 @@ function initSocket() {
             addAgentMessage(data.id, data.content, data.attachments || []);
         }
 
-        // Dismiss subagent skeleton/drawer if this response comes from a subagent task
-        if (data.metadata && data.metadata.task_id && window.subagentUI) {
-            window.subagentUI.finishSubagent(data.metadata.task_id);
-        }
-
         // Play text-to-speech if enabled and no audio file is attached
         const hasAudioAttachment = data.attachments && data.attachments.some(file => typeof file.type === "string" && file.type.startsWith("audio/"));
         if (window.speechTTS && window.speechTTS.enabled && data.content && !hasAudioAttachment) {

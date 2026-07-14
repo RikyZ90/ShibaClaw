@@ -163,6 +163,15 @@ const realtime = (() => {
         }
         else if (t === "session_status") fire("session_status", msg);
         else if (t === "transcribe_result") fire("transcribe_result", msg);
+        else if (t === "event") {
+            // Gateway sends events with type="event" and name="event_name"
+            // Fire the specific event name with the payload
+            if (msg.name && msg.payload) {
+                fire(msg.name, msg.payload);
+            } else if (msg.name) {
+                fire(msg.name, msg);
+            }
+        }
         else fire(t, msg);  // generic fallback
     }
 
