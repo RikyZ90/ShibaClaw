@@ -131,7 +131,9 @@ class ChannelManager:
 
         old_channels_dump = {
             name: (
-                ch.config.model_dump(mode="json") if hasattr(ch.config, "model_dump") else dict(ch.config)
+                ch.config.model_dump(mode="json")
+                if hasattr(ch.config, "model_dump")
+                else dict(ch.config)
             )
             for name, ch in self.channels.items()
         }
@@ -157,7 +159,9 @@ class ChannelManager:
             else:
                 new_sec = new_channels_cfg[name]
                 new_dump = (
-                    new_sec.model_dump(mode="json") if hasattr(new_sec, "model_dump") else dict(new_sec)
+                    new_sec.model_dump(mode="json")
+                    if hasattr(new_sec, "model_dump")
+                    else dict(new_sec)
                 )
                 if new_dump != old_channels_dump.get(name):
                     to_stop.append(name)
@@ -202,7 +206,9 @@ class ChannelManager:
 
         # Update shared config fields
         self.config = new_cfg
-        logger.info("ChannelManager reconfigured (stopped={}, active={})", to_stop, list(self.channels))
+        logger.info(
+            "ChannelManager reconfigured (stopped={}, active={})", to_stop, list(self.channels)
+        )
 
     async def stop_all(self) -> None:
         """Stop all channels and the dispatcher."""
@@ -277,9 +283,23 @@ class ChannelManager:
                                 logger.error(
                                     "Failed to notify origin channel {}: {}", origin_channel, e2
                                 )
+                        elif origin_channel == msg.channel and self._notify_webui:
+                            try:
+                                await self._notify_webui(
+                                    session_key="webui:system",
+                                    content=f"[Delivery failed to {msg.channel}:{msg.chat_id}: {e}]",
+                                    media=None,
+                                    metadata={"msg_type": "notification"},
+                                )
+                            except Exception as e3:
+                                logger.error("Failed to push delivery failure to WebUI: {}", e3)
                 else:
                     if msg.channel == "webui":
-                        session_key = msg.chat_id if msg.chat_id.startswith("webui:") else f"webui:{msg.chat_id}"
+                        session_key = (
+                            msg.chat_id
+                            if msg.chat_id.startswith("webui:")
+                            else f"webui:{msg.chat_id}"
+                        )
                         if self._notify_webui:
                             try:
                                 await self._notify_webui(
@@ -291,7 +311,9 @@ class ChannelManager:
                             except Exception as e:
                                 logger.error("Failed to push to WebUI: {}", e)
                         else:
-                            logger.warning("WebUI outbound message dropped — no notify callback configured")
+                            logger.warning(
+                                "WebUI outbound message dropped — no notify callback configured"
+                            )
                     elif msg.channel != "system":
                         logger.warning("Unknown channel: {}", msg.channel)
 

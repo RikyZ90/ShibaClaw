@@ -201,6 +201,7 @@ class TelegramConfig(Base):
         """
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
+
             vault_key = get_credential_manager().get_secret("channels", "telegram.token")
             if vault_key and isinstance(vault_key, str):
                 return vault_key
@@ -273,7 +274,7 @@ class TelegramChannel(BaseChannel):
         if sender_str.count("|") != 1:
             return False
         sid, username = sender_str.split("|", 1)
-        if not sid.isdigit() or not username:
+        if not sid.lstrip("-").isdigit() or not username:
             return False
         return sid in allow_list or username in allow_list
 
@@ -403,14 +404,18 @@ class TelegramChannel(BaseChannel):
         if original_chat_id == "auto" or not original_chat_id.lstrip("-").isdigit():
             allow_list = getattr(self.config, "allow_from", [])
             valid_ids = []
+
+            # 1. Try to extract valid chat_ids from allow_from list
             for uid in allow_list:
                 uid_str = str(uid).strip()
                 if "|" in uid_str:
                     part = uid_str.split("|")[0]
-                    if part.isdigit():
+                    if part.lstrip("-").isdigit():
                         valid_ids.append(part)
-                elif uid_str.isdigit():
+                elif uid_str.lstrip("-").isdigit():
                     valid_ids.append(uid_str)
+
+            # 2. Try to fallback to known active users cache
             if not valid_ids and self._chat_ids:
                 known_chat_ids = list({str(v) for v in self._chat_ids.values()})
                 if len(known_chat_ids) == 1:
@@ -419,6 +424,7 @@ class TelegramChannel(BaseChannel):
                         "Auto-resolving Telegram chat_id from last active user {}",
                         known_chat_ids[0],
                     )
+
             if len(valid_ids) == 1:
                 chat_id = int(valid_ids[0])
                 logger.debug(
