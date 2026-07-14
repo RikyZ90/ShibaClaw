@@ -8,7 +8,7 @@ import json
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
@@ -405,8 +405,6 @@ class ShibaBrain:
         # Update context again just in case the provider needed to be resolved
         # and wasn't available when _set_tool_context was initially called
         self._set_tool_context(channel, chat_id, metadata.get("message_id") if metadata else None, session_key, model=active_model, provider=active_provider)
-
-        start_time = datetime.now(timezone.utc)
 
         if not active_provider:
             return "No provider is configured for the selected model.", tools_used, messages

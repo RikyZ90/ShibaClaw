@@ -479,7 +479,7 @@ class FeishuChannel(BaseChannel):
         if "|" not in content:
             if content.strip():
                 return self._split_headings(content)
-            return [{"tag": "markdown", "content": content}]
+            return []
 
         elements, last_end = [], 0
         for m in self._TABLE_RE.finditer(content):
