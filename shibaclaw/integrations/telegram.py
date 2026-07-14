@@ -9,7 +9,7 @@ from typing import Any, Literal
 from loguru import logger
 from pydantic import Field, field_validator
 from telegram import BotCommand, ReplyParameters, Update
-from telegram.error import TimedOut
+from telegram.error import NetworkError, RetryAfter, TimedOut
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram.request import HTTPXRequest
 from shibaclaw.bus.events import OutboundMessage
@@ -525,12 +525,24 @@ class TelegramChannel(BaseChannel):
         for attempt in range(1, _SEND_MAX_RETRIES + 1):
             try:
                 return await fn(*args, **kwargs)
-            except TimedOut:
+            except RetryAfter as e:
+                if attempt == _SEND_MAX_RETRIES:
+                    raise
+                delay = getattr(e, "retry_after", _SEND_RETRY_BASE_DELAY)
+                logger.warning(
+                    "Telegram rate limit (attempt {}/{}), retrying in {:.1f}s",
+                    attempt,
+                    _SEND_MAX_RETRIES,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+            except (TimedOut, NetworkError) as e:
                 if attempt == _SEND_MAX_RETRIES:
                     raise
                 delay = _SEND_RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
-                    "Telegram timeout (attempt {}/{}), retrying in {:.1f}s",
+                    "Telegram network error: {} (attempt {}/{}), retrying in {:.1f}s",
+                    e,
                     attempt,
                     _SEND_MAX_RETRIES,
                     delay,
@@ -562,7 +574,11 @@ class TelegramChannel(BaseChannel):
             )
             return True
         except Exception as e:
-            logger.warning("Failed to edit progress message {}: {}", message_id, e)
+            err_str = str(e).lower()
+            if "parse" not in err_str and "entit" not in err_str:
+                logger.warning("Failed to edit progress message {}: {}", message_id, e)
+                return False
+            logger.debug("HTML parse failed for editing progress message {}, falling back to plain text: {}", message_id, e)
         try:
             await self._call_with_retry(
                 self._app.bot.edit_message_text,
@@ -602,6 +618,10 @@ class TelegramChannel(BaseChannel):
                 **(thread_kwargs or {}),
             )
         except Exception as e:
+            err_str = str(e).lower()
+            if "parse" not in err_str and "entit" not in err_str:
+                logger.error("Error sending Telegram progress message: {}", e)
+                return
             logger.warning("HTML parse failed for progress, falling back to plain text: {}", e)
             try:
                 msg_obj = await self._call_with_retry(
@@ -612,7 +632,7 @@ class TelegramChannel(BaseChannel):
                     **(thread_kwargs or {}),
                 )
             except Exception as e2:
-                logger.error("Error sending Telegram progress message: {}", e2)
+                logger.error("Error sending Telegram progress message (plain text): {}", e2)
                 return
         if msg_obj and getattr(msg_obj, "message_id", None) is not None:
             self._progress_messages[key] = msg_obj.message_id
@@ -641,6 +661,9 @@ class TelegramChannel(BaseChannel):
             )
             return
         except Exception as e:
+            err_str = str(e).lower()
+            if "parse" not in err_str and "entit" not in err_str:
+                raise
             logger.warning("HTML parse failed, falling back to plain text: {}", e)
         try:
             await self._call_with_retry(
