@@ -43,8 +43,6 @@ def is_rag_available() -> bool:
 
     if (
         spec_lc is None
-        or spec_lc.origin is None
-        or not os.path.exists(spec_lc.origin)
         or spec_comm is None
         or spec_faiss is None
     ):
