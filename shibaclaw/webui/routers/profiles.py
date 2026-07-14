@@ -66,9 +66,10 @@ async def api_profiles_create(request: Request):
 
     profile = pm.create_profile(profile_id, label, description, soul, avatar=avatar)
     # Invalidate ScentBuilder bootstrap cache so the new profile is picked up
-    if agent_manager.agent:
-        agent_manager.agent.context._bootstrap_cache.clear()
-        agent_manager.agent.context._bootstrap_mtimes.clear()
+    agent = getattr(agent_manager, "agent", None)
+    if agent:
+        agent.context._bootstrap_cache.clear()
+        agent.context._bootstrap_mtimes.clear()
     return JSONResponse(profile, status_code=201)
 
 
@@ -90,9 +91,10 @@ async def api_profiles_update(request: Request):
     if not result:
         return JSONResponse({"error": "Profile not found"}, status_code=404)
     # Invalidate cache
-    if agent_manager.agent:
-        agent_manager.agent.context._bootstrap_cache.pop(profile_id, None)
-        agent_manager.agent.context._bootstrap_mtimes.pop(profile_id, None)
+    agent = getattr(agent_manager, "agent", None)
+    if agent:
+        agent.context._bootstrap_cache.pop(profile_id, None)
+        agent.context._bootstrap_mtimes.pop(profile_id, None)
     return JSONResponse(result)
 
 
@@ -105,7 +107,8 @@ async def api_profiles_delete(request: Request):
     if not pm.delete_profile(profile_id):
         return JSONResponse({"error": "Cannot delete built-in or default profile"}, status_code=403)
     # Invalidate cache
-    if agent_manager.agent:
-        agent_manager.agent.context._bootstrap_cache.pop(profile_id, None)
-        agent_manager.agent.context._bootstrap_mtimes.pop(profile_id, None)
+    agent = getattr(agent_manager, "agent", None)
+    if agent:
+        agent.context._bootstrap_cache.pop(profile_id, None)
+        agent.context._bootstrap_mtimes.pop(profile_id, None)
     return JSONResponse({"status": "deleted"})
