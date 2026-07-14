@@ -48,7 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install build tools
         run: pip install hatch
@@ -127,7 +127,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            update_manifest.json
+            shibaclaw/updater/update_manifest.json
             dist-windows/ShibaClaw-windows.zip
             scripts/install/install.ps1
             scripts/install/install.sh
