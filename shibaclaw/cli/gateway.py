@@ -812,11 +812,14 @@ async def gateway_command(
         media: list[str] | None = None,
         metadata: dict | None = None,
     ) -> None:
+        system_event = metadata.get("system_event") if metadata else None
+        msg_type = system_event if system_event else "response"
+
         payload = {
             "content": content,
             "source": "agent",
             "persist": False,
-            "msg_type": "response",
+            "msg_type": msg_type,
         }
         if media:
             payload["media"] = media
@@ -832,7 +835,8 @@ async def gateway_command(
                 source="agent",
                 persist=False,
                 media=media,
-                msg_type="response",
+                metadata=metadata,
+                msg_type=msg_type,
             )
 
     channels._notify_webui = _webui_outbound_notify

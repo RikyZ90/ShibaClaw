@@ -240,7 +240,7 @@ async def notify_webui_session(
     msg_type: str = "response",
     media: list[str] | None = None,
 ) -> bool:
-    if not response:
+    if not response and not metadata:
         return False
 
     import httpx

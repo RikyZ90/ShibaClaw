@@ -110,11 +110,14 @@ class SubagentManager:
                     )
                 )
             try:
-                from shibaclaw.webui.ws_handler import deliver_to_browsers
+                from shibaclaw.cli.gateway_utils import notify_webui_session
 
-                await deliver_to_browsers(
-                    origin["session_key"],
-                    content_val,
+                await notify_webui_session(
+                    session_key=origin["session_key"],
+                    response=content_val or " ",
+                    auth_token=None,
+                    source="agent",
+                    persist=False,
                     metadata={
                         "system_event": "subagent_status",
                         "status": status_val,
@@ -122,7 +125,6 @@ class SubagentManager:
                         "session_key": origin["session_key"],
                         "label": display_label,
                     },
-                    # Use "subagent_status" so realtime.js fires the dedicated handler
                     msg_type="subagent_status",
                 )
             except Exception as _e:
@@ -363,15 +365,14 @@ Summarize this naturally for the user. Keep it brief (1-2 sentences). Do not men
                     if self.bus:
                         await self.bus.publish_outbound(outbound)
                     try:
-                        from shibaclaw.webui.ws_handler import deliver_to_browsers
+                        from shibaclaw.cli.gateway_utils import notify_webui_session
 
-                        # Use msg_type="response" so realtime.js _dispatch maps it
-                        # to fire("agent_response", msg) and the frontend handler
-                        # in api_socket.js renders the bubble immediately without
-                        # requiring a page refresh.
-                        await deliver_to_browsers(
-                            origin["session_key"],
-                            outbound.content,
+                        await notify_webui_session(
+                            session_key=origin["session_key"],
+                            response=outbound.content,
+                            auth_token=None,
+                            source="agent",
+                            persist=False,
                             media=outbound.media,
                             metadata=outbound.metadata,
                             msg_type="response",
