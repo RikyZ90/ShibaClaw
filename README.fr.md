@@ -2,7 +2,7 @@
   <img src="assets/shibaclaw_logo_readme.webp" width="800" alt="ShibaClaw">
 </p>
 
-<h1 align="center">ShibaClaw 🐕</h1>
+<h1 align="center">ShibaClaw</h1>
 <h3 align="center">L'agent IA qui <b>fonctionne, tout simplement</b> — en sécurité, en privé, sans babysitting.</h3>
 
 > Traduction de [README.md](./README.md) — peut ne pas être à jour (synchronisé à v0.9.4).

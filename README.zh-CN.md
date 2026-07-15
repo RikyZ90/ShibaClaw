@@ -2,7 +2,7 @@
   <img src="assets/shibaclaw_logo_readme.webp" width="800" alt="ShibaClaw">
 </p>
 
-<h1 align="center">ShibaClaw 🐕</h1>
+<h1 align="center">ShibaClaw</h1>
 <h3 align="center">"开箱即用"的 AI 智能体 —— 安全、私密，无需手动照料。</h3>
 
 > 本文档翻译自 [README.md](./README.md)，可能与原文存在偏差（同步至 v0.9.4）。

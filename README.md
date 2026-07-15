@@ -2,7 +2,7 @@
   <img src="assets/shibaclaw_logo_readme.webp" width="800" alt="ShibaClaw">
 </p>
 
-<h1 align="center">ShibaClaw 🐕</h1>
+<h1 align="center">ShibaClaw</h1>
 <h3 align="center">The AI agent that <b>just works</b> — securely, privately, without babysitting.</h3>
 
 <p align="center">

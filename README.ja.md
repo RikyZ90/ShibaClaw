@@ -2,7 +2,7 @@
   <img src="assets/shibaclaw_logo_readme.webp" width="800" alt="ShibaClaw">
 </p>
 
-<h1 align="center">ShibaClaw 🐕</h1>
+<h1 align="center">ShibaClaw</h1>
 <h3 align="center">「ただ動く」AIエージェント — 安全に、プライベートに、放置しても大丈夫。</h3>
 
 > [README.md](./README.md) の翻訳 — 最新でない可能性があります（v0.9.4 に同期）。
