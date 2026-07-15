@@ -32,7 +32,7 @@ except ImportError:
 
 
 def is_rag_available() -> bool:
-    global RAG_AVAILABLE, Document
+    global RAG_AVAILABLE, Document, BSHTMLLoader, CSVLoader, PyPDFLoader, TextLoader, FAISS, HuggingFaceEmbeddings, RecursiveCharacterTextSplitter
     import importlib.util
     import sys
 
