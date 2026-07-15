@@ -188,14 +188,25 @@ docker compose up -d
 docker exec -it shibaclaw-gateway shibaclaw print-token
 ```
 
-<div dir="rtl">
+<div dir="rtl" align="right" style="direction: rtl; text-align: right;">
 
 <p>
-<strong>http://localhost:3000</strong> را باز کنید، Token را وارد کنید و مراحل راه‌اندازی اولیه را دنبال کنید.
+<strong dir="ltr">http://localhost:3000</strong>
+را باز کنید، 
+<span dir="ltr">Token</span>
+را وارد کنید و مراحل راه‌اندازی اولیه را دنبال کنید.
 </p>
 
 <p>
-اگر <code>shibaclaw-web</code> را روی شبکه محلی (LAN) خود در دسترس قرار دهید (مثلاً با استفاده از Reverse Proxy)، می‌توانید همان آدرس را از طریق گوشی خود باز کنید و با Agent خود روی موبایل چت کنید.
+اگر
+<code dir="ltr">shibaclaw-web</code>
+را روی شبکه محلی
+<span dir="ltr">(LAN)</span>
+خود در دسترس قرار دهید (مثلاً با استفاده از
+<span dir="ltr">Reverse Proxy</span>)،
+می‌توانید همان آدرس را از طریق گوشی خود باز کنید و با
+<span dir="ltr">Agent</span>
+خود روی موبایل چت کنید.
 </p>
 
 </div>
@@ -207,18 +218,25 @@ pip install shibaclaw
 shibaclaw web --with-gateway
 ```
 
-<div dir="rtl">
+<div dir="rtl" align="right" style="direction: rtl; text-align: right;">
 
 <p>
-<strong>http://localhost:3000</strong> را باز کنید و مراحل راه‌اندازی اولیه را دنبال کنید.
+آدرس
+<strong dir="ltr">http://localhost:3000</strong>
+را باز کنید و مراحل راه‌اندازی اولیه را دنبال کنید.
 </p>
 
 <p>
-اگر ترجیح می‌دهید از CLI استفاده کنید، دستور <code>shibaclaw onboard</code> همان مراحل راه‌اندازی را به‌صورت راهنما از داخل Terminal اجرا می‌کند.
+اگر ترجیح می‌دهید از
+<span dir="ltr">CLI</span>
+استفاده کنید، دستور
+<code dir="ltr">shibaclaw onboard</code>
+همان مراحل راه‌اندازی را به‌صورت راهنما از داخل
+<span dir="ltr">Terminal</span>
+اجرا می‌کند.
 </p>
 
 </div>
-
 ---
 
 
@@ -614,7 +632,7 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 
 ---
 
-<div dir="rtl" align="right">
+<div dir="rtl" align="right" style="direction: rtl; text-align: right;">
 
 <h2>🌐 WebUI</h2>
 
@@ -626,7 +644,7 @@ github.com/RikyZ90/ShibaClaw/releases/latest
   <img src="assets/webui_chat.webp" width="380" height="250" alt="WebUI Chat with Agent">
 </p>
 
-<div dir="rtl" align="right">
+<div dir="rtl" align="right" style="direction: rtl; text-align: right;">
 
 <p>
 <span dir="ltr">WebUI</span>
@@ -644,9 +662,9 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 <span dir="ltr">Browser</span>.
 </p>
 
-<ul>
+<ul dir="rtl" style="direction: rtl; text-align: right; list-style-position: inside;">
 
-<li>
+<li dir="rtl">
 <strong>💬 Chat</strong> — مدیریت چندین
 <span dir="ltr">Session</span>
 به‌صورت هم‌زمان، نمایش زنده
@@ -663,7 +681,7 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 <span dir="ltr">Chat</span>.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>📚 Local RAG و Knowledge Base</strong> — با
 <span dir="ltr">Drag & Drop</span>
 یا
@@ -685,7 +703,7 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 کنید.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>🏷️ Context Mention (@)</strong> — با استفاده از
 <code dir="ltr">@</code>،
 <span dir="ltr">Knowledge Base</span>
@@ -698,7 +716,7 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 روی همان منابع باشد.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>🔎 جستجوی Model بین تمام Providerها</strong> — یک انتخاب‌گر
 <span dir="ltr">(Picker)</span>
 واحد که
@@ -713,7 +731,7 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 فعال را نیز به‌صورت خودکار تغییر می‌دهد.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>🎭 پروفایل‌های Agent</strong> — برای هر
 <span dir="ltr">Session</span>
 بین شخصیت‌های مختلف مانند
@@ -727,17 +745,15 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 اختصاصی خود.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>📁 File Browser</strong> — فایل‌های
 <span dir="ltr">Workspace</span>
 را مستقیماً داخل
 <span dir="ltr">Browser</span>
-مشاهده، مرور و ویرایش کنید (محدود به
-<span dir="ltr">Workspace</span>
-تعریف‌شده).
+مشاهده، مرور و ویرایش کنید.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>🎙️ Voice</strong> — تبدیل گفتار به متن با
 <span dir="ltr">API</span>
 های سازگار با
@@ -746,27 +762,26 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 <span dir="ltr">Browser</span>.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>⚙️ Settings</strong> — از یک پنل واحد،
 <span dir="ltr">Model</span>
 پیش‌فرض
 <span dir="ltr">Session</span>،
-<span dir="ltr">Memory</span>
-و
-<span dir="ltr">Consolidation</span>،
+<span dir="ltr">Memory</span>،
 <span dir="ltr">Provider</span>
 ها،
 <span dir="ltr">Tool</span>
 ها،
 <span dir="ltr">MCP Server</span>
-ها، کانال‌ها،
+ها،
+کانال‌ها،
 <span dir="ltr">Skill</span>
 ها و
 <span dir="ltr">OAuth</span>
 را مدیریت کنید.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>🚀 Onboard Wizard</strong> — راه‌اندازی اولیه به‌صورت مرحله‌به‌مرحله؛
 <span dir="ltr">Provider</span>
 را انتخاب کنید،
@@ -778,24 +793,24 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 موردنظر خود را انتخاب کنید.
 </li>
 
-<li>
-<strong>🧠 Context Viewer</strong> — 
+<li dir="rtl">
+<strong>🧠 Context Viewer</strong> —
 <span dir="ltr">System Prompt</span>
 کامل و جزئیات مصرف
 <span dir="ltr">Token</span>
 ها را مشاهده کنید.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>📡 Gateway Monitor</strong> — وضعیت
 <span dir="ltr">Gateway</span>
-را بررسی کرده و در صورت نیاز تنها با یک کلیک آن را
+را بررسی کرده و در صورت نیاز آن را
 <span dir="ltr">Restart</span>
 کنید.
 </li>
 
-<li>
-<strong>🔐 OAuth</strong> — 
+<li dir="rtl">
+<strong>🔐 OAuth</strong> —
 <span dir="ltr">GitHub Copilot</span>،
 <span dir="ltr">OpenAI Codex</span>
 و
@@ -805,8 +820,8 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 پیکربندی کنید.
 </li>
 
-<li>
-<strong>🛡️ رندر ایمن</strong> — 
+<li dir="rtl">
+<strong>🛡️ رندر ایمن</strong> —
 <span dir="ltr">Markdown</span>
 در
 <span dir="ltr">Chat</span>
@@ -814,38 +829,38 @@ github.com/RikyZ90/ShibaClaw/releases/latest
 <span dir="ltr">HTML</span>
 خام را
 <span dir="ltr">Escape</span>
-می‌کند، نام فایل‌ها از طریق
+می‌کند و نام فایل‌ها از طریق
 <span dir="ltr">DOM</span>
-ایمن نمایش داده می‌شوند و در صورت پایان اعتبار احراز هویت، کاربر بدون ایجاد حلقه‌های
-<span dir="ltr">Reconnect</span>
-به صفحه ورود بازگردانده می‌شود.
+ایمن نمایش داده می‌شوند.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>🔄 به‌روزرسانی خودکار</strong> —
 <span dir="ltr">GitHub Release</span>
-ها بررسی می‌شوند و در صورت وجود نسخه جدید، از طریق
+ها بررسی می‌شوند و نسخه‌های جدید از طریق
 <span dir="ltr">WebUI</span>
-و تمام کانال‌های فعال اطلاع‌رسانی انجام می‌شود.
+و کانال‌های فعال اطلاع‌رسانی می‌شوند.
 </li>
 
-<li>
-<strong>🔔 Notification Center (WIP)</strong> — آیکون اعلان همراه با
+<li dir="rtl">
+<strong>🔔 Notification Center (WIP)</strong> —
+آیکون اعلان همراه با
 <span dir="ltr">Badge</span>
 تعداد پیام‌های خوانده‌نشده، دریافت لحظه‌ای اعلان‌ها از طریق
 <span dir="ltr">WebSocket</span>
-و امکان رفتن مستقیم به
+و رفتن مستقیم به
 <span dir="ltr">Session</span>
 مربوطه.
 </li>
 
-<li>
+<li dir="rtl">
 <strong>📱 Responsive</strong> — کاملاً مناسب
 <span dir="ltr">Desktop</span>
 و
-<span dir="ltr">Mobile</span>؛ همان
+<span dir="ltr">Mobile</span>؛
+همان
 <span dir="ltr">Agent</span>
-را از روی گوشی، تبلت یا لپ‌تاپ، هرجا که باشید، در اختیار داشته باشید.
+را از روی گوشی، تبلت یا لپ‌تاپ در اختیار داشته باشید.
 </li>
 
 </ul>
