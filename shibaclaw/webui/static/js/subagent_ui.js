@@ -87,7 +87,7 @@ window.subagentUI = {
     },
 
     /**
-     * Injects a skeleton loader into the chat
+     * Injects a terminal-style loader into the chat
      */
     injectSkeleton(agentId, agentName) {
         const chatHistory = document.getElementById('chat-history');
@@ -97,18 +97,17 @@ window.subagentUI = {
         this.removeSkeleton(agentId);
         
         const skeleton = document.createElement('div');
-        skeleton.className = 'skeleton-container';
+        skeleton.className = 'terminal-skeleton-container';
         skeleton.id = `skeleton-${agentId}`;
         
         skeleton.innerHTML = `
-            <div class="skeleton-header">
-                <span class="material-icons-round" style="font-size:16px;">psychology</span>
-                ${agentName} is working...
+            <div class="terminal-prompt">
+                <span class="terminal-carret">&gt;</span>
+                <span class="terminal-agent">[${agentName}]</span>
+                <span class="terminal-action">is processing</span>
+                <span class="terminal-spinner"></span>
+                <span class="terminal-cursor">_</span>
             </div>
-            <div class="skeleton-line w-3-4"></div>
-            <div class="skeleton-line w-full"></div>
-            <div class="skeleton-line w-1-2"></div>
-            <div class="skeleton-block"></div>
         `;
         
         // Find the typing bubble to insert before it
@@ -121,7 +120,7 @@ window.subagentUI = {
     },
 
     /**
-     * Removes the skeleton loader
+     * Removes the terminal-style loader
      */
     removeSkeleton(agentId) {
         const el = document.getElementById(`skeleton-${agentId}`);

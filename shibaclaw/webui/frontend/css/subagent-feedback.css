@@ -106,51 +106,66 @@
     animation: spin 1s linear infinite;
 }
 
-/* Skeleton Loading in Chat */
-.skeleton-container {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 16px;
-    background: rgba(42, 42, 53, 0.4);
+/* Terminal-style Loading in Chat */
+.terminal-skeleton-container {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    background: rgba(20, 20, 26, 0.8);
+    border: 1px solid rgba(138, 43, 226, 0.3);
     border-radius: var(--radius-md);
-    border-left: 3px solid #8A2BE2;
+    box-shadow: 0 0 8px rgba(138, 43, 226, 0.1);
     margin-bottom: 16px;
+    color: #8A2BE2;
+    display: inline-block;
+    max-width: 100%;
 }
 
-.skeleton-header {
+.terminal-prompt {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #8A2BE2;
-    font-weight: 600;
-    margin-bottom: 4px;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.skeleton-line {
-    background: linear-gradient(90deg, #2a2a35 25%, #3f3f4e 50%, #2a2a35 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
-    border-radius: 4px;
-    height: 14px;
+.terminal-carret {
+    font-weight: bold;
+    color: #00FFFF; /* Adding a subtle neon blue for the carret to match avatar gradient */
 }
 
-.skeleton-line.w-full { width: 100%; }
-.skeleton-line.w-3-4 { width: 75%; }
-.skeleton-line.w-1-2 { width: 50%; }
-
-.skeleton-block {
-    background: linear-gradient(90deg, #1e1e28 25%, #2a2a35 50%, #1e1e28 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
-    border-radius: 6px;
-    height: 80px;
-    margin-top: 8px;
-    width: 100%;
+.terminal-agent {
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
 }
 
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+.terminal-action {
+    color: rgba(138, 43, 226, 0.8);
+}
+
+.terminal-spinner::after {
+    content: '\\';
+    display: inline-block;
+    width: 1ch;
+    animation: terminal-spin 1s steps(4) infinite;
+    color: #00FFFF;
+}
+
+@keyframes terminal-spin {
+    0% { content: '-'; }
+    25% { content: '\\\\'; }
+    50% { content: '|'; }
+    75% { content: '/'; }
+    100% { content: '-'; }
+}
+
+.terminal-cursor {
+    animation: blink 1s step-end infinite;
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
 }

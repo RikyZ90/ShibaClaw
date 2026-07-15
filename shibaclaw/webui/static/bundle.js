@@ -629,13 +629,12 @@ let lastSettingsConfig=null;const DEFAULT_AVATAR="/static/shibaclaw_logo.webp",s
                     <div class="spinner-mini"></div>
                     ${e.status}
                 </div>
-            `,this.drawer.appendChild(n)}))},injectSkeleton(e,t){const n=document.getElementById("chat-history");if(!n)return;this.removeSkeleton(e);const s=document.createElement("div");s.className="skeleton-container",s.id=`skeleton-${e}`,s.innerHTML=`
-            <div class="skeleton-header">
-                <span class="material-icons-round" style="font-size:16px;">psychology</span>
-                ${t} is working...
+            `,this.drawer.appendChild(n)}))},injectSkeleton(e,t){const n=document.getElementById("chat-history");if(!n)return;this.removeSkeleton(e);const s=document.createElement("div");s.className="terminal-skeleton-container",s.id=`skeleton-${e}`,s.innerHTML=`
+            <div class="terminal-prompt">
+                <span class="terminal-carret">&gt;</span>
+                <span class="terminal-agent">[${t}]</span>
+                <span class="terminal-action">is processing</span>
+                <span class="terminal-spinner"></span>
+                <span class="terminal-cursor">_</span>
             </div>
-            <div class="skeleton-line w-3-4"></div>
-            <div class="skeleton-line w-full"></div>
-            <div class="skeleton-line w-1-2"></div>
-            <div class="skeleton-block"></div>
         `;const a=document.getElementById("typing-indicator-wrapper");a&&a.style.display!=="none"?n.insertBefore(s,a):n.appendChild(s)},removeSkeleton(e){const t=document.getElementById(`skeleton-${e}`);t&&t.remove()}},document.addEventListener("DOMContentLoaded",()=>{subagentUI.init()});
