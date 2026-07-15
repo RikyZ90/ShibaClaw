@@ -37,29 +37,23 @@
 <summary>📢 <b>Latest Release: v0.9.8</b> — Click to see what's new</summary>
 
 ### Added
-- **🎨 Complete Visual Restyling & Brand Refresh** — Comprehensive redesign of all logos and visual identity across the application. Updated all logo assets (16px through 256px, ICO, WebP variants) with a modernized ShibaClaw brand mark. Refreshed WebUI welcome screen, settings panels, chat interface, and profile selectors with cohesive visual language.
-- **🐕 Hacker Mode Visual Identity** — New dedicated "Hacker" profile avatar (`ShibHacker.png`) with cyber-shiba aesthetic for the security-focused persona.
+- **Channel Config Dropdowns** — Changed `group_policy` fields in channel configuration to use dropdown selectors in the WebUI for better UX.
 
 ### Fixed
-- **Local RAG Windows EXE Bundling** — Fixed a bug where installing the packaged Windows `.exe` release prevented using the Local RAG & Knowledge Base plugin. Dependencies (`langchain`, `faiss-cpu`, `sentence-transformers`, `pypdf`, `beautifulsoup4`) are now bundled into the release `.exe` via `shibaclaw.spec` hiddenimports and CI pipeline extras.
-- **Real-time Hot-Reload for Local RAG Install & Uninstall** — Refactored `knowledge_manager.py` and `plugins.py` to dynamically verify `langchain`, `langchain_community`, and `faiss` disk specs and purge Python's in-memory `sys.modules` cache upon uninstallation. Both installation and uninstallation of the Local RAG plugin now reflect in the WebUI in real-time without requiring a server restart.
-- **Clean RAG Dependency Uninstallation** — Explicitly included `langchain-core` and `langchain-text-splitters` in the plugin uninstallation pipeline so no residual sub-dependencies remain in `site-packages`.
-- **Memory Leaks** — Fixed memory leaks in WebSocket handlers and message queues (`shibaclaw/agent/context.py`, `loop.py`).
-- **Concurrency Locks** — Implemented strong reference lock storage in `PackMemory` & `ShibaBrain` to prevent concurrency race conditions.
-- **MCP Deadlocks** — Resolved reconnect deadlock in `MCPManager`.
-- **Timeout Clamping** — Clamped timeouts to `max(0.1, ...)` in `ExecTool` and the execution loop.
-- **Session Saves** — Fixed missing `import os` and implemented atomic `.jsonl.tmp` session saves in `manager.py`.
-- **Initialization Safety** — Added null-checks in subagent provider initialization and timestamp safety in `memory.py`.
-- **Automation Session Duplication** — Fixed an issue where background automations inherited the session context of the chat they were created in, causing duplicate messages and polluted chat histories. `AutomationTool` now executes jobs in an isolated background session by default unless a specific `target_channel` is provided.
-- **Sub-agent Context Exhaustion** — Implemented context truncation and token compression in `SubagentManager` (stripping `think` blocks and truncating tool results to 1500 chars) to prevent "Token Window Exceeded" crashes in long-running parallel tasks.
+- **External Package Installation on Modern Linux (PEP 668)** — Auto-injects `--break-system-packages` on `externally-managed-environment` errors during pip operations.
+- **Sub-agent Session Key Propagation** — Added `session_key` to sub-agent metadata for proper context during parallel execution.
+- **RAG Soft Restart Import Error** — Fixed `NameError` for dynamic RAG imports during soft restarts when Local RAG plugin is installed.
+- **Transient LLM Error Handling** — Added `'empty choices'` to transient error markers for automatic retry on empty API responses.
+- **Channel Hot-Reload on Secret Updates** — Fixed channel hot-reload not triggering when secrets are updated.
+- **Proactive Learning Tool Choice** — Gracefully handles unsupported `tool_choice` parameter in proactive learning.
 
 ### Changed
-- **CI Pipeline & Build Environment Hardening** — Configured Windows CI workflow steps to use `shell: bash` to avoid PowerShell bracket/quote parsing issues during multi-extra `pip install` commands, and added pre-flight import checks in `scripts/build_windows.py`.
+- **Removed Base64 Tool Output Encoding** — Eliminated Base64 encoding logic for tool outputs to simplify the pipeline.
+- **Terminal Skeleton UI** — Refined terminal-style skeleton loader to be seamless and minimal.
 
-### Optimized
-- **Core Loop Processing** — Extracted `KnowledgeManager` initialization and `list_collections` calls out of the asynchronous `_run_agent_loop` (`shibaclaw/agent/loop.py`), drastically reducing redundant I/O operations and background threads per agent step.
-- **FAISS Vectorstore Caching & Locks** — Optimized FAISS vectorstore caching and added Windows file lock fallback (`shibaclaw/agent/knowledge_manager.py`).
-- **O(1) History Append** — Implemented $O(1)$ history append mode in `ScentKeeper` (`shibaclaw/agent/memory.py`).
+### Documentation
+- Improved Persian README localization and feature documentation.
+- Fixed RTL issues in contribution guide and bullet points.
 
 See the [Changelog](./CHANGELOG.md) for full release history.
 
