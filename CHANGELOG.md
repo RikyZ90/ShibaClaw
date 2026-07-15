@@ -1,11 +1,3 @@
-## [0.9.8] - 2026-07-15
-
-### Fixed
-- **External Package Installation on Modern Linux (PEP 668)** — Detects `externally-managed-environment` errors during pip operations (plugin install/uninstall, self-update) and automatically injects `--break-system-packages` to complete the operation on externally managed Python environments.
-- **Sub-agent Session Key Propagation** — Added `session_key` to outbound metadata for sub-agent invocations, ensuring proper session context is maintained during parallel task execution.
-- **RAG Soft Restart Import Error** — Fixed `NameError` for dynamically imported RAG dependencies (`RecursiveCharacterTextSplitter`, etc.) during soft restarts when the Local RAG plugin is installed. Added missing dynamic imports to the `global` declaration in `is_rag_available()`.
-- **Transient LLM Error Handling** — Added `'empty choices'` to `_TRANSIENT_ERROR_MARKERS` in `shibaclaw/thinkers/base.py` to ensure empty API choice responses are retried automatically instead of failing the Proactive Learning process with a hard error.
-
 ## [0.9.7] - 2026-07-13
 
 ### Added

@@ -340,7 +340,6 @@ class GatewayClient:
             # Automation (unified)
             "status": ("GET", "/"),
             "restart": ("POST", "/restart"),
-            "reload": ("POST", "/reload"),
             "automation.status": ("GET", "/api/automation/status"),
             "automation.list": ("GET", "/api/automation/jobs"),
             # Legacy aliases kept for any old consumers

@@ -33,7 +33,7 @@ window.subagentUI = {
         this.activeSubagents.set(agentId, { name: agentName, status: initialStatus });
         this.updateDrawer();
         this.container.style.display = 'flex';
-        this.injectSkeleton(agentId, agentName);
+        this.injectSkeleton(agentId, agentName, initialStatus);
         if (typeof scrollToBottom === 'function') scrollToBottom();
     },
 
@@ -45,6 +45,12 @@ window.subagentUI = {
         if (agent) {
             agent.status = status;
             this.updateDrawer();
+
+            // Also update the inline terminal skeleton if it exists
+            const statusEl = document.getElementById(`skeleton-status-${agentId}`);
+            if (statusEl) {
+                statusEl.textContent = status || 'is processing';
+            }
         }
     },
 
@@ -89,7 +95,7 @@ window.subagentUI = {
     /**
      * Injects a terminal-style loader into the chat
      */
-    injectSkeleton(agentId, agentName) {
+    injectSkeleton(agentId, agentName, initialStatus) {
         const chatHistory = document.getElementById('chat-history');
         if (!chatHistory) return;
         
@@ -100,11 +106,13 @@ window.subagentUI = {
         skeleton.className = 'terminal-skeleton-container';
         skeleton.id = `skeleton-${agentId}`;
         
+        const displayStatus = initialStatus || 'is processing';
+
         skeleton.innerHTML = `
             <div class="terminal-prompt">
                 <span class="terminal-carret">&gt;</span>
                 <span class="terminal-agent">[${agentName}]</span>
-                <span class="terminal-action">is processing</span>
+                <span class="terminal-action" id="skeleton-status-${agentId}">${displayStatus}</span>
                 <span class="terminal-spinner"></span>
                 <span class="terminal-cursor">_</span>
             </div>

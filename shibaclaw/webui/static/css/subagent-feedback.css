@@ -111,12 +111,7 @@
     font-family: 'Courier New', Courier, monospace;
     font-size: 13px;
     padding: 8px 12px;
-    background: rgba(20, 20, 26, 0.8);
-    border: 1px solid rgba(138, 43, 226, 0.3);
-    border-radius: var(--radius-md);
-    box-shadow: 0 0 8px rgba(138, 43, 226, 0.1);
     margin-bottom: 16px;
-    color: #8A2BE2;
     display: inline-block;
     max-width: 100%;
 }
@@ -132,16 +127,16 @@
 
 .terminal-carret {
     font-weight: bold;
-    color: #00FFFF; /* Adding a subtle neon blue for the carret to match avatar gradient */
+    color: var(--text-secondary, #a0a0a0);
 }
 
 .terminal-agent {
     font-weight: bold;
-    text-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+    color: #8A2BE2; /* Shiba Purple */
 }
 
 .terminal-action {
-    color: rgba(138, 43, 226, 0.8);
+    color: var(--text-secondary, #a0a0a0);
 }
 
 .terminal-spinner::after {
@@ -149,12 +144,13 @@
     display: inline-block;
     width: 1ch;
     animation: terminal-spin 1s steps(4) infinite;
-    color: #00FFFF;
+    color: var(--text-secondary, #a0a0a0);
+    margin-left: 4px;
 }
 
 @keyframes terminal-spin {
     0% { content: '-'; }
-    25% { content: '\\\\'; }
+    25% { content: '\\'; }
     50% { content: '|'; }
     75% { content: '/'; }
     100% { content: '-'; }
@@ -163,6 +159,7 @@
 .terminal-cursor {
     animation: blink 1s step-end infinite;
     font-weight: bold;
+    color: var(--text-secondary, #a0a0a0);
 }
 
 @keyframes blink {
