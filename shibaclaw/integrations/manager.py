@@ -13,6 +13,18 @@ from shibaclaw.config.schema import Config
 from shibaclaw.integrations.base import BaseChannel
 
 
+
+def _dump_channel_config(cfg: Any) -> dict[str, Any]:
+    """Dump config and explicitly evaluate resolve_* methods to capture secrets."""
+    res = cfg.model_dump(mode="json") if hasattr(cfg, "model_dump") else dict(cfg)
+    for attr_name in dir(cfg):
+        if attr_name.startswith("resolve_") and callable(getattr(cfg, attr_name)):
+            try:
+                res[f"__resolved_{attr_name}"] = getattr(cfg, attr_name)()
+            except Exception:
+                pass
+    return res
+
 class ChannelManager:
     """
     Manages chat channels and coordinates message routing.
@@ -130,11 +142,7 @@ class ChannelManager:
         from shibaclaw.integrations.registry import discover_all
 
         old_channels_dump = {
-            name: (
-                ch.config.model_dump(mode="json")
-                if hasattr(ch.config, "model_dump")
-                else dict(ch.config)
-            )
+            name: _dump_channel_config(ch.config)
             for name, ch in self.channels.items()
         }
 
@@ -158,11 +166,7 @@ class ChannelManager:
                 to_stop.append(name)
             else:
                 new_sec = new_channels_cfg[name]
-                new_dump = (
-                    new_sec.model_dump(mode="json")
-                    if hasattr(new_sec, "model_dump")
-                    else dict(new_sec)
-                )
+                new_dump = _dump_channel_config(new_sec)
                 if new_dump != old_channels_dump.get(name):
                     to_stop.append(name)
 
