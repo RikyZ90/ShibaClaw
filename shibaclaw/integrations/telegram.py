@@ -573,6 +573,8 @@ class TelegramChannel(BaseChannel):
                 parse_mode="HTML",
             )
             return True
+        except (NetworkError, RetryAfter, TimedOut):
+            raise
         except Exception as e:
             err_str = str(e).lower()
             if "parse" not in err_str and "entit" not in err_str:
@@ -587,6 +589,8 @@ class TelegramChannel(BaseChannel):
                 text=text,
             )
             return True
+        except (NetworkError, RetryAfter, TimedOut):
+            raise
         except Exception as e:
             logger.warning("Failed to edit progress message {} with plain text: {}", message_id, e)
             return False
@@ -617,6 +621,8 @@ class TelegramChannel(BaseChannel):
                 reply_parameters=reply_params,
                 **(thread_kwargs or {}),
             )
+        except (NetworkError, RetryAfter, TimedOut):
+            raise
         except Exception as e:
             err_str = str(e).lower()
             if "parse" not in err_str and "entit" not in err_str:
@@ -631,6 +637,8 @@ class TelegramChannel(BaseChannel):
                     reply_parameters=reply_params,
                     **(thread_kwargs or {}),
                 )
+            except (NetworkError, RetryAfter, TimedOut):
+                raise
             except Exception as e2:
                 logger.error("Error sending Telegram progress message (plain text): {}", e2)
                 return
