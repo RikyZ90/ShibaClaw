@@ -34,7 +34,7 @@
 > If you experience login issues with the WebUI post v0.9.5 update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
 
 <details open>
-<summary>📢 <b>Latest Release: v0.9.7</b> — Click to see what's new</summary>
+<summary>📢 <b>Latest Release: v0.9.8</b> — Click to see what's new</summary>
 
 ### Added
 - **🎨 Complete Visual Restyling & Brand Refresh** — Comprehensive redesign of all logos and visual identity across the application. Updated all logo assets (16px through 256px, ICO, WebP variants) with a modernized ShibaClaw brand mark. Refreshed WebUI welcome screen, settings panels, chat interface, and profile selectors with cohesive visual language.

@@ -36,7 +36,7 @@
 > If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
 
 <details open>
-<summary>📢 <b>最新リリース: v0.9.7</b> — クリックで変更点を表示</summary>
+<summary>📢 <b>最新リリース: v0.9.8</b> — クリックで変更点を表示</summary>
 
 ### 追加
 - **🔐 暗号化された資格情報保管庫（重大なセキュリティアップデート）** — 秘密情報の管理を根本的に刷新しました。ShibaClawは、Fernetを介した堅牢なAES-128/256対称暗号化保管庫（`credentials.enc`および`credentials.key`）を利用するようになりました。これにより、サードパーティ統合のすべての秘密情報（APIキー、ボットトークン、電子メールパスワード）がプレーンテキストの設定ファイルから完全に隔離され、偶発的な漏洩が防止されます。

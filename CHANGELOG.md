@@ -1,3 +1,24 @@
+## [0.9.8] - 2026-07-15
+
+### Added
+- **Channel Config Dropdowns** — Changed `group_policy` fields in channel configuration to use dropdown selectors in the WebUI for better UX.
+
+### Fixed
+- **External Package Installation on Modern Linux (PEP 668)** — Auto-injects `--break-system-packages` on `externally-managed-environment` errors during pip operations.
+- **Sub-agent Session Key Propagation** — Added `session_key` to sub-agent metadata for proper context during parallel execution.
+- **RAG Soft Restart Import Error** — Fixed `NameError` for dynamic RAG imports during soft restarts when Local RAG plugin is installed.
+- **Transient LLM Error Handling** — Added `'empty choices'` to transient error markers for automatic retry on empty API responses.
+- **Channel Hot-Reload on Secret Updates** — Fixed channel hot-reload not triggering when secrets are updated.
+- **Proactive Learning Tool Choice** — Gracefully handles unsupported `tool_choice` parameter in proactive learning.
+
+### Changed
+- **Removed Base64 Tool Output Encoding** — Eliminated Base64 encoding logic for tool outputs to simplify the pipeline.
+- **Terminal Skeleton UI** — Refined terminal-style skeleton loader to be seamless and minimal.
+
+### Documentation
+- Improved Persian README localization and feature documentation.
+- Fixed RTL issues in contribution guide and bullet points.
+
 ## [0.9.7] - 2026-07-13
 
 ### Added

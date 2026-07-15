@@ -36,7 +36,7 @@
 > If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
 
 <details open>
-<summary>📢 <b>Última versão: v0.9.7</b> — Clique para ver as novidades</summary>
+<summary>📢 <b>Última versão: v0.9.8</b> — Clique para ver as novidades</summary>
 
 ### Adicionado
 - **🔐 Cofre de credenciais criptografado (Grande atualização de segurança)** — Reformulamos fundamentalmente o gerenciamento de segredos. O ShibaClaw agora utiliza um cofre criptografado simétrico AES-128/256 robusto (`credentials.enc` e `credentials.key`) via Fernet. Isso isola completamente todos os segredos de integração de terceiros (chaves de API, tokens de bot, senhas de e-mail) dos arquivos de configuração em texto simples, evitando vazamentos acidentais.

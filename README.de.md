@@ -36,7 +36,7 @@
 > If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
 
 <details open>
-<summary>📢 <b>Neueste Version: v0.9.7</b> — Klicken für Neuerungen</summary>
+<summary>📢 <b>Neueste Version: v0.9.8</b> — Klicken für Neuerungen</summary>
 
 ### Hinzugefügt
 - **🔐 Verschlüsselter Anmeldedatentresor (Wichtiges Sicherheitsupdate)** — Wir haben die Verwaltung von Geheimnissen grundlegend überarbeitet. ShibaClaw verwendet jetzt über Fernet einen robusten symmetrisch verschlüsselten AES-128/256-Tresor (`credentials.enc` und `credentials.key`). Dies isoliert alle Integrationsgeheimnisse von Drittanbietern (API-Schlüssel, Bot-Token, E-Mail-Passwörter) vollständig von Klartext-Konfigurationsdateien und verhindert versehentliche Lecks.

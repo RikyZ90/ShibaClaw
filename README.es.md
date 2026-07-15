@@ -36,7 +36,7 @@
 > If you experience login issues with the WebUI post-update, please run `shibaclaw reset-admin` in your terminal/console to restore access.
 
 <details open>
-<summary>📢 <b>Última versión: v0.9.7</b> — Haz clic para ver las novedades</summary>
+<summary>📢 <b>Última versión: v0.9.8</b> — Haz clic para ver las novedades</summary>
 
 ### Añadido
 - **🔐 Bóveda de credenciales cifrada (Actualización de seguridad importante)** — Hemos reformado fundamentalmente la gestión de secretos. ShibaClaw ahora utiliza una robusta bóveda cifrada simétrica AES-128/256 (`credentials.enc` y `credentials.key`) a través de Fernet. Esto aísla por completo todos los secretos de integración de terceros (claves API, tokens de bot, contraseñas de correo electrónico) de los archivos de configuración de texto plano, evitando fugas accidentales.
