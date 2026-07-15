@@ -100,6 +100,7 @@ _TOOL_CHOICE_ERROR_MARKERS = (
     "toolchoice",
     "does not support",
     'should be ["none", "auto"]',
+    "empty choices",
 )
 
 
@@ -478,18 +479,16 @@ class ScentKeeper:
         ]
 
         try:
+            forced = {"type": "function", "function": {"name": "update_long_term_memory"}}
             response = await provider.chat_with_retry(
                 messages=chat_messages,
                 tools=_PROACTIVE_LEARN_TOOL,
                 model=model,
-                tool_choice={"type": "function", "function": {"name": "update_long_term_memory"}},
+                tool_choice=forced,
             )
 
-            if response.finish_reason == "error":
-                logger.error("Proactive Learning failed: LLM returned error {}", response.content)
-                return False
-
-            if not response.has_tool_calls:
+            if response.finish_reason == "error" and _is_tool_choice_unsupported(response.content):
+                logger.warning("Forced tool_choice unsupported in proactive learning, retrying with auto")
                 response = await provider.chat_with_retry(
                     messages=chat_messages,
                     tools=_PROACTIVE_LEARN_TOOL,
@@ -497,7 +496,18 @@ class ScentKeeper:
                     tool_choice="auto",
                 )
 
+            if response.finish_reason == "error":
+                logger.error("Proactive Learning failed: LLM returned error {}", response.content)
+                return False
+
             if not response.has_tool_calls:
+                logger.warning(
+                    "Proactive Learning: Shiba did not call update_long_term_memory "
+                    "(finish_reason={}, content_len={}, content_preview={})",
+                    response.finish_reason,
+                    len(response.content or ""),
+                    (response.content or "")[:200],
+                )
                 return False
 
             call = response.tool_calls[0]

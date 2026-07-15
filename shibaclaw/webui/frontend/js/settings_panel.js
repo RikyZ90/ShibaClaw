@@ -1056,12 +1056,35 @@ function populateSettings(cfg) {
                 }
 
                 const lowerKey = keyPath.toLowerCase();
+                const label = formatLabel(keyPath);
+
+                if (lowerKey === "grouppolicy" || lowerKey === "dm.policy") {
+                    let options = ["open", "mention"];
+                    if (name === "telegram" && lowerKey === "grouppolicy") {
+                        options = ["open", "mention", "trigger", "mention_or_trigger"];
+                    } else if (name === "matrix" && lowerKey === "grouppolicy") {
+                        options = ["open", "mention", "allowlist"];
+                    } else if (name === "slack" && lowerKey === "grouppolicy") {
+                        options = ["open", "mention", "allowlist"];
+                    } else if (name === "slack" && lowerKey === "dm.policy") {
+                        options = ["open", "allowlist"];
+                    }
+
+                    let selectHtml = `<select class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="string">`;
+                    options.forEach(opt => {
+                        const selected = (valStr === opt) ? "selected" : "";
+                        selectHtml += `<option value="${opt}" ${selected}>${opt}</option>`;
+                    });
+                    selectHtml += `</select>`;
+
+                    return `<div class="field-row"><label>${label}</label>${selectHtml}</div>`;
+                }
+
                 if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
                     inputType = "password";
                 }
 
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
-                const label = formatLabel(keyPath);
                 return `<div class="field-row"><label>${label}</label><input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="${originalType}" value="${safeVal}"></div>`;
             };
 
