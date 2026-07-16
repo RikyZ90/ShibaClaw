@@ -29,6 +29,8 @@ _ONBOARD_PROVIDERS = [
     ("groq", "Groq", "GROQ_API_KEY", "groq/llama-3.3-70b-versatile", False, False),
     ("ollama", "Ollama (local)", "", "ollama/llama3.2", True, False),
     ("github_copilot", "GitHub Copilot (OAuth)", "", "oswe-vscode-prime", False, True),
+    ("opencode_zen", "OpenCode Zen", "OPENCODE_ZEN_API_KEY", "zen/qwen-3-coder-480b", False, False),
+    ("opencode_go", "OpenCode Go", "OPENCODE_GO_API_KEY", "go/qwen-3.7-plus", False, False),
 ]
 
 

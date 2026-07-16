@@ -56,7 +56,8 @@ function _obRenderGrid() {
     grid.innerHTML = "";
     const ICONS = {
         openrouter: "route", anthropic: "psychology", openai: "auto_awesome", gemini: "diamond",
-        nvidia: "developer_board", deepseek: "explore", groq: "speed", ollama: "dns", github_copilot: "code"
+        nvidia: "developer_board", deepseek: "explore", groq: "speed", ollama: "dns", github_copilot: "code",
+        opencode_zen: "spa", opencode_go: "rocket_launch"
     };
     for (const p of _ob.providers) {
         const card = document.createElement("div");

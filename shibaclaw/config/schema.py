@@ -146,6 +146,8 @@ class ProvidersConfig(Base):
     qwen_oauth: ProviderConfig = Field(default_factory=ProviderConfig)
     minimax_portal: ProviderConfig = Field(default_factory=ProviderConfig)
     z_ai: ProviderConfig = Field(default_factory=ProviderConfig)
+    opencode_zen: ProviderConfig = Field(default_factory=ProviderConfig)
+    opencode_go: ProviderConfig = Field(default_factory=ProviderConfig)
 
 
 class HeartbeatConfig(Base):
