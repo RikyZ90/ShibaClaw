@@ -51,3 +51,4 @@ scripts/setup_wsl.sh
 ORIGINAL_REQUEST.md
 scratch_test/sessions/webui_test.jsonl.tmp
 temp_test/sessions/webui_test.jsonl.tmp
+.clinerules

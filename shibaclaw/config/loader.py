@@ -351,6 +351,18 @@ def _migrate_config(data: dict) -> dict:
     return data
 
 
+def _provider_alias_to_snake(name: str) -> str:
+    """Convert a camelCase provider alias to its snake_case spec name."""
+    try:
+        from shibaclaw.config.schema import ProvidersConfig
+        for field_name, field_info in ProvidersConfig.model_fields.items():
+            if field_info.alias == name or field_name == name:
+                return field_name
+    except Exception:
+        pass
+    return name
+
+
 def _migrate_secrets_from_raw_dict(data: dict, cm: Any) -> bool:
     """Move plain-text secrets from a raw JSON dict into the vault and remove them."""
     migrated = False
@@ -363,7 +375,8 @@ def _migrate_secrets_from_raw_dict(data: dict, cm: Any) -> bool:
                 continue
             api_key = provider_cfg.pop("apiKey", None) or provider_cfg.pop("api_key", None)
             if api_key:
-                cm.set_secret("providers", f"{provider_name}.api_key", api_key)
+                snake_name = _provider_alias_to_snake(provider_name)
+                cm.set_secret("providers", f"{snake_name}.api_key", api_key)
                 migrated = True
 
     # --- Web search API key ---

@@ -82,7 +82,7 @@ async def _fetch_provider_models(cfg, provider_name: str) -> list[dict[str, str]
     spec = find_by_name(provider_name)
     if not spec:
         raise ValueError(f"Unknown provider: {provider_name}")
-    if not _is_provider_configured(cfg, spec) and provider_name not in ("opencode_zen", "opencode_go"):
+    if not _is_provider_configured(cfg, spec):
         raise RuntimeError(f"Provider {provider_name} not configured")
 
     temp_cfg = cfg.model_copy(deep=True)
@@ -171,6 +171,11 @@ async def _inject_vault_placeholders(data: dict) -> dict:
     for provider_name, provider_cfg in (data.get("providers") or {}).items():
         if isinstance(provider_cfg, dict):
             await _maybe_mask("providers", f"{provider_name}.api_key", provider_cfg, "apiKey")
+            if provider_cfg.get("apiKey", "") == "":
+                from shibaclaw.config.loader import _provider_alias_to_snake
+                snake = _provider_alias_to_snake(provider_name)
+                if snake != provider_name:
+                    await _maybe_mask("providers", f"{snake}.api_key", provider_cfg, "apiKey")
 
     # --- Web search API key ---
     try:

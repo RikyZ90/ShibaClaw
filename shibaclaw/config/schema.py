@@ -23,10 +23,6 @@ class ChannelsConfig(Base):
 
     Built-in and plugin channel configs are stored as extra fields (dicts).
     Each channel parses its own config in __init__.
-
-    NOTE: model_config must repeat alias_generator + populate_by_name because
-    overriding model_config in a subclass replaces the parent's ConfigDict
-    entirely (Pydantic does not merge them).
     """
 
     model_config = ConfigDict(
@@ -83,19 +79,19 @@ class ProviderConfig(Base):
         return value
 
     def resolve_api_key(self, provider_name: str = "") -> str:
-        """Return the API key from the encrypted vault.
-
-        Resolution order:
-        1. Encrypted vault lookup under ``providers/<provider_name>.api_key``.
-        2. Encrypted vault lookup under ``oauth_tokens/<provider_name>.access_token``.
-        3. Empty string (caller should then try env vars).
-        """
+        """Return the API key from the encrypted vault."""
         if provider_name:
             try:
                 from shibaclaw.security.credential_manager import get_credential_manager
-                vault_key = get_credential_manager().get_secret("providers", f"{provider_name}.api_key")
+                cm = get_credential_manager()
+                vault_key = cm.get_secret("providers", f"{provider_name}.api_key")
                 if vault_key and isinstance(vault_key, str):
                     return vault_key
+                camel = to_camel(provider_name)
+                if camel != provider_name:
+                    vault_key = cm.get_secret("providers", f"{camel}.api_key")
+                    if vault_key and isinstance(vault_key, str):
+                        return vault_key
             except Exception:
                 pass
             try:
@@ -308,8 +304,7 @@ class ConnectedAppsConfig(Base):
     """Connected Apps (Klavis Strata) state storage.
 
     All dynamic keys (app states, __strata__, __backend__) are stored as Pydantic
-    extra fields.  model_config must repeat alias_generator + populate_by_name
-    because overriding model_config replaces — not merges — the parent ConfigDict.
+    extra fields.
     """
 
     model_config = ConfigDict(
@@ -349,7 +344,6 @@ class Config(BaseSettings):
     ) -> bool:
         if not provider:
             return False
-        # Check encrypted vault
         if spec:
             resolved = provider.resolve_api_key(spec.name)
             if resolved:
@@ -446,9 +440,6 @@ class Config(BaseSettings):
                 return spec.default_api_base
         return None
 
-    # SettingsConfigDict replaces (not merges) model_config — must include
-    # extra="ignore" here so unknown root-level keys in config.json are
-    # silently dropped instead of raising Extra inputs are not permitted.
     model_config = SettingsConfigDict(
         env_prefix="SHIBACLAW_",
         env_nested_delimiter="__",
