@@ -7,7 +7,6 @@ from loguru import logger
 logger.remove()
 
 
-
 @pytest.mark.asyncio
 async def test_telegram_channel_chat_ids_eviction():
     bus = MagicMock(spec=MessageBus)
@@ -86,3 +85,27 @@ async def test_telegram_channel_network_error_re_raises():
 
     with pytest.raises(NetworkError):
         await channel._send_text(chat_id=123, text="Hello...")
+
+
+@pytest.mark.asyncio
+async def test_telegram_channel_progress_network_error_re_raises():
+    from telegram.error import NetworkError, RetryAfter, TimedOut
+
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    channel = TelegramChannel(config, bus)
+
+    channel._app = MagicMock()
+    channel._app.bot = MagicMock()
+
+    channel._call_with_retry = AsyncMock(side_effect=NetworkError("Network timeout"))
+    with pytest.raises(NetworkError):
+        await channel._edit_progress_message(chat_id=123, message_id=456, text="Hello...")
+
+    channel._call_with_retry = AsyncMock(side_effect=RetryAfter(10))
+    with pytest.raises(RetryAfter):
+        await channel._send_or_edit_progress(chat_id=123, text="Hello...")
+
+    channel._call_with_retry = AsyncMock(side_effect=TimedOut())
+    with pytest.raises(TimedOut):
+        await channel._edit_progress_message(chat_id=123, message_id=456, text="Hello...")
