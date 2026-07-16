@@ -618,6 +618,8 @@ function providerKeyPlaceholder(name) {
         groq: "gsk_...",
         openai: "sk-...",
         openrouter: "sk-or-...",
+        opencodeZen: "zen-...",
+        opencodeGo: "go-...",
     };
     return placeholders[name] || "Enter API key";
 }
@@ -707,6 +709,7 @@ function populateSettings(cfg) {
         moonshot: "dark_mode", minimax: "compress", aihubmix: "hub", siliconflow: "waves",
         volcengine: "volcano", volcentineCodingPlan: "code", byteplus: "add_box",
         byteplusCodingPlan: "code", openaiCodex: "terminal", githubCopilot: "code",
+        opencodeZen: "spa", opencodeGo: "rocket_launch",
     };
 
     const provEntries = Object.entries(prov);
