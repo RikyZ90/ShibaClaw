@@ -71,6 +71,8 @@ def _is_provider_configured(cfg, spec) -> bool:
         return bool(provider_cfg and provider_cfg.resolve_api_key(spec.name) and provider_cfg.api_base)
     if spec.is_local:
         return bool(provider_cfg and provider_cfg.api_base)
+    if spec.is_direct:
+        return True
     return cfg._provider_has_credentials(provider_cfg, spec)
 
 

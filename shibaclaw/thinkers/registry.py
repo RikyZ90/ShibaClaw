@@ -446,6 +446,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         default_api_base="https://opencode.ai/zen/v1",
         strip_model_prefix=False,
         model_overrides=(),
+        is_direct=True, # Allow skipping auth check in WebUI settings and CLI since models are public
     ),
     ProviderSpec(
         name="opencode_go",
@@ -460,6 +461,7 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         default_api_base="https://opencode.ai/zen/go/v1",
         strip_model_prefix=False,
         model_overrides=(),
+        is_direct=True, # Allow skipping auth check in WebUI settings and CLI since models are public
     ),
 )
 

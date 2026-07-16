@@ -87,7 +87,7 @@ def _make_provider(config: Config, exit_on_error: bool = True):
             model.startswith("bedrock/")
             or (p and p.resolve_api_key(provider_name or ""))
             or has_env_key
-            or (spec and (spec.is_oauth or spec.is_local))
+            or (spec and (spec.is_oauth or spec.is_local or spec.is_direct))
         )
         if current_ready and spec and spec.is_oauth:
             current_ready = _is_oauth_authenticated(spec)
