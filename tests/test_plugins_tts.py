@@ -69,7 +69,10 @@ def test_api_install_plugin_validation(client):
 async def test_api_install_plugin_success(client):
     mock_proc = AsyncMock()
     mock_proc.returncode = 0
-    mock_proc.communicate.return_value = (b"Successfully installed", b"")
+    mock_proc.stdout = AsyncMock()
+    mock_proc.stderr = AsyncMock()
+    mock_proc.stdout.readline.side_effect = [b"Successfully installed\n", b""]
+    mock_proc.stderr.readline.side_effect = [b""]
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec, \
          patch("asyncio.sleep", new_callable=AsyncMock), \
@@ -93,7 +96,10 @@ def test_api_uninstall_plugin_validation(client):
 async def test_api_uninstall_plugin_success(client):
     mock_proc = AsyncMock()
     mock_proc.returncode = 0
-    mock_proc.communicate.return_value = (b"Successfully uninstalled", b"")
+    mock_proc.stdout = AsyncMock()
+    mock_proc.stderr = AsyncMock()
+    mock_proc.stdout.readline.side_effect = [b"Successfully uninstalled\n", b""]
+    mock_proc.stderr.readline.side_effect = [b""]
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec, \
          patch("asyncio.sleep", new_callable=AsyncMock), \
