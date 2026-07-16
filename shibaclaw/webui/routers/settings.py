@@ -71,8 +71,6 @@ def _is_provider_configured(cfg, spec) -> bool:
         return bool(provider_cfg and provider_cfg.resolve_api_key(spec.name) and provider_cfg.api_base)
     if spec.is_local:
         return bool(provider_cfg and provider_cfg.api_base)
-    if spec.is_direct:
-        return True
     return cfg._provider_has_credentials(provider_cfg, spec)
 
 
@@ -84,7 +82,7 @@ async def _fetch_provider_models(cfg, provider_name: str) -> list[dict[str, str]
     spec = find_by_name(provider_name)
     if not spec:
         raise ValueError(f"Unknown provider: {provider_name}")
-    if not _is_provider_configured(cfg, spec):
+    if not _is_provider_configured(cfg, spec) and provider_name not in ("opencode_zen", "opencode_go"):
         raise RuntimeError(f"Provider {provider_name} not configured")
 
     temp_cfg = cfg.model_copy(deep=True)
