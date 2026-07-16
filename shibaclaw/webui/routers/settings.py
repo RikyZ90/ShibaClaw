@@ -110,6 +110,11 @@ async def _fetch_all_configured_provider_models(cfg) -> tuple[list[dict[str, str
         if _is_provider_configured(cfg, spec):
             provider_names.append(spec.name)
 
+    # These providers allow listing models without being explicitly configured
+    for p in ("opencode_zen", "opencode_go"):
+        if p not in provider_names:
+            provider_names.append(p)
+
     if not provider_names:
         return [], []
 
