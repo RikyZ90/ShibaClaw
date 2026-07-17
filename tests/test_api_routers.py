@@ -1,7 +1,11 @@
 from unittest.mock import patch
+import warnings
 
 import pytest
-from starlette.testclient import TestClient
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=Warning)
+    from starlette.testclient import TestClient
 
 from shibaclaw.config.schema import Config
 from shibaclaw.helpers.notification_manager import notification_manager
@@ -217,7 +221,9 @@ def test_api_notifications_create_list_and_mark_read(client):
     assert len(listed_payload["notifications"]) == 1
     assert listed_payload["notifications"][0]["id"] == notification_id
 
-    marked = client.post("/api/v1/notifications", json={"operation": "mark_read", "id": notification_id})
+    marked = client.post(
+        "/api/v1/notifications", json={"operation": "mark_read", "id": notification_id}
+    )
     assert marked.status_code == 200
     assert marked.json()["unread_count"] == 0
 

@@ -166,6 +166,10 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning:websockets.*",
     "ignore::DeprecationWarning:uvicorn.*",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    "ignore:.*retry_after.*",
+    "ignore::telegram.warnings.PTBDeprecationWarning",
 ]
 
 [tool.uv.workspace]

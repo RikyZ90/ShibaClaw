@@ -1,6 +1,5 @@
 import pytest
 import asyncio
-from unittest.mock import AsyncMock
 from shibaclaw.agent.subagent import SubagentManager
 from shibaclaw.bus.queue import MessageBus
 from shibaclaw.bus.events import OutboundMessage
@@ -8,14 +7,27 @@ from shibaclaw.bus.events import OutboundMessage
 
 @pytest.mark.asyncio
 async def test_subagent_notify_status_in_same_session(tmp_path):
-    mock_bus = AsyncMock(spec=MessageBus)
-    mock_runner = AsyncMock()
-    mock_runner.process_direct = AsyncMock(
-        return_value=OutboundMessage(
+    # To avoid 'coroutine was never awaited' warnings, we mock the methods directly
+    # with AsyncMocks that return a proper Future or simply mock them with a standard MagicMock
+    from unittest.mock import MagicMock
+
+    mock_bus = MagicMock(spec=MessageBus)
+
+    async def dummy_publish(*args, **kwargs):
+        pass
+
+    mock_bus.publish_outbound = MagicMock(side_effect=dummy_publish)
+
+    mock_runner = MagicMock()
+
+    async def dummy_process_direct(*args, **kwargs):
+        return OutboundMessage(
             channel="webui", chat_id="test_chat", content="Summary of completed task", metadata={}
         )
-    )
-    mock_provider = AsyncMock()
+
+    mock_runner.process_direct = MagicMock(side_effect=dummy_process_direct)
+
+    mock_provider = MagicMock()
 
     manager = SubagentManager(
         workspace=tmp_path, provider=mock_provider, agent_runner=mock_runner, bus=mock_bus
@@ -56,3 +68,6 @@ async def test_subagent_notify_status_in_same_session(tmp_path):
 
     # Cancel the running subagent cleanly
     await manager.cancel_by_session("webui:test_session")
+
+    # Wait briefly for cancellation to propagate and inner tasks to clean up
+    await asyncio.sleep(0.1)
