@@ -481,18 +481,14 @@ class FeishuChannel(BaseChannel):
                 return self._split_headings(content)
             return []
 
-        elements, last_end = [], 0
-        for m in self._TABLE_RE.finditer(content):
-            before = content[last_end : m.start()]
-            if before.strip():
-                elements.extend(self._split_headings(before))
-            elements.append(
-                self._parse_md_table(m.group(1)) or {"tag": "markdown", "content": m.group(1)}
-            )
-            last_end = m.end()
-        remaining = content[last_end:]
-        if remaining.strip():
-            elements.extend(self._split_headings(remaining))
+        elements = []
+        parts = self._TABLE_RE.split(content)
+        for i, part in enumerate(parts):
+            if i % 2 == 0:
+                if part.strip():
+                    elements.extend(self._split_headings(part))
+            else:
+                elements.append(self._parse_md_table(part) or {"tag": "markdown", "content": part})
         return elements or [{"tag": "markdown", "content": content}]
 
     @staticmethod

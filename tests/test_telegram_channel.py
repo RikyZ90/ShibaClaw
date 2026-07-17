@@ -102,7 +102,10 @@ async def test_telegram_channel_progress_network_error_re_raises():
     with pytest.raises(NetworkError):
         await channel._edit_progress_message(chat_id=123, message_id=456, text="Hello...")
 
-    channel._call_with_retry = AsyncMock(side_effect=RetryAfter(10))
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=Warning)
+        channel._call_with_retry = AsyncMock(side_effect=RetryAfter(10))
     with pytest.raises(RetryAfter):
         await channel._send_or_edit_progress(chat_id=123, text="Hello...")
 

@@ -125,7 +125,7 @@ class PackManager:
     def get_or_create(self, key: str) -> Session:
         """Get an existing session or create a new one."""
         current_mtime = self._get_session_mtime_ns(key)
-        
+
         if key in self._cache:
             cached_mtime = self._cache_mtime_ns.get(key)
             if current_mtime == cached_mtime:
@@ -223,12 +223,13 @@ class PackManager:
             and len(session.messages) >= self._cache_persisted_messages_count[key]
             and session.last_consolidated == self._cache_persisted_last_consolidated.get(key, 0)
             and session.last_learned == self._cache_persisted_last_learned.get(key, 0)
-            and json.dumps(session.metadata, sort_keys=True) == self._cache_persisted_metadata_json.get(key, "{}")
+            and json.dumps(session.metadata, sort_keys=True)
+            == self._cache_persisted_metadata_json.get(key, "{}")
         )
 
         try:
             if can_append:
-                new_msgs = session.messages[self._cache_persisted_messages_count[key]:]
+                new_msgs = session.messages[self._cache_persisted_messages_count[key] :]
                 if new_msgs:
                     with open(path, "a", encoding="utf-8") as f:
                         for msg in new_msgs:
@@ -255,7 +256,9 @@ class PackManager:
                 self._cache_persisted_messages_count[key] = len(session.messages)
                 self._cache_persisted_last_consolidated[key] = session.last_consolidated
                 self._cache_persisted_last_learned[key] = session.last_learned
-                self._cache_persisted_metadata_json[key] = json.dumps(session.metadata, sort_keys=True)
+                self._cache_persisted_metadata_json[key] = json.dumps(
+                    session.metadata, sort_keys=True
+                )
 
             self._cache[session.key] = session
             self._cache_mtime_ns[session.key] = self._get_session_mtime_ns(session.key)
@@ -271,37 +274,45 @@ class PackManager:
         """List all sessions with metadata."""
         sessions = []
         new_cache = {}
-        for path in self.sessions_dir.glob("*.jsonl"):
-            try:
-                path_str = str(path)
-                mtime = path.stat().st_mtime
+        try:
+            entries = os.scandir(self.sessions_dir)
+        except FileNotFoundError:
+            return []
 
-                cached_data = self._list_sessions_cache.get(path_str)
-                if cached_data and cached_data[0] == mtime:
-                    sessions.append(cached_data[1])
-                    new_cache[path_str] = cached_data
+        with entries:
+            for entry in entries:
+                if not entry.is_file() or not entry.name.endswith(".jsonl"):
                     continue
+                try:
+                    path_str = entry.path
+                    mtime = entry.stat().st_mtime
 
-                updated_at = datetime.fromtimestamp(mtime).isoformat()
-                with open(path, encoding="utf-8") as f:
-                    first_line = f.readline().strip()
-                    if first_line:
-                        data = json.loads(first_line)
-                        if data.get("_type") == "metadata":
-                            meta = data.get("metadata", {})
-                            key = data.get("key") or path.stem.replace("_", ":", 1)
-                            session_meta = {
-                                "key": key,
-                                "nickname": meta.get("nickname"),
-                                "profile_id": meta.get("profile_id", "default"),
-                                "created_at": data.get("created_at"),
-                                "updated_at": updated_at,
-                                "path": path_str,
-                            }
-                            sessions.append(session_meta)
-                            new_cache[path_str] = (mtime, session_meta)
-            except Exception:
-                continue
+                    cached_data = self._list_sessions_cache.get(path_str)
+                    if cached_data and cached_data[0] == mtime:
+                        sessions.append(cached_data[1])
+                        new_cache[path_str] = cached_data
+                        continue
+
+                    updated_at = datetime.fromtimestamp(mtime).isoformat()
+                    with open(path_str, encoding="utf-8") as f:
+                        first_line = f.readline().strip()
+                        if first_line:
+                            data = json.loads(first_line)
+                            if data.get("_type") == "metadata":
+                                meta = data.get("metadata", {})
+                                key = data.get("key") or entry.name[:-6].replace("_", ":", 1)
+                                session_meta = {
+                                    "key": key,
+                                    "nickname": meta.get("nickname"),
+                                    "profile_id": meta.get("profile_id", "default"),
+                                    "created_at": data.get("created_at"),
+                                    "updated_at": updated_at,
+                                    "path": path_str,
+                                }
+                                sessions.append(session_meta)
+                                new_cache[path_str] = (mtime, session_meta)
+                except Exception:
+                    continue
 
         self._list_sessions_cache = new_cache
         return sorted(sessions, key=lambda x: x.get("updated_at", ""), reverse=True)

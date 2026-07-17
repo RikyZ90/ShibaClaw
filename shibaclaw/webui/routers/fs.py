@@ -19,6 +19,21 @@ async def api_upload(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=400)
 
+    from shibaclaw.webui.auth import _auth_enabled, _verify_session_token
+
+    if _auth_enabled():
+        token_candidate = None
+        q_token = request.query_params.get("token")
+        if q_token:
+            token_candidate = q_token.strip()
+        else:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token_candidate = auth_header[7:].strip()
+
+        if not token_candidate or not _verify_session_token(token_candidate):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
     try:
         form = await request.form()
         files = form.getlist("file")
@@ -78,7 +93,7 @@ async def api_file_get(request: Request):
             auth_header = request.headers.get("authorization", "")
             if auth_header.startswith("Bearer "):
                 token_candidate = auth_header[7:].strip()
-        
+
         if not token_candidate or not _verify_session_token(token_candidate):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
@@ -106,6 +121,21 @@ async def api_file_save(request: Request):
     """Overwrite a workspace file with new text content."""
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
+
+    from shibaclaw.webui.auth import _auth_enabled, _verify_session_token
+
+    if _auth_enabled():
+        token_candidate = None
+        q_token = request.query_params.get("token")
+        if q_token:
+            token_candidate = q_token.strip()
+        else:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token_candidate = auth_header[7:].strip()
+
+        if not token_candidate or not _verify_session_token(token_candidate):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
     try:
         body = await request.json()
@@ -139,6 +169,21 @@ async def api_fs_explore(request: Request):
     if not agent_manager.config:
         return JSONResponse({"error": "No config"}, status_code=503)
 
+    from shibaclaw.webui.auth import _auth_enabled, _verify_session_token
+
+    if _auth_enabled():
+        token_candidate = None
+        q_token = request.query_params.get("token")
+        if q_token:
+            token_candidate = q_token.strip()
+        else:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token_candidate = auth_header[7:].strip()
+
+        if not token_candidate or not _verify_session_token(token_candidate):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
     target_path_str = request.query_params.get("path")
     target_path = _resolve_workspace_path(target_path_str)
     if not target_path:
@@ -168,7 +213,11 @@ async def api_fs_explore(request: Request):
 
         rel_current = target_path.relative_to(workspace).as_posix()
         try:
-            rel_parent = target_path.parent.relative_to(workspace).as_posix() if target_path.parent != target_path else None
+            rel_parent = (
+                target_path.parent.relative_to(workspace).as_posix()
+                if target_path.parent != target_path
+                else None
+            )
         except ValueError:
             rel_parent = None
 

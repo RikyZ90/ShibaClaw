@@ -55,6 +55,7 @@ class EmailConfig(Base):
         """Return imap_password from vault (if set up) or the plain field."""
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
+
             cm = get_credential_manager()
             if cm.is_setup():
                 val = cm.get_secret("channels", "email.imap_password")
@@ -68,6 +69,7 @@ class EmailConfig(Base):
         """Return smtp_password from vault (if set up) or the plain field."""
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
+
             cm = get_credential_manager()
             if cm.is_setup():
                 val = cm.get_secret("channels", "email.smtp_password")
@@ -444,8 +446,8 @@ class EmailChannel(BaseChannel):
         finally:
             try:
                 client.logout()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error during IMAP logout: {e}")
 
     @classmethod
     def _is_stale_imap_error(cls, exc: Exception) -> bool:
