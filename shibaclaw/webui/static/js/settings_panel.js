@@ -1065,6 +1065,14 @@ function populateSettings(cfg) {
 
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
                 const label = formatLabel(keyPath);
+
+                if (keyPath === "group_policy" || keyPath === "groupPolicy") {
+                    const options = ["open", "mention", "trigger", "mention_or_trigger", "allowlist"]
+                        .map(opt => `<option value="${opt}" ${valStr === opt ? "selected" : ""}>${opt}</option>`)
+                        .join("");
+                    return `<div class="field-row"><label>${label}</label><select class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="string">${options}</select></div>`;
+                }
+
                 return `<div class="field-row"><label>${label}</label><input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="${originalType}" value="${safeVal}"></div>`;
             };
 
@@ -1096,14 +1104,14 @@ function populateSettings(cfg) {
             </div>
             ${fieldsHtml}`;
 
-        const hiddenInputs = detail.querySelectorAll(`input[data-ch="${name}"]`);
+        const hiddenInputs = detail.querySelectorAll(`input[data-ch="${name}"], select[data-ch="${name}"]`);
         const hiddenInputMap = new Map();
         hiddenInputs.forEach(el => {
             const k = el.classList.contains("ch-enabled") ? "__enabled__" : el.dataset.key;
             hiddenInputMap.set(k, el);
         });
 
-        const paneInputs = channelDetailPane.querySelectorAll(`input[data-ch="${name}"]`);
+        const paneInputs = channelDetailPane.querySelectorAll(`input[data-ch="${name}"], select[data-ch="${name}"]`);
         paneInputs.forEach(paneEl => {
             const k = paneEl.classList.contains("ch-enabled") ? "__enabled__" : paneEl.dataset.key;
             const hiddenEl = hiddenInputMap.get(k);
@@ -1117,6 +1125,8 @@ function populateSettings(cfg) {
 
             if (paneEl.type === "checkbox") {
                 paneEl.addEventListener("change", () => { hiddenEl.checked = paneEl.checked; });
+            } else if (paneEl.tagName === "SELECT") {
+                paneEl.addEventListener("change", () => { hiddenEl.value = paneEl.value; });
             } else {
                 paneEl.addEventListener("input", () => { hiddenEl.value = paneEl.value; });
             }
