@@ -1,3 +1,12 @@
+## [Unreleased]
+
+### Added
+- **Telegram AI / agent Bot API features** — Guest Mode (`answerGuestQuery`), private-chat streaming via `sendMessageDraft`, bot-to-bot messages, Business / Chat Automation updates, and Managed Bot update tracking. See `docs/TELEGRAM_AI_FEATURES.md`.
+- **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled` (all default `true`).
+
+### Notes
+- Rich Messages (`sendRichMessage`) are documented but not implemented yet — waiting on `python-telegram-bot` support beyond 22.8.
+
 ## [0.9.8] - 2026-07-15
 
 ### Added
