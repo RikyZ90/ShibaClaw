@@ -105,6 +105,39 @@ def provider_login(provider: str):
     get_console().print(f"{__logo__} OAuth Login - {spec.label}\n")
     handler()
 
+def provider_logout(provider: str):
+    """Log out of an OAuth provider."""
+    from shibaclaw.thinkers.registry import PROVIDERS
+
+    key = provider.replace("-", "_")
+    spec = next((s for s in PROVIDERS if s.name == key and s.is_oauth), None)
+    if not spec:
+        names = ", ".join(s.name.replace("_", "-") for s in PROVIDERS if s.is_oauth)
+        get_console().print(f"[red]Unknown OAuth provider: {provider}[/red]  Supported: {names}")
+        raise typer.Exit(1)
+
+    if spec.name == "openai_codex":
+        try:
+            from oauth_cli_kit.providers import OPENAI_CODEX_PROVIDER
+            from oauth_cli_kit.storage import FileTokenStorage
+            storage = FileTokenStorage(token_filename=OPENAI_CODEX_PROVIDER.token_filename)
+            token_path = storage.get_token_path()
+            if os.path.exists(token_path):
+                os.remove(token_path)
+        except Exception:
+            pass
+    elif spec.name == "github_copilot":
+        home = os.path.expanduser("~")
+        token_path = os.path.join(home, ".shibaclaw", "github_copilot", "access-token")
+        if os.path.exists(token_path):
+            os.remove(token_path)
+    else:
+        from shibaclaw.security.oauth_store import OAuthTokenStore
+        store = OAuthTokenStore()
+        store.delete_token(spec.name)
+
+    get_console().print(f"[green]✓[/green] Logged out of {spec.label}")
+
 
 @register_login("openai_codex")
 def _login_openai_codex() -> None:
@@ -251,11 +284,10 @@ def _login_anthropic() -> None:
 
 @register_login("google_gemini_cli")
 def _login_google_gemini_cli() -> None:
-    _prompt_token_login(
-        "google_gemini_cli", 
-        "Google Gemini CLI", 
-        "Please get an API Key from Google AI Studio (https://aistudio.google.com/app/apikey) or enter your Google OAuth refresh token."
-    )
+    get_console().print("[cyan]Starting authentication for Google Gemini CLI...[/cyan]\n")
+    get_console().print("[dim]Google Gemini CLI uses an OAuth redirect flow.[/dim]")
+    get_console().print("[dim]Please use the WebUI (Settings -> OAuth) to securely authenticate with your Google account.[/dim]\n")
+    get_console().print("Run: [bold]shibaclaw web[/bold]")
 
 @register_login("xai")
 def _login_xai() -> None:

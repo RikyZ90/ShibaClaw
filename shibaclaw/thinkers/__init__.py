@@ -15,6 +15,7 @@ __all__ = [
     "GithubCopilotThinker",
     "OpenAICodexThinker",
     "AzureOpenAIThinker",
+    "GoogleGeminiCLIThinker",
 ]
 
 _LAZY_IMPORTS = {
@@ -23,6 +24,7 @@ _LAZY_IMPORTS = {
     "GithubCopilotThinker": ".github_copilot_provider",
     "OpenAICodexThinker": ".openai_codex_provider",
     "AzureOpenAIThinker": ".azure_openai_provider",
+    "GoogleGeminiCLIThinker": ".google_gemini_cli_provider",
 }
 
 if TYPE_CHECKING:
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
     from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
     from shibaclaw.thinkers.openai_codex_provider import OpenAICodexThinker
     from shibaclaw.thinkers.openai_provider import OpenAIThinker
+    from shibaclaw.thinkers.google_gemini_cli_provider import GoogleGeminiCLIThinker
 
 
 def __getattr__(name: str):

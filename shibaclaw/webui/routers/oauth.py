@@ -119,6 +119,15 @@ async def api_oauth_login(request: Request):
         from ..oauth_github import start_codex_oauth
 
         return await start_codex_oauth(job_id, jobs)
+    elif provider == "google_gemini_cli":
+        client_id = os.environ.get("SHIBACLAW_GEMINI_OAUTH_CLIENT_ID", "").strip()
+        client_secret = os.environ.get("SHIBACLAW_GEMINI_OAUTH_CLIENT_SECRET", "").strip()
+        if not client_id:
+            jobs[job_id]["status"] = "error"
+            jobs[job_id]["logs"].append("❌ Not configured by administrator (Missing SHIBACLAW_GEMINI_OAUTH_CLIENT_ID)")
+            return JSONResponse({"error": "Not configured by administrator"}, status_code=400)
+        from ..oauth_generic import start_google_oauth
+        return await start_google_oauth(request, job_id, jobs, client_id, client_secret)
     elif provider in generic_providers:
         from ..oauth_generic import start_generic_oauth
         

@@ -362,3 +362,37 @@ class TestCustomMCPOAuth:
         assert observed_payloads[1]["grant_type"] == "refresh_token"
         assert observed_payloads[1]["refresh_token"] == "refresh-123"
 
+
+class TestGoogleGeminiCLIOAuth:
+    @pytest.mark.asyncio
+    async def test_start_google_oauth_pkce(self):
+        from shibaclaw.webui.oauth_generic import start_google_oauth
+
+        jobs = {"job-gemini": {"provider": "google_gemini_cli", "status": "running", "logs": []}}
+
+        response = await start_google_oauth(_get_request("/api/oauth/login"), "job-gemini", jobs, "my-client-id", "my-client-secret")
+        payload = json.loads(response.body)
+
+        assert payload["provider"] == "google_gemini_cli"
+        assert payload["status"] == "awaiting_redirect"
+        assert payload["auth_url"].startswith("https://accounts.google.com/o/oauth2/v2/auth?")
+        assert "my-client-id" in payload["auth_url"]
+
+        job = jobs["job-gemini"]
+        assert job["status"] == "awaiting_redirect"
+        assert job["_google_client_id"] == "my-client-id"
+        assert job["_google_client_secret"] == "my-client-secret"
+        assert "_google_verifier" in job
+
+    @pytest.mark.asyncio
+    async def test_api_oauth_login_rejects_if_client_id_missing(self, monkeypatch):
+        from shibaclaw.webui.routers.oauth import api_oauth_login
+
+        monkeypatch.delenv("SHIBACLAW_GEMINI_OAUTH_CLIENT_ID", raising=False)
+
+        req = _json_request({"provider": "google_gemini_cli"})
+        response = await api_oauth_login(req)
+
+        assert response.status_code == 400
+        payload = json.loads(response.body)
+        assert payload["error"] == "Not configured by administrator"
