@@ -165,10 +165,23 @@ ShibaClaw uses native SDKs — no LiteLLM proxy — and resolves the provider fr
 **OAuth**
 
 | Provider | Flow | Setup |
-|---|---|---|
-| OpenRouter | PKCE browser flow | WebUI Settings |
-| GitHub Copilot | Device flow, auto refresh | `shibaclaw provider login github-copilot` |
-| OpenAI Codex | PKCE browser flow | `shibaclaw provider login openai-codex` |
+|----------|------|-------|
+| OpenRouter | PKCE browser flow, stores returned API key in provider config | WebUI Settings |
+| GitHub Copilot | Device flow, auto token refresh | `shibaclaw provider login github-copilot` or WebUI Settings |
+| OpenAI Codex | PKCE browser flow | `shibaclaw provider login openai-codex` or WebUI Settings |
+| Google Gemini CLI | PKCE browser flow, requires `SHIBACLAW_GEMINI_OAUTH_CLIENT_ID` and `SHIBACLAW_GEMINI_OAUTH_CLIENT_SECRET` env vars. **Note:** Unofficial third-party integration, Google may apply account restrictions. Use a separate account if this is a concern. | WebUI Settings |
+
+For OpenRouter, the callback reuses the current WebUI URL and port by default, so `http://localhost:3000` is not a dedicated OAuth-only port. If you expose the WebUI behind a reverse proxy or need a different public callback origin, set `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL=https://your-public-webui-host` before starting the server.
+
+### 💡 Pro Tip: Cost-Effective & Premium Models
+
+ShibaClaw performs exceptionally well even without expensive API usage:
+- **Free/Open Models:** We highly recommend using **OpenRouter** to access powerful free models like `nvidia/nemotron-3-super-120b-a12b:free` or `gemma-4-31b-it:free`.
+- **Unlimited Premium:** If you use the **GitHub Copilot** OAuth integration, you gain access to premium models like `raptor` (`oswe-vscode-prime`) at zero additional cost, effectively giving you unlimited requests.
+
+***
+
+## 📊 How ShibaClaw Compares (Security-First)
 
 > [!NOTE]
 > OpenRouter's OAuth callback reuses the current WebUI URL and port. Behind a reverse proxy, set `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL` before starting the server.

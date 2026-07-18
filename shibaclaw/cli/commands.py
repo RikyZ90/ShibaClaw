@@ -405,5 +405,13 @@ def provider_login_cmd(provider: str = typer.Argument(..., help="OAuth provider"
     provider_login(provider)
 
 
+@provider_app.command("logout")
+def provider_logout_cmd(provider: str = typer.Argument(..., help="OAuth provider")):
+    """Log out of an OAuth provider."""
+    from .auth import provider_logout
+
+    provider_logout(provider)
+
+
 if __name__ == "__main__":
     app()
