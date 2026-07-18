@@ -104,6 +104,54 @@ async def test_api_settings_post_replaces_deleted_mcp_servers(monkeypatch):
         agent_manager.provider = original_provider
 
 
+@pytest.mark.asyncio
+async def test_api_models_get_handles_cancelled_error(monkeypatch):
+    import asyncio
+    import shibaclaw.cli.auth as auth_module
+    import shibaclaw.cli.base as base_module
+    from unittest.mock import MagicMock
+    mock_cm = MagicMock()
+    mock_cm.get_secret.return_value = "sk-test"
+    monkeypatch.setattr("shibaclaw.security.credential_manager.get_credential_manager", lambda: mock_cm)
+
+    original_config = agent_manager.config
+    original_provider = agent_manager.provider
+
+    class FailingProvider:
+        async def get_available_models(self):
+            raise asyncio.CancelledError()
+
+    def fake_make_provider(cfg, exit_on_error=False):
+        return FailingProvider()
+
+    monkeypatch.setattr(
+        agent_manager,
+        "config",
+        Config.model_validate(
+            {
+                "providers": {
+                    "openrouter": {},
+                },
+            }
+        ),
+    )
+    monkeypatch.setattr(agent_manager, "provider", None)
+    monkeypatch.setattr(base_module, "_make_provider", fake_make_provider)
+    monkeypatch.setattr(auth_module, "_is_oauth_authenticated", lambda spec: True)
+
+    try:
+        response = await api_models_get(_get_request())
+        payload = json.loads(response.body)
+
+        assert response.status_code == 200
+        assert len(payload["errors"]) > 0
+        assert any(e["provider"] == "openrouter" for e in payload["errors"])
+        assert payload["models"] == []
+    finally:
+        agent_manager.config = original_config
+        agent_manager.provider = original_provider
+
+
 def test_migrate_config_keeps_empty_mcp_servers_empty():
     migrated = _migrate_config({"channels": {}, "tools": {"mcpServers": {}}})
 
