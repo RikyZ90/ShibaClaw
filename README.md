@@ -14,8 +14,6 @@
   <a href="https://deepwiki.com/RikyZ90/ShibaClaw"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
 
-<p align="center">⭐ If you find ShibaClaw useful, star it on GitHub — it helps a lot!</p>
-
 <p align="center">
   <a href="#features">Features</a> ·
   <a href="#quick-start">Quick Start</a> ·
