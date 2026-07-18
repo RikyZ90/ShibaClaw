@@ -124,7 +124,7 @@ async def _fetch_all_configured_provider_models(cfg) -> tuple[list[dict[str, str
     models: list[dict[str, str]] = []
     errors: list[dict[str, str]] = []
     for provider_name, result in zip(provider_names, results, strict=False):
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             logger.warning("Failed to fetch models from provider {}: {}", provider_name, result)
             errors.append({"provider": provider_name, "error": str(result)})
             continue
