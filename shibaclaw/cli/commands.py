@@ -256,6 +256,8 @@ def web(
 
     try:
         asyncio.run(run_server(port=port, host=host, config=cfg, provider=provider))
+    except KeyboardInterrupt:
+        pass
     finally:
         stop_gateway_proc()
 
