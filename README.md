@@ -293,6 +293,7 @@ Ollama (`http://localhost:11434`) · LM Studio · llama.cpp · vLLM · any OpenA
 | OpenRouter | PKCE browser flow, stores returned API key in provider config | WebUI Settings |
 | GitHub Copilot | Device flow, auto token refresh | `shibaclaw provider login github-copilot` or WebUI Settings |
 | OpenAI Codex | PKCE browser flow | `shibaclaw provider login openai-codex` or WebUI Settings |
+| Google Gemini CLI | PKCE browser flow, requires `SHIBACLAW_GEMINI_OAUTH_CLIENT_ID` and `SHIBACLAW_GEMINI_OAUTH_CLIENT_SECRET` env vars. **Note:** Unofficial third-party integration, Google may apply account restrictions. Use a separate account if this is a concern. | WebUI Settings |
 
 For OpenRouter, the callback reuses the current WebUI URL and port by default, so `http://localhost:3000` is not a dedicated OAuth-only port. If you expose the WebUI behind a reverse proxy or need a different public callback origin, set `SHIBACLAW_OPENROUTER_CALLBACK_BASE_URL=https://your-public-webui-host` before starting the server.
 

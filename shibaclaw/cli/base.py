@@ -80,6 +80,10 @@ def _make_provider(config: Config, exit_on_error: bool = True):
         from shibaclaw.thinkers.github_copilot_provider import GithubCopilotThinker
 
         provider = GithubCopilotThinker(default_model=model)
+    elif provider_name == "google_gemini_cli" or model.startswith("google_gemini_cli/"):
+        from shibaclaw.thinkers.google_gemini_cli_provider import GoogleGeminiCLIThinker
+
+        provider = GoogleGeminiCLIThinker(default_model=model)
     else:
         spec = find_by_name(provider_name) if provider_name else None
         has_env_key = bool(spec and spec.env_key and os.environ.get(spec.env_key))
