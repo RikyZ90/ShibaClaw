@@ -2,15 +2,30 @@
 
 from __future__ import annotations
 import asyncio
+import itertools
 import logging
 import re
 import unicodedata
 from typing import Any, Literal
 from loguru import logger
 from pydantic import Field, field_validator
-from telegram import BotCommand, ReplyParameters, Update
+from telegram import (
+    BotCommand,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
+    ReplyParameters,
+    Update,
+)
 from telegram.error import NetworkError, RetryAfter, TimedOut
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    BusinessConnectionHandler,
+    CommandHandler,
+    ContextTypes,
+    ManagedBotUpdatedHandler,
+    MessageHandler,
+    filters,
+)
 from telegram.request import HTTPXRequest
 from shibaclaw.bus.events import OutboundMessage
 from shibaclaw.bus.queue import MessageBus
@@ -216,6 +231,13 @@ class TelegramConfig(Base):
     group_context_buffer_size: int = 10
     connection_pool_size: int = 32
     pool_timeout: float = 5.0
+    # Bot API 9.3–10.x AI / agent features (require BotFather toggles where noted).
+    # Security-sensitive flags default to False (opt-in). streaming is UX-only.
+    streaming: bool = True
+    guest_mode: bool = False
+    allow_bot_messages: bool = False
+    business_enabled: bool = False
+    managed_bots_enabled: bool = False
 
     @field_validator("proxy", mode="before")
     @classmethod
@@ -262,6 +284,12 @@ class TelegramChannel(BaseChannel):
         self._PROGRESS_CAP = 500
         self._bot_user_id: int | None = None
         self._bot_username: str | None = None
+        self._draft_ids: dict[tuple[int, int | None], int] = {}
+        self._draft_id_seq = itertools.count(1)
+        self._business_connections: dict[str, dict[str, Any]] = {}
+        self._BUSINESS_CONNECTIONS_CAP = 200
+        self._managed_bots: dict[int, dict[str, Any]] = {}
+        self._MANAGED_BOTS_CAP = 200
 
     def is_allowed(self, sender_id: str) -> bool:
         """Preserve Telegram's legacy id|username allowlist matching."""
@@ -338,6 +366,27 @@ class TelegramChannel(BaseChannel):
         self._app.add_handler(
             MessageHandler(filters.UpdateType.EDITED_MESSAGE & _content_filter, self._on_message)
         )
+        if self.config.guest_mode:
+            self._app.add_handler(
+                MessageHandler(
+                    filters.UpdateType.GUEST_MESSAGE & _content_filter, self._on_message
+                )
+            )
+        if self.config.business_enabled:
+            self._app.add_handler(
+                MessageHandler(
+                    filters.UpdateType.BUSINESS_MESSAGE & _content_filter, self._on_message
+                )
+            )
+            self._app.add_handler(
+                MessageHandler(
+                    filters.UpdateType.EDITED_BUSINESS_MESSAGE & _content_filter,
+                    self._on_message,
+                )
+            )
+            self._app.add_handler(BusinessConnectionHandler(self._on_business_connection))
+        if self.config.managed_bots_enabled:
+            self._app.add_handler(ManagedBotUpdatedHandler(self._on_managed_bot))
         logger.info("Starting Telegram bot (polling mode)...")
         await self._app.initialize()
         await self._app.start()
@@ -350,8 +399,17 @@ class TelegramChannel(BaseChannel):
             logger.debug("Telegram bot commands registered")
         except Exception as e:
             logger.warning("Failed to register bot commands: {}", e)
+        allowed_updates = ["message", "edited_message"]
+        if self.config.guest_mode:
+            allowed_updates.append("guest_message")
+        if self.config.business_enabled:
+            allowed_updates.extend(
+                ["business_connection", "business_message", "edited_business_message"]
+            )
+        if self.config.managed_bots_enabled:
+            allowed_updates.append("managed_bot")
         await self._app.updater.start_polling(
-            allowed_updates=["message", "edited_message"],
+            allowed_updates=allowed_updates,
             drop_pending_updates=True,
         )
         while self._running:
@@ -398,8 +456,15 @@ class TelegramChannel(BaseChannel):
         """Send a message through Telegram."""
         if not self._app:
             raise RuntimeError("Telegram bot not running")
-        if not msg.metadata.get("_progress", False):
+        metadata = msg.metadata or {}
+        if not metadata.get("_progress", False):
             self._stop_typing(msg.chat_id)
+        # Guest Mode replies must go through answerGuestQuery (not sendMessage).
+        if guest_query_id := metadata.get("guest_query_id"):
+            if metadata.get("_progress"):
+                return
+            await self._answer_guest_query(str(guest_query_id), msg.content or "")
+            return
         original_chat_id = str(msg.chat_id)
         if original_chat_id == "auto" or not original_chat_id.lstrip("-").isdigit():
             allow_list = getattr(self.config, "allow_from", [])
@@ -451,13 +516,15 @@ class TelegramChannel(BaseChannel):
             except ValueError:
                 logger.error("Invalid chat_id: %s", original_chat_id)
                 return
-        reply_to_message_id = msg.metadata.get("message_id")
-        message_thread_id = msg.metadata.get("message_thread_id")
+        reply_to_message_id = metadata.get("message_id")
+        message_thread_id = metadata.get("message_thread_id")
         if message_thread_id is None and reply_to_message_id is not None:
             message_thread_id = self._message_threads.get((msg.chat_id, reply_to_message_id))
-        thread_kwargs = {}
+        thread_kwargs: dict[str, Any] = {}
         if message_thread_id is not None:
             thread_kwargs["message_thread_id"] = message_thread_id
+        if business_connection_id := metadata.get("business_connection_id"):
+            thread_kwargs["business_connection_id"] = business_connection_id
         reply_params = None
         if self.config.reply_to_message:
             if reply_to_message_id:
@@ -510,15 +577,25 @@ class TelegramChannel(BaseChannel):
                     **thread_kwargs,
                 )
         if msg.content and msg.content != "[empty message]":
-            is_progress = msg.metadata.get("_progress", False)
+            is_progress = bool(metadata.get("_progress", False))
+            use_draft = (
+                self.config.streaming
+                and self._is_private_chat_id(chat_id)
+                and not metadata.get("business_connection_id")
+            )
             for chunk in split_message(msg.content, TELEGRAM_MAX_MESSAGE_LEN):
-                if is_progress:
+                if is_progress and use_draft:
+                    await self._send_message_draft(chat_id, chunk, thread_kwargs, metadata)
+                elif is_progress:
                     await self._send_or_edit_progress(chat_id, chunk, reply_params, thread_kwargs)
                 else:
-                    await self._send_with_streaming(chat_id, chunk, reply_params, thread_kwargs)
+                    await self._send_with_streaming(
+                        chat_id, chunk, reply_params, thread_kwargs, use_draft=use_draft
+                    )
             if not is_progress:
                 thread_id = thread_kwargs.get("message_thread_id") if thread_kwargs else None
                 await self._clear_progress_message(chat_id, thread_id)
+                self._clear_draft_id(chat_id, thread_id)
 
     async def _call_with_retry(self, fn, *args, **kwargs):
         """Call an async Telegram API function with retry on pool/network timeout."""
@@ -690,14 +767,141 @@ class TelegramChannel(BaseChannel):
             logger.error("Error sending Telegram message: {}", e2)
             raise
 
+    @staticmethod
+    def _is_private_chat_id(chat_id: int) -> bool:
+        """Telegram private chats use positive user ids; groups/channels are negative."""
+        return chat_id > 0
+
+    def _draft_id_for(
+        self, chat_id: int, thread_id: int | None, metadata: dict[str, Any] | None = None
+    ) -> int:
+        """Stable draft id for sendMessageDraft (must survive process restart).
+
+        Prefer inbound ``message_id`` (deterministic). Fall back to a process-local
+        counter only when metadata has no message id.
+        """
+        key = (chat_id, thread_id)
+        if key not in self._draft_ids:
+            seed = metadata.get("message_id") if metadata else None
+            if seed is not None:
+                # message_id is unique per chat; keep in positive 31-bit range.
+                raw = int(seed) & 0x7FFFFFFF
+                self._draft_ids[key] = raw or 1
+            else:
+                self._draft_ids[key] = next(self._draft_id_seq)
+        return self._draft_ids[key]
+
+    def _clear_draft_id(self, chat_id: int, thread_id: int | None) -> None:
+        self._draft_ids.pop((chat_id, thread_id), None)
+
+    async def _send_message_draft(
+        self,
+        chat_id: int,
+        text: str,
+        thread_kwargs: dict | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Stream a partial reply via Bot API sendMessageDraft (private chats only)."""
+        thread_id = (thread_kwargs or {}).get("message_thread_id")
+        draft_id = self._draft_id_for(chat_id, thread_id, metadata)
+        kwargs: dict[str, Any] = {
+            "chat_id": chat_id,
+            "draft_id": draft_id,
+            "text": text or "",
+        }
+        if thread_id is not None:
+            kwargs["message_thread_id"] = thread_id
+        try:
+            await self._call_with_retry(self._app.bot.send_message_draft, **kwargs)
+        except Exception as e:
+            logger.debug("Telegram sendMessageDraft failed (falling back): {}", e)
+
+    def _guest_result_title(self) -> str:
+        """InlineQueryResultArticle title for Guest Mode answers."""
+        if self._bot_username:
+            return f"@{self._bot_username}"
+        return "ShibaClaw"
+
+    async def _answer_guest_query(self, guest_query_id: str, text: str) -> None:
+        """Reply to a Guest Mode mention via answerGuestQuery."""
+        body = (text or "").strip() or "…"
+        # Inline result title is required; keep body in the message content.
+        result = InlineQueryResultArticle(
+            id=guest_query_id[:64] or "guest",
+            title=self._guest_result_title(),
+            description=body[:120],
+            input_message_content=InputTextMessageContent(message_text=body[:TELEGRAM_MAX_MESSAGE_LEN]),
+        )
+        try:
+            await self._call_with_retry(
+                self._app.bot.answer_guest_query,
+                guest_query_id=guest_query_id,
+                result=result,
+            )
+        except Exception as e:
+            logger.error("Telegram answerGuestQuery failed: {}", e)
+            raise
+
+    def _store_capped(self, store: dict, key: Any, value: Any, cap: int) -> None:
+        """Insert into an insertion-ordered dict, evicting oldest entries past *cap*."""
+        store.pop(key, None)
+        store[key] = value
+        while len(store) > cap:
+            store.pop(next(iter(store)))
+
+    async def _on_business_connection(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Track Chat Automation / Business account connections."""
+        conn = update.business_connection
+        if not conn:
+            return
+        self._store_capped(
+            self._business_connections,
+            conn.id,
+            {
+                "user_id": getattr(conn.user, "id", None),
+                "user_chat_id": getattr(conn, "user_chat_id", None),
+                "is_enabled": getattr(conn, "is_enabled", None),
+                "rights": str(getattr(conn, "rights", None)),
+            },
+            self._BUSINESS_CONNECTIONS_CAP,
+        )
+        logger.info(
+            "Telegram business connection {} enabled={} user={}",
+            conn.id,
+            getattr(conn, "is_enabled", None),
+            getattr(conn.user, "id", None),
+        )
+
+    async def _on_managed_bot(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle ManagedBotUpdated (bot created/token rotated by a manager bot)."""
+        mb = update.managed_bot
+        if not mb:
+            return
+        bot_user = getattr(mb, "bot", None) or getattr(mb, "user", None)
+        bot_id = getattr(bot_user, "id", None) if bot_user else getattr(mb, "bot_id", None)
+        info = {
+            "bot_id": bot_id,
+            "username": getattr(bot_user, "username", None) if bot_user else None,
+            "can_join_groups": getattr(mb, "can_join_groups", None),
+            "raw": str(mb),
+        }
+        if bot_id is not None:
+            self._store_capped(self._managed_bots, int(bot_id), info, self._MANAGED_BOTS_CAP)
+        logger.info("Telegram managed bot update: {}", info)
+
     async def _send_with_streaming(
         self,
         chat_id: int,
         text: str,
         reply_params=None,
         thread_kwargs: dict | None = None,
+        *,
+        use_draft: bool = False,
     ) -> None:
-        """Send message text (streaming simulation removed for stability)."""
+        """Send final message text. Optional last draft flash for private chats."""
+        if use_draft and text:
+            # Final animated draft, then persist with sendMessage (API contract).
+            await self._send_message_draft(chat_id, text, thread_kwargs)
         await self._send_text(chat_id, text, reply_params, thread_kwargs)
 
     async def _on_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -744,10 +948,10 @@ class TelegramChannel(BaseChannel):
         return f"telegram:{message.chat_id}:topic:{message_thread_id}"
 
     @staticmethod
-    def _build_message_metadata(message, user) -> dict:
+    def _build_message_metadata(message, user, *, guest: bool = False) -> dict:
         """Build common Telegram inbound metadata payload."""
         reply_to = getattr(message, "reply_to_message", None)
-        return {
+        meta: dict[str, Any] = {
             "message_id": message.message_id,
             "user_id": user.id,
             "username": user.username,
@@ -756,7 +960,14 @@ class TelegramChannel(BaseChannel):
             "message_thread_id": getattr(message, "message_thread_id", None),
             "is_forum": bool(getattr(message.chat, "is_forum", False)),
             "reply_to_message_id": getattr(reply_to, "message_id", None) if reply_to else None,
+            "is_bot_sender": bool(getattr(user, "is_bot", False)),
         }
+        if guest or getattr(message, "guest_query_id", None):
+            meta["guest_query_id"] = getattr(message, "guest_query_id", None)
+            meta["is_guest"] = True
+        if business_connection_id := getattr(message, "business_connection_id", None):
+            meta["business_connection_id"] = business_connection_id
+        return meta
 
     @staticmethod
     def _extract_reply_context(message) -> str | None:
@@ -920,14 +1131,23 @@ class TelegramChannel(BaseChannel):
 
     async def _on_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle incoming messages (text, photos, voice, documents)."""
-        message = update.edited_message or update.message
+        message = update.effective_message
         if not message or not update.effective_user:
             return
         user = update.effective_user
+        if getattr(user, "is_bot", False) and not self.config.allow_bot_messages:
+            logger.debug("Telegram: ignoring bot-to-bot message from {}", user.id)
+            return
+        is_guest = update.guest_message is not None
         chat_id = message.chat_id
         sender_id = self._sender_id(user)
+        # Guest Mode still requires allow_from — never open the bot to arbitrary users.
         if not self.is_allowed(sender_id):
-            logger.debug("Telegram: ignoring message from unauthorised sender {}", sender_id)
+            logger.debug(
+                "Telegram: ignoring {} from unauthorised sender {}",
+                "guest message" if is_guest else "message",
+                sender_id,
+            )
             return
         self._remember_thread_context(message)
         self._chat_ids[sender_id] = chat_id
@@ -963,14 +1183,22 @@ class TelegramChannel(BaseChannel):
         str_chat_id = str(chat_id)
         is_group = message.chat.type in ("group", "supergroup")
         sender_name = user.first_name or user.username or sender_id
-        if is_group:
+        if is_group and not is_guest:
             content = f"{sender_name}: {content}"
-        metadata = self._build_message_metadata(message, user)
-        session_key = self._derive_topic_session_key(message)
-        should_respond = await self._is_group_message_for_bot(message)
-        if is_group and not should_respond:
+        metadata = self._build_message_metadata(message, user, guest=is_guest)
+        if is_guest:
+            session_key = f"telegram:guest:{metadata.get('guest_query_id') or chat_id}"
+        else:
+            session_key = self._derive_topic_session_key(message)
+        should_respond = True if is_guest else await self._is_group_message_for_bot(message)
+        if is_group and not should_respond and not is_guest:
             metadata["no_reply"] = True
-        logger.debug("Telegram message from {}: {}...", sender_id, content[:50])
+        logger.debug(
+            "Telegram message from {} guest={}: {}...",
+            sender_id,
+            is_guest,
+            content[:50],
+        )
         if media_group_id := getattr(message, "media_group_id", None):
             key = f"{str_chat_id}:{media_group_id}"
             if key not in self._media_group_buffers:
@@ -994,7 +1222,7 @@ class TelegramChannel(BaseChannel):
             if key not in self._media_group_tasks:
                 self._media_group_tasks[key] = asyncio.create_task(self._flush_media_group(key))
             return
-        if not metadata.get("no_reply"):
+        if not metadata.get("no_reply") and not is_guest:
             self._start_typing(str_chat_id)
         await self._handle_message(
             sender_id=sender_id,

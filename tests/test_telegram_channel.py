@@ -41,6 +41,8 @@ async def test_telegram_channel_chat_ids_eviction():
         message.message_thread_id = None
         update.message = message
         update.edited_message = None
+        update.effective_message = message
+        update.guest_message = None
 
         await channel._on_message(update, MagicMock())
 
@@ -112,3 +114,205 @@ async def test_telegram_channel_progress_network_error_re_raises():
     channel._call_with_retry = AsyncMock(side_effect=TimedOut())
     with pytest.raises(TimedOut):
         await channel._edit_progress_message(chat_id=123, message_id=456, text="Hello...")
+
+
+@pytest.mark.asyncio
+async def test_send_guest_query_uses_answer_guest_query():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token", guest_mode=True)
+    channel = TelegramChannel(config, bus)
+    channel._app = MagicMock()
+    channel._app.bot = MagicMock()
+    channel._call_with_retry = AsyncMock()
+    channel._stop_typing = MagicMock()
+
+    from shibaclaw.bus.events import OutboundMessage
+
+    msg = OutboundMessage(
+        channel="telegram",
+        chat_id="1",
+        content="hello guest",
+        metadata={"guest_query_id": "gq-123"},
+    )
+    await channel.send(msg)
+    channel._call_with_retry.assert_awaited()
+    assert channel._call_with_retry.await_args.args[0] == channel._app.bot.answer_guest_query
+
+
+@pytest.mark.asyncio
+async def test_private_progress_uses_send_message_draft():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token", streaming=True)
+    channel = TelegramChannel(config, bus)
+    channel._app = MagicMock()
+    channel._app.bot = MagicMock()
+    channel._call_with_retry = AsyncMock(return_value=True)
+    channel._stop_typing = MagicMock()
+
+    from shibaclaw.bus.events import OutboundMessage
+
+    msg = OutboundMessage(
+        channel="telegram",
+        chat_id="42",
+        content="partial…",
+        metadata={"_progress": True, "message_id": 7},
+    )
+    await channel.send(msg)
+    assert channel._call_with_retry.await_args.args[0] == channel._app.bot.send_message_draft
+
+
+@pytest.mark.asyncio
+async def test_ignores_bot_sender_when_disallowed():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token", allow_bot_messages=False)
+    channel = TelegramChannel(config, bus)
+    channel._handle_message = AsyncMock()
+    channel.is_allowed = MagicMock(return_value=True)
+
+    update = MagicMock()
+    user = MagicMock()
+    user.id = 99
+    user.first_name = "OtherBot"
+    user.username = "otherbot"
+    user.is_bot = True
+    update.effective_user = user
+    message = MagicMock()
+    message.chat.id = 99
+    message.chat_id = 99
+    message.chat.type = "private"
+    message.text = "hi"
+    message.caption = None
+    message.reply_to_message = None
+    message.media_group_id = None
+    message.message_id = 1
+    message.message_thread_id = None
+    message.guest_query_id = None
+    message.business_connection_id = None
+    update.effective_message = message
+    update.guest_message = None
+    update.message = message
+    update.edited_message = None
+
+    await channel._on_message(update, MagicMock())
+    channel._handle_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_guest_message_sets_guest_metadata():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token", guest_mode=True, allow_from=["*"])
+    channel = TelegramChannel(config, bus)
+    channel._download_message_media = AsyncMock(return_value=([], []))
+    channel._handle_message = AsyncMock()
+    channel.is_allowed = MagicMock(return_value=True)
+
+    update = MagicMock()
+    user = MagicMock()
+    user.id = 7
+    user.first_name = "Rinat"
+    user.username = "rinat"
+    user.is_bot = False
+    update.effective_user = user
+    message = MagicMock()
+    message.chat.id = -100
+    message.chat_id = -100
+    message.chat.type = "supergroup"
+    message.text = "@shiba help"
+    message.caption = None
+    message.reply_to_message = None
+    message.media_group_id = None
+    message.message_id = 5
+    message.message_thread_id = None
+    message.guest_query_id = "guest-abc"
+    message.business_connection_id = None
+    message.photo = None
+    message.voice = None
+    message.audio = None
+    message.document = None
+    update.effective_message = message
+    update.guest_message = message
+    update.message = None
+    update.edited_message = None
+
+    await channel._on_message(update, MagicMock())
+    assert channel._handle_message.await_count == 1
+    kwargs = channel._handle_message.await_args.kwargs
+    assert kwargs["metadata"]["guest_query_id"] == "guest-abc"
+    assert kwargs["session_key"].startswith("telegram:guest:")
+
+
+@pytest.mark.asyncio
+async def test_guest_message_respects_allow_from():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(
+        enabled=True, token="fake_token", guest_mode=True, allow_from=["111"]
+    )
+    channel = TelegramChannel(config, bus)
+    channel._handle_message = AsyncMock()
+
+    update = MagicMock()
+    user = MagicMock()
+    user.id = 999
+    user.first_name = "Stranger"
+    user.username = "stranger"
+    user.is_bot = False
+    update.effective_user = user
+    message = MagicMock()
+    message.chat.id = -100
+    message.chat_id = -100
+    message.chat.type = "supergroup"
+    message.text = "@shiba help"
+    message.caption = None
+    message.reply_to_message = None
+    message.media_group_id = None
+    message.message_id = 5
+    message.message_thread_id = None
+    message.guest_query_id = "guest-xyz"
+    message.business_connection_id = None
+    update.effective_message = message
+    update.guest_message = message
+    update.message = None
+    update.edited_message = None
+
+    await channel._on_message(update, MagicMock())
+    channel._handle_message.assert_not_awaited()
+
+
+def test_draft_id_deterministic_from_message_id():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    a = TelegramChannel(config, bus)
+    b = TelegramChannel(config, bus)
+    meta = {"message_id": 42}
+    assert a._draft_id_for(1, None, meta) == b._draft_id_for(1, None, meta) == 42
+
+
+def test_business_connections_eviction():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    channel = TelegramChannel(config, bus)
+    channel._BUSINESS_CONNECTIONS_CAP = 3
+    for i in range(5):
+        channel._store_capped(
+            channel._business_connections, f"c{i}", {"n": i}, channel._BUSINESS_CONNECTIONS_CAP
+        )
+    assert list(channel._business_connections) == ["c2", "c3", "c4"]
+
+
+def test_guest_result_title_uses_bot_username():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    channel = TelegramChannel(config, bus)
+    channel._bot_username = "my_bot"
+    assert channel._guest_result_title() == "@my_bot"
+    channel._bot_username = None
+    assert channel._guest_result_title() == "ShibaClaw"
+
+
+def test_telegram_config_ai_defaults():
+    cfg = TelegramConfig()
+    assert cfg.streaming is True
+    assert cfg.guest_mode is False
+    assert cfg.allow_bot_messages is False
+    assert cfg.business_enabled is False
+    assert cfg.managed_bots_enabled is False
