@@ -241,10 +241,78 @@ async def test_guest_message_sets_guest_metadata():
     assert kwargs["session_key"].startswith("telegram:guest:")
 
 
+@pytest.mark.asyncio
+async def test_guest_message_respects_allow_from():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(
+        enabled=True, token="fake_token", guest_mode=True, allow_from=["111"]
+    )
+    channel = TelegramChannel(config, bus)
+    channel._handle_message = AsyncMock()
+
+    update = MagicMock()
+    user = MagicMock()
+    user.id = 999
+    user.first_name = "Stranger"
+    user.username = "stranger"
+    user.is_bot = False
+    update.effective_user = user
+    message = MagicMock()
+    message.chat.id = -100
+    message.chat_id = -100
+    message.chat.type = "supergroup"
+    message.text = "@shiba help"
+    message.caption = None
+    message.reply_to_message = None
+    message.media_group_id = None
+    message.message_id = 5
+    message.message_thread_id = None
+    message.guest_query_id = "guest-xyz"
+    message.business_connection_id = None
+    update.effective_message = message
+    update.guest_message = message
+    update.message = None
+    update.edited_message = None
+
+    await channel._on_message(update, MagicMock())
+    channel._handle_message.assert_not_awaited()
+
+
+def test_draft_id_deterministic_from_message_id():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    a = TelegramChannel(config, bus)
+    b = TelegramChannel(config, bus)
+    meta = {"message_id": 42}
+    assert a._draft_id_for(1, None, meta) == b._draft_id_for(1, None, meta) == 42
+
+
+def test_business_connections_eviction():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    channel = TelegramChannel(config, bus)
+    channel._BUSINESS_CONNECTIONS_CAP = 3
+    for i in range(5):
+        channel._store_capped(
+            channel._business_connections, f"c{i}", {"n": i}, channel._BUSINESS_CONNECTIONS_CAP
+        )
+    assert list(channel._business_connections) == ["c2", "c3", "c4"]
+
+
+def test_guest_result_title_uses_bot_username():
+    bus = MagicMock(spec=MessageBus)
+    config = TelegramConfig(enabled=True, token="fake_token")
+    channel = TelegramChannel(config, bus)
+    channel._bot_username = "my_bot"
+    assert channel._guest_result_title() == "@my_bot"
+    channel._bot_username = None
+    assert channel._guest_result_title() == "ShibaClaw"
+
+
 def test_telegram_config_ai_defaults():
     cfg = TelegramConfig()
     assert cfg.streaming is True
-    assert cfg.guest_mode is True
-    assert cfg.allow_bot_messages is True
-    assert cfg.business_enabled is True
-    assert cfg.managed_bots_enabled is True
+    assert cfg.guest_mode is False
+    assert cfg.allow_bot_messages is False
+    assert cfg.business_enabled is False
+    assert cfg.managed_bots_enabled is False
