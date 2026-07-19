@@ -951,6 +951,7 @@ class ShibaBrain:
                 "/new — Start a new conversation",
                 "/stop — Stop the current task",
                 "/restart — Restart the bot",
+                "/update — Check for and install updates",
                 "/help — Show available commands",
             ]
             return OutboundMessage(
@@ -958,6 +959,75 @@ class ShibaBrain:
                 chat_id=msg.chat_id,
                 content="\n".join(lines),
             )
+            
+        if cmd == "/update":
+            await self.context.send_system_message(
+                msg.channel, msg.chat_id, "Checking for updates...", msg_type="system"
+            )
+            try:
+                from shibaclaw.updater.checker import check_for_update
+                from shibaclaw.updater.apply import apply_update
+                import asyncio
+                
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(None, check_for_update)
+                
+                if not result.get("update_available"):
+                    return OutboundMessage(
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        content=result.get("summary") or "You are already up to date.",
+                    )
+                
+                if result.get("action_kind") != "automatic":
+                    return OutboundMessage(
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        content=f"An update is available ({result.get('latest')}), but it requires manual installation. Please check the WebUI for instructions.",
+                    )
+                
+                await self.context.send_system_message(
+                    msg.channel, msg.chat_id, f"Installing update: {result.get('latest')}...\nThis might take a minute.", msg_type="system"
+                )
+                
+                workspace_root = self.config.workspace_path
+                manifest_url = result.get("manifest_url")
+                manifest = None
+                if manifest_url:
+                    try:
+                        from shibaclaw.updater.manifest import fetch_manifest
+                        manifest = await loop.run_in_executor(None, lambda: fetch_manifest(manifest_url))
+                    except Exception as e:
+                        logger.warning("Failed to fetch manifest: {}", e)
+
+                report = await loop.run_in_executor(
+                    None,
+                    lambda: apply_update(result, workspace_root, manifest=manifest),
+                )
+                
+                pip_result = report.get("pip") or {}
+                exe_result = report.get("exe") or {}
+                
+                if pip_result.get("ok") or exe_result.get("ok"):
+                    return OutboundMessage(
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        content="✅ Update installed successfully!\n\n**IMPORTANT:** You must now restart ShibaClaw manually (e.g. from the terminal or WebUI) for the update to take effect.",
+                    )
+                else:
+                    err = pip_result.get("output") or exe_result.get("output") or report.get("message") or "Unknown error"
+                    return OutboundMessage(
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        content=f"❌ Update failed:\n```text\n{err}\n```",
+                    )
+            except Exception as e:
+                logger.exception("Update failed")
+                return OutboundMessage(
+                    channel=msg.channel,
+                    chat_id=msg.chat_id,
+                    content=f"❌ Error checking for updates: {e}",
+                )
 
         self._set_tool_context(
             msg.channel,

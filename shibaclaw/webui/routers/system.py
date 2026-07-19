@@ -263,8 +263,6 @@ async def api_update_apply(request: Request):
                     except Exception as _e:
                         logger.debug("Ignored error: {}", _e)
                 os._exit(0)
-            elif _restart_callback is not None:
-                _restart_callback()
             else:
                 if _shutdown_callback is not None:
                     try:

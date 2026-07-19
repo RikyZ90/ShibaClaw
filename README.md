@@ -40,10 +40,11 @@
 > Release notes live in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>What's new — v0.9.9</b> (click to expand)</summary>
+<summary>📢 <b>What's new — v0.9.10</b> (click to expand)</summary>
 
 **Latest release (2026-07-19):**
 
+- **Hybrid RAG for Low-RAM Devices** — The RAG Knowledge Base now supports Cloud Embedding providers (Gemini, OpenRouter, OpenAI) with zero local RAM usage and a lighter package installation footprint, making RAG fully accessible on memory-constrained hardware like the Raspberry Pi.
 - **Channel Config Dropdowns** — `group_policy` fields in channel configuration now use dropdown selectors in the WebUI for a better UX.
 - **External Package Installation on Modern Linux (PEP 668)** — auto-injects `--break-system-packages` on `externally-managed-environment` errors during pip operations.
 - **Sub-agent Session Key Propagation** — added `session_key` to sub-agent metadata for proper context during parallel execution.

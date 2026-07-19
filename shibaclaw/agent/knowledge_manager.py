@@ -22,7 +22,6 @@ try:
         TextLoader,
     )
     from langchain_community.vectorstores import FAISS  # noqa: E402
-    from langchain_huggingface import HuggingFaceEmbeddings  # noqa: E402
     from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: E402
     RAG_AVAILABLE = True
 except ImportError:
@@ -32,7 +31,7 @@ except ImportError:
 
 
 def is_rag_available() -> bool:
-    global RAG_AVAILABLE, Document, BSHTMLLoader, CSVLoader, PyPDFLoader, TextLoader, FAISS, HuggingFaceEmbeddings, RecursiveCharacterTextSplitter
+    global RAG_AVAILABLE, Document, BSHTMLLoader, CSVLoader, PyPDFLoader, TextLoader, FAISS, RecursiveCharacterTextSplitter
     import importlib.util
     import sys
 
@@ -63,7 +62,6 @@ def is_rag_available() -> bool:
             TextLoader,
         )
         from langchain_community.vectorstores import FAISS  # noqa: F401
-        from langchain_huggingface import HuggingFaceEmbeddings  # noqa: F401
         from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: F401
         Document = _Document
         RAG_AVAILABLE = True
@@ -98,8 +96,14 @@ def _get_embeddings(provider: str, api_key: str, api_base: str, model: str):
         
     else:
         # Fallback to local HuggingFace
-        from langchain_huggingface import HuggingFaceEmbeddings
-        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+            return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        except ImportError:
+            raise RuntimeError(
+                "Local HuggingFace embeddings are not installed. "
+                "To use the 'local' provider, please run: pip install 'shibaclaw[rag-local]'"
+            )
 
 class KnowledgeManager:
     """Manages cross-session Knowledge Bases using FAISS and LangChain."""

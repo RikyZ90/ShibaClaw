@@ -40,10 +40,11 @@
 > Versionshinweise finden sich in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Neuigkeiten — v0.9.9</b> (zum Ausklappen klicken)</summary>
+<summary>📢 <b>Neuigkeiten — v0.9.10</b> (zum Ausklappen klicken)</summary>
 
 **Neueste Version (2026-07-19):**
 
+- **Hybrid RAG für Geräte mit wenig RAM** — RAG und Knowledge Base unterstützen jetzt Cloud-Embedding-Anbieter (Gemini, OpenRouter, OpenAI) mit null lokalem RAM-Bedarf und einer leichteren Installation. Perfekt für Geräte mit wenig Speicher wie den Raspberry Pi.
 - **Dropdown-Auswahl in der Kanalkonfiguration** —— Die Felder `group_policy` der Kanalkonfiguration verwenden nun Dropdown-Auswahlen in der WebUI für eine bessere UX.
 - **Externe Paketinstallation auf modernem Linux (PEP 668)** —— injiziert bei `externally-managed-environment`-Fehlern während pip-Operationen automatisch `--break-system-packages`.
 - **Session-Key-Weitergabe in Sub-Agenten** —— `session_key` zu den Sub-Agent-Metadaten hinzugefügt, um den korrekten Kontext bei paralleler Ausführung zu erhalten.

@@ -4,6 +4,7 @@
 - **Hybrid RAG** — The RAG Knowledge Base now supports Cloud Embedding providers (Gemini, OpenRouter, OpenAI) in addition to Local HuggingFace embeddings. By selecting a cloud provider in Settings, memory-constrained edge devices (like Raspberry Pi) can run RAG with zero local RAM impact, avoiding the need to download the ~300MB PyTorch model weights.
 
 ### Changed
+- **Lighter RAG Installation Footprint** — Extracted heavy machine-learning dependencies (`sentence-transformers`, `torch`) out of the default `shibaclaw[rag]` extras. The default RAG plugin installation now strictly installs lightweight packages for cloud embeddings. To run the RAG offline, users must explicitly install `shibaclaw[rag-local]`.
 - **Lazy Loaded Local Embeddings** — `sentence-transformers` and `torch` dependencies are now strictly lazy-loaded in the Knowledge Manager. They are entirely bypassed if the user selects a Cloud Embedding provider.
 - **RAG Terminology** — Renamed "Local RAG" references across the WebUI to "RAG & Knowledge Base" to reflect the new hybrid architecture.
 

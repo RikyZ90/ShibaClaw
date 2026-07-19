@@ -346,9 +346,11 @@ let lastSettingsConfig=null;const DEFAULT_AVATAR="/static/shibaclaw_logo.webp",s
                     </div>
                     <div style="display:flex; align-items:center; gap:8px">
                         <span class="acc-badge ${a.enabled?"on":"off"}">${a.enabled?"Enabled":"Disabled"}</span>
-                        ${`<button class="btn-icon" onclick="uninstallPlugin('${a.type==="tts"?`shibaclaw-tts-${a.name}`:a.type==="channel"?`shibaclaw-channel-${a.name}`:a.name}')" title="Uninstall" style="background:transparent; border:none; cursor:pointer">
+                        ${(()=>{let i="";a.name==="shibaclaw-rag"&&(i+=`<button class="btn-icon" onclick="openModal('rag-settings-modal')" title="Settings" style="background:transparent; border:none; cursor:pointer">
+                                    <span class="material-icons-round" style="color:var(--text-secondary); font-size:18px">settings</span>
+                                </button>`);const l=a.type==="tts"?`shibaclaw-tts-${a.name}`:a.type==="channel"?`shibaclaw-channel-${a.name}`:a.name;return i+=`<button class="btn-icon" onclick="uninstallPlugin('${l}')" title="Uninstall" style="background:transparent; border:none; cursor:pointer">
                                 <span class="material-icons-round" style="color:var(--accent-red); font-size:18px">delete</span>
-                            </button>`}
+                            </button>`,i})()}
                     </div>
                 `,e.appendChild(o)}):e.innerHTML='<div style="color:var(--text-muted); font-size:0.85rem">No external plugins installed.</div>',s.available&&s.available.length>0?s.available.forEach(a=>{const o=document.createElement("div");o.className="skill-card",o.style.cssText="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border-color); border-radius:8px; margin-bottom:8px; background:var(--bg-secondary)",o.innerHTML=`
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0">

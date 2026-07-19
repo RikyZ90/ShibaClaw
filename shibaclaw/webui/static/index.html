@@ -20,7 +20,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/bundle.css?v=1784452363697">
+    <link rel="stylesheet" href="/static/bundle.css?v=1784453801319">
     <link rel="stylesheet" href="/static/css/mcp_manager.css?v=1">
     <link rel="stylesheet" href="/static/css/connected_apps.css?v=1">
     <link rel="stylesheet" href="/static/css/subagent-feedback.css?v=1">
@@ -601,30 +601,7 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">RAG & Knowledge Base</h3>
-                    <div class="field-row">
-                        <label for="s-rag-provider">Embedding Provider</label>
-                        <select id="s-rag-provider" class="form-input">
-                            <option value="local">Local (HuggingFace, Download ~300MB)</option>
-                            <option value="gemini">Gemini (Free tier, text-embedding-004)</option>
-                            <option value="openrouter">OpenRouter (nomic-embed-text)</option>
-                            <option value="openai">OpenAI (text-embedding-3-small)</option>
-                        </select>
-                        <p class="settings-note">Select 'Local' to process documents locally (requires RAM & downloads a model). Select 'Gemini' to use cloud embeddings with zero RAM impact. If an API key is not specified below, the Chat Provider API key will be used.</p>
-                    </div>
-                    <div class="field-row">
-                        <label for="s-rag-apiKey">RAG Dedicated API Key (Optional)</label>
-                        <input type="password" id="s-rag-apiKey" class="form-input" placeholder="Leave blank to use provider's chat key">
-                    </div>
-                    <div class="field-row">
-                        <label for="s-rag-apiBase">API Base (for OpenRouter/Custom)</label>
-                        <input type="text" id="s-rag-apiBase" class="form-input" placeholder="https://openrouter.ai/api/v1">
-                    </div>
-                    <div class="field-row">
-                        <label for="s-rag-model">Override Model Name (Optional)</label>
-                        <input type="text" id="s-rag-model" class="form-input" placeholder="Leave blank for defaults">
-                    </div>
+
 
                     <div class="field-row">
                         <label for="s-ui-mobile-enter-newline">Mobile: Enter inserts newline</label>
@@ -1414,7 +1391,51 @@
         </div>
     </div>
 
-        <script src="/static/bundle.js?v=1784452363697"></script>
+    <!-- RAG Settings Modal -->
+    <div class="modal-backdrop" id="rag-settings-modal" data-backdrop-close="false">
+        <div class="modal" style="width: 500px; max-width: 95vw;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-icons-round">settings</span>
+                    <h2>RAG Settings</h2>
+                </div>
+                <button class="btn-icon" onclick="closeModal('rag-settings-modal')" aria-label="Close modal">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="margin-bottom:16px; color:var(--text-muted)">Configure the Knowledge Base embedding provider.</p>
+                
+                <div class="field-row">
+                    <label for="s-rag-provider">Embedding Provider</label>
+                    <select id="s-rag-provider" class="form-input">
+                        <option value="local">Local (HuggingFace, Download ~300MB)</option>
+                        <option value="gemini">Gemini (Free tier, text-embedding-004)</option>
+                        <option value="openrouter">OpenRouter (nomic-embed-text)</option>
+                        <option value="openai">OpenAI (text-embedding-3-small)</option>
+                    </select>
+                    <p class="settings-note">Select 'Local' to process documents locally. Select 'Gemini' to use cloud embeddings with zero RAM impact.</p>
+                </div>
+                <div class="field-row">
+                    <label for="s-rag-apiKey">RAG Dedicated API Key (Optional)</label>
+                    <input type="password" id="s-rag-apiKey" class="form-input" placeholder="Leave blank to use provider's chat key">
+                </div>
+                <div class="field-row">
+                    <label for="s-rag-apiBase">API Base (for OpenRouter/Custom)</label>
+                    <input type="text" id="s-rag-apiBase" class="form-input" placeholder="https://openrouter.ai/api/v1">
+                </div>
+                <div class="field-row">
+                    <label for="s-rag-model">Override Model Name (Optional)</label>
+                    <input type="text" id="s-rag-model" class="form-input" placeholder="Leave blank for defaults">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="saveSettings(); closeModal('rag-settings-modal');">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+        <script src="/static/bundle.js?v=1784453801319"></script>
 </body>
 
 </html>

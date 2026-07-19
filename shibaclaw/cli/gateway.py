@@ -401,6 +401,8 @@ async def gateway_command(
                         or result.get("summary")
                         or (f"🆕 *ShibaClaw update available!*\n{current} → {latest}")
                     )
+                    if result.get("action_kind") == "automatic":
+                        msg += "\n\n💡 _You can type_ `/update` _to install it now._"
                     logger.info("🆕 Update available: {} → {}", current, latest)
                     await on_automation_notify(
                         msg,
