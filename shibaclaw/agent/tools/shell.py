@@ -225,14 +225,19 @@ class ExecTool(Tool):
 
         try:
             import subprocess
+            import shlex
 
             if get_os_type() == "windows":
+                try:
+                    args = shlex.split(command, posix=False)
+                except ValueError as e:
+                    return f"Error parsing command: {e}"
+
+                if not args:
+                    return "Error: Empty command after parsing"
+
                 process = await asyncio.create_subprocess_exec(
-                    "powershell.exe",
-                    "-NonInteractive",
-                    "-NoProfile",
-                    "-Command",
-                    command,
+                    *args,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
@@ -240,8 +245,16 @@ class ExecTool(Tool):
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
             else:
-                process = await asyncio.create_subprocess_shell(
-                    command,
+                try:
+                    args = shlex.split(command)
+                except ValueError as e:
+                    return f"Error parsing command: {e}"
+
+                if not args:
+                    return "Error: Empty command after parsing"
+
+                process = await asyncio.create_subprocess_exec(
+                    *args,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
