@@ -599,9 +599,33 @@
                             <div style="display:flex;align-items:center;gap:8px;min-width:0">
                                 <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
                                         class="toggle-slider"></span></label>
-                                <span class="settings-note">Collapse Thought Blocks</span>
+                                <span class="settings-note">Collapse reasoning blocks by default</span>
                             </div>
                         </div>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">RAG & Knowledge Base</h3>
+                    <div class="field-row">
+                        <label for="s-rag-provider">Embedding Provider</label>
+                        <select id="s-rag-provider" class="form-input">
+                            <option value="local">Local (HuggingFace, Download ~300MB)</option>
+                            <option value="gemini">Gemini (Free tier, text-embedding-004)</option>
+                            <option value="openrouter">OpenRouter (nomic-embed-text)</option>
+                            <option value="openai">OpenAI (text-embedding-3-small)</option>
+                        </select>
+                        <p class="settings-note">Select 'Local' to process documents locally (requires RAM & downloads a model). Select 'Gemini' to use cloud embeddings with zero RAM impact. If an API key is not specified below, the Chat Provider API key will be used.</p>
+                    </div>
+                    <div class="field-row">
+                        <label for="s-rag-apiKey">RAG Dedicated API Key (Optional)</label>
+                        <input type="password" id="s-rag-apiKey" class="form-input" placeholder="Leave blank to use provider's chat key">
+                    </div>
+                    <div class="field-row">
+                        <label for="s-rag-apiBase">API Base (for OpenRouter/Custom)</label>
+                        <input type="text" id="s-rag-apiBase" class="form-input" placeholder="https://openrouter.ai/api/v1">
+                    </div>
+                    <div class="field-row">
+                        <label for="s-rag-model">Override Model Name (Optional)</label>
+                        <input type="text" id="s-rag-model" class="form-input" placeholder="Leave blank for defaults">
                     </div>
 
                     <div class="field-row">

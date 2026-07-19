@@ -63,8 +63,8 @@ function renderKBManagerList() {
         <div style="background: rgba(255, 193, 7, 0.1); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; display: flex; align-items: flex-start; gap: 8px;">
             <span class="material-icons-round" style="font-size: 18px; margin-top: 1px;">warning</span>
             <div>
-                <strong>Local RAG is disabled.</strong> Document uploading and semantic search are unavailable. 
-                <a href="#" onclick="closeModal('knowledge-modal'); openModal('settings-modal'); switchSettingsTab('plugins'); return false;" style="color: var(--primary); font-weight: bold; text-decoration: underline;">Install the Local RAG plugin from Settings</a> to enable them.
+                <strong>RAG is disabled.</strong> Document uploading and semantic search are unavailable. 
+                <a href="#" onclick="closeModal('knowledge-modal'); openModal('settings-modal'); switchSettingsTab('plugins'); return false;" style="color: var(--primary); font-weight: bold; text-decoration: underline;">Install the RAG plugin from Settings</a> to enable them.
             </div>
         </div>`;
     }
@@ -84,7 +84,7 @@ function renderKBManagerList() {
         
         // Hide/disable button if RAG not available
         const uploadBtn = (state.ragAvailable === false) ? `
-            <button class="btn-secondary" id="btn-upload-${kb.id}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size: 13px; opacity: 0.5; cursor: not-allowed;" onclick="showKBFeedback('Please install the Local RAG plugin from settings.', true)" title="Upload file (Disabled)">
+            <button class="btn-secondary" id="btn-upload-${kb.id}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size: 13px; opacity: 0.5; cursor: not-allowed;" onclick="showKBFeedback('Please install the RAG plugin from settings.', true)" title="Upload file (Disabled)">
                 <span class="material-icons-round" style="font-size: 16px;">upload_file</span> Upload Docs
             </button>
         ` : `
@@ -124,7 +124,7 @@ function renderKBManagerList() {
 
 async function handleKBDrop(e, kbId) {
     if (state.ragAvailable === false) {
-        showKBFeedback("Local RAG is disabled. Please install the Local RAG plugin from settings.", true);
+        showKBFeedback("RAG is disabled. Please install the RAG plugin from settings.", true);
         return;
     }
     if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
@@ -227,7 +227,7 @@ async function renameKB(id, currentName) {
 
 async function uploadToKB(id, inputElem, droppedFiles = null) {
     if (state.ragAvailable === false) {
-        showKBFeedback("Local RAG is disabled. Please install the Local RAG plugin from settings.", true);
+        showKBFeedback("RAG is disabled. Please install the RAG plugin from settings.", true);
         return;
     }
     const files = droppedFiles ? Array.from(droppedFiles) : (inputElem && inputElem.files ? Array.from(inputElem.files) : []);
@@ -289,7 +289,7 @@ function renderKBSelectorDropdown() {
     if (state.ragAvailable === false) {
         list.innerHTML = `
         <div style="padding: 12px; font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.4;">
-            Local RAG is disabled.<br>
+            RAG is disabled.<br>
             <span style="font-size: 11px; opacity: 0.8;"><a href="#" onclick="openModal('settings-modal'); switchSettingsTab('plugins'); return false;" style="color: var(--primary); font-weight: bold; text-decoration: underline;">Install it from Settings</a> to enable.</span>
         </div>`;
         const display = document.getElementById('active-kb-display');

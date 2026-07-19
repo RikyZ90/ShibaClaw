@@ -76,8 +76,8 @@ def is_rag_available() -> bool:
 
 logger = logging.getLogger(__name__)
 
-@lru_cache(maxsize=1)
-def _get_embeddings():
+@lru_cache(maxsize=4)
+def _get_embeddings(provider: str, api_key: str, api_base: str, model: str):
     if not RAG_AVAILABLE:
         raise RuntimeError("RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
     
@@ -85,7 +85,21 @@ def _get_embeddings():
     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
     os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
     
-    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    if provider == "gemini":
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        mdl = model or "models/text-embedding-004"
+        return GoogleGenerativeAIEmbeddings(model=mdl, google_api_key=api_key)
+    
+    elif provider in ("openrouter", "openai", "custom"):
+        from langchain_openai import OpenAIEmbeddings
+        mdl = model or ("nomic-embed-text" if provider == "openrouter" else "text-embedding-3-small")
+        base = api_base or ("https://openrouter.ai/api/v1" if provider == "openrouter" else None)
+        return OpenAIEmbeddings(openai_api_base=base, model=mdl, openai_api_key=api_key)
+        
+    else:
+        # Fallback to local HuggingFace
+        from langchain_huggingface import HuggingFaceEmbeddings
+        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 class KnowledgeManager:
     """Manages cross-session Knowledge Bases using FAISS and LangChain."""
@@ -105,7 +119,21 @@ class KnowledgeManager:
     @property
     def embeddings(self):
         # Lazy load embeddings to avoid blocking event loop on init
-        return _get_embeddings()
+        from shibaclaw.config.loader import load_config
+        cfg = load_config()
+        
+        provider = cfg.rag.provider.lower()
+        api_key = cfg.rag.resolve_api_key() or ""
+        
+        if not api_key and provider not in ("local", ""):
+            prov_cfg = getattr(cfg.providers, provider, None)
+            if prov_cfg:
+                api_key = prov_cfg.resolve_api_key() or ""
+                
+        api_base = cfg.rag.api_base or ""
+        model = cfg.rag.model or ""
+        
+        return _get_embeddings(provider, api_key, api_base, model)
 
     def _sanitize_id(self, collection_id: str) -> str:
         if not re.match(r"^[a-zA-Z0-9_-]+$", collection_id):
