@@ -36,9 +36,6 @@
 
 ---
 
-> [!NOTE]
-> Release notes live in [CHANGELOG.md](./CHANGELOG.md).
-
 <details open>
 <summary>📢 <b>What's new — v0.9.10</b> (click to expand)</summary>
 
