@@ -91,6 +91,14 @@ try:
     datas += collect_data_files("langchain_huggingface")
 except Exception:
     pass
+try:
+    datas += collect_data_files("langchain_openai")
+except Exception:
+    pass
+try:
+    datas += collect_data_files("langchain_google_genai")
+except Exception:
+    pass
 
 # ---------------------------------------------------------------------------
 # Hidden imports that PyInstaller's static analysis misses
@@ -154,6 +162,9 @@ hiddenimports = [
     "readability",
     "lxml",
     "lxml._elementpath",
+    # RAG dependencies
+    "langchain_openai",
+    "langchain_google_genai",
     # .NET bridge (pythonnet / clr_loader)
     "clr",
     "pythonnet",

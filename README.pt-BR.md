@@ -40,10 +40,12 @@
 > As notas de versão estão em [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Novidades — v0.9.9</b> (clique para expandir)</summary>
+<summary>📢 <b>Novidades — v0.9.10</b> (clique para expandir)</summary>
 
 **Última versão (2026-07-19):**
 
+- **RAG Híbrido para dispositivos com pouca RAM** — O RAG e a Base de Conhecimento agora suportam provedores de embeddings em nuvem (Gemini, OpenRouter, OpenAI) com zero uso de RAM local e uma instalação mais leve. Perfeito para Raspberry Pi.
+- **RAG Híbrido para dispositivos com pouca RAM** — O RAG e a Base de Conhecimento agora suportam provedores de embeddings em nuvem (Gemini, OpenRouter, OpenAI) com zero uso de RAM local e uma instalação mais leve. Perfeito para Raspberry Pi.
 - **Caixas de seleção na configuração de canais** —— os campos `group_policy` da configuração de canais agora usam seletores suspensos na WebUI para uma melhor experiência.
 - **Instalação de pacotes externos no Linux moderno (PEP 668)** —— injeta automaticamente `--break-system-packages` em erros `externally-managed-environment` durante operações pip.
 - **Propagação de chave de sessão em sub-agentes** —— adicionado `session_key` aos metadados de sub-agentes para manter o contexto correto durante a execução paralela.

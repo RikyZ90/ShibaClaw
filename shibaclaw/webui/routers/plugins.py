@@ -83,7 +83,7 @@ async def api_list_plugins(request: Request) -> JSONResponse:
         rag.append(
             {
                 "name": "shibaclaw-rag",
-                "display_name": "Local RAG & Knowledge Base",
+                "display_name": "RAG & Knowledge Base (Local/Cloud)",
                 "type": "rag",
                 "enabled": True,
                 "installed": True,
@@ -96,9 +96,9 @@ async def api_list_plugins(request: Request) -> JSONResponse:
         available.append(
             {
                 "name": "shibaclaw-rag",
-                "display_name": "Local RAG & Knowledge Base",
+                "display_name": "RAG & Knowledge Base (Local/Cloud)",
                 "type": "rag",
-                "description": "Enables local semantic search and document uploading (PDF, CSV, HTML, TXT) using FAISS and HuggingFace sentence-transformers.",
+                "description": "Enables semantic search and document uploading (PDF, CSV, HTML, TXT) via Hybrid RAG (Gemini, OpenRouter, or Local HF Embeddings).",
                 "installed": False,
             }
         )
@@ -385,13 +385,13 @@ async def api_install_plugin(request: Request) -> JSONResponse:
             return JSONResponse(
                 {
                     "ok": True,
-                    "info": "The Local RAG plugin is already bundled in this .exe version. No installation needed.",
+                    "info": "The RAG plugin is already bundled in this .exe version. No installation needed.",
                 }
             )
         return JSONResponse(
             {
                 "ok": False,
-                "error": "The Local RAG plugin is not bundled in this .exe version. Please update ShibaClaw to the latest version, or run from source with `pip install 'shibaclaw[rag]'`.",
+                "error": "The RAG plugin is not bundled in this .exe version. Please update ShibaClaw to the latest version, or run from source with `pip install 'shibaclaw[rag]'`.",
             },
             status_code=400,
         )
@@ -424,7 +424,7 @@ async def api_uninstall_plugin(request: Request) -> JSONResponse:
             return JSONResponse(
                 {
                     "ok": False,
-                    "info": "The Local RAG plugin cannot be uninstalled in the .exe version. Its dependencies are not dynamically managed.",
+                    "info": "The RAG plugin cannot be uninstalled in the .exe version. Its dependencies are not dynamically managed.",
                 },
                 status_code=400,
             )

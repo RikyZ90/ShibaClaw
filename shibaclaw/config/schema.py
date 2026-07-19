@@ -228,6 +228,25 @@ class ExecToolConfig(Base):
     install_audit_block_severity: str = "high"
 
 
+class RagConfig(Base):
+    """RAG (Retrieval-Augmented Generation) configuration."""
+
+    provider: str = "local"  # "local", "gemini", "openrouter", "openai"
+    api_base: str = ""
+    model: str = ""
+
+    def resolve_api_key(self) -> str | None:
+        """Return the dedicated RAG API key from the encrypted vault."""
+        try:
+            from shibaclaw.security.credential_manager import get_credential_manager
+            vault_key = get_credential_manager().get_secret("rag", "api_key")
+            if vault_key and isinstance(vault_key, str):
+                return vault_key
+        except Exception:
+            pass
+        return None
+
+
 class MCPOAuthConfig(Base):
     """
     OAuth 2.0 Authorization Code + PKCE configuration for a remote MCP server.
@@ -328,6 +347,7 @@ class Config(BaseSettings):
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
     desktop: DesktopConfig = Field(default_factory=DesktopConfig)
+    rag: RagConfig = Field(default_factory=RagConfig)
     connected_apps: ConnectedAppsConfig = Field(
         default_factory=ConnectedAppsConfig,
         description="Connected Apps state — app OAuth status and Klavis Strata session metadata.",

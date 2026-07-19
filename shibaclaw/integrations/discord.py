@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote, urlsplit, urlunsplit
 
+import aiofiles
 import httpx
 import websockets
 from loguru import logger
@@ -45,17 +46,20 @@ class DiscordConfig(Base):
         """Return the API key from config field or encrypted vault."""
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
+
             vault_key = get_credential_manager().get_secret("channels", "discord.token")
             if vault_key and isinstance(vault_key, str):
                 return vault_key
         except Exception:
             pass
         return self.token or None
+
     gateway_url: str = "wss://gateway.discord.gg/?v=10&encoding=json"
     intents: int = 37377
     group_policy: Literal["mention", "open"] = "mention"
     streaming: bool = True
     proxy: str | None = None
+    reply_to_message: bool = False
     proxy_username: str | None = None
     proxy_password: str | None = None
 
@@ -373,6 +377,8 @@ class DiscordChannel(BaseChannel):
     def _reply_target(self, msg: OutboundMessage) -> str | None:
         if isinstance(msg.reply_to, str) and msg.reply_to:
             return msg.reply_to
+        if not getattr(self.config, "reply_to_message", False):
+            return None
         message_id = (msg.metadata or {}).get("message_id")
         if message_id is None:
             return None
@@ -429,12 +435,15 @@ class DiscordChannel(BaseChannel):
 
         for attempt in range(3):
             try:
-                with open(path, "rb") as f:
-                    files = {"files[0]": (path.name, f, "application/octet-stream")}
-                    data: dict[str, Any] = {}
-                    if payload_json:
-                        data["payload_json"] = json.dumps(payload_json)
-                    response = await self._http.post(url, headers=headers, files=files, data=data)
+                async with aiofiles.open(path, "rb") as f:
+                    file_content = await f.read()
+
+                files = {"files[0]": (path.name, file_content, "application/octet-stream")}
+                data: dict[str, Any] = {}
+                if payload_json:
+                    data["payload_json"] = json.dumps(payload_json)
+                response = await self._http.post(url, headers=headers, files=files, data=data)
+
                 if response.status_code == 429:
                     resp_data = response.json()
                     retry_after = float(resp_data.get("retry_after", 1.0))
@@ -568,6 +577,7 @@ class DiscordChannel(BaseChannel):
                 continue
 
             from shibaclaw.security.network import validate_url_target
+
             is_safe, err_msg = await asyncio.to_thread(validate_url_target, url)
             if not is_safe:
                 logger.warning("Blocked untrusted Discord attachment URL: {}", err_msg)

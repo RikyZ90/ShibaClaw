@@ -659,6 +659,17 @@ function populateSettings(cfg) {
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
 
+    // RAG settings
+    const rg = cfg.rag || {};
+    const rgProvEl = $("s-rag-provider");
+    if (rgProvEl) rgProvEl.value = rg.provider || "local";
+    const rgKeyEl = $("s-rag-apiKey");
+    if (rgKeyEl) rgKeyEl.value = rg.apiKey || "";
+    const rgBaseEl = $("s-rag-apiBase");
+    if (rgBaseEl) rgBaseEl.value = rg.apiBase || "";
+    const rgModelEl = $("s-rag-model");
+    if (rgModelEl) rgModelEl.value = rg.model || "";
+
     // Audio settings
     const au = cfg.audio || {};
     $("s-audio-providerUrl").value = au.providerUrl || "";
@@ -1303,6 +1314,12 @@ function populateSettings(cfg) {
 /* Legacy MCP accordion card functions removed in favor of MCP Server Manager panel */
 
 window.saveSettings = async function () {
+    const ragData = {
+        provider: $("s-rag-provider") ? $("s-rag-provider").value : "local",
+        apiKey: $("s-rag-apiKey") ? ($("s-rag-apiKey").value || "") : "",
+        apiBase: $("s-rag-apiBase") ? ($("s-rag-apiBase").value || "") : "",
+        model: $("s-rag-model") ? ($("s-rag-model").value || "") : "",
+    };
     const patch = {
         agents: {
             defaults: {
@@ -1322,6 +1339,7 @@ window.saveSettings = async function () {
                 maxPinnedSkills: window._skillsMaxPinned || 5,
             }
         },
+        rag: ragData,
         providers: (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers) ? JSON.parse(JSON.stringify(lastSettingsConfig.providers)) : {},
         tools: {
             web: {
@@ -1432,6 +1450,9 @@ window.saveSettings = async function () {
             body: JSON.stringify(patch)
         });
         const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || "Unknown error saving settings");
+        }
         if (typeof closeSettingsView === "function") closeSettingsView();
         _availableModels = []; // Clear model cache to force refresh
         _hasFetchedModels = false;

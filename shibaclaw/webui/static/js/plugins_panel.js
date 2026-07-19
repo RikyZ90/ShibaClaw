@@ -29,10 +29,17 @@ window.loadPluginsPanel = async function () {
                     <div style="display:flex; align-items:center; gap:8px">
                         <span class="acc-badge ${p.enabled ? 'on' : 'off'}">${p.enabled ? 'Enabled' : 'Disabled'}</span>
                         ${(() => {
+                            let buttons = "";
+                            if (p.name === 'shibaclaw-rag') {
+                                buttons += `<button class="btn-icon" onclick="openRagSettingsModal()" title="Settings" style="background:transparent; border:none; cursor:pointer">
+                                    <span class="material-icons-round" style="color:var(--text-secondary); font-size:18px">settings</span>
+                                </button>`;
+                            }
                             const pkgName = p.type === 'tts' ? `shibaclaw-tts-${p.name}` : (p.type === 'channel' ? `shibaclaw-channel-${p.name}` : p.name);
-                            return `<button class="btn-icon" onclick="uninstallPlugin('${pkgName}')" title="Uninstall" style="background:transparent; border:none; cursor:pointer">
+                            buttons += `<button class="btn-icon" onclick="uninstallPlugin('${pkgName}')" title="Uninstall" style="background:transparent; border:none; cursor:pointer">
                                 <span class="material-icons-round" style="color:var(--accent-red); font-size:18px">delete</span>
                             </button>`;
+                            return buttons;
                         })()}
                     </div>
                 `;
@@ -196,4 +203,18 @@ window.updateTtsSettingsVisibility = function () {
     if (voiceRow) voiceRow.style.display = showSupertonic ? "flex" : "none";
     if (langRow) langRow.style.display = showSupertonic ? "flex" : "none";
     if (speedRow) speedRow.style.display = showSupertonic ? "flex" : "none";
+};
+window.openRagSettingsModal = async function() {
+    try {
+        const res = await authFetch("/api/settings");
+        const cfg = await res.json();
+        if (cfg.error) throw cfg.error;
+        window._shibaConfig = cfg;
+        if (typeof populateSettings === "function") {
+            populateSettings(cfg);
+        }
+    } catch (e) {
+        console.error("Failed to load settings before opening modal", e);
+    }
+    openModal("rag-settings-modal");
 };

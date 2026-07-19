@@ -599,10 +599,11 @@
                             <div style="display:flex;align-items:center;gap:8px;min-width:0">
                                 <label class="toggle"><input type="checkbox" id="s-ui-collapse-thoughts"><span
                                         class="toggle-slider"></span></label>
-                                <span class="settings-note">Collapse Thought Blocks</span>
+                                <span class="settings-note">Collapse reasoning blocks by default</span>
                             </div>
                         </div>
                     </div>
+
 
                     <div class="field-row">
                         <label for="s-ui-mobile-enter-newline">Mobile: Enter inserts newline</label>
@@ -1394,18 +1395,62 @@
         </div>
     </div>
 
+    <!-- RAG Settings Modal -->
+    <div class="modal-backdrop" id="rag-settings-modal" data-backdrop-close="false">
+        <div class="modal" style="width: 500px; max-width: 95vw;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-icons-round">settings</span>
+                    <h2>RAG Settings</h2>
+                </div>
+                <button class="btn-icon" onclick="closeModal('rag-settings-modal')" aria-label="Close modal">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="margin-bottom:16px; color:var(--text-muted)">Configure the Knowledge Base embedding provider.</p>
+                
+                <div class="field-row">
+                    <label for="s-rag-provider">Embedding Provider</label>
+                    <select id="s-rag-provider" class="form-input">
+                        <option value="local">Local (HuggingFace, Download ~300MB)</option>
+                        <option value="gemini">Gemini (Free tier, text-embedding-004)</option>
+                        <option value="openrouter">OpenRouter (nomic-embed-text)</option>
+                        <option value="openai">OpenAI (text-embedding-3-small)</option>
+                    </select>
+                    <p class="settings-note">Select 'Local' to process documents locally. Select 'Gemini' to use cloud embeddings with zero RAM impact.</p>
+                </div>
+                <div class="field-row">
+                    <label for="s-rag-apiKey">RAG Dedicated API Key (Optional)</label>
+                    <input type="password" id="s-rag-apiKey" class="form-input" placeholder="Leave blank to use provider's chat key">
+                </div>
+                <div class="field-row">
+                    <label for="s-rag-apiBase">API Base (for OpenRouter/Custom)</label>
+                    <input type="text" id="s-rag-apiBase" class="form-input" placeholder="https://openrouter.ai/api/v1">
+                </div>
+                <div class="field-row">
+                    <label for="s-rag-model">Override Model Name (Optional)</label>
+                    <input type="text" id="s-rag-model" class="form-input" placeholder="Leave blank for defaults">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="saveSettings(); closeModal('rag-settings-modal');">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/knowledge.js?v=1"></script>
     <script src="/js/utils.js?v=2"></script>
     <script src="/js/api_socket.js?v=2"></script>
     <script src="/js/chat.js?v=2"></script>
     <script src="/js/files.js?v=2"></script>
     <script src="/js/ui_panels.js?v=2"></script>
-    <script src="/js/settings_panel.js?v=2"></script>
+    <script src="/js/settings_panel.js?v=4"></script>
     <script src="/js/update_panel.js?v=2"></script>
     <script src="/js/onboard_wizard.js?v=2"></script>
     <script src="/js/model_selector.js?v=2"></script>
     <script src="/js/auth_ui.js?v=2"></script>
-    <script src="/js/plugins_panel.js?v=2"></script>
+    <script src="/js/plugins_panel.js?v=3"></script>
     <script src="/js/automation.js?v=2"></script>
     <script src="/js/notification-center.js?v=2"></script>
     <script src="/js/main.js?v=2"></script>

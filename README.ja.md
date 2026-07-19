@@ -40,10 +40,11 @@
 > リリースノートは [CHANGELOG.md](./CHANGELOG.md) にあります。
 
 <details open>
-<summary>📢 <b>最新情報 — v0.9.9</b>（クリックで展開）</summary>
+<summary>📢 <b>最新情報 — v0.9.10</b>（クリックで展開）</summary>
 
 **最新リリース（2026-07-19）：**
 
+- **低RAMデバイス向けハイブリッドRAG** — ナレッジベースでクラウド埋め込みプロバイダー（Gemini、OpenRouter、OpenAI）をサポート。ローカルのメモリ使用量ゼロで、軽量なインストールを実現（Raspberry Pi等に最適）。
 - **チャンネル設定のドロップダウン** —— チャンネル設定の `group_policy` フィールドが WebUI でドロップダウン選択式になり、UX が向上しました。
 - **モダン Linux での外部パッケージ導入（PEP 668）** —— pip 操作で `externally-managed-environment` エラー時に `--break-system-packages` を自動注入します。
 - **サブエージェントのセッションキー伝播** —— 並列実行時のコンテキスト維持のため、サブエージェントのメタデータに `session_key` を追加しました。
