@@ -646,7 +646,8 @@ class ShibaBrain:
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
-                if asyncio.current_task().cancelling():
+                task = asyncio.current_task()
+                if task and task.cancelling():
                     raise
                 continue
             except Exception as e:
