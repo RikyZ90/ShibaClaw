@@ -291,20 +291,20 @@ class TelegramChannel(BaseChannel):
         self._managed_bots: dict[int, dict[str, Any]] = {}
         self._MANAGED_BOTS_CAP = 200
 
-    def is_allowed(self, sender_id: str) -> bool:
+    def is_allowed(self, sender_id: str, *other_ids: str) -> bool:
         """Preserve Telegram's legacy id|username allowlist matching."""
-        if super().is_allowed(sender_id):
+        if super().is_allowed(sender_id, *other_ids):
             return True
         allow_list = getattr(self.config, "allow_from", [])
         if not allow_list or "*" in allow_list:
             return False
         sender_str = str(sender_id)
-        if sender_str.count("|") != 1:
-            return False
-        sid, username = sender_str.split("|", 1)
-        if not sid.lstrip("-").isdigit() or not username:
-            return False
-        return sid in allow_list or username in allow_list
+        if sender_str.count("|") == 1:
+            sid, username = sender_str.split("|", 1)
+            if sid.lstrip("-").isdigit() and username:
+                if sid in allow_list or username in allow_list:
+                    return True
+        return False
 
     def _build_app(self, proxy: str | None = None) -> None:
         """Build the Telegram Application with separate HTTP pools."""
@@ -908,10 +908,11 @@ class TelegramChannel(BaseChannel):
         """Handle /start command."""
         if not update.message or not update.effective_user:
             return
-        sender_id = self._sender_id(update.effective_user)
-        if not self.is_allowed(sender_id):
-            return
         user = update.effective_user
+        chat_id = str(update.message.chat_id)
+        sender_id = self._sender_id(user)
+        if not self.is_allowed(sender_id, chat_id, user.username):
+            return
         await update.message.reply_text(
             f"👋 Hi {user.first_name}! I'm shibaclaw.\n\n"
             "Send me a message and I'll respond!\n"
@@ -922,8 +923,10 @@ class TelegramChannel(BaseChannel):
         """Handle /help command."""
         if not update.message or not update.effective_user:
             return
-        sender_id = self._sender_id(update.effective_user)
-        if not self.is_allowed(sender_id):
+        user = update.effective_user
+        chat_id = str(update.message.chat_id)
+        sender_id = self._sender_id(user)
+        if not self.is_allowed(sender_id, chat_id, user.username):
             return
         await update.message.reply_text(
             "🐕 shibaclaw commands:\n"
@@ -1139,10 +1142,10 @@ class TelegramChannel(BaseChannel):
             logger.debug("Telegram: ignoring bot-to-bot message from {}", user.id)
             return
         is_guest = update.guest_message is not None
-        chat_id = message.chat_id
+        chat_id = str(message.chat_id)
         sender_id = self._sender_id(user)
         # Guest Mode still requires allow_from — never open the bot to arbitrary users.
-        if not self.is_allowed(sender_id):
+        if not self.is_allowed(sender_id, chat_id, user.username):
             logger.debug(
                 "Telegram: ignoring {} from unauthorised sender {}",
                 "guest message" if is_guest else "message",

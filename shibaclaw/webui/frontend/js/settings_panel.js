@@ -916,7 +916,7 @@ function populateSettings(cfg) {
         markSeen: { label: "Mark as Read", section: "general", type: "boolean" },
         maxBodyChars: { label: "Max Body Length", section: "general", type: "number", placeholder: "12000" },
         subjectPrefix: { label: "Reply Prefix", section: "general", type: "text", placeholder: "Re: " },
-        allowFrom: { label: "Allowed Senders", section: "general", type: "array", placeholder: "email1@test.com, email2@test.com" },
+        allowFrom: { label: "Allowed Senders <i class=\"material-icons\" style=\"font-size:14px;cursor:pointer;\" title=\"You can enter usernames, emails, or IDs. For chat platforms, adding a Group/Channel ID here allows all users inside it to interact with the bot.\">&#9432;</i>", section: "general", type: "array", placeholder: "email1@test.com, email2@test.com" },
     };
 
     const channelEntries = [];
@@ -1065,7 +1065,10 @@ function populateSettings(cfg) {
                 }
 
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
-                const label = formatLabel(keyPath);
+                let label = formatLabel(keyPath);
+                if (keyPath === "allow_from" || keyPath === "allowFrom") {
+                    label += ` <span class="material-icons" style="font-size:14px;cursor:help;vertical-align:middle;color:#8A2BE2" title="You can enter usernames, or IDs. Adding a Group/Channel ID here allows all users inside it to interact with the bot.">&#9432;</span>`;
+                }
 
                 if (keyPath === "group_policy" || keyPath === "groupPolicy") {
                     const options = ["open", "mention", "trigger", "mention_or_trigger", "allowlist"]

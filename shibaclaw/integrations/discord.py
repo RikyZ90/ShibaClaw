@@ -493,18 +493,20 @@ class DiscordChannel(BaseChannel):
             return
 
         sender_id = str(author.get("id", ""))
+        username = str(author.get("username", ""))
         channel_id = str(payload.get("channel_id", ""))
         content = payload.get("content") or ""
-        guild_id = payload.get("guild_id")
+        guild_id = str(payload.get("guild_id", ""))
 
         if not sender_id or not channel_id:
             return
 
-        if not self.is_allowed(sender_id):
+        # Check if the user, channel, or guild is allowed, or if the username matches
+        if not self.is_allowed(sender_id, channel_id, guild_id, username):
             return
 
         # Check group channel policy (DMs always respond if is_allowed passes)
-        if guild_id is not None:
+        if guild_id:
             if not self._should_respond_in_group(payload, content):
                 return
 

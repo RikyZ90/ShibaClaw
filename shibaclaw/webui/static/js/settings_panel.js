@@ -298,6 +298,7 @@ async function loadOAuthPanel() {
         { name: "openrouter", label: "OpenRouter", icon: "route", desc: "Authenticate in the browser and store the returned OpenRouter API key directly in provider settings.", mode: "browser_redirect", cta: "Open OpenRouter" },
         { name: "github_copilot", label: "GitHub Copilot", icon: "code", desc: "Authenticate via GitHub device flow. Uses native OAuth orchestration." },
         { name: "openai_codex", label: "OpenAI Codex", icon: "psychology", desc: "Authenticate via OAuth CLI kit. Requires oauth-cli-kit package." },
+        { name: "google_gemini_cli", label: "Google Gemini CLI", icon: "api", desc: "Authenticate via Google. <br><span style='color:var(--text-muted);font-size:0.95em'>Gemini CLI OAuth is an unofficial third-party integration. Google may apply account restrictions. Use a separate account if this is a concern.</span>", mode: "browser_redirect", cta: "Connect with Google" },
         { name: "xai", label: "xAI / Grok", icon: "public", desc: "xAI Subscription Sync OAuth flow." },
     ];
     list.innerHTML = "";
@@ -336,7 +337,7 @@ async function loadOAuthPanel() {
             const badge = document.getElementById("oauth-badge-" + p.name);
             const logsEl = document.getElementById("oauth-logs-" + p.name);
             btn.disabled = true; btn.innerHTML = '<span class="material-icons-round spin" style="font-size:14px;vertical-align:middle">progress_activity</span> Contacting...';
-            logsEl.style.display = "block"; logsEl.innerHTML = p.name === "openrouter" ? "Preparing OpenRouter login...\n" : "Requesting device code...\n";
+            logsEl.style.display = "block"; logsEl.innerHTML = p.name === "openrouter" ? "Preparing OpenRouter login...\n" : (p.name === "google_gemini_cli" ? "Preparing Google login...\n" : "Requesting device code...\n");
             const loginBtnHtml = '<span class="material-icons-round" style="font-size:14px;vertical-align:middle">login</span> Login';
             try {
                 const resp = await authFetch("/api/oauth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: p.name }) });
@@ -915,7 +916,7 @@ function populateSettings(cfg) {
         markSeen: { label: "Mark as Read", section: "general", type: "boolean" },
         maxBodyChars: { label: "Max Body Length", section: "general", type: "number", placeholder: "12000" },
         subjectPrefix: { label: "Reply Prefix", section: "general", type: "text", placeholder: "Re: " },
-        allowFrom: { label: "Allowed Senders", section: "general", type: "array", placeholder: "email1@test.com, email2@test.com" },
+        allowFrom: { label: "Allowed Senders <i class=\"material-icons\" style=\"font-size:14px;cursor:pointer;\" title=\"You can enter usernames, emails, or IDs. For chat platforms, adding a Group/Channel ID here allows all users inside it to interact with the bot.\">&#9432;</i>", section: "general", type: "array", placeholder: "email1@test.com, email2@test.com" },
     };
 
     const channelEntries = [];
@@ -1064,7 +1065,10 @@ function populateSettings(cfg) {
                 }
 
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
-                const label = formatLabel(keyPath);
+                let label = formatLabel(keyPath);
+                if (keyPath === "allow_from" || keyPath === "allowFrom") {
+                    label += ` <span class="material-icons" style="font-size:14px;cursor:help;vertical-align:middle;color:#8A2BE2" title="You can enter usernames, or IDs. Adding a Group/Channel ID here allows all users inside it to interact with the bot.">&#9432;</span>`;
+                }
 
                 if (keyPath === "group_policy" || keyPath === "groupPolicy") {
                     const options = ["open", "mention", "trigger", "mention_or_trigger", "allowlist"]
