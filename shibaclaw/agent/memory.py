@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import aiofiles
 import json
 from datetime import datetime
 from pathlib import Path
@@ -161,8 +162,8 @@ class ScentKeeper:
     async def append_history(self, entry: str) -> None:
         """Append new entry to HISTORY.md."""
         async with self._file_lock:
-            with open(self.history_file, "a", encoding="utf-8") as f:
-                f.write(entry.rstrip() + "\n\n")
+            async with aiofiles.open(self.history_file, "a", encoding="utf-8") as f:
+                await f.write(entry.rstrip() + "\n\n")
 
     def estimate_memory_tokens(self) -> int:
         """Estimate token count of the current MEMORY.md content."""
@@ -226,12 +227,13 @@ class ScentKeeper:
     @staticmethod
     def _format_messages(messages: list[dict]) -> str:
         import io
+
         out = io.StringIO()
         for message in messages:
             role = message.get("role", "unknown").upper()
             ts = (message.get("timestamp") or "?")[:16]
             content = ScentKeeper._normalize_content(message.get("content"))
-            
+
             tool_suffix = ""
             if role == "ASSISTANT" and message.get("tool_calls"):
                 calls = [
@@ -239,23 +241,23 @@ class ScentKeeper:
                 ]
                 tool_suffix = f"[Tool Calls: {', '.join(calls)}]"
                 content = f"{content}\n{tool_suffix}" if content else tool_suffix
-                
+
             clen = len(content) if content else 0
             if role == "TOOL" and clen > 300:
                 content = f"{content[:150]}\n...[TRUNCATED]...\n{content[-150:]}"
             elif role in ("USER", "ASSISTANT") and clen > 500:
                 content = f"{content[:250]}\n...[TRUNCATED]...\n{content[-250:]}"
-                
+
             if not content or not content.strip():
                 continue
-                
+
             tools = (
                 f" [executed: {', '.join(message['tools_used'])}]"
                 if message.get("tools_used")
                 else ""
             )
             out.write(f"[{ts}] {role}{tools}: {content.strip()}\n")
-            
+
         return out.getvalue().strip()
 
     async def consolidate(
@@ -603,20 +605,27 @@ class PackMemory:
 
     def estimate_session_prompt_tokens(self, session: Session) -> tuple[int, str]:
         import time
+
         now = time.time()
-        
-        if not hasattr(self, '_prompt_tokens_cache'):
+
+        if not hasattr(self, "_prompt_tokens_cache"):
             self._prompt_tokens_cache: dict[str, tuple[int, str, float, tuple[Any, ...]]] = {}
 
         tool_sig = tuple(
             tool.get("function", {}).get("name", "") for tool in self._get_tool_definitions()
         )
         try:
-            mem_mtime = self.store.memory_file.stat().st_mtime_ns if self.store.memory_file.exists() else None
+            mem_mtime = (
+                self.store.memory_file.stat().st_mtime_ns
+                if self.store.memory_file.exists()
+                else None
+            )
         except FileNotFoundError:
             mem_mtime = None
         try:
-            user_mtime = self.store.user_file.stat().st_mtime_ns if self.store.user_file.exists() else None
+            user_mtime = (
+                self.store.user_file.stat().st_mtime_ns if self.store.user_file.exists() else None
+            )
         except FileNotFoundError:
             user_mtime = None
         signature = (
@@ -629,7 +638,7 @@ class PackMemory:
             user_mtime,
             tool_sig,
         )
-            
+
         cache_key = session.key
         if cache_key in self._prompt_tokens_cache:
             est, src, cached_time, cached_signature = self._prompt_tokens_cache[cache_key]
@@ -651,7 +660,7 @@ class PackMemory:
             probe_messages,
             self._get_tool_definitions(),
         )
-        
+
         self._prompt_tokens_cache[cache_key] = (est, src, now, signature)
         return est, src
 
