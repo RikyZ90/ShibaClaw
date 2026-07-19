@@ -84,9 +84,21 @@ class ShibaBrain:
         self.automation_service = automation_service
         self.restrict_to_workspace = restrict_to_workspace
         self.session_router = session_router
-        self.tool_timeout = config.agents.defaults.tool_timeout if config else int(os.getenv("SHIBACLAW_TOOL_TIMEOUT", "660"))
-        self.loop_wall_timeout = config.agents.defaults.loop_wall_timeout if config else int(os.getenv("SHIBACLAW_LOOP_WALL_TIMEOUT", "600"))
-        subagent_timeout = config.agents.defaults.subagent_timeout if config else int(os.getenv("SHIBACLAW_SUBAGENT_TIMEOUT", "600"))
+        self.tool_timeout = (
+            config.agents.defaults.tool_timeout
+            if config
+            else int(os.getenv("SHIBACLAW_TOOL_TIMEOUT", "660"))
+        )
+        self.loop_wall_timeout = (
+            config.agents.defaults.loop_wall_timeout
+            if config
+            else int(os.getenv("SHIBACLAW_LOOP_WALL_TIMEOUT", "600"))
+        )
+        subagent_timeout = (
+            config.agents.defaults.subagent_timeout
+            if config
+            else int(os.getenv("SHIBACLAW_SUBAGENT_TIMEOUT", "600"))
+        )
 
         self.context = ScentBuilder(workspace)
         self.sessions = session_manager or PackManager(workspace)
@@ -108,7 +120,7 @@ class ShibaBrain:
         self.mcp = MCPManager(self.tools)
         if mcp_servers:
             self.mcp.reconfigure(mcp_servers)
-            
+
         self._active_tasks: dict[str, list[asyncio.Task]] = {}  # session_key -> tasks
         self._background_tasks: set[asyncio.Task] = set()
         self._session_locks: dict[str, asyncio.Lock] = {}
@@ -204,6 +216,7 @@ class ShibaBrain:
     @staticmethod
     def _mcp_configs_differ(a: dict, b: dict) -> bool:
         """Compare two MCP server config dicts via JSON serialization, connection-affecting fields only."""
+
         def _serialize(servers: dict) -> dict:
             if not servers:
                 return {}
@@ -295,6 +308,7 @@ class ShibaBrain:
             )
         self.tools.register(WebSearchTool(config=self.web_search_config, proxy=self.web_proxy))
         from shibaclaw.agent.knowledge_manager import RAG_AVAILABLE
+
         if RAG_AVAILABLE:
             self.tools.register(KnowledgeSearchTool())
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
@@ -333,8 +347,13 @@ class ShibaBrain:
         return False
 
     def _set_tool_context(
-        self, channel: str, chat_id: str, message_id: str | None, session_key: str | None = None,
-        model: str | None = None, provider: Any | None = None,
+        self,
+        channel: str,
+        chat_id: str,
+        message_id: str | None,
+        session_key: str | None = None,
+        model: str | None = None,
+        provider: Any | None = None,
     ) -> None:
         """Update tool context for the current message and session."""
         for name in ("message", "spawn", "automation", "think"):
@@ -343,7 +362,9 @@ class ShibaBrain:
                     if name == "message":
                         tool.set_context(channel, chat_id, message_id)
                     elif name == "spawn":
-                        tool.set_context(channel, chat_id, session_key, model=model, provider=provider)
+                        tool.set_context(
+                            channel, chat_id, session_key, model=model, provider=provider
+                        )
                     else:
                         tool.set_context(channel, chat_id, session_key)
 
@@ -404,7 +425,14 @@ class ShibaBrain:
 
         # Update context again just in case the provider needed to be resolved
         # and wasn't available when _set_tool_context was initially called
-        self._set_tool_context(channel, chat_id, metadata.get("message_id") if metadata else None, session_key, model=active_model, provider=active_provider)
+        self._set_tool_context(
+            channel,
+            chat_id,
+            metadata.get("message_id") if metadata else None,
+            session_key,
+            model=active_model,
+            provider=active_provider,
+        )
 
         if not active_provider:
             return "No provider is configured for the selected model.", tools_used, messages
@@ -419,41 +447,45 @@ class ShibaBrain:
         try:
             from shibaclaw.agent.knowledge_manager import KnowledgeManager, RAG_AVAILABLE
             import asyncio
-            
+
             if RAG_AVAILABLE:
                 km = KnowledgeManager(self.context.workspace)
                 all_collections = await asyncio.to_thread(km.list_collections)
-            
+
             session_kb_ids = []
             if chat_id:
                 from shibaclaw.webui.agent_manager import agent_manager
+
                 if agent_manager.pm:
                     sess = agent_manager.pm.get_or_create(chat_id)
                     session_kb_ids = sess.metadata.get("knowledge_bases", [])
-            
-            mentioned_kb_names = [k.lower() for k in (metadata.get("mentioned_kbs", []) if metadata else [])]
+
+            mentioned_kb_names = [
+                k.lower() for k in (metadata.get("mentioned_kbs", []) if metadata else [])
+            ]
 
             if all_collections and (session_kb_ids or mentioned_kb_names):
                 active_kbs = []
                 new_session_kb_ids = list(session_kb_ids)
                 changed = False
-                
+
                 for col in all_collections:
                     col_id = col.get("id", "")
                     col_name = col.get("name", "")
-                    
+
                     is_mentioned = col_name.lower() in mentioned_kb_names
                     if is_mentioned and col_id not in new_session_kb_ids:
                         new_session_kb_ids.append(col_id)
                         changed = True
-                        
+
                     if col_id in new_session_kb_ids:
                         col_desc = col.get("description", "")
                         desc_part = f" - Desc: {col_desc}" if col_desc else ""
                         active_kbs.append(f"ID: {col_id} (Name: '{col_name}'){desc_part}")
-                        
+
                 if changed and chat_id:
                     from shibaclaw.webui.agent_manager import agent_manager
+
                     if agent_manager.pm:
                         sess = agent_manager.pm.get_or_create(chat_id)
                         sess.metadata["knowledge_bases"] = new_session_kb_ids
@@ -469,17 +501,17 @@ class ShibaBrain:
                     for msg in steer_msgs:
                         # Prefix the steering message so the LLM clearly understands it's an interruption
                         steer_text = f"**[USER INJECTION DURING TASK]**\n\n{msg['content']}"
-                        
+
                         # Properly construct content with media so the model can see the images
                         content = self.context._build_user_content(steer_text, msg.get("media"))
-                        
+
                         entry = {
                             "role": "user",
                             "content": content,
                         }
                         if msg.get("timestamp"):
                             entry["timestamp"] = msg.get("timestamp")
-                            
+
                         metadata = {}
                         if msg.get("media"):
                             metadata["media"] = msg["media"]
@@ -487,13 +519,15 @@ class ShibaBrain:
                             metadata["attachments"] = msg["attachments"]
                         if metadata:
                             entry["metadata"] = metadata
-                            
+
                         messages.append(entry)
                     self._steering_queues[session_key] = []
             # Wall-clock safety: abort if the loop has been running too long
             elapsed = time.monotonic() - loop_start
             if self.loop_wall_timeout > 0 and elapsed > self.loop_wall_timeout:
-                logger.warning(f"Session wall timeout ({self.loop_wall_timeout}s) reached after {elapsed:.1f}s.")
+                logger.warning(
+                    f"Session wall timeout ({self.loop_wall_timeout}s) reached after {elapsed:.1f}s."
+                )
                 final_content = (
                     f"I reached the maximum time limit for processing "
                     f"(elapsed: {elapsed:.0f}s, cap: {self.loop_wall_timeout}s). "
@@ -557,7 +591,11 @@ class ShibaBrain:
                             remaining = self.tool_timeout - _waited
                             if remaining <= 0 and self.tool_timeout > 0:
                                 break
-                            step_timeout = max(0.1, min(float(_heartbeat), float(remaining))) if self.tool_timeout > 0 else _heartbeat
+                            step_timeout = (
+                                max(0.1, min(float(_heartbeat), float(remaining)))
+                                if self.tool_timeout > 0
+                                else _heartbeat
+                            )
                             try:
                                 await asyncio.wait_for(
                                     asyncio.shield(tool_future),
@@ -605,7 +643,7 @@ class ShibaBrain:
                     logger.error("LLM returned error: {}", (clean or "")[:200])
                     final_content = clean or "Sorry, I encountered an error calling the AI model."
                     break
-                
+
                 messages = self.context.add_assistant_message(
                     messages,
                     response.content,
@@ -614,12 +652,12 @@ class ShibaBrain:
                 )
                 # Preserve full content (including <think>) for the UI
                 final_content = response.content
-                
+
                 # Check for steering messages: if we have some, continue the loop
                 # instead of breaking, so the agent can respond to the injected message
                 if session_key and self._steering_queues.get(session_key):
                     continue
-                    
+
                 break
 
         if final_content is None and self.max_iterations > 0 and iteration >= self.max_iterations:
@@ -646,7 +684,8 @@ class ShibaBrain:
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
-                if asyncio.current_task().cancelling():
+                task = asyncio.current_task()
+                if task and task.cancelling():
                     raise
                 continue
             except Exception as e:
@@ -694,6 +733,7 @@ class ShibaBrain:
     def _safe_argv() -> list[str]:
         """Return only trusted argv entries (flags + known subcommands)."""
         import sys
+
         if getattr(sys, "frozen", False):
             safe = [sys.executable]
             for arg in sys.argv[1:]:
@@ -719,6 +759,7 @@ class ShibaBrain:
         async def _do_restart():
             await asyncio.sleep(1)
             import subprocess
+
             subprocess.Popen(safe_argv)
             os._exit(0)
 
@@ -772,7 +813,7 @@ class ShibaBrain:
                 await asyncio.gather(*self._background_tasks, return_exceptions=True)
             finally:
                 self._background_tasks.clear()
-        
+
         await self.mcp.close()
 
     def _schedule_background(self, coro) -> None:
@@ -931,7 +972,11 @@ class ShibaBrain:
             profile_id=profile_id,
         )
 
-        _user_entry = {"role": "user", "content": msg.content, "timestamp": datetime.now().isoformat()}
+        _user_entry = {
+            "role": "user",
+            "content": msg.content,
+            "timestamp": datetime.now().isoformat(),
+        }
         metadata = {}
         if msg.metadata:
             metadata.update(msg.metadata)
@@ -941,7 +986,7 @@ class ShibaBrain:
             _user_entry["metadata"] = metadata
         session.messages.append(_user_entry)
         self.sessions.save(session)
-        
+
         if msg.metadata and msg.metadata.get("no_reply"):
             return None
         _pre_saved_count = 1
@@ -995,10 +1040,10 @@ class ShibaBrain:
 
         preview = final_content[:120] + "..." if len(final_content) > 120 else final_content
         logger.debug("Response to {}:{}: {}", msg.channel, msg.sender_id, preview)
-        
+
         out_metadata = dict(msg.metadata or {})
         out_metadata.pop("hidden", None)
-        
+
         return OutboundMessage(
             channel=msg.channel,
             chat_id=msg.chat_id,
@@ -1028,7 +1073,9 @@ class ShibaBrain:
                                         mt.latest_resolved_media_map.get(p, p)
                                         for p in args["media"]
                                     ]
-                                    tc["function"]["arguments"] = json.dumps(args, ensure_ascii=False)
+                                    tc["function"]["arguments"] = json.dumps(
+                                        args, ensure_ascii=False
+                                    )
                             except Exception as _e:
                                 logger.debug("Ignored error: {}", _e)
 
