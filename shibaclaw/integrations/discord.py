@@ -56,6 +56,7 @@ class DiscordConfig(Base):
     group_policy: Literal["mention", "open"] = "mention"
     streaming: bool = True
     proxy: str | None = None
+    reply_to_message: bool = False
     proxy_username: str | None = None
     proxy_password: str | None = None
 
@@ -373,6 +374,8 @@ class DiscordChannel(BaseChannel):
     def _reply_target(self, msg: OutboundMessage) -> str | None:
         if isinstance(msg.reply_to, str) and msg.reply_to:
             return msg.reply_to
+        if not getattr(self.config, "reply_to_message", False):
+            return None
         message_id = (msg.metadata or {}).get("message_id")
         if message_id is None:
             return None

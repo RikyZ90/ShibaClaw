@@ -379,11 +379,21 @@ class ShibaBrain:
     def _tool_hint(tool_calls: list) -> str:
         """Format tool calls as concise hint, e.g. 'web_search("query")'."""
 
+        def _mask_sensitive(val: str) -> str:
+            val = re.sub(r'(?i)(bearer\s+)[A-Za-z0-9\-\._~+/]{15,}', r'\1***', val)
+            val = re.sub(r'(?i)(api[_-]?key["\']?\s*[:=]\s*["\']?)[A-Za-z0-9\-\._~+/]{15,}', r'\1***', val)
+            val = re.sub(r'(?i)(token["\']?\s*[:=]\s*["\']?)[A-Za-z0-9\-\._~+/]{15,}', r'\1***', val)
+            val = re.sub(r'(?i)([?&](?:token|key|api[_-]?key|access[_-]?token)=)[A-Za-z0-9\-\._~+/]{10,}', r'\1***', val)
+            if len(val) > 100:
+                val = val[:47] + "..."
+            return val
+
         def _fmt(tc):
             args = (tc.arguments[0] if isinstance(tc.arguments, list) else tc.arguments) or {}
             val = next(iter(args.values()), None) if isinstance(args, dict) else None
             if not isinstance(val, str):
                 return tc.name
+            val = _mask_sensitive(val)
             return f'{tc.name}("{val}")'
 
         return ", ".join(_fmt(tc) for tc in tool_calls)
