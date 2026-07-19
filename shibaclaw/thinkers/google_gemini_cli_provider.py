@@ -1,7 +1,6 @@
 """Google Gemini CLI provider."""
 
 import os
-import time
 from typing import Any
 
 import httpx

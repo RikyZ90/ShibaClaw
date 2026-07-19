@@ -122,6 +122,7 @@ _mcp_configs: dict[str, Any] = {}
 _mcp_wrapped_tools: list[MCPWrappedTool] = []
 _mcp_stacks: dict[str, AsyncExitStack] = {}
 _parent_stack: AsyncExitStack | None = None
+_registry: SkillVault | None = None
 _mcp_cleanup_registered = False
 _mcp_lock: asyncio.Lock | None = None
 
