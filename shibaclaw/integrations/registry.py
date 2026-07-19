@@ -27,9 +27,14 @@ def discover_channel_names() -> list[str]:
 
 def load_channel_class(module_name: str) -> type[BaseChannel]:
     """Import *module_name* and return the first BaseChannel subclass found."""
+    import sys
     from shibaclaw.integrations.base import BaseChannel as _Base
 
-    mod = importlib.import_module(f"shibaclaw.integrations.{module_name}")
+    full_mod_name = f"shibaclaw.integrations.{module_name}"
+    if full_mod_name in sys.modules:
+        mod = importlib.reload(sys.modules[full_mod_name])
+    else:
+        mod = importlib.import_module(full_mod_name)
     for attr in dir(mod):
         obj = getattr(mod, attr)
         if isinstance(obj, type) and issubclass(obj, _Base) and obj is not _Base:

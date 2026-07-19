@@ -1951,8 +1951,8 @@ input[type="number"].form-input {
 .field-info-bubble {
     position: absolute;
     bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
+    left: -10px;
+    transform: none;
     background: var(--bg-elevated);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
