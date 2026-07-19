@@ -1,7 +1,4 @@
 import pytest
-import asyncio
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
 
 from shibaclaw.thinkers.google_gemini_cli_provider import GoogleGeminiCLIThinker
 

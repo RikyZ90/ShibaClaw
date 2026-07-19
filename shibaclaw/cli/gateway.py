@@ -627,9 +627,9 @@ async def gateway_command(
 
             elif action == "cancel":
                 target_id = payload.get("request_id", "")
-                task = _chat_tasks.get(target_id)
-                if task and not task.done():
-                    task.cancel()
+                cancel_task = _chat_tasks.get(target_id)
+                if cancel_task and not cancel_task.done():
+                    cancel_task.cancel()
                     await ws.send(_ok({"cancelled": True, "request_id": target_id}))
                 else:
                     await ws.send(_ok({"cancelled": False, "request_id": target_id}))
