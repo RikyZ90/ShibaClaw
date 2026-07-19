@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -65,12 +66,12 @@ class BaseChannel(ABC):
 
             client = AsyncOpenAI(**client_kwargs)
 
-            with open(path, "rb") as audio_file:
-                res = await client.audio.transcriptions.create(
-                    model=self.audio_config.model or "whisper-large-v3-turbo",
-                    file=audio_file,
-                    response_format="text",
-                )
+            file_bytes = await asyncio.to_thread(path.read_bytes)
+            res = await client.audio.transcriptions.create(
+                model=self.audio_config.model or "whisper-large-v3-turbo",
+                file=(path.name, file_bytes),
+                response_format="text",
+            )
             return str(res).strip()
         except Exception as e:
             logger.warning("{}: audio transcription failed: {}", self.name, e)
