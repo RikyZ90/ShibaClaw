@@ -45,6 +45,7 @@
 **Dernière version (2026-07-19) :**
 
 - **RAG Hybride pour appareils à faible RAM** — Le RAG et la base de connaissances prennent désormais en charge les fournisseurs d'embeddings cloud (Gemini, OpenRouter, OpenAI) sans utiliser de RAM locale et avec une installation plus légère. Idéal pour Raspberry Pi.
+- **RAG Hybride pour appareils à faible RAM** — Le RAG et la base de connaissances prennent désormais en charge les fournisseurs d'embeddings cloud (Gemini, OpenRouter, OpenAI) sans utiliser de RAM locale et avec une installation plus légère. Idéal pour Raspberry Pi.
 - **Menus déroulants dans la configuration des canaux** —— les champs `group_policy` de la configuration des canaux utilisent désormais des sélecteurs déroulants dans la WebUI pour une meilleure UX.
 - **Installation de paquets externes sur Linux moderne (PEP 668)** —— injecte automatiquement `--break-system-packages` en cas d'erreur `externally-managed-environment` lors des opérations pip.
 - **Propagation de la clé de session dans les sous-agents** —— ajout de `session_key` aux métadonnées des sous-agents pour conserver le bon contexte lors de l'exécution parallèle.

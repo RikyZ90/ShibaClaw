@@ -86,15 +86,21 @@ def _get_embeddings(provider: str, api_key: str, api_base: str, model: str):
     if provider == "gemini":
         if not api_key:
             raise ValueError("No API key found for Gemini RAG provider. Please enter a key or configure Gemini in Settings.")
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        mdl = model or "models/text-embedding-004"
+        try:
+            from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        except ImportError:
+            raise RuntimeError("Missing Google RAG dependencies. Please run `pip install 'shibaclaw[rag]'`.")
+        mdl = model or "models/gemini-embedding-001"
         return GoogleGenerativeAIEmbeddings(model=mdl, google_api_key=api_key)
     
     elif provider in ("openrouter", "openai", "custom"):
         if not api_key and provider != "custom":
             raise ValueError(f"No API key found for {provider.capitalize()} RAG provider. Please enter a key in Settings.")
-        from langchain_openai import OpenAIEmbeddings
-        mdl = model or ("nomic-embed-text" if provider == "openrouter" else "text-embedding-3-small")
+        try:
+            from langchain_openai import OpenAIEmbeddings
+        except ImportError:
+            raise RuntimeError(f"Missing {provider.capitalize()} RAG dependencies. Please run `pip install 'shibaclaw[rag]'`.")
+        mdl = model or ("openai/text-embedding-3-small" if provider == "openrouter" else "text-embedding-3-small")
         base = api_base or ("https://openrouter.ai/api/v1" if provider == "openrouter" else None)
         return OpenAIEmbeddings(openai_api_base=base, model=mdl, openai_api_key=api_key)
         

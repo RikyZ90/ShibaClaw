@@ -272,6 +272,7 @@ async def api_settings_post(request: Request):
         try:
             new_cfg = Config.model_validate(merged)
         except Exception as e:
+            logger.error(f"Validation failed: {e}")
             return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
 
         # ----------------------------------------------------------------
