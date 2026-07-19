@@ -176,7 +176,7 @@ class GatewayClient:
                         for handler in self._event_handlers.get(name, []):
                             self._schedule_event_handler(name, handler, msg)
 
-        except websockets.ConnectionClosed:
+        except websockets.exceptions.ConnectionClosed:
             pass
         except Exception as e:
             logger.debug("WS recv loop error: {}", e)
@@ -256,6 +256,9 @@ class GatewayClient:
         except (asyncio.TimeoutError, Exception):
             self._pending.pop(request_id, None)
             return None
+        except asyncio.CancelledError:
+            self._pending.pop(request_id, None)
+            raise
 
     async def chat_stream(self, payload: dict, request_id: str | None = None) -> AsyncIterator[dict]:
         """Send a chat request and yield progress events, then the final result.
