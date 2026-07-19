@@ -22,7 +22,7 @@ try:
         TextLoader,
     )
     from langchain_community.vectorstores import FAISS  # noqa: E402
-    from langchain_huggingface import HuggingFaceEmbeddings  # noqa: E402
+    from langchain_huggingface import HuggingFaceEmbeddings  # noqa: E402, F401
     from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: E402
     RAG_AVAILABLE = True
 except ImportError:
