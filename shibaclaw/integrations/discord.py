@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote, urlsplit, urlunsplit
 
+import aiofiles
 import httpx
 import websockets
 from loguru import logger
@@ -45,12 +46,14 @@ class DiscordConfig(Base):
         """Return the API key from config field or encrypted vault."""
         try:
             from shibaclaw.security.credential_manager import get_credential_manager
+
             vault_key = get_credential_manager().get_secret("channels", "discord.token")
             if vault_key and isinstance(vault_key, str):
                 return vault_key
         except Exception:
             pass
         return self.token or None
+
     gateway_url: str = "wss://gateway.discord.gg/?v=10&encoding=json"
     intents: int = 37377
     group_policy: Literal["mention", "open"] = "mention"
@@ -429,12 +432,15 @@ class DiscordChannel(BaseChannel):
 
         for attempt in range(3):
             try:
-                with open(path, "rb") as f:
-                    files = {"files[0]": (path.name, f, "application/octet-stream")}
-                    data: dict[str, Any] = {}
-                    if payload_json:
-                        data["payload_json"] = json.dumps(payload_json)
-                    response = await self._http.post(url, headers=headers, files=files, data=data)
+                async with aiofiles.open(path, "rb") as f:
+                    file_content = await f.read()
+
+                files = {"files[0]": (path.name, file_content, "application/octet-stream")}
+                data: dict[str, Any] = {}
+                if payload_json:
+                    data["payload_json"] = json.dumps(payload_json)
+                response = await self._http.post(url, headers=headers, files=files, data=data)
+
                 if response.status_code == 429:
                     resp_data = response.json()
                     retry_after = float(resp_data.get("retry_after", 1.0))
@@ -568,6 +574,7 @@ class DiscordChannel(BaseChannel):
                 continue
 
             from shibaclaw.security.network import validate_url_target
+
             is_safe, err_msg = await asyncio.to_thread(validate_url_target, url)
             if not is_safe:
                 logger.warning("Blocked untrusted Discord attachment URL: {}", err_msg)
