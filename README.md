@@ -40,9 +40,9 @@
 > Release notes live in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>What's new — v0.9.8</b> (click to expand)</summary>
+<summary>📢 <b>What's new — v0.9.9</b> (click to expand)</summary>
 
-**Latest release (2026-07-15):**
+**Latest release (2026-07-19):**
 
 - **Channel Config Dropdowns** — `group_policy` fields in channel configuration now use dropdown selectors in the WebUI for a better UX.
 - **External Package Installation on Modern Linux (PEP 668)** — auto-injects `--break-system-packages` on `externally-managed-environment` errors during pip operations.

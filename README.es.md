@@ -40,9 +40,9 @@
 > Las notas de versión están en [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Novedades — v0.9.8</b> (haz clic para expandir)</summary>
+<summary>📢 <b>Novedades — v0.9.9</b> (haz clic para expandir)</summary>
 
-**Última versión (2026-07-15):**
+**Última versión (2026-07-19):**
 
 - **Desplegables en la configuración de canales** —— los campos `group_policy` de la configuración de canales ahora usan selectores desplegables en la WebUI para una mejor experiencia.
 - **Instalación de paquetes externos en Linux moderno (PEP 668)** —— inyecta automáticamente `--break-system-packages` ante errores `externally-managed-environment` durante las operaciones pip.

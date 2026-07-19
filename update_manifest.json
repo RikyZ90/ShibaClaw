@@ -1,6 +1,6 @@
 {
-    "version": "0.9.8",
-    "release_notes": "Complete Visual Restyling & Brand Refresh — Comprehensive redesign of all logos and visual identity across the application. Updated all logo assets (16px through 256px, ICO, WebP variants) with a modernized ShibaClaw brand mark. Refreshed WebUI welcome screen, settings panels, chat interface, and profile selectors with cohesive visual language. Hacker Mode Visual Identity — New dedicated 'Hacker' profile avatar (ShibHacker.png) with cyber-shiba aesthetic for the security-focused persona. Fixed Local RAG Windows EXE Bundling, Real-time Hot-Reload for Local RAG Install & Uninstall, Clean RAG Dependency Uninstallation, Memory Leaks, Concurrency Locks, MCP Deadlocks, Timeout Clamping, Session Saves, Initialization Safety, Automation Session Duplication, Sub-agent Context Exhaustion. CI Pipeline & Build Environment Hardening. Core Loop Processing, FAISS Vectorstore Caching & Locks, O(1) History Append optimizations.",
+    "version": "0.9.9",
+    "release_notes": "Telegram AI/Agent Bot API features (Guest Mode, private-chat streaming, bot-to-bot, business integration). Settings UI Refactoring (4-section sidebar, unified Extensions, declarative layouts, tooltips). Discord Allow-from by Username fix, Agent Loop Task Cancellation Safety, WebUI Missing OAuth Providers fix, Gateway Client Disconnect Stability, MCP Tools NameError fix, and README Localizations.",
     "changes": [
         {
             "path": "pyproject.toml",

@@ -40,9 +40,9 @@
 > リリースノートは [CHANGELOG.md](./CHANGELOG.md) にあります。
 
 <details open>
-<summary>📢 <b>最新情報 — v0.9.8</b>（クリックで展開）</summary>
+<summary>📢 <b>最新情報 — v0.9.9</b>（クリックで展開）</summary>
 
-**最新リリース（2026-07-15）：**
+**最新リリース（2026-07-19）：**
 
 - **チャンネル設定のドロップダウン** —— チャンネル設定の `group_policy` フィールドが WebUI でドロップダウン選択式になり、UX が向上しました。
 - **モダン Linux での外部パッケージ導入（PEP 668）** —— pip 操作で `externally-managed-environment` エラー時に `--break-system-packages` を自動注入します。

@@ -90,7 +90,7 @@ async def api_oauth_login(request: Request):
     generic_providers = {
         "xai": "xAI / Grok",
     }
-    if provider not in ("openrouter", "github_copilot", "openai_codex") and provider not in generic_providers:
+    if provider not in ("openrouter", "github_copilot", "openai_codex", "google_gemini_cli") and provider not in generic_providers:
         return JSONResponse({"error": "Unknown provider"}, status_code=404)
 
     job_id = str(uuid.uuid4())[:8]
@@ -109,6 +109,15 @@ async def api_oauth_login(request: Request):
         from ..oauth_github import start_codex_oauth
 
         return await start_codex_oauth(job_id, jobs)
+    elif provider == "google_gemini_cli":
+        from ..oauth_generic import start_google_oauth
+        
+        client_id = os.environ.get("SHIBACLAW_GEMINI_OAUTH_CLIENT_ID")
+        if not client_id:
+            return JSONResponse({"error": "Not configured by administrator"}, status_code=400)
+            
+        client_secret = os.environ.get("SHIBACLAW_GEMINI_OAUTH_CLIENT_SECRET", "")
+        return await start_google_oauth(request, job_id, jobs, client_id, client_secret)
     elif provider in generic_providers:
         from ..oauth_generic import start_generic_oauth
         

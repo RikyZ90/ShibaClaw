@@ -1,8 +1,8 @@
-## [Unreleased]
+## [0.9.9] - 2026-07-19
 
 ### Added
 - **Telegram AI / agent Bot API features** — Guest Mode (`answerGuestQuery`), private-chat streaming via `sendMessageDraft`, bot-to-bot messages, Business / Chat Automation updates, and Managed Bot update tracking. See `docs/TELEGRAM_AI_FEATURES.md`.
-- **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
+- **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`. Thanks to @Demontego
 
 ### Changed
 - **Settings UI Refactoring** — Completely restructured the Settings workspace. Grouped the sidebar into 4 logical sections, consolidated Skills, Plugins, and MCP into a unified Extensions tab, implemented a declarative 3-section layout for all channel configuration forms, and added native tooltip support for configuration fields.

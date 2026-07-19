@@ -40,9 +40,9 @@
 > Versionshinweise finden sich in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Neuigkeiten — v0.9.8</b> (zum Ausklappen klicken)</summary>
+<summary>📢 <b>Neuigkeiten — v0.9.9</b> (zum Ausklappen klicken)</summary>
 
-**Neueste Version (2026-07-15):**
+**Neueste Version (2026-07-19):**
 
 - **Dropdown-Auswahl in der Kanalkonfiguration** —— Die Felder `group_policy` der Kanalkonfiguration verwenden nun Dropdown-Auswahlen in der WebUI für eine bessere UX.
 - **Externe Paketinstallation auf modernem Linux (PEP 668)** —— injiziert bei `externally-managed-environment`-Fehlern während pip-Operationen automatisch `--break-system-packages`.

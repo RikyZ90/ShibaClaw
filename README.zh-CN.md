@@ -40,9 +40,9 @@
 > 发布说明见 [CHANGELOG.md](./CHANGELOG.md)。
 
 <details open>
-<summary>📢 <b>最新动态 — v0.9.8</b>（点击展开）</summary>
+<summary>📢 <b>最新动态 — v0.9.9</b>（点击展开）</summary>
 
-**最新版本（2026-07-15）：**
+**最新版本（2026-07-19）：**
 
 - **渠道配置下拉框** —— 渠道配置中的 `group_policy` 字段现在在 WebUI 中使用下拉选择器，带来更好的使用体验。
 - **现代 Linux 上的外部包安装（PEP 668）** —— 在 pip 操作遇到 `externally-managed-environment` 错误时自动注入 `--break-system-packages`。
