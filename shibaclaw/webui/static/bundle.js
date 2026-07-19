@@ -193,7 +193,7 @@ let lastSettingsConfig=null;const DEFAULT_AVATAR="/static/shibaclaw_logo.webp",s
             <span class="provider-tile-badge ${F?"on":"off"}">${F?"\u2713 Configured":"Not set"}</span>`,V.addEventListener("click",()=>{const J=V.classList.contains("expanded");p.querySelectorAll(".provider-tile").forEach(D=>D.classList.remove("expanded"));const Y=p.querySelector(".provider-tile-expand");if(Y&&Y.remove(),J){h=null;return}V.classList.add("expanded"),h=g;const A=document.createElement("div");A.className="provider-tile-expand",A.innerHTML=`
                 <div class="provider-expand-header">
                     <div class="provider-expand-title">
-                        <span class="material-icons-round" style="font-size:18px">${Z}</span>
+                        <span class="material-icons-round" style="font-size:18px">${X}</span>
                         ${W}
                     </div>
                     <button class="provider-expand-close" title="Close">
