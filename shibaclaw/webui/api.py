@@ -95,7 +95,7 @@ async def api_context_get(request: Request):
     )
     if runtime_block:
         system_prompt += "\n\n" + runtime_block
-        prompt_tokens += estimate_prompt_tokens(runtime_block)
+        prompt_tokens += estimate_prompt_tokens([{"role": "system", "content": runtime_block}])
         
     total_tokens = prompt_tokens
     sections.append(
