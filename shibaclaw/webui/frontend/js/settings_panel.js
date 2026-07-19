@@ -1316,9 +1316,9 @@ function populateSettings(cfg) {
 window.saveSettings = async function () {
     const ragData = {
         provider: $("s-rag-provider") ? $("s-rag-provider").value : "local",
-        apiKey: $("s-rag-apiKey") ? ($("s-rag-apiKey").value || null) : null,
-        apiBase: $("s-rag-apiBase") ? ($("s-rag-apiBase").value || null) : null,
-        model: $("s-rag-model") ? ($("s-rag-model").value || null) : null,
+        apiKey: $("s-rag-apiKey") ? ($("s-rag-apiKey").value || "") : "",
+        apiBase: $("s-rag-apiBase") ? ($("s-rag-apiBase").value || "") : "",
+        model: $("s-rag-model") ? ($("s-rag-model").value || "") : "",
     };
     const patch = {
         agents: {
@@ -1450,6 +1450,9 @@ window.saveSettings = async function () {
             body: JSON.stringify(patch)
         });
         const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || "Unknown error saving settings");
+        }
         if (typeof closeSettingsView === "function") closeSettingsView();
         _availableModels = []; // Clear model cache to force refresh
         _hasFetchedModels = false;

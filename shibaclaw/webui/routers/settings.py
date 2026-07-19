@@ -185,6 +185,11 @@ async def _inject_vault_placeholders(data: dict) -> dict:
     except (KeyError, TypeError):
         pass
 
+    # --- RAG API key ---
+    rag_cfg = data.get("rag", {})
+    if isinstance(rag_cfg, dict):
+        await _maybe_mask("rag", "api_key", rag_cfg, "apiKey")
+
     # --- Audio API key ---
     audio_cfg = data.get("audio", {})
     if isinstance(audio_cfg, dict):

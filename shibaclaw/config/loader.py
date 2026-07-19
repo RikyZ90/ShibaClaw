@@ -102,6 +102,11 @@ def _scrub_secrets_from_dump(data: dict, cm: Any = None) -> dict:
                         if isinstance(ch_cfg[k], str) and ch_cfg[k]:
                             ch_cfg[k] = ""
 
+    # --- RAG API key ---
+    rag = data.get("rag", {})
+    if isinstance(rag, dict):
+        _clear_secret_fields(rag)
+
     # --- Audio API key ---
     audio = data.get("audio", {})
     if isinstance(audio, dict):
@@ -390,6 +395,14 @@ def _migrate_secrets_from_raw_dict(data: dict, cm: Any) -> bool:
                 if api_key:
                     cm.set_secret("tools", "web_search.api_key", api_key)
                     migrated = True
+
+    # --- RAG API key ---
+    rag = data.get("rag", {})
+    if isinstance(rag, dict):
+        key = rag.pop("apiKey", "") or rag.pop("api_key", "")
+        if key:
+            cm.set_secret("rag", "api_key", key)
+            migrated = True
 
     # --- Audio API key ---
     audio = data.get("audio", {})

@@ -84,26 +84,32 @@ def _get_embeddings(provider: str, api_key: str, api_base: str, model: str):
     os.environ["HUGGINGFACE_HUB_VERBOSITY"] = "error"
     
     if provider == "gemini":
+        if not api_key:
+            raise ValueError("No API key found for Gemini RAG provider. Please enter a key or configure Gemini in Settings.")
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
         mdl = model or "models/text-embedding-004"
         return GoogleGenerativeAIEmbeddings(model=mdl, google_api_key=api_key)
     
     elif provider in ("openrouter", "openai", "custom"):
+        if not api_key and provider != "custom":
+            raise ValueError(f"No API key found for {provider.capitalize()} RAG provider. Please enter a key in Settings.")
         from langchain_openai import OpenAIEmbeddings
         mdl = model or ("nomic-embed-text" if provider == "openrouter" else "text-embedding-3-small")
         base = api_base or ("https://openrouter.ai/api/v1" if provider == "openrouter" else None)
         return OpenAIEmbeddings(openai_api_base=base, model=mdl, openai_api_key=api_key)
         
-    else:
+    elif provider in ("local", ""):
         # Fallback to local HuggingFace
         try:
             from langchain_huggingface import HuggingFaceEmbeddings
-            return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+            return HuggingFaceEmbeddings(model_name=model or "all-MiniLM-L6-v2")
         except ImportError:
             raise RuntimeError(
                 "Local HuggingFace embeddings are not installed. "
                 "To use the 'local' provider, please run: pip install 'shibaclaw[rag-local]'"
             )
+    else:
+        raise ValueError(f"Unknown RAG embedding provider: '{provider}'")
 
 class KnowledgeManager:
     """Manages cross-session Knowledge Bases using FAISS and LangChain."""
@@ -132,7 +138,11 @@ class KnowledgeManager:
         if not api_key and provider not in ("local", ""):
             prov_cfg = getattr(cfg.providers, provider, None)
             if prov_cfg:
-                api_key = prov_cfg.resolve_api_key() or ""
+                api_key = prov_cfg.resolve_api_key(provider) or ""
+            if not api_key and provider == "gemini":
+                gem_cli = getattr(cfg.providers, "google_gemini_cli", None)
+                if gem_cli:
+                    api_key = gem_cli.resolve_api_key("google_gemini_cli") or ""
                 
         api_base = cfg.rag.api_base or ""
         model = cfg.rag.model or ""
