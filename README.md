@@ -52,9 +52,6 @@
 - **Channel Hot-Reload on Secret Updates** — fixed channel hot-reload not triggering when secrets are updated.
 - **Proactive Learning Tool Choice** — gracefully handles unsupported `tool_choice` parameter in proactive learning.
 - **Removed Base64 Tool Output Encoding** — eliminated Base64 encoding logic for tool outputs to simplify the pipeline.
-
-**Unreleased (in progress):**
-
 - **Telegram AI / agent Bot API features** — Guest Mode (`answerGuestQuery`), private-chat streaming via `sendMessageDraft`, bot-to-bot messages, Business / Chat Automation updates, and Managed Bot update tracking. See `docs/TELEGRAM_AI_FEATURES.md`.
 - **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
 
