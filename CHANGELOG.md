@@ -4,6 +4,19 @@
 - **Telegram AI / agent Bot API features** — Guest Mode (`answerGuestQuery`), private-chat streaming via `sendMessageDraft`, bot-to-bot messages, Business / Chat Automation updates, and Managed Bot update tracking. See `docs/TELEGRAM_AI_FEATURES.md`.
 - **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
 
+### Changed
+- **Settings UI Refactoring** — Completely restructured the Settings workspace. Grouped the sidebar into 4 logical sections, consolidated Skills, Plugins, and MCP into a unified Extensions tab, implemented a declarative 3-section layout for all channel configuration forms, and added native tooltip support for configuration fields.
+
+### Fixed
+- **Discord Allow-from by Username and Stuck Typing** — Fixed an issue where adding a username in `allow_from` failed to authorize the user in the secondary check, causing the Discord bot's "Typing..." indicator to get stuck indefinitely without sending a response.
+- **Agent Loop Task Cancellation Safety** — Guarded `asyncio.current_task()` against `None` in `shibaclaw/agent/loop.py` before calling `.cancelling()` during event-loop shutdown / cancellation scenarios, preventing `AttributeError` and type-checker errors. Added a regression integration test.
+- **WebUI Missing OAuth Providers** — The Settings panel provider dropdown used a hardcoded list that omitted recently added providers (e.g. `anthropic`, `qwen`, `minimax`, `zhipu`, `google_gemini_cli`). The list now reflects all configured providers; the WebUI was rebuilt (`bundle.js`).
+- **Gateway Client Disconnect Stability** — `GatewayClient` now explicitly catches `asyncio.CancelledError` to properly discard the pending future and re-raise (fixing memory leaks and potential loop crashes), and references the correct `websockets.exceptions.ConnectionClosed` namespace in `_recv_loop` (fixing an `AttributeError` that aborted the client on disconnect). Resolves sporadic "Gateway disconnected" reports.
+- **MCP Tools NameError** — Resolved a `NameError` for `_registry` in `shibaclaw/agent/tools/mcp.py` and removed unused imports. Added a regression test (`tests/test_mcp_registry_bug.py`).
+
+### Documentation
+- **README Localizations** — Synced the translated README versions (`README.de.md`, `README.es.md`, `README.fr.md`, `README.ja.md`, `README.pt-BR.md`, `README.zh-CN.md`) with the restructured English `README.md`.
+
 ### Notes
 - Rich Messages (`sendRichMessage`) are documented but not implemented yet — waiting on `python-telegram-bot` support beyond 22.8.
 

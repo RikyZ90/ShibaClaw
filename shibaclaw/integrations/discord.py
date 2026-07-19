@@ -13,7 +13,7 @@ import websockets
 from loguru import logger
 from pydantic import Field
 
-from shibaclaw.bus.events import OutboundMessage
+from shibaclaw.bus.events import InboundMessage, OutboundMessage
 from shibaclaw.bus.queue import MessageBus
 from shibaclaw.config.paths import get_media_dir
 from shibaclaw.config.schema import Base
@@ -70,6 +70,49 @@ class DiscordChannel(BaseChannel):
     @classmethod
     def default_config(cls) -> dict[str, Any]:
         return DiscordConfig().model_dump(by_alias=True)
+
+    @staticmethod
+    def _sender_id(author: dict[str, Any]) -> str:
+        """Build sender_id with username for allowlist matching."""
+        sid = str(author.get("id", ""))
+        username = str(author.get("username", ""))
+        return f"{sid}|{username}" if username else sid
+
+    def is_allowed(self, sender_id: str, *other_ids: str) -> bool:
+        """Preserve Discord's id|username allowlist matching."""
+        if super().is_allowed(sender_id, *other_ids):
+            return True
+        allow_list = getattr(self.config, "allow_from", [])
+        if not allow_list or "*" in allow_list:
+            return False
+        sender_str = str(sender_id)
+        if "|" in sender_str:
+            sid, username = sender_str.split("|", 1)
+            if sid and username:
+                if sid in allow_list or username in allow_list:
+                    return True
+        return False
+
+    async def _handle_message(
+        self,
+        sender_id: str,
+        chat_id: str,
+        content: str,
+        media: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        session_key: str | None = None,
+    ) -> None:
+        """Override to skip redundant check since _handle_message_create checks it properly."""
+        msg = InboundMessage(
+            channel=self.name,
+            sender_id=str(sender_id),
+            chat_id=str(chat_id),
+            content=content,
+            media=media or [],
+            metadata=metadata or {},
+            session_key_override=session_key,
+        )
+        await self.bus.publish_inbound(msg)
 
     def __init__(self, config: Any, bus: MessageBus):
         if isinstance(config, dict):
@@ -492,17 +535,17 @@ class DiscordChannel(BaseChannel):
         if author.get("bot"):
             return
 
-        sender_id = str(author.get("id", ""))
         username = str(author.get("username", ""))
+        sender_id = self._sender_id(author)
         channel_id = str(payload.get("channel_id", ""))
         content = payload.get("content") or ""
         guild_id = str(payload.get("guild_id", ""))
 
-        if not sender_id or not channel_id:
+        if not str(author.get("id", "")) or not channel_id:
             return
 
-        # Check if the user, channel, or guild is allowed, or if the username matches
-        if not self.is_allowed(sender_id, channel_id, guild_id, username):
+        # Check if the user, channel, or guild is allowed
+        if not self.is_allowed(sender_id, channel_id, guild_id):
             return
 
         # Check group channel policy (DMs always respond if is_allowed passes)
@@ -556,6 +599,8 @@ class DiscordChannel(BaseChannel):
             media=media_paths,
             metadata={
                 "message_id": str(payload.get("id", "")),
+                "user_id": str(author.get("id", "")),
+                "username": username,
                 "guild_id": guild_id,
                 "reply_to": reply_to,
             },

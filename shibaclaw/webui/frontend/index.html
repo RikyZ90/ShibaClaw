@@ -382,44 +382,46 @@
         <div class="settings-layout">
             <!-- Vertical sidebar nav -->
             <nav class="settings-sidebar" id="settings-sidebar">
+                <div class="settings-sidebar-section">Core &amp; System</div>
                 <button class="settings-sidebar-item active" data-tab="agent" onclick="switchSettingsTab('agent')">
                     <span class="material-icons-round">smart_toy</span><span>Agent</span>
                 </button>
+                <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
+                    <span class="material-icons-round">mic</span><span>Voice &amp; Audio</span>
+                </button>
+                <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
+                    <span class="material-icons-round">system_update</span><span>Update</span>
+                </button>
+
+                <div class="settings-sidebar-section">AI &amp; Models</div>
                 <button class="settings-sidebar-item" data-tab="providers" onclick="switchSettingsTab('providers')">
                     <span class="material-icons-round">key</span><span>Provider</span>
                 </button>
                 <button class="settings-sidebar-item" data-tab="oauth" onclick="switchSettingsTab('oauth')">
                     <span class="material-icons-round">lock_open</span><span>OAuth</span>
                 </button>
-                <button class="settings-sidebar-item" data-tab="audio" onclick="switchSettingsTab('audio')">
-                    <span class="material-icons-round">mic</span><span>Voice & Audio</span>
-                </button>
+
+                <div class="settings-sidebar-section">Capabilities &amp; Extensions</div>
                 <button class="settings-sidebar-item" data-tab="tools" onclick="switchSettingsTab('tools')">
                     <span class="material-icons-round">build</span><span>Tools</span>
                 </button>
-                <button class="settings-sidebar-item" data-tab="mcp" onclick="switchSettingsTab('mcp')">
-                    <span class="material-icons-round">hub</span><span>MCP</span>
+                <button class="settings-sidebar-item" data-tab="extensions" onclick="switchSettingsTab('extensions')">
+                    <span class="material-icons-round">extension</span><span>Extensions</span>
                 </button>
+
+                <div class="settings-sidebar-section">Connectivity &amp; Channels</div>
                 <button class="settings-sidebar-item" data-tab="gateway" onclick="switchSettingsTab('gateway')">
                     <span class="material-icons-round">dns</span><span>Gateway</span>
                 </button>
                 <button class="settings-sidebar-item" data-tab="channels" onclick="switchSettingsTab('channels')">
                     <span class="material-icons-round">forum</span><span>Channels</span>
                 </button>
-                <button class="settings-sidebar-item" data-tab="skills" onclick="switchSettingsTab('skills')">
-                    <span class="material-icons-round">menu_book</span><span>Skills</span>
-                </button>
-                <button class="settings-sidebar-item" data-tab="plugins" onclick="switchSettingsTab('plugins')">
-                    <span class="material-icons-round">extension</span><span>Plugins</span>
-                </button>
-                <button class="settings-sidebar-item" data-tab="update" onclick="switchSettingsTab('update')">
-                    <span class="material-icons-round">system_update</span><span>Update</span>
-                </button>
             </nav>
 
             <!-- Mobile category list dashboard -->
             <div class="settings-mobile-dashboard" id="settings-mobile-dashboard">
                 <div class="mobile-dashboard-grid">
+                    <div class="dashboard-section-label">Core &amp; System</div>
                     <button class="dashboard-card" onclick="switchSettingsTab('agent')">
                         <span class="material-icons-round dash-icon">smart_toy</span>
                         <div class="dash-content">
@@ -428,11 +430,29 @@
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('audio')">
+                        <span class="material-icons-round dash-icon">mic</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Voice &amp; Audio</div>
+                            <div class="dash-desc">Speech to text &amp; audio settings</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+                    <button class="dashboard-card" onclick="switchSettingsTab('update')">
+                        <span class="material-icons-round dash-icon">system_update</span>
+                        <div class="dash-content">
+                            <div class="dash-title">Update</div>
+                            <div class="dash-desc">Check for updates &amp; onboard wizard</div>
+                        </div>
+                        <span class="material-icons-round dash-arrow">chevron_right</span>
+                    </button>
+
+                    <div class="dashboard-section-label">AI &amp; Models</div>
                     <button class="dashboard-card" onclick="switchSettingsTab('providers')">
                         <span class="material-icons-round dash-icon">key</span>
                         <div class="dash-content">
                             <div class="dash-title">Provider</div>
-                            <div class="dash-desc">Configure API keys & endpoints</div>
+                            <div class="dash-desc">Configure API keys &amp; endpoints</div>
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
@@ -444,35 +464,31 @@
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="dashboard-card" onclick="switchSettingsTab('audio')">
-                        <span class="material-icons-round dash-icon">mic</span>
-                        <div class="dash-content">
-                            <div class="dash-title">Voice & Audio</div>
-                            <div class="dash-desc">Speech to text & audio settings</div>
-                        </div>
-                        <span class="material-icons-round dash-arrow">chevron_right</span>
-                    </button>
+
+                    <div class="dashboard-section-label">Capabilities &amp; Extensions</div>
                     <button class="dashboard-card" onclick="switchSettingsTab('tools')">
                         <span class="material-icons-round dash-icon">build</span>
                         <div class="dash-content">
                             <div class="dash-title">Tools</div>
-                            <div class="dash-desc">Web search, proxy & execution options</div>
+                            <div class="dash-desc">Web search, proxy &amp; execution options</div>
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
-                    <button class="dashboard-card" onclick="switchSettingsTab('mcp')">
-                        <span class="material-icons-round dash-icon">hub</span>
+                    <button class="dashboard-card" onclick="switchSettingsTab('extensions')">
+                        <span class="material-icons-round dash-icon">extension</span>
                         <div class="dash-content">
-                            <div class="dash-title">MCP</div>
-                            <div class="dash-desc">Model Context Protocol servers</div>
+                            <div class="dash-title">Extensions</div>
+                            <div class="dash-desc">Skills, Plugins, and MCP Servers</div>
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
+
+                    <div class="dashboard-section-label">Connectivity &amp; Channels</div>
                     <button class="dashboard-card" onclick="switchSettingsTab('gateway')">
                         <span class="material-icons-round dash-icon">dns</span>
                         <div class="dash-content">
                             <div class="dash-title">Gateway</div>
-                            <div class="dash-desc">Server port, host & connection settings</div>
+                            <div class="dash-desc">Server port, host &amp; connection settings</div>
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
@@ -480,31 +496,7 @@
                         <span class="material-icons-round dash-icon">forum</span>
                         <div class="dash-content">
                             <div class="dash-title">Channels</div>
-                            <div class="dash-desc">Progress reporting & notifications</div>
-                        </div>
-                        <span class="material-icons-round dash-arrow">chevron_right</span>
-                    </button>
-                    <button class="dashboard-card" onclick="switchSettingsTab('skills')">
-                        <span class="material-icons-round dash-icon">menu_book</span>
-                        <div class="dash-content">
-                            <div class="dash-title">Skills</div>
-                            <div class="dash-desc">Browse, pin & import workspace skills</div>
-                        </div>
-                        <span class="material-icons-round dash-arrow">chevron_right</span>
-                    </button>
-                    <button class="dashboard-card" onclick="switchSettingsTab('plugins')">
-                        <span class="material-icons-round dash-icon">extension</span>
-                        <div class="dash-content">
-                            <div class="dash-title">Plugins</div>
-                            <div class="dash-desc">Manage custom extensions and TTS voice engines</div>
-                        </div>
-                        <span class="material-icons-round dash-arrow">chevron_right</span>
-                    </button>
-                    <button class="dashboard-card" onclick="switchSettingsTab('update')">
-                        <span class="material-icons-round dash-icon">system_update</span>
-                        <div class="dash-content">
-                            <div class="dash-title">Update</div>
-                            <div class="dash-desc">Check for updates & onboard wizard</div>
+                            <div class="dash-desc">Progress reporting &amp; notifications</div>
                         </div>
                         <span class="material-icons-round dash-arrow">chevron_right</span>
                     </button>
@@ -722,9 +714,130 @@
                     </div>
                 </div>
 
-                <!-- Tab: MCP Servers -->
-                <div class="settings-panel" id="panel-mcp" style="display:none">
-                    <div id="mcp-manager-container"></div>
+                <!-- Tab: Extensions (Skills, Plugins, MCP) -->
+                <div class="settings-panel" id="panel-extensions" style="display:none">
+                    <div class="extensions-inner-tabs">
+                        <button class="extensions-inner-tab active" data-subtab="skills" onclick="switchExtensionsSubTab('skills')">
+                            <span class="material-icons-round">menu_book</span> Skills
+                        </button>
+                        <button class="extensions-inner-tab" data-subtab="plugins" onclick="switchExtensionsSubTab('plugins')">
+                            <span class="material-icons-round">extension</span> Plugins
+                        </button>
+                        <button class="extensions-inner-tab" data-subtab="mcp" onclick="switchExtensionsSubTab('mcp')">
+                            <span class="material-icons-round">hub</span> MCP Servers
+                        </button>
+                    </div>
+
+                    <!-- Subpanel: Skills -->
+                    <div class="extensions-subpanel active" id="subpanel-skills">
+                        <!-- Skills toolbar -->
+                        <div class="skills-toolbar">
+                            <input type="text" id="skills-search" class="form-input"
+                                placeholder="Filter skills by name or description..."
+                                aria-label="Filter skills by name or description...">
+                            <div class="skills-toolbar-actions">
+                                <select id="skills-profile-select" class="form-select"
+                                    style="min-width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); margin-right: 8px;"
+                                    aria-label="Select profile for skills" onchange="loadSkillsPanel()">
+                                    <option value="default">Default Profile</option>
+                                </select>
+                                <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">refresh</span> Refresh
+                                </button>
+                                <button type="button" class="btn-secondary"
+                                    onclick="window.open('https://clawhub.ai/','_blank')">
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">store</span> ClawHub
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Always Active pinning section -->
+                        <div class="skills-pinned-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">push_pin</span>
+                                <span>Always Active</span>
+                                <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
+                            </div>
+                            <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills.
+                                Injected every turn.</p>
+                            <div id="skills-pinned-list" class="skills-pinned-list"></div>
+                        </div>
+
+                        <!-- All skills browse -->
+                        <div class="skills-browse-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">menu_book</span>
+                                <span>Installed Skills</span>
+                            </div>
+                            <div id="skills-list" class="skills-list">
+                                <div class="settings-loader"><span
+                                        class="material-icons-round spin">progress_activity</span> Loading skills...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Import section -->
+                        <div class="skills-import-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">upload_file</span>
+                                <span>Import Skills (.zip)</span>
+                            </div>
+                            <div class="skills-import-form">
+                                <input type="file" id="skills-import-file" accept=".zip" style="display:none"
+                                    onchange="handleSkillsFileSelect(event)">
+                                <button type="button" class="btn-secondary"
+                                    onclick="document.getElementById('skills-import-file').click()">
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
+                                </button>
+                                <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
+                                <button type="button" class="btn-primary" id="skills-import-btn" onclick="importSkills()"
+                                    disabled>
+                                    Import
+                                </button>
+                            </div>
+                            <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
+                        </div>
+                    </div>
+
+                    <!-- Subpanel: Plugins -->
+                    <div class="extensions-subpanel" id="subpanel-plugins">
+                        <div class="skills-toolbar">
+                            <input type="text" id="plugin-install-name" class="form-input"
+                                placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL..."
+                                aria-label="Plugin package name or Git URL">
+                            <div class="skills-toolbar-actions">
+                                <button type="button" class="btn-primary" onclick="installPlugin()">
+                                    <span class="material-icons-round"
+                                        style="font-size:16px;vertical-align:middle">download</span> Install
+                                </button>
+                            </div>
+                        </div>
+                        <div id="plugin-action-log" class="console-box"
+                            style="display:none; font-family:var(--font-mono); font-size:0.75rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:16px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--text-secondary)">
+                        </div>
+                        <div class="skills-browse-section">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">extension</span>
+                                <span>Installed Plugins</span>
+                            </div>
+                            <div id="installed-plugins-list" class="skills-list"></div>
+                        </div>
+                        <div class="skills-browse-section" style="margin-top: 1.5rem;">
+                            <div class="skills-section-header">
+                                <span class="material-icons-round">cloud_download</span>
+                                <span>Available Plugins</span>
+                            </div>
+                            <div id="available-plugins-list" class="skills-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Subpanel: MCP -->
+                    <div class="extensions-subpanel" id="subpanel-mcp">
+                        <div id="mcp-manager-container"></div>
+                    </div>
                 </div>
 
                 <!-- Tab: Gateway -->
@@ -783,111 +896,6 @@
                         </div>
                     </div>
                     <div id="channels-detail" style="display:none"></div>
-                </div>
-
-                <!-- Tab: Skills -->
-                <div class="settings-panel" id="panel-skills" style="display:none">
-                    <!-- Skills toolbar -->
-                    <div class="skills-toolbar">
-                        <input type="text" id="skills-search" class="form-input"
-                            placeholder="Filter skills by name or description..."
-                            aria-label="Filter skills by name or description...">
-                        <div class="skills-toolbar-actions">
-                            <select id="skills-profile-select" class="form-select"
-                                style="min-width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); margin-right: 8px;"
-                                aria-label="Select profile for skills" onchange="loadSkillsPanel()">
-                                <option value="default">Default Profile</option>
-                            </select>
-                            <button type="button" class="btn-secondary" onclick="loadSkillsPanel()">
-                                <span class="material-icons-round"
-                                    style="font-size:16px;vertical-align:middle">refresh</span> Refresh
-                            </button>
-                            <button type="button" class="btn-secondary"
-                                onclick="window.open('https://clawhub.ai/','_blank')">
-                                <span class="material-icons-round"
-                                    style="font-size:16px;vertical-align:middle">store</span> ClawHub
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Always Active pinning section -->
-                    <div class="skills-pinned-section">
-                        <div class="skills-section-header">
-                            <span class="material-icons-round">push_pin</span>
-                            <span>Always Active</span>
-                            <span class="skills-pin-counter" id="skills-pin-counter">0 / 5</span>
-                        </div>
-                        <p class="settings-note">Skills marked always: true in SKILL.md and manually pinned skills.
-                            Injected every turn.</p>
-                        <div id="skills-pinned-list" class="skills-pinned-list"></div>
-                    </div>
-
-                    <!-- All skills browse -->
-                    <div class="skills-browse-section">
-                        <div class="skills-section-header">
-                            <span class="material-icons-round">menu_book</span>
-                            <span>Installed Skills</span>
-                        </div>
-                        <div id="skills-list" class="skills-list">
-                            <div class="settings-loader"><span
-                                    class="material-icons-round spin">progress_activity</span> Loading skills...
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Import section -->
-                    <div class="skills-import-section">
-                        <div class="skills-section-header">
-                            <span class="material-icons-round">upload_file</span>
-                            <span>Import Skills (.zip)</span>
-                        </div>
-                        <div class="skills-import-form">
-                            <input type="file" id="skills-import-file" accept=".zip" style="display:none"
-                                onchange="handleSkillsFileSelect(event)">
-                            <button type="button" class="btn-secondary"
-                                onclick="document.getElementById('skills-import-file').click()">
-                                <span class="material-icons-round"
-                                    style="font-size:16px;vertical-align:middle">folder_zip</span> Select .zip
-                            </button>
-                            <span id="skills-import-filename" class="skills-import-filename">No file selected</span>
-                            <button type="button" class="btn-primary" id="skills-import-btn" onclick="importSkills()"
-                                disabled>
-                                Import
-                            </button>
-                        </div>
-                        <div id="skills-import-result" class="skills-import-result" style="display:none"></div>
-                    </div>
-                </div>
-
-                <div class="settings-panel" id="panel-plugins" style="display:none">
-                    <div class="skills-toolbar">
-                        <input type="text" id="plugin-install-name" class="form-input"
-                            placeholder="Plugin package name (e.g. shibaclaw-tts-supertonic) or Git URL..."
-                            aria-label="Plugin package name or Git URL">
-                        <div class="skills-toolbar-actions">
-                            <button type="button" class="btn-primary" onclick="installPlugin()">
-                                <span class="material-icons-round"
-                                    style="font-size:16px;vertical-align:middle">download</span> Install
-                            </button>
-                        </div>
-                    </div>
-                    <div id="plugin-action-log" class="console-box"
-                        style="display:none; font-family:var(--font-mono); font-size:0.75rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:16px; max-height:200px; overflow-y:auto; white-space:pre-wrap; color:var(--text-secondary)">
-                    </div>
-                    <div class="skills-browse-section">
-                        <div class="skills-section-header">
-                            <span class="material-icons-round">extension</span>
-                            <span>Installed Plugins</span>
-                        </div>
-                        <div id="installed-plugins-list" class="skills-list"></div>
-                    </div>
-                    <div class="skills-browse-section" style="margin-top: 1.5rem;">
-                        <div class="skills-section-header">
-                            <span class="material-icons-round">cloud_download</span>
-                            <span>Available Plugins</span>
-                        </div>
-                        <div id="available-plugins-list" class="skills-list"></div>
-                    </div>
                 </div>
 
                 <!-- Tab: Update -->
