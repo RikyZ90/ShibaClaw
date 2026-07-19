@@ -38,7 +38,7 @@ def _is_oauth_authenticated(spec) -> bool:
             return True
         return any(os.path.exists(tp) for tp in token_paths)
 
-    if spec.name in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
+    if spec.name == "xai":
         from shibaclaw.security.oauth_store import OAuthTokenStore
         store = OAuthTokenStore()
         token = store.load_token(spec.name)
@@ -67,7 +67,7 @@ def _oauth_provider_status(spec) -> str:
             return "[green]✓ (OAuth authenticated)[/green]"
         return "[dim]not authenticated[/dim]"
 
-    if spec.name in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
+    if spec.name == "xai":
         if _is_oauth_authenticated(spec):
             return "[green]✓ (OAuth authenticated)[/green]"
         return "[dim]not authenticated[/dim]"
@@ -274,21 +274,6 @@ def _prompt_token_login(provider_name: str, display_name: str, instruction: str)
     store.save_token(provider_name, {"access_token": token.strip()})
     get_console().print(f"[green]✓ Successfully authenticated with {display_name}[/green]")
 
-@register_login("anthropic")
-def _login_anthropic() -> None:
-    _prompt_token_login(
-        "anthropic", 
-        "Anthropic / Claude", 
-        "Please get an API Key from the Anthropic Console: https://console.anthropic.com/settings/keys"
-    )
-
-@register_login("google_gemini_cli")
-def _login_google_gemini_cli() -> None:
-    get_console().print("[cyan]Starting authentication for Google Gemini CLI...[/cyan]\n")
-    get_console().print("[dim]Google Gemini CLI uses an OAuth redirect flow.[/dim]")
-    get_console().print("[dim]Please use the WebUI (Settings -> OAuth) to securely authenticate with your Google account.[/dim]\n")
-    get_console().print("Run: [bold]shibaclaw web[/bold]")
-
 @register_login("xai")
 def _login_xai() -> None:
     get_console().print("[cyan]Starting xAI Grok device flow...[/cyan]\n")
@@ -395,27 +380,3 @@ def _login_xai() -> None:
     except Exception as e:
         get_console().print(f"[red]Authentication error: {e}[/red]")
         raise typer.Exit(1)
-
-@register_login("qwen_oauth")
-def _login_qwen_oauth() -> None:
-    _prompt_token_login(
-        "qwen_oauth", 
-        "Qwen / Alibaba", 
-        "Please copy your portal token from the Alibaba Cloud Qwen Portal: https://portal.qwen.ai/"
-    )
-
-@register_login("minimax_portal")
-def _login_minimax_portal() -> None:
-    _prompt_token_login(
-        "minimax_portal", 
-        "MiniMax", 
-        "Please get your portal token from the MiniMax Developer Platform: https://platform.minimaxi.com/"
-    )
-
-@register_login("z_ai")
-def _login_z_ai() -> None:
-    _prompt_token_login(
-        "z_ai", 
-        "Z.AI / GLM", 
-        "Please get your API Key from the Zhipu BigModel Platform: https://open.bigmodel.cn/"
-    )

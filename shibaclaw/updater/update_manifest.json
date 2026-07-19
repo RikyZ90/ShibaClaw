@@ -1,26 +1,36 @@
 {
-"version": "0.9.8",
-    "release_notes": "Channel Config Dropdowns — Changed group_policy fields in channel configuration to use dropdown selectors in the WebUI for better UX. Fixed External Package Installation on Modern Linux (PEP 668) — Auto-injects --break-system-packages on externally-managed-environment errors during pip operations. Fixed Sub-agent Session Key Propagation — Added session_key to sub-agent metadata for proper context during parallel execution. Fixed RAG Soft Restart Import Error — Fixed NameError for dynamic RAG imports during soft restarts when Local RAG plugin is installed. Fixed Transient LLM Error Handling — Added 'empty choices' to transient error markers for automatic retry on empty API responses. Fixed Channel Hot-Reload on Secret Updates — Fixed channel hot-reload not triggering when secrets are updated. Fixed Proactive Learning Tool Choice — Gracefully handles unsupported tool_choice parameter in proactive learning. Removed Base64 Tool Output Encoding — Eliminated Base64 encoding logic for tool outputs to simplify the pipeline. Refined Terminal Skeleton UI — Refined terminal-style skeleton loader to be seamless and minimal. Improved Persian README localization and feature documentation. Fixed RTL issues in contribution guide and bullet points.",
+    "version": "0.9.8",
+    "release_notes": "Complete Visual Restyling & Brand Refresh — Comprehensive redesign of all logos and visual identity across the application. Updated all logo assets (16px through 256px, ICO, WebP variants) with a modernized ShibaClaw brand mark. Refreshed WebUI welcome screen, settings panels, chat interface, and profile selectors with cohesive visual language. Hacker Mode Visual Identity — New dedicated 'Hacker' profile avatar (ShibHacker.png) with cyber-shiba aesthetic for the security-focused persona. Fixed Local RAG Windows EXE Bundling, Real-time Hot-Reload for Local RAG Install & Uninstall, Clean RAG Dependency Uninstallation, Memory Leaks, Concurrency Locks, MCP Deadlocks, Timeout Clamping, Session Saves, Initialization Safety, Automation Session Duplication, Sub-agent Context Exhaustion. CI Pipeline & Build Environment Hardening. Core Loop Processing, FAISS Vectorstore Caching & Locks, O(1) History Append optimizations.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.8."
+            "note": "Bumped version to 0.9.6."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.8 release notes."
+            "note": "Added v0.9.6 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation version to 0.9.8."
+            "note": "Updated documentation version to 0.9.6."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.8."
+            "note": "Bumped packaged update manifest to v0.9.6."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/index.html",
+            "overwrite": true,
+            "note": "Added WebUI login troubleshooting notice."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/update_panel.js",
+            "overwrite": true,
+            "note": "Added WebUI login troubleshooting notice to update settings."
         }
     ]
 }

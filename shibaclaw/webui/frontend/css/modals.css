@@ -855,6 +855,12 @@ input[type="number"].form-input {
     background: var(--shiba-gold);
 }
 
+.toggle.toggle-danger input:checked + .toggle-slider {
+    background-color: var(--accent-red, #ef4444);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    border-color: var(--accent-red, #ef4444);
+}
+
 /* ── Accordion (collapsible providers & channels) ──────────── */
 .accordion {
     border: 1px solid var(--border-color);
@@ -1962,7 +1968,7 @@ input[type="number"].form-input {
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--transition-fast), transform var(--transition-fast);
-    z-index: var(--z-tooltip);
+    z-index: 9999;
     white-space: normal;
     text-align: left;
     text-transform: none;

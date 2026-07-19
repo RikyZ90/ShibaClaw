@@ -72,6 +72,15 @@
         flex-direction: column;
         align-items: stretch;
     }
+
+    .extensions-inner-tabs {
+        flex-wrap: wrap;
+    }
+
+    .extensions-inner-tab {
+        flex: 1 1 calc(33.333% - 8px);
+        min-width: 100px;
+    }
 }
 
 @media (max-width: 480px) {

@@ -73,10 +73,11 @@ window.switchSettingsTab = function (tab, options = {}) {
     if (panel) panel.style.display = "block";
     if (tab === "oauth") loadOAuthPanel();
     if (tab === "update") loadUpdatePanel();
-    if (tab === "skills") loadSkillsPanel();
-    if (tab === "plugins") loadPluginsPanel();
+    if (tab === "extensions") {
+        const storedSubtab = localStorage.getItem("shibaclaw_extensions_subtab") || "skills";
+        switchExtensionsSubTab(storedSubtab);
+    }
     if (tab === "heartbeat") loadHeartbeatSettingsPanel();
-    if (tab === "mcp") { if (typeof loadMcpManagerPanel === "function") loadMcpManagerPanel(); }
     try { localStorage.setItem("shibaclaw_settings_tab", tab); } catch (e) { }
 
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
@@ -99,6 +100,23 @@ window.switchSettingsTab = function (tab, options = {}) {
         document.getElementById("settings-mobile-dashboard").style.display = "none";
         document.getElementById("settings-body").style.display = "block";
     }
+};
+
+/* ── Extensions Subtabs ── */
+window.switchExtensionsSubTab = function(subtab) {
+    document.querySelectorAll(".extensions-inner-tab").forEach(t => t.classList.remove("active"));
+    const tabEl = document.querySelector(`.extensions-inner-tab[data-subtab="${subtab}"]`);
+    if (tabEl) tabEl.classList.add("active");
+
+    document.querySelectorAll(".extensions-subpanel").forEach(p => p.classList.remove("active"));
+    const panel = document.getElementById("subpanel-" + subtab);
+    if (panel) panel.classList.add("active");
+
+    try { localStorage.setItem("shibaclaw_extensions_subtab", subtab); } catch (e) { }
+
+    if (subtab === "skills") loadSkillsPanel();
+    if (subtab === "plugins") loadPluginsPanel();
+    if (subtab === "mcp" && typeof loadMcpManagerPanel === "function") loadMcpManagerPanel();
 };
 
 /* ── Skills panel ── */
@@ -298,12 +316,7 @@ async function loadOAuthPanel() {
         { name: "openrouter", label: "OpenRouter", icon: "route", desc: "Authenticate in the browser and store the returned OpenRouter API key directly in provider settings.", mode: "browser_redirect", cta: "Open OpenRouter" },
         { name: "github_copilot", label: "GitHub Copilot", icon: "code", desc: "Authenticate via GitHub device flow. Uses native OAuth orchestration." },
         { name: "openai_codex", label: "OpenAI Codex", icon: "psychology", desc: "Authenticate via OAuth CLI kit. Requires oauth-cli-kit package." },
-        { name: "anthropic", label: "Anthropic / Claude", icon: "psychology", desc: "Authenticate via Anthropic OAuth flow." },
-        { name: "google_gemini_cli", label: "Google Gemini CLI", icon: "api", desc: "Authenticate via Google. <br><span style='color:var(--text-muted);font-size:0.95em'>Gemini CLI OAuth is an unofficial third-party integration. Google may apply account restrictions. Use a separate account if this is a concern.</span>", mode: "browser_redirect", cta: "Connect with Google" },
         { name: "xai", label: "xAI / Grok", icon: "public", desc: "xAI Subscription Sync OAuth flow." },
-        { name: "qwen_oauth", label: "Qwen / Alibaba", icon: "api", desc: "Authenticate via Qwen OAuth flow." },
-        { name: "minimax_portal", label: "MiniMax", icon: "api", desc: "Authenticate via MiniMax OAuth flow." },
-        { name: "z_ai", label: "Z.AI / GLM", icon: "api", desc: "Authenticate via Z.AI OAuth flow." },
     ];
     list.innerHTML = "";
     for (const p of providers) {
@@ -936,87 +949,132 @@ function populateSettings(cfg) {
     let activeCount = 0;
     let selectedChannel = null;
 
+    const CHANNEL_FIELD_REGISTRY = {
+        enabled: { section: "credentials", tooltip: "Activate this channel. The bot will start listening on save." },
+        token: { section: "credentials", tooltip: "Bot token from the platform. Stored encrypted in the credential vault." },
+        bot_token: { section: "credentials", tooltip: "Slack bot token (xoxb-…). Required for sending and receiving messages." },
+        app_token: { section: "credentials", tooltip: "Slack app-level token (xapp-…). Required for Socket Mode connections." },
+        client_id: { section: "credentials", tooltip: "Application client ID from the platform developer console." },
+        client_secret: { section: "credentials", tooltip: "Application secret key. Stored encrypted in the credential vault." },
+        app_id: { section: "credentials", tooltip: "Application ID from the Feishu/Lark developer console." },
+        app_secret: { section: "credentials", tooltip: "Application secret from Feishu. Stored encrypted in the vault." },
+        encrypt_key: { section: "credentials", tooltip: "Event encryption key from Feishu. Used to decrypt incoming webhooks." },
+        verification_token: { section: "credentials", tooltip: "Webhook verification token. Validates that events originate from Feishu." },
+        access_token: { section: "credentials", tooltip: "Matrix access token. Authenticate with your homeserver." },
+        claw_token: { section: "credentials", tooltip: "Mochat authentication token. Stored encrypted in the vault." },
+        allow_from: { section: "credentials", tooltip: "Comma-separated user/group IDs. Adding a group ID allows all its members." },
+        group_allow_from: { section: "credentials", tooltip: "Comma-separated IDs allowed to trigger the bot in group channels." },
+        homeserver: { section: "credentials", tooltip: "Matrix homeserver URL (e.g., https://matrix.org)." },
+        user_id: { section: "credentials", tooltip: "The bot's full Matrix user ID (e.g., @bot:matrix.org)." },
+        device_id: { section: "credentials", tooltip: "Matrix device identifier. Required for E2EE session management." },
+        agent_user_id: { section: "credentials", tooltip: "Mochat user ID that identifies the bot agent in conversations." },
+
+        group_policy: { section: "logic", tooltip: "How the bot responds in groups: on mention, trigger word, or openly." },
+        trigger_words: { section: "logic", tooltip: "Custom words that activate the bot in groups (requires trigger policy)." },
+        reply_to_message: { section: "logic", tooltip: "Quote the original message when the bot sends its reply." },
+        reply_in_thread: { section: "logic", tooltip: "Reply inside the message thread instead of the main channel." },
+        streaming: { section: "logic", tooltip: "Stream the response incrementally instead of sending one final message." },
+        guest_mode: { section: "logic", tooltip: "Allow unauthenticated users to interact (bypasses allow_from check)." },
+        allow_bot_messages: { section: "logic", tooltip: "Process messages from other bots, not just human users." },
+        business_enabled: { section: "logic", tooltip: "Enable Telegram Business API features (requires BotFather toggle)." },
+        managed_bots_enabled: { section: "logic", tooltip: "Allow the bot to be managed by other bots (Bot API 9.3+)." },
+        group_context_buffer_size: { section: "logic", tooltip: "Number of recent group messages kept as context for replies." },
+        intents: { section: "logic", tooltip: "Discord Gateway intent bitmask. Controls which events the bot receives." },
+        mode: { section: "logic", tooltip: "Connection mode: socket for Socket Mode, events for HTTP Events API." },
+        webhook_path: { section: "logic", tooltip: "URL path for Slack Events API webhook endpoint." },
+        react_emoji: { section: "logic", tooltip: "Emoji reaction added when the bot starts processing a message." },
+        done_emoji: { section: "logic", tooltip: "Emoji reaction added when the bot finishes processing a message." },
+        user_token_read_only: { section: "logic", tooltip: "Restrict the user token to read-only operations for safety." },
+        e2ee_enabled: { section: "logic", tooltip: "Enable end-to-end encryption for Matrix messages. Requires libolm." },
+        allow_room_mentions: { section: "logic", tooltip: "Respond to @room mentions in addition to direct bot mentions." },
+        dm: { section: "logic", tooltip: "Direct Message policy sub-config: enabled, policy, and allowlist." },
+        mention: { section: "logic", tooltip: "Mochat mention behavior — require @mention to trigger in groups." },
+        groups: { section: "logic", tooltip: "Per-group override rules for mention requirements and access." },
+        sessions: { section: "logic", tooltip: "Mochat session IDs to monitor for incoming messages." },
+        panels: { section: "logic", tooltip: "Mochat panel IDs to monitor for incoming messages." },
+        reply_delay_mode: { section: "logic", tooltip: "When to apply reply delay: non-mention, always, or never." },
+        reply_delay_ms: { section: "logic", tooltip: "Milliseconds to wait before sending a reply (human-like pacing)." },
+
+        proxy: { section: "network", tooltip: "HTTP/SOCKS5 proxy URL for outbound connections from this channel." },
+        proxy_username: { section: "network", tooltip: "Username for proxy authentication (if required)." },
+        proxy_password: { section: "network", tooltip: "Password for proxy authentication. Stored encrypted in the vault." },
+        gateway_url: { section: "network", tooltip: "Discord WebSocket gateway URL. Override only for custom deployments." },
+        base_url: { section: "network", tooltip: "Mochat server base URL. The API root for all HTTP requests." },
+        socket_url: { section: "network", tooltip: "Mochat WebSocket URL. Leave empty to auto-derive from base URL." },
+        socket_path: { section: "network", tooltip: "Socket.IO path prefix. Default: /socket.io." },
+        socket_disable_msgpack: { section: "network", tooltip: "Disable msgpack encoding. Use JSON transport instead (slower)." },
+        socket_reconnect_delay_ms: { section: "network", tooltip: "Initial delay before reconnecting after a WebSocket disconnect." },
+        socket_max_reconnect_delay_ms: { section: "network", tooltip: "Maximum backoff delay between reconnection attempts." },
+        socket_connect_timeout_ms: { section: "network", tooltip: "Maximum time to wait for a WebSocket connection to establish." },
+        connection_pool_size: { section: "network", tooltip: "Max concurrent HTTP connections to the Telegram Bot API." },
+        pool_timeout: { section: "network", tooltip: "Seconds to wait for a free connection from the pool." },
+        refresh_interval_ms: { section: "network", tooltip: "How often to refresh session/channel data from the server (ms)." },
+        watch_timeout_ms: { section: "network", tooltip: "Server-side watch timeout for long-polling events (ms)." },
+        watch_limit: { section: "network", tooltip: "Maximum number of events returned per watch/poll cycle." },
+        retry_delay_ms: { section: "network", tooltip: "Base delay between retry attempts on transient failures (ms)." },
+        max_retry_attempts: { section: "network", tooltip: "Maximum retries on failure. 0 = unlimited retries." },
+        max_media_bytes: { section: "network", tooltip: "Maximum file attachment size in bytes (default: 20 MB)." },
+        sync_stop_grace_seconds: { section: "network", tooltip: "Seconds to wait for Matrix sync to stop cleanly on shutdown." }
+    };
+
+    function getRegistryEntry(keyPath) {
+        // Fallback matching: try full key, then last part of key, then lowercase, then snake_case
+        const key = keyPath.split('.').pop();
+        const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        return CHANNEL_FIELD_REGISTRY[key] || CHANNEL_FIELD_REGISTRY[snakeKey] || CHANNEL_FIELD_REGISTRY[key.toLowerCase()] || { section: "logic", tooltip: "" };
+    }
+
     function buildChannelFields(name, cc) {
         const enabled = cc.enabled === true;
-        let fieldsHtml = `
+        let fieldsHtml = "";
+
+        if (name === "email") {
+            fieldsHtml += `
             <div class="field-row">
                 <label>Enabled</label>
                 <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
             </div>
-        `;
-
-        if (name === "email") {
-            fieldsHtml += `
             <div class="field-row">
                 <label>Authorize IMAP/SMTP access</label>
                 <label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="consentGranted" data-type="boolean" ${(cc.consentGranted || cc.consent_granted) ? "checked" : ""}><span class="toggle-slider"></span></label>
             </div>
             `;
-        }
+            if (EMAIL_FIELD_CONFIG) {
+                const sections = { inbound: [], outbound: [], general: [] };
+                for (const [key, val] of Object.entries(cc)) {
+                    if (key === "enabled" || key === "consentGranted" || key === "consent_granted") continue;
+                    const fieldConfig = EMAIL_FIELD_CONFIG[key] || null;
+                    const section = fieldConfig?.section || "general";
+                    const label = fieldConfig?.label || key;
+                    const placeholder = fieldConfig?.placeholder || "";
 
-        if (name === "email" && EMAIL_FIELD_CONFIG) {
-            const sections = { inbound: [], outbound: [], general: [] };
-            for (const [key, val] of Object.entries(cc)) {
-                if (key === "enabled" || key === "consentGranted" || key === "consent_granted") continue;
-                const fieldConfig = EMAIL_FIELD_CONFIG[key] || null;
-                const section = fieldConfig?.section || "general";
-                const label = fieldConfig?.label || key;
-                const placeholder = fieldConfig?.placeholder || "";
+                    let valStr = "";
+                    let originalType = typeof val;
+                    if (Array.isArray(val)) { originalType = "array"; valStr = val.join(", "); }
+                    else if (val !== null && originalType === "object") { originalType = "object"; valStr = JSON.stringify(val); }
+                    else { if (val === null) originalType = "string"; valStr = val === null ? "" : String(val); }
 
-                let valStr = "";
-                let originalType = typeof val;
-                if (Array.isArray(val)) { originalType = "array"; valStr = val.join(", "); }
-                else if (val !== null && originalType === "object") { originalType = "object"; valStr = JSON.stringify(val); }
-                else { if (val === null) originalType = "string"; valStr = val === null ? "" : String(val); }
-
-                let inputHtml = "";
-                if (originalType === "boolean" || fieldConfig?.type === "boolean") {
-                    inputHtml = `<div class="field-row"><label>${label}</label><label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${valStr === "true" || val === true ? "checked" : ""}><span class="toggle-slider"></span></label></div>`;
-                } else {
-                    const isPassword = fieldConfig?.type === "password" || key.toLowerCase().includes("password") || key.toLowerCase().includes("secret");
-                    const safeVal = String(valStr).replace(/"/g, '&quot;');
-                    inputHtml = `<div class="field-row"><label>${label}</label><input type="${isPassword ? "password" : (fieldConfig?.type || "text")}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}" placeholder="${placeholder}"></div>`;
+                    let inputHtml = "";
+                    if (originalType === "boolean" || fieldConfig?.type === "boolean") {
+                        inputHtml = `<div class="field-row"><label>${label}</label><label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${key}" data-type="boolean" ${valStr === "true" || val === true ? "checked" : ""}><span class="toggle-slider"></span></label></div>`;
+                    } else {
+                        const isPassword = fieldConfig?.type === "password" || key.toLowerCase().includes("password") || key.toLowerCase().includes("secret");
+                        const safeVal = String(valStr).replace(/"/g, '&quot;');
+                        inputHtml = `<div class="field-row"><label>${label}</label><input type="${isPassword ? "password" : (fieldConfig?.type || "text")}" class="form-input ch-field" data-ch="${name}" data-key="${key}" data-type="${originalType}" value="${safeVal}" placeholder="${placeholder}"></div>`;
+                    }
+                    if (!sections[section]) sections[section] = [];
+                    sections[section].push(inputHtml);
                 }
-                if (!sections[section]) sections[section] = [];
-                sections[section].push(inputHtml);
-            }
 
-            const sectionLabels = { inbound: '📥 Email IN (IMAP)', outbound: '📤 Email OUT (SMTP)', general: '⚙️ General' };
-            for (const [sectionKey, sectionFields] of Object.entries(sections)) {
-                if (sectionFields.length > 0) {
-                    fieldsHtml += `<div class="channel-detail-section-label">${sectionLabels[sectionKey] || sectionKey}</div>`;
-                    fieldsHtml += sectionFields.join("");
+                const sectionLabels = { inbound: '📥 Email IN (IMAP)', outbound: '📤 Email OUT (SMTP)', general: '⚙️ General' };
+                for (const [sectionKey, sectionFields] of Object.entries(sections)) {
+                    if (sectionFields.length > 0) {
+                        fieldsHtml += `<div class="channel-detail-section-label">${sectionLabels[sectionKey] || sectionKey}</div>`;
+                        fieldsHtml += sectionFields.join("");
+                    }
                 }
             }
         } else {
-            const compareConfigKeys = (a, b) => {
-                const getWeight = (key) => {
-                    const lower = key.toLowerCase();
-                    if (lower.includes("token") || lower.includes("secret") || lower.includes("password") || lower.includes("key")) {
-                        if (lower.includes("proxy")) return 90;
-                        return 10;
-                    }
-                    if (["mode", "webhookpath", "replyinthread", "replytomessage", "grouppolicy"].includes(lower)) {
-                        return 20;
-                    }
-                    if (lower.includes("allow")) {
-                        return 30;
-                    }
-                    if (lower === "dm" || lower === "mention") {
-                        return 40;
-                    }
-                    if (lower.includes("proxy")) {
-                        return 90;
-                    }
-                    return 50;
-                };
-
-                const wA = getWeight(a);
-                const wB = getWeight(b);
-                if (wA !== wB) return wA - wB;
-                return a.localeCompare(b);
-            };
-
             const formatLabel = (keyPath) => {
                 const ABBR_MAP = {
                     dm: "DM", imap: "IMAP", smtp: "SMTP", url: "URL", ip: "IP", api: "API", ssl: "SSL", tls: "TLS", id: "ID", tts: "TTS", stt: "STT"
@@ -1048,7 +1106,7 @@ function populateSettings(cfg) {
                         valStr = JSON.stringify(val);
                     } else {
                         let html = "";
-                        const subEntries = Object.entries(val).sort((a, b) => compareConfigKeys(a[0], b[0]));
+                        const subEntries = Object.entries(val);
                         for (const [childKey, childVal] of subEntries) {
                             html += buildFieldHtml(keyPath ? `${keyPath}.${childKey}` : childKey, childVal);
                         }
@@ -1058,36 +1116,71 @@ function populateSettings(cfg) {
                     valStr = String(val);
                 }
 
+                const reg = getRegistryEntry(keyPath);
+                let label = formatLabel(keyPath);
+                
+                let tooltipHtml = "";
+                if (reg.tooltip) {
+                    tooltipHtml = `<span class="field-info-trigger"><span class="material-icons-round">info_outline</span><span class="field-info-bubble">${escHtml(reg.tooltip)}</span></span>`;
+                }
+
                 if (originalType === "boolean") {
-                    const label = formatLabel(keyPath);
-                    return `<div class="field-row"><label>${label}</label><label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${keyPath}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label></div>`;
+                    return `<div class="field-row" data-section="${reg.section}"><label>${label}${tooltipHtml}</label><label class="toggle"><input type="checkbox" class="ch-field" data-ch="${name}" data-key="${keyPath}" data-type="boolean" ${val ? "checked" : ""}><span class="toggle-slider"></span></label></div>`;
                 }
 
                 const lowerKey = keyPath.toLowerCase();
-                if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password")) {
+                if (lowerKey.includes("token") || lowerKey.includes("secret") || lowerKey.includes("password") || lowerKey.includes("key")) {
                     inputType = "password";
                 }
 
                 const safeVal = String(valStr).replace(/"/g, '&quot;');
-                let label = formatLabel(keyPath);
-                if (keyPath === "allow_from" || keyPath === "allowFrom") {
-                    label += ` <span class="material-icons" style="font-size:14px;cursor:help;vertical-align:middle;color:#8A2BE2" title="You can enter usernames, or IDs. Adding a Group/Channel ID here allows all users inside it to interact with the bot.">&#9432;</span>`;
-                }
 
                 if (keyPath === "group_policy" || keyPath === "groupPolicy") {
                     const options = ["open", "mention", "trigger", "mention_or_trigger", "allowlist"]
                         .map(opt => `<option value="${opt}" ${valStr === opt ? "selected" : ""}>${opt}</option>`)
                         .join("");
-                    return `<div class="field-row"><label>${label}</label><select class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="string">${options}</select></div>`;
+                    return `<div class="field-row" data-section="${reg.section}"><label>${label}${tooltipHtml}</label><select class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="string">${options}</select></div>`;
                 }
 
-                return `<div class="field-row"><label>${label}</label><input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="${originalType}" value="${safeVal}"></div>`;
+                return `<div class="field-row" data-section="${reg.section}"><label>${label}${tooltipHtml}</label><input type="${inputType}" class="form-input ch-field" data-ch="${name}" data-key="${keyPath}" data-type="${originalType}" value="${safeVal}"></div>`;
             };
 
+            const sections = { credentials: [], logic: [], network: [] };
+            
+            // Enabled is always first in credentials
+            const enabledReg = getRegistryEntry("enabled");
+            const enabledTooltipHtml = `<span class="field-info-trigger"><span class="material-icons-round">info_outline</span><span class="field-info-bubble">${escHtml(enabledReg.tooltip)}</span></span>`;
+            sections.credentials.push(`
+                <div class="field-row">
+                    <label>Enabled${enabledTooltipHtml}</label>
+                    <label class="toggle"><input type="checkbox" class="ch-enabled" data-ch="${name}" ${enabled ? "checked" : ""}><span class="toggle-slider"></span></label>
+                </div>
+            `);
+
             const entries = Object.entries(cc).filter(([key]) => key !== "enabled" && key !== "consentGranted" && key !== "consent_granted");
-            entries.sort((a, b) => compareConfigKeys(a[0], b[0]));
+            
+            // Build raw HTML for each field and sort them into sections
             for (const [key, val] of entries) {
-                fieldsHtml += buildFieldHtml(key, val);
+                const fieldHtmlList = buildFieldHtml(key, val);
+                // buildFieldHtml can return multiple rows if it expands an object. Let's parse them and assign them correctly.
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = fieldHtmlList;
+                Array.from(tempDiv.children).forEach(row => {
+                    const sec = row.dataset.section || "logic";
+                    if (sections[sec]) {
+                        sections[sec].push(row.outerHTML);
+                    } else {
+                        sections.logic.push(row.outerHTML);
+                    }
+                });
+            }
+
+            const sectionLabels = { credentials: '🔐 Credentials & Status', logic: '⚡ Channel Logic & Security', network: '🌐 Network & Performance' };
+            for (const [sectionKey, sectionFields] of Object.entries(sections)) {
+                if (sectionFields.length > 0) {
+                    fieldsHtml += `<div class="channel-detail-section-label">${sectionLabels[sectionKey]}</div>`;
+                    fieldsHtml += sectionFields.join("");
+                }
             }
         }
         return fieldsHtml;

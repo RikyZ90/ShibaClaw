@@ -18,12 +18,7 @@ def get_oauth_providers_status() -> list[dict]:
         {"name": "openrouter", "label": "OpenRouter"},
         {"name": "github_copilot", "label": "GitHub Copilot"},
         {"name": "openai_codex", "label": "OpenAI Codex"},
-        {"name": "anthropic", "label": "Anthropic / Claude"},
-        {"name": "google_gemini_cli", "label": "Google Gemini CLI"},
         {"name": "xai", "label": "xAI / Grok"},
-        {"name": "qwen_oauth", "label": "Qwen / Alibaba"},
-        {"name": "minimax_portal", "label": "MiniMax"},
-        {"name": "z_ai", "label": "Z.AI / GLM"},
     ]
     result = []
     for p in providers:
@@ -69,7 +64,7 @@ def get_oauth_providers_status() -> list[dict]:
                     if status == "configured"
                     else "No credentials found"
                 )
-            elif p["name"] in ("anthropic", "google_gemini_cli", "xai", "qwen_oauth", "minimax_portal", "z_ai"):
+            elif p["name"] == "xai":
                 from shibaclaw.security.oauth_store import OAuthTokenStore
                 
                 store = OAuthTokenStore()
@@ -93,12 +88,7 @@ async def api_oauth_login(request: Request):
     data = await request.json()
     provider = data.get("provider", "").replace("-", "_")
     generic_providers = {
-        "anthropic": "Anthropic / Claude",
-        "google_gemini_cli": "Google Gemini CLI",
         "xai": "xAI / Grok",
-        "qwen_oauth": "Qwen / Alibaba",
-        "minimax_portal": "MiniMax",
-        "z_ai": "Z.AI / GLM",
     }
     if provider not in ("openrouter", "github_copilot", "openai_codex") and provider not in generic_providers:
         return JSONResponse({"error": "Unknown provider"}, status_code=404)
@@ -119,15 +109,6 @@ async def api_oauth_login(request: Request):
         from ..oauth_github import start_codex_oauth
 
         return await start_codex_oauth(job_id, jobs)
-    elif provider == "google_gemini_cli":
-        client_id = os.environ.get("SHIBACLAW_GEMINI_OAUTH_CLIENT_ID", "").strip()
-        client_secret = os.environ.get("SHIBACLAW_GEMINI_OAUTH_CLIENT_SECRET", "").strip()
-        if not client_id:
-            jobs[job_id]["status"] = "error"
-            jobs[job_id]["logs"].append("❌ Not configured by administrator (Missing SHIBACLAW_GEMINI_OAUTH_CLIENT_ID)")
-            return JSONResponse({"error": "Not configured by administrator"}, status_code=400)
-        from ..oauth_generic import start_google_oauth
-        return await start_google_oauth(request, job_id, jobs, client_id, client_secret)
     elif provider in generic_providers:
         from ..oauth_generic import start_generic_oauth
         
