@@ -36,6 +36,34 @@
 
 ---
 
+> [!NOTE]
+> Release notes live in [CHANGELOG.md](./CHANGELOG.md).
+
+<details open>
+<summary>📢 <b>What's new — v0.9.8</b> (click to expand)</summary>
+
+**Latest release (2026-07-15):**
+
+- **Channel Config Dropdowns** — `group_policy` fields in channel configuration now use dropdown selectors in the WebUI for a better UX.
+- **External Package Installation on Modern Linux (PEP 668)** — auto-injects `--break-system-packages` on `externally-managed-environment` errors during pip operations.
+- **Sub-agent Session Key Propagation** — added `session_key` to sub-agent metadata for proper context during parallel execution.
+- **RAG Soft Restart Import Error** — fixed `NameError` for dynamic RAG imports during soft restarts when the Local RAG plugin is installed.
+- **Transient LLM Error Handling** — added `'empty choices'` to transient error markers for automatic retry on empty API responses.
+- **Channel Hot-Reload on Secret Updates** — fixed channel hot-reload not triggering when secrets are updated.
+- **Proactive Learning Tool Choice** — gracefully handles unsupported `tool_choice` parameter in proactive learning.
+- **Removed Base64 Tool Output Encoding** — eliminated Base64 encoding logic for tool outputs to simplify the pipeline.
+
+**Unreleased (in progress):**
+
+- **Telegram AI / agent Bot API features** — Guest Mode (`answerGuestQuery`), private-chat streaming via `sendMessageDraft`, bot-to-bot messages, Business / Chat Automation updates, and Managed Bot update tracking. See `docs/TELEGRAM_AI_FEATURES.md`.
+- **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
+
+See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
+
+</details>
+
+---
+
 ShibaClaw is a self-hosted AI agent you run on your own machine or server: a Python engine with a built-in web UI, native SDK support for 28 model providers, and 11 chat-platform integrations (Discord, Telegram, Slack, WhatsApp, Matrix, and more). It's built around three priorities — simplicity, security, and privacy — with defenses like install-time CVE auditing, prompt-injection wrapping, and SSRF protection shipped in the core engine instead of bolted on as external glue.
 
 <p align="center">
