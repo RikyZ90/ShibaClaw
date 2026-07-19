@@ -111,15 +111,17 @@ class BaseChannel(ABC):
         """
         pass
 
-    def is_allowed(self, sender_id: str) -> bool:
-        """Check if *sender_id* is permitted.  Empty list → deny all; ``"*"`` → allow all."""
+    def is_allowed(self, sender_id: str, *other_ids: str) -> bool:
+        """Check if *sender_id* or any of *other_ids* are permitted. Empty list → deny all; ``"*"`` → allow all."""
         allow_list = getattr(self.config, "allow_from", [])
         if not allow_list:
             logger.warning("{}: allow_from is empty — all access denied", self.name)
             return False
         if "*" in allow_list:
             return True
-        return str(sender_id) in allow_list
+
+        check_ids = [str(sender_id)] + [str(i) for i in other_ids if i]
+        return any(i in allow_list for i in check_ids)
 
     async def _handle_message(
         self,
@@ -143,11 +145,12 @@ class BaseChannel(ABC):
             metadata: Optional channel-specific metadata.
             session_key: Optional session key override (e.g. thread-scoped sessions).
         """
-        if not self.is_allowed(sender_id):
+        if not self.is_allowed(sender_id, chat_id):
             logger.warning(
-                "Access denied for sender {} on channel {}. "
+                "Access denied for sender {} in chat {} on channel {}. "
                 "Add them to allowFrom list in config to grant access.",
                 sender_id,
+                chat_id,
                 self.name,
             )
             return
