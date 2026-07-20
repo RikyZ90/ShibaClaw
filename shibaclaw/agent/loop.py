@@ -961,8 +961,13 @@ class ShibaBrain:
             )
             
         if cmd == "/update":
-            await self.context.send_system_message(
-                msg.channel, msg.chat_id, "Checking for updates...", msg_type="system"
+            await self.bus.publish_outbound(
+                OutboundMessage(
+                    channel=msg.channel,
+                    chat_id=msg.chat_id,
+                    content="Checking for updates...",
+                    metadata={"msg_type": "system"}
+                )
             )
             try:
                 from shibaclaw.updater.checker import check_for_update
@@ -986,11 +991,16 @@ class ShibaBrain:
                         content=f"An update is available ({result.get('latest')}), but it requires manual installation. Please check the WebUI for instructions.",
                     )
                 
-                await self.context.send_system_message(
-                    msg.channel, msg.chat_id, f"Installing update: {result.get('latest')}...\nThis might take a minute.", msg_type="system"
+                await self.bus.publish_outbound(
+                    OutboundMessage(
+                        channel=msg.channel,
+                        chat_id=msg.chat_id,
+                        content=f"Installing update: {result.get('latest')}...\nThis might take a minute.",
+                        metadata={"msg_type": "system"}
+                    )
                 )
                 
-                workspace_root = self.config.workspace_path
+                workspace_root = self.workspace
                 manifest_url = result.get("manifest_url")
                 manifest = None
                 if manifest_url:
