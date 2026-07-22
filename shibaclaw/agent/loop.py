@@ -404,8 +404,8 @@ class ShibaBrain:
         on_progress: Callable[..., Awaitable[None]] | None = None,
         on_response_token: Callable[[str], Awaitable[None]] | None = None,
         *,
-        channel: str | None = None,
-        chat_id: str | None = None,
+        channel: str = "cli",
+        chat_id: str = "direct",
         skill_names: list[str] | None = None,
         profile_id: str | None = None,
         model: str | None = None,
@@ -1225,7 +1225,7 @@ class ShibaBrain:
         session_key: str = "cli:direct",
         channel: str = "cli",
         chat_id: str = "direct",
-        on_progress: Callable[[str], Awaitable[None]] | None = None,
+        on_progress: Callable[[str, bool], Awaitable[None]] | None = None,
         on_response_token: Callable[[str], Awaitable[None]] | None = None,
         on_notify: Callable[..., Awaitable[None]] | None = None,
         media: list[str] | None = None,
@@ -1238,7 +1238,7 @@ class ShibaBrain:
             sender_id="user",
             chat_id=chat_id,
             content=content,
-            media=media,
+            media=media or [],
             metadata=metadata or {},
         )
         return await self._process_message(
