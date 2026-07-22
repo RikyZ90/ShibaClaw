@@ -1,3 +1,14 @@
+## [0.9.11] - 2026-07-22
+
+### Security
+- **Command Injection Vulnerability Fix in ExecTool** — Resolved a critical command injection vulnerability (CWE-78) in shell execution by replacing shell-based execution (`create_subprocess_shell` / PowerShell `-Command`) with safe `shlex` argument parsing and direct process execution (`create_subprocess_exec`).
+- **Dependency Security Vulnerabilities** — Resolved 2 security vulnerabilities in bridge npm dependencies by updating overrides for `protobufjs` (v7.6.5) and `sharp` (v0.35.3).
+
+### Fixed
+- **Agent Loop & Steering Stability** — Resolved crashes in `/update` command caused by missing methods/attributes, fixed session routing and event emission for message steering during active tasks, and resolved typing issues in `loop.py`.
+- **WebUI Token Estimation** — Fixed argument type handling in `estimate_prompt_tokens` API endpoint when passing message lists.
+- **Cloud RAG Dependencies** — Corrected Cloud RAG dependency bounds and default embedding model configuration.
+
 ## [0.9.10] - 2026-07-19
 
 ### Added
