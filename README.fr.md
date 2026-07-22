@@ -86,12 +86,12 @@ Une seule commande télécharge la dernière version, crée les raccourcis et la
 > [!TIP]
 > Apportez votre propre modèle : connectez-vous de façon transparente à des endpoints locaux (Ollama, LM Studio) ou utilisez des niveaux API gratuits via OpenRouter pour discuter à coût zéro.
 
-**Windows (PowerShell) :**
+**🪟 Windows (PowerShell) :**
 ```powershell
 irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
-**Linux / macOS :**
+**🐧 Linux / 🍎 macOS :**
 ```bash
 curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
 ```

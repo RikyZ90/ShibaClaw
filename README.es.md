@@ -86,12 +86,12 @@ Un solo comando descarga la última versión, crea accesos directos e inicia la 
 > [!TIP]
 > Trae tu propio modelo: conéctate a endpoints locales (Ollama, LM Studio) o usa niveles gratuitos de API vía OpenRouter para chatear a costo cero.
 
-**Windows (PowerShell):**
+**🪟 Windows (PowerShell):**
 ```powershell
 irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
-**Linux / macOS:**
+**🐧 Linux / 🍎 macOS:**
 ```bash
 curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
 ```

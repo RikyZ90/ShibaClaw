@@ -86,12 +86,12 @@ Ein Befehl lädt die neueste Version herunter, erstellt Verknüpfungen und start
 > [!TIP]
 > Bring dein eigenes Modell mit: Verbinde dich nahtlos mit lokalen Endpunkten (Ollama, LM Studio) oder nutze kostenlose API-Tiers über OpenRouter, um kostenlos zu chatten.
 
-**Windows (PowerShell):**
+**🪟 Windows (PowerShell):**
 ```powershell
 irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
-**Linux / macOS:**
+**🐧 Linux / 🍎 macOS:**
 ```bash
 curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
 ```

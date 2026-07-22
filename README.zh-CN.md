@@ -86,12 +86,12 @@ ShibaClaw 是一个自托管的 AI 智能体，可在你自己的机器或服务
 > [!TIP]
 > 自带模型：连接本地端点（Ollama、LM Studio）或通过 OpenRouter 使用免费 API 额度，零成本开始聊天。
 
-**Windows（PowerShell）：**
+**🪟 Windows（PowerShell）：**
 ```powershell
 irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
-**Linux / macOS：**
+**🐧 Linux / 🍎 macOS：**
 ```bash
 curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
 ```

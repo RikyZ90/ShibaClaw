@@ -40,13 +40,25 @@ docker run -d --name shibaclaw -p 3000:3000 -v shibaclaw_data:/root/.shibaclaw r
 
 ---
 
-## 🐍 Option 2: Bare Metal (Without Docker)
+## 🐍 Option 2: Linux / macOS / Bare Metal (Without Docker)
 
 Ideal for local development or lightweight environments.
 
+### ⚡ Quick Install (Recommended for Linux / macOS)
+
+Run this command to automatically install ShibaClaw via pip in an isolated environment and create terminal launchers:
+
+```bash
+curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
+```
+
+---
+
+### 📦 Manual / PyPI Installation
+
 1. **Install**: Choose your preferred method:
 
-   **From PyPI (recommended):**
+   **From PyPI:**
    ```bash
    pip install shibaclaw
    ```

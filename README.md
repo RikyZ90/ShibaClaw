@@ -83,12 +83,12 @@ One command downloads the latest release, sets up shortcuts, and launches the UI
 > [!TIP]
 > Bring your own model: connect to local endpoints (Ollama, LM Studio) or use free API tiers via OpenRouter to start chatting at zero cost.
 
-**Windows (PowerShell):**
+**🪟 Windows (PowerShell):**
 ```powershell
 irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
-**Linux / macOS:**
+**🐧 Linux / 🍎 macOS:**
 ```bash
 curl -fsSL https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.sh | bash
 ```
