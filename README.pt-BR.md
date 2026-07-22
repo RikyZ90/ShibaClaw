@@ -40,25 +40,15 @@
 > As notas de versão estão em [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Novidades — v0.9.10</b> (clique para expandir)</summary>
+<summary>📢 <b>Novidades — v0.9.11</b> (clique para expandir)</summary>
 
-**Última versão (2026-07-19):**
+**Última versão (2026-07-22):**
 
-- **RAG Híbrido para dispositivos com pouca RAM** — O RAG e a Base de Conhecimento agora suportam provedores de embeddings em nuvem (Gemini, OpenRouter, OpenAI) com zero uso de RAM local e uma instalação mais leve. Perfeito para Raspberry Pi.
-- **RAG Híbrido para dispositivos com pouca RAM** — O RAG e a Base de Conhecimento agora suportam provedores de embeddings em nuvem (Gemini, OpenRouter, OpenAI) com zero uso de RAM local e uma instalação mais leve. Perfeito para Raspberry Pi.
-- **Caixas de seleção na configuração de canais** —— os campos `group_policy` da configuração de canais agora usam seletores suspensos na WebUI para uma melhor experiência.
-- **Instalação de pacotes externos no Linux moderno (PEP 668)** —— injeta automaticamente `--break-system-packages` em erros `externally-managed-environment` durante operações pip.
-- **Propagação de chave de sessão em sub-agentes** —— adicionado `session_key` aos metadados de sub-agentes para manter o contexto correto durante a execução paralela.
-- **Erro de importação em reinício suave de RAG** —— corrigido o `NameError` em importações dinâmicas de RAG durante reinícios suaves quando o plugin RAG local está instalado.
-- **Tratamento de erros transitórios de LLM** —— adicionado `'empty choices'` aos marcadores de erro transitório para repetição automática em respostas API vazias.
-- **Recarga a quente de canais ao atualizar segredos** —— corrigido o não disparo da recarga a quente ao atualizar segredos.
-- **Escolha de ferramenta no aprendizado proativo** —— trata com elegância o parâmetro `tool_choice` não suportado no aprendizado proativo.
-- **Removida a codificação Base64 de saída de ferramentas** —— eliminada a lógica de codificação Base64 para simplificar o fluxo.
-
-**Sem versão (em andamento):**
-
-- **Recursos de Telegram AI / agent Bot API** —— Modo Convidado (`answerGuestQuery`), streaming em chat privado via `sendMessageDraft`, mensagens bot-a-bot, atualizações de Business / Chat Automation e rastreamento de atualizações de Managed Bot. Ver `docs/TELEGRAM_AI_FEATURES.md`.
-- **Indicadores de configuração do Telegram** —— `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
+- **Correção de vulnerabilidade de injeção de comandos no ExecTool** — Resolvida uma vulnerabilidade crítica de injeção de comandos (CWE-78) na execução de shell usando análise segura de argumentos com `shlex` e execução direta de processos (`create_subprocess_exec`).
+- **Vulnerabilidades de segurança em dependências** — Resolvidas vulnerabilidades de segurança em dependências npm do bridge atualizando os overrides para `protobufjs` (v7.6.5) e `sharp` (v0.35.3).
+- **Estabilidade do loop de agente e direcionamento** — Corrigidas falhas no comando `/update`, roteamento de sessões e emissão de eventos para mensagens ativas.
+- **Estimativa de tokens na WebUI** — Corrigido o tratamento de tipos de argumentos no endpoint da API `estimate_prompt_tokens` ao passar listas de mensagens.
+- **Dependências de Cloud RAG** — Corrigidos os limites de dependência do Cloud RAG e a configuração do modelo de embedding padrão.
 
 Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 
@@ -69,7 +59,8 @@ Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 ShibaClaw é um agente de IA autohospedado que você executa na sua própria máquina ou servidor: um motor Python com interface web integrada, suporte nativo a 28 provedores de modelos e 11 integrações de plataformas de chat (Discord, Telegram, Slack, WhatsApp, Matrix e mais). É construído em torno de três prioridades —— simplicidade, segurança e privacidade —— com defesas como auditoria CVE na instalação, encapsulamento de injeção de prompts e proteção SSRF integradas no motor central em vez de coladas como código externo.
 
 <p align="center">
-  <img src="assets/webui_chat.webp" width="640" alt="ShibaClaw WebUI chat">
+  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
+  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
 </p>
 
 > [!NOTE]

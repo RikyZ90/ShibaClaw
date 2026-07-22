@@ -40,24 +40,15 @@
 > Versionshinweise finden sich in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Neuigkeiten — v0.9.10</b> (zum Ausklappen klicken)</summary>
+<summary>📢 <b>Neuigkeiten — v0.9.11</b> (zum Ausklappen klicken)</summary>
 
-**Neueste Version (2026-07-19):**
+**Neueste Version (2026-07-22):**
 
-- **Hybrid RAG für Geräte mit wenig RAM** — RAG und Knowledge Base unterstützen jetzt Cloud-Embedding-Anbieter (Gemini, OpenRouter, OpenAI) mit null lokalem RAM-Bedarf und einer leichteren Installation. Perfekt für Geräte mit wenig Speicher wie den Raspberry Pi.
-- **Dropdown-Auswahl in der Kanalkonfiguration** —— Die Felder `group_policy` der Kanalkonfiguration verwenden nun Dropdown-Auswahlen in der WebUI für eine bessere UX.
-- **Externe Paketinstallation auf modernem Linux (PEP 668)** —— injiziert bei `externally-managed-environment`-Fehlern während pip-Operationen automatisch `--break-system-packages`.
-- **Session-Key-Weitergabe in Sub-Agenten** —— `session_key` zu den Sub-Agent-Metadaten hinzugefügt, um den korrekten Kontext bei paralleler Ausführung zu erhalten.
-- **RAG-Soft-Restart-Importfehler** —— `NameError` bei dynamischen RAG-Imports während Soft-Restarts behoben, wenn das lokale RAG-Plugin installiert ist.
-- **Behandlung flüchtiger LLM-Fehler** —— `'empty choices'` zu den Markern für flüchtige Fehler hinzugefügt, um bei leeren API-Antworten automatisch erneut zu versuchen.
-- **Kanal-Hot-Reload bei Secret-Updates** —— behoben, dass der Kanal-Hot-Reload bei Secret-Updates nicht ausgelöst wurde.
-- **Tool-Auswahl beim proaktiven Lernen** —— behandelt den nicht unterstützten `tool_choice`-Parameter beim proaktiven Lernen ordnungsgemäß.
-- **Base64-Tool-Ausgabekodierung entfernt** —— Base64-Kodierungslogik für Tool-Ausgaben entfernt, um die Pipeline zu vereinfachen.
-
-**Unveröffentlicht (in Arbeit):**
-
-- **Telegram AI / Agent Bot API-Funktionen** —— Gastmodus (`answerGuestQuery`), Streaming im Privatchat via `sendMessageDraft`, Bot-zu-Bot-Nachrichten, Business-/Chat-Automation-Updates und Tracking von Managed-Bot-Updates. Siehe `docs/TELEGRAM_AI_FEATURES.md`.
-- **Telegram-Konfigurationsflags** —— `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
+- **Behebung von Befehlsinjektionssicherheitslücken in ExecTool** — Kritische Befehlsinjektionslücke (CWE-78) in der Shell-Ausführung durch `shlex`-Argument-Parsing und direkte Prozessausführung behoben (`create_subprocess_exec`).
+- **Abhängigkeitssicherheitslücken** — Sicherheitslücken in Bridge-NPM-Abhängigkeiten durch Aktualisieren der Overrides für `protobufjs` (v7.6.5) und `sharp` (v0.35.3) behoben.
+- **Agenten-Schleifen- & Steering-Stabilität** — Abstürze im Befehl `/update` behoben, Sitzungsrouting und Ereignisemission für Nachrichtensteuerung während aktiver Aufgaben korrigiert.
+- **WebUI Token-Schätzung** — Argumenttypendaten im API-Endpunkt `estimate_prompt_tokens` korrigiert.
+- **Cloud-RAG-Abhängigkeiten** — Abhängigkeitsgrenzen für Cloud RAG und Standard-Embedding-Modellkonfiguration korrigiert.
 
 Vollständige Versionshistorie im [Changelog](./CHANGELOG.md).
 
@@ -68,7 +59,8 @@ Vollständige Versionshistorie im [Changelog](./CHANGELOG.md).
 ShibaClaw ist ein selbstgehosteter KI-Agent, den du auf deiner eigenen Maschine oder deinem Server betreibst: eine Python-Engine mit integrierter Web-Oberfläche, nativem SDK-Support für 28 Modellanbieter und 11 Chat-Plattform-Integrationen (Discord, Telegram, Slack, WhatsApp, Matrix und mehr). Er ist um drei Prioritäten herum aufgebaut —— Einfachheit, Sicherheit und Privatsphäre —— mit Verteidigungsmechanismen wie CVE-Audit bei der Installation, Prompt-Injection-Wrapping und SSRF-Schutz, die im Kern-Engine integriert sind, statt als externer Klebstoff angeheftet zu werden.
 
 <p align="center">
-  <img src="assets/webui_chat.webp" width="640" alt="ShibaClaw WebUI chat">
+  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
+  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
 </p>
 
 > [!NOTE]

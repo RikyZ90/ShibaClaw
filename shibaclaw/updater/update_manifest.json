@@ -1,6 +1,6 @@
 {
-    "version": "0.9.10",
-    "release_notes": "Hybrid RAG support for Cloud Embedding providers (Gemini, OpenRouter, OpenAI), Lazy Loaded Local Embeddings to eliminate zero RAM impact by default, Lighter RAG Installation Footprint, and RAG terminology updates across the WebUI.",
+    "version": "0.9.11",
+    "release_notes": "Security fixes for ExecTool command injection (CWE-78) and dependency vulnerabilities, agent loop & steering stability fixes, WebUI token estimation fix, and Cloud RAG dependency corrections.",
     "changes": [
         {
             "path": "pyproject.toml",

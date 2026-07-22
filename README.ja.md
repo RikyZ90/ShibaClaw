@@ -40,24 +40,15 @@
 > リリースノートは [CHANGELOG.md](./CHANGELOG.md) にあります。
 
 <details open>
-<summary>📢 <b>最新情報 — v0.9.10</b>（クリックで展開）</summary>
+<summary>📢 <b>最新情報 — v0.9.11</b>（クリックで展開）</summary>
 
-**最新リリース（2026-07-19）：**
+**最新リリース（2026-07-22）：**
 
-- **低RAMデバイス向けハイブリッドRAG** — ナレッジベースでクラウド埋め込みプロバイダー（Gemini、OpenRouter、OpenAI）をサポート。ローカルのメモリ使用量ゼロで、軽量なインストールを実現（Raspberry Pi等に最適）。
-- **チャンネル設定のドロップダウン** —— チャンネル設定の `group_policy` フィールドが WebUI でドロップダウン選択式になり、UX が向上しました。
-- **モダン Linux での外部パッケージ導入（PEP 668）** —— pip 操作で `externally-managed-environment` エラー時に `--break-system-packages` を自動注入します。
-- **サブエージェントのセッションキー伝播** —— 並列実行時のコンテキスト維持のため、サブエージェントのメタデータに `session_key` を追加しました。
-- **RAG ソフト再起動のインポートエラー** —— ローカル RAG プラグイン導入時にソフト再起動で発生していた動的 RAG インポートの `NameError` を修正しました。
-- **一時的な LLM エラー処理** —— 空の API 応答時に自動リトライするため、一時エラーマーカーに `'empty choices'` を追加しました。
-- **シークレット更新時のチャンネルホットリロード** —— シークレット更新時にホットリロードが発動しない問題を修正しました。
-- **プロアクティブ学習のツール選択** —— プロアクティブ学習で未対応の `tool_choice` パラメータを適切に処理するようになりました。
-- **Base64 ツール出力エンコードの削除** —— パイプラインを簡略化するため、ツール出力の Base64 エンコード処理を削除しました。
-
-**未リリース（進行中）：**
-
-- **Telegram AI / エージェント Bot API 機能** —— ゲストモード（`answerGuestQuery`）、`sendMessageDraft` によるプライベートチャットのストリーミング、ボット間メッセージ、Business / Chat Automation 更新、および Managed Bot 更新の追跡。詳細は `docs/TELEGRAM_AI_FEATURES.md`。
-- **Telegram 設定フラグ** —— `streaming`、`guestMode`、`allowBotMessages`、`businessEnabled`、`managedBotsEnabled`。
+- **ExecTool のコマンドインジェクション脆弱性の修正** — シェル実行における重大なコマンドインジェクション脆弱性（CWE-78）を、`shlex` による引数解析と直接プロセス実行（`create_subprocess_exec`）に置き換えて解決しました。
+- **依存関係のセキュリティ脆弱性の修正** — `protobufjs`（v7.6.5）および `sharp`（v0.35.3）のオーバーライドを更新し、bridge npm 依存関係の脆弱性を解決しました。
+- **エージェントループとステアリングの安定化** — `/update` コマンドのクラッシュを解消し、アクティブタスク中のメッセージステアリングにおけるセッションルーティングとイベント発行を修正しました。
+- **WebUI トークン見積もり** — メッセージリスト渡す際の API エンドポイント `estimate_prompt_tokens` の引数型処理を修正しました。
+- **Cloud RAG 依存関係** — Cloud RAG の依存範囲とデフォルト埋め込みモデル構成を修正しました。
 
 完全なリリース履歴は [Changelog](./CHANGELOG.md) を参照してください。
 
@@ -68,7 +59,8 @@
 ShibaClaw は、自分のマシンやサーバーで動かすセルフホスト型の AI エージェントです。Python エンジンに内蔵 Web UI を備え、28 のモデルプロバイダにネイティブ対応し、11 のチャットプラットフォーム（Discord、Telegram、Slack、WhatsApp、Matrix など）と統合します。シンプルさ・セキュリティ・プライバシーの 3 本柱を中心に構築されており、インストール時の CVE 監査、プロンプトインジェクションのラップ、SSRF 保護といった防御は、外部の糊付けコードではなくコアエンジンに組み込まれています。
 
 <p align="center">
-  <img src="assets/webui_chat.webp" width="640" alt="ShibaClaw WebUI chat">
+  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
+  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
 </p>
 
 > [!NOTE]

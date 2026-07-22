@@ -40,24 +40,15 @@
 > 发布说明见 [CHANGELOG.md](./CHANGELOG.md)。
 
 <details open>
-<summary>📢 <b>最新动态 — v0.9.10</b>（点击展开）</summary>
+<summary>📢 <b>最新动态 — v0.9.11</b>（点击展开）</summary>
 
-**最新版本（2026-07-19）：**
+**最新版本（2026-07-22）：**
 
-- **面向低内存设备的混合 RAG** — 知识库现已支持云端嵌入提供商（Gemini、OpenRouter、OpenAI），实现本地零内存占用且安装体积更轻量（非常适合树莓派等设备）。
-- **渠道配置下拉框** —— 渠道配置中的 `group_policy` 字段现在在 WebUI 中使用下拉选择器，带来更好的使用体验。
-- **现代 Linux 上的外部包安装（PEP 668）** —— 在 pip 操作遇到 `externally-managed-environment` 错误时自动注入 `--break-system-packages`。
-- **子智能体会话密钥传递** —— 为子智能体元数据添加 `session_key`，以便在并行执行时保持正确的上下文。
-- **RAG 软重启导入错误** —— 修复安装本地 RAG 插件后软重启时动态 RAG 导入的 `NameError`。
-- **瞬时 LLM 错误处理** —— 将 `'empty choices'` 加入瞬时错误标记，以便在收到空 API 响应时自动重试。
-- **密钥更新时的渠道热重载** —— 修复更新密钥时渠道热重载未触发的问题。
-- **主动学习工具选择** —— 优雅处理主动学习中不支持的 `tool_choice` 参数。
-- **移除 Base64 工具输出编码** —— 移除了工具输出的 Base64 编码逻辑，以简化处理流程。
-
-**未发布（进行中）：**
-
-- **Telegram AI / 智能体 Bot API 功能** —— 访客模式（`answerGuestQuery`）、通过 `sendMessageDraft` 的私聊流式输出、机器人间消息、Business / Chat Automation 更新，以及 Managed Bot 更新追踪。详见 `docs/TELEGRAM_AI_FEATURES.md`。
-- **Telegram 配置标志** —— `streaming`、`guestMode`、`allowBotMessages`、`businessEnabled`、`managedBotsEnabled`。
+- **修复 ExecTool 命令注入漏洞** — 通过将基于 shell 的执行替换为安全的 `shlex` 参数解析和直接进程执行（`create_subprocess_exec`），解决了 Shell 执行中的严重命令注入漏洞（CWE-78）。
+- **依赖项安全漏洞修复** — 通过更新 `protobufjs` (v7.6.5) 和 `sharp` (v0.35.3) 的覆盖配置，解决了 bridge npm 依赖项中的安全漏洞。
+- **智能体循环与转向稳定性** — 修复了 `/update` 命令导致的崩溃，修复了活动任务期间消息转向的会话路由和事件发射。
+- **WebUI Token 估算** — 修复了传递消息列表时 `estimate_prompt_tokens` API 端点中的参数类型处理。
+- **云端 RAG 依赖** — 纠正了云端 RAG 依赖项范围和默认嵌入模型配置。
 
 完整版本历史请查看 [CHANGELOG.md](./CHANGELOG.md)。
 
@@ -68,7 +59,8 @@
 ShibaClaw 是一个自托管的 AI 智能体，可在你自己的机器或服务器上运行：一个 Python 引擎，内置 Web UI，原生支持 28 家模型提供商，并集成了 11 个聊天平台（Discord、Telegram、Slack、WhatsApp、Matrix 等）。它围绕三大优先事项构建 —— 简洁、安全与隐私 —— 防御能力（如安装时 CVE 审计、提示注入包裹、SSRF 防护）内置于核心引擎，而非作为外部胶水代码附加。
 
 <p align="center">
-  <img src="assets/webui_chat.webp" width="640" alt="ShibaClaw WebUI chat">
+  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
+  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
 </p>
 
 > [!NOTE]

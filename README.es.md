@@ -40,25 +40,15 @@
 > Las notas de versión están en [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Novedades — v0.9.10</b> (haz clic para expandir)</summary>
+<summary>📢 <b>Novedades — v0.9.11</b> (haz clic para expandir)</summary>
 
-**Última versión (2026-07-19):**
+**Última versión (2026-07-22):**
 
-- **RAG Híbrido para dispositivos de poca RAM** — El RAG y la Base de Conocimiento ahora admiten proveedores de embeddings en la nube (Gemini, OpenRouter, OpenAI) con cero uso de RAM local y un processo de instalación más ligero. Ideal para hardware limitado como Raspberry Pi.
-- **RAG Híbrido para dispositivos de poca RAM** — El RAG y la Base de Conocimiento ahora admiten proveedores de embeddings en la nube (Gemini, OpenRouter, OpenAI) con cero uso de RAM local y un processo de instalación más ligero. Ideal para hardware limitado como Raspberry Pi.
-- **Desplegables en la configuración de canales** —— los campos `group_policy` de la configuración de canales ahora usan selectores desplegables en la WebUI para una mejor experiencia.
-- **Instalación de paquetes externos en Linux moderno (PEP 668)** —— inyecta automáticamente `--break-system-packages` ante errores `externally-managed-environment` durante las operaciones pip.
-- **Propagación de clave de sesión en sub-agentes** —— se añadió `session_key` a los metadatos de sub-agentes para mantener el contexto correcto durante la ejecución paralela.
-- **Error de importación en reinicio suave de RAG** —— se corrigió el `NameError` en las importaciones dinámicas de RAG durante reinicios suaves cuando el plugin RAG local está instalado.
-- **Manejo de errores transitorios de LLM** —— se añadió `'empty choices'` a los marcadores de error transitorio para reintentar automáticamente ante respuestas API vacías.
-- **Recarga en caliente de canales al actualizar secretos** —— se corrigió que la recarga en caliente no se disparaba al actualizar secretos.
-- **Elección de herramienta en aprendizaje proactivo** —— maneja con elegancia el parámetro `tool_choice` no soportado en el aprendizaje proactivo.
-- **Eliminada la codificación Base64 de salida de herramientas** —— se eliminó la lógica de codificación Base64 para simplificar el flujo.
-
-**Sin publicar (en progreso):**
-
-- **Funciones de Telegram AI / agent Bot API** —— Modo Invitado (`answerGuestQuery`), streaming en chat privado vía `sendMessageDraft`, mensajes bot-a-bot, actualizaciones de Business / Chat Automation y seguimiento de actualizaciones de Managed Bot. Ver `docs/TELEGRAM_AI_FEATURES.md`.
-- **Indicadores de configuración de Telegram** —— `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
+- **Corrección de inyección de comandos en ExecTool** — Se resolvió una vulnerabilidad crítica de inyección de comandos (CWE-78) en la ejecución de shell usando parseo seguro de argumentos con `shlex` y ejecución directa de procesos (`create_subprocess_exec`).
+- **Vulnerabilidades de seguridad en dependencias** — Se resolvieron vulnerabilidades de seguridad en dependencias npm de bridge actualizando los overrides para `protobufjs` (v7.6.5) y `sharp` (v0.35.3).
+- **Estabilidad de bucle de agente y direccionamiento** — Se corrigieron cierres inesperados en el comando `/update`, el enrutamiento de sesiones y la emisión de eventos para mensajes activos.
+- **Estimación de tokens en WebUI** — Se corrigió el manejo de tipos de argumentos en el endpoint API `estimate_prompt_tokens` al pasar listas de mensajes.
+- **Dependencias de RAG en la nube** — Se corrigieron los límites de dependencias de Cloud RAG y la configuración del modelo de embeddings por defecto.
 
 Consulta el [Changelog](./CHANGELOG.md) para el historial completo de versiones.
 
@@ -69,7 +59,8 @@ Consulta el [Changelog](./CHANGELOG.md) para el historial completo de versiones.
 ShibaClaw es un agente de IA autohospedado que ejecutas en tu propia máquina o servidor: un motor Python con interfaz web integrada, soporte nativo para 28 proveedores de modelos y 11 integraciones de plataformas de chat (Discord, Telegram, Slack, WhatsApp, Matrix y más). Se construye en torno a tres prioridades —— simplicidad, seguridad y privacidad —— con defensas como la auditoría CVE en instalación, el encapsulado de inyección de prompts y la protección SSRF integradas en el motor central en lugar de añadirse como código externo.
 
 <p align="center">
-  <img src="assets/webui_chat.webp" width="640" alt="ShibaClaw WebUI chat">
+  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
+  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
 </p>
 
 > [!NOTE]

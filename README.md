@@ -37,21 +37,15 @@
 ---
 
 <details open>
-<summary>📢 <b>What's new — v0.9.10</b> (click to expand)</summary>
+<summary>📢 <b>What's new — v0.9.11</b> (click to expand)</summary>
 
-**Latest release (2026-07-19):**
+**Latest release (2026-07-22):**
 
-- **Hybrid RAG for Low-RAM Devices** — The RAG Knowledge Base now supports Cloud Embedding providers (Gemini, OpenRouter, OpenAI) with zero local RAM usage and a lighter package installation footprint, making RAG fully accessible on memory-constrained hardware like the Raspberry Pi.
-- **Channel Config Dropdowns** — `group_policy` fields in channel configuration now use dropdown selectors in the WebUI for a better UX.
-- **External Package Installation on Modern Linux (PEP 668)** — auto-injects `--break-system-packages` on `externally-managed-environment` errors during pip operations.
-- **Sub-agent Session Key Propagation** — added `session_key` to sub-agent metadata for proper context during parallel execution.
-- **RAG Soft Restart Import Error** — fixed `NameError` for dynamic RAG imports during soft restarts when the Local RAG plugin is installed.
-- **Transient LLM Error Handling** — added `'empty choices'` to transient error markers for automatic retry on empty API responses.
-- **Channel Hot-Reload on Secret Updates** — fixed channel hot-reload not triggering when secrets are updated.
-- **Proactive Learning Tool Choice** — gracefully handles unsupported `tool_choice` parameter in proactive learning.
-- **Removed Base64 Tool Output Encoding** — eliminated Base64 encoding logic for tool outputs to simplify the pipeline.
-- **Telegram AI / agent Bot API features** — Guest Mode (`answerGuestQuery`), private-chat streaming via `sendMessageDraft`, bot-to-bot messages, Business / Chat Automation updates, and Managed Bot update tracking. See `docs/TELEGRAM_AI_FEATURES.md`.
-- **Telegram config flags** — `streaming`, `guestMode`, `allowBotMessages`, `businessEnabled`, `managedBotsEnabled`.
+- **Command Injection Vulnerability Fix in ExecTool** — Resolved a critical command injection vulnerability (CWE-78) in shell execution by replacing shell-based execution with safe `shlex` argument parsing and direct process execution (`create_subprocess_exec`).
+- **Dependency Security Vulnerabilities** — Resolved security vulnerabilities in bridge npm dependencies by updating overrides for `protobufjs` (v7.6.5) and `sharp` (v0.35.3).
+- **Agent Loop & Steering Stability** — Resolved crashes in `/update` command caused by missing methods/attributes, fixed session routing and event emission for message steering during active tasks.
+- **WebUI Token Estimation** — Fixed argument type handling in `estimate_prompt_tokens` API endpoint when passing message lists.
+- **Cloud RAG Dependencies** — Corrected Cloud RAG dependency bounds and default embedding model configuration.
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 
@@ -62,7 +56,8 @@ See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 ShibaClaw is a self-hosted AI agent you run on your own machine or server: a Python engine with a built-in web UI, native SDK support for 28 model providers, and 11 chat-platform integrations (Discord, Telegram, Slack, WhatsApp, Matrix, and more). It's built around three priorities — simplicity, security, and privacy — with defenses like install-time CVE auditing, prompt-injection wrapping, and SSRF protection shipped in the core engine instead of bolted on as external glue.
 
 <p align="center">
-  <img src="assets/webui_chat.webp" width="640" alt="ShibaClaw WebUI chat">
+  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
+  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
 </p>
 
 > [!NOTE]
