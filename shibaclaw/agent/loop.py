@@ -333,8 +333,14 @@ class ShibaBrain:
         media: list[str] | None = None,
         attachments: list[dict] | None = None,
     ) -> bool:
-        if session_key in self._steering_queues:
-            self._steering_queues[session_key].append(
+        target_key = session_key
+        session_router = getattr(self, "session_router", None)
+        if target_key not in self._steering_queues and session_router:
+            if resolved := session_router.resolve(session_key):
+                target_key = resolved
+
+        if target_key in self._steering_queues:
+            self._steering_queues[target_key].append(
                 {
                     "role": "user",
                     "content": content,
@@ -451,7 +457,7 @@ class ShibaBrain:
         tool_defs = self.tools.get_definitions()
 
         if session_key:
-            self._steering_queues[session_key] = []
+            self._steering_queues.setdefault(session_key, [])
 
         active_kbs = None
         try:
@@ -1187,14 +1193,18 @@ class ShibaBrain:
             ):
                 entry["content"] = content[: self._TOOL_RESULT_MAX_CHARS] + "\n... (truncated)"
             elif role == "user":
-                if isinstance(content, str) and content.startswith(
-                    ScentBuilder._RUNTIME_CONTEXT_TAG
-                ):
-                    parts = content.split("\n\n", 1)
-                    if len(parts) > 1 and parts[1].strip():
-                        entry["content"] = parts[1]
-                    else:
-                        continue
+                if isinstance(content, str):
+                    if content.startswith("**[USER INJECTION DURING TASK]**\n\n"):
+                        content = content.replace("**[USER INJECTION DURING TASK]**\n\n", "", 1)
+                        entry["content"] = content
+                    if content.startswith(
+                        ScentBuilder._RUNTIME_CONTEXT_TAG
+                    ):
+                        parts = content.split("\n\n", 1)
+                        if len(parts) > 1 and parts[1].strip():
+                            entry["content"] = parts[1]
+                        else:
+                            continue
                 if isinstance(content, list):
                     filtered = []
                     for c in content:

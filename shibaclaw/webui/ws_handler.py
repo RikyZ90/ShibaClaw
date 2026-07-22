@@ -349,6 +349,16 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
                 },
             )
             if res and res.get("injected"):
+                steer_evt = {
+                    "type": "steer",
+                    "id": msg["id"],
+                    "content": content,
+                    "media": msg.get("media"),
+                    "attachments": msg.get("attachments"),
+                    "session_key": session_key,
+                }
+                if ps and "events" in ps:
+                    ps["events"].append(steer_evt)
                 await _emit_to_session(
                     session_key,
                     {

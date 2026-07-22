@@ -16,7 +16,8 @@
     "ws": "^8.21.0"
   },
   "overrides": {
-    "protobufjs": "^7.5.8"
+    "protobufjs": "^7.6.5",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

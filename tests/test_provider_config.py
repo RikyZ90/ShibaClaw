@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from shibaclaw.agent.loop import ShibaBrain
 from shibaclaw.cli.base import _make_provider
 from shibaclaw.config.schema import Config
@@ -149,4 +150,19 @@ def test_shibabrain_steering_message_injection():
     assert len(brain._steering_queues["session_key_1"]) == 1
     assert brain._steering_queues["session_key_1"][0]["content"] == "Steer instruction"
     assert brain._steering_queues["session_key_1"][0]["media"] == ["img.png"]
+
+
+def test_save_turn_cleans_steering_prefix():
+    brain = object.__new__(ShibaBrain)
+    session = MagicMock()
+    session.messages = []
+    
+    messages = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "**[USER INJECTION DURING TASK]**\n\nStop and change direction"}
+    ]
+    brain._save_turn(session, messages, skip=1)
+    
+    assert len(session.messages) == 1
+    assert session.messages[0]["content"] == "Stop and change direction"
 
