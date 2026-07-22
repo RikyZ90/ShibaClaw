@@ -118,6 +118,8 @@ class TrayIcon:
                 winreg.SetValueEx(key, "ShibaClaw", 0, winreg.REG_SZ, cmd)
                 logger.info(f"Autostart enabled: {cmd}")
             winreg.CloseKey(key)
+            if self._icon:
+                self._icon.update_menu()
         except Exception as e:
             logger.error(f"Failed to toggle autostart: {e}")
 

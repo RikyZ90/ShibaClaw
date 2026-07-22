@@ -88,7 +88,7 @@ Um comando baixa a última versão, cria atalhos e abre a interface.
 
 **Windows (PowerShell):**
 ```powershell
-iwr -useb https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
+irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
 **Linux / macOS:**

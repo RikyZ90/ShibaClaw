@@ -88,7 +88,7 @@ ShibaClaw 是一个自托管的 AI 智能体，可在你自己的机器或服务
 
 **Windows（PowerShell）：**
 ```powershell
-iwr -useb https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
+irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
 **Linux / macOS：**

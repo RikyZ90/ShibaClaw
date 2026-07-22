@@ -85,6 +85,18 @@ Ideal for local development or lightweight environments.
 
 For the native Windows build, ShibaClaw runs as a desktop window with tray integration.
 
+### ⚡ Quick Install (Recommended)
+
+No Python or Git required. Run this command in PowerShell to download the latest pre-built release, set up Desktop/Start Menu shortcuts, add `shibaclaw` to your `PATH`, and launch the app:
+
+```powershell
+irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
+```
+
+---
+
+### 🛠️ Manual / Build from Source
+
 1. **Install desktop build dependencies**:
    ```powershell
    pip install -e ".[windows-native,dev]"

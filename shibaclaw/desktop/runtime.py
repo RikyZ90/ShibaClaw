@@ -277,7 +277,7 @@ class DesktopRuntime:
             body = json.loads(payload.split(marker, 1)[1].decode("utf-8", errors="ignore"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             return False
-        return body.get("status") in ("ok", "idle")
+        return body.get("status") in ("ok", "idle", "starting")
 
     def _start_server(self) -> None:
         from shibaclaw.webui.server import ServerManager

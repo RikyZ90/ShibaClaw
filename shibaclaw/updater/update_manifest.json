@@ -5,22 +5,22 @@
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.9."
+            "note": "Bumped version to 0.9.11."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.9 release notes."
+            "note": "Added v0.9.11 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation version to 0.9.9."
+            "note": "Updated documentation version to 0.9.11."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.9."
+            "note": "Bumped packaged update manifest to v0.9.11."
         },
         {
             "path": "shibaclaw/webui/frontend/index.html",

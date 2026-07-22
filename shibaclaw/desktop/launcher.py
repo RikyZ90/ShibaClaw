@@ -79,7 +79,7 @@ def run(
         x=window_config["x"],
         y=window_config["y"],
         resizable=True,
-        hidden=True,
+        hidden=window_config.get("start_hidden", False),
         frameless=False,
         easy_drag=False,
         text_select=True,
@@ -113,7 +113,12 @@ def run(
         quit_event.set()
         _arm_force_exit()
         try:
-            window.destroy()
+            native = getattr(window, "native", None)
+            if native is not None and getattr(native, "InvokeRequired", False):
+                import System
+                native.BeginInvoke(System.Action(window.destroy))
+            else:
+                window.destroy()
         except Exception:
             logger.debug("window.destroy() failed during quit", exc_info=True)
 
@@ -183,6 +188,11 @@ def run(
     def _on_moved(x, y):
         save_window_state(WindowState(width=window.width, height=window.height, x=x, y=y))
 
+    def _on_start_setup() -> None:
+        if not window_config.get("start_hidden") and not initial_show_complete.is_set():
+            initial_show_complete.set()
+            _window_show(window)
+
     window.events.closing += _on_closing
     window.events.loaded += _on_loaded
     window.events.resized += _on_resized
@@ -197,6 +207,7 @@ def run(
         )
     try:
         webview.start(
+            func=_on_start_setup,
             debug=_desktop_debug_enabled(),
             icon=_get_icon_path(),
             gui="edgechromium",
@@ -245,14 +256,24 @@ def _on_shown(window: Any, *_args: Any) -> None:
 
 def _window_show(window: Any) -> None:
     try:
-        window.show()
+        native = getattr(window, "native", None)
+        if native is not None and getattr(native, "InvokeRequired", False):
+            import System
+            native.BeginInvoke(System.Action(window.show))
+        else:
+            window.show()
     except Exception as exc:
         logger.debug("window.show() failed: {}", exc)
 
 
 def _window_hide(window: Any) -> None:
     try:
-        window.hide()
+        native = getattr(window, "native", None)
+        if native is not None and getattr(native, "InvokeRequired", False):
+            import System
+            native.BeginInvoke(System.Action(window.hide))
+        else:
+            window.hide()
     except Exception as exc:
         logger.debug("window.hide() failed: {}", exc)
 

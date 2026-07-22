@@ -88,7 +88,7 @@ Une seule commande télécharge la dernière version, crée les raccourcis et la
 
 **Windows (PowerShell) :**
 ```powershell
-iwr -useb https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
+irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
 **Linux / macOS :**

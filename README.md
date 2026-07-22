@@ -85,7 +85,7 @@ One command downloads the latest release, sets up shortcuts, and launches the UI
 
 **Windows (PowerShell):**
 ```powershell
-iwr -useb https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
+irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
 **Linux / macOS:**

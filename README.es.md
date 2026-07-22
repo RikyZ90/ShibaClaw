@@ -88,7 +88,7 @@ Un solo comando descarga la última versión, crea accesos directos e inicia la 
 
 **Windows (PowerShell):**
 ```powershell
-iwr -useb https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
+irm https://github.com/RikyZ90/ShibaClaw/releases/latest/download/install.ps1 | iex
 ```
 
 **Linux / macOS:**
