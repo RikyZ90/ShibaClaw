@@ -59,8 +59,8 @@
 ShibaClaw は、自分のマシンやサーバーで動かすセルフホスト型の AI エージェントです。Python エンジンに内蔵 Web UI を備え、28 のモデルプロバイダにネイティブ対応し、11 のチャットプラットフォーム（Discord、Telegram、Slack、WhatsApp、Matrix など）と統合します。シンプルさ・セキュリティ・プライバシーの 3 本柱を中心に構築されており、インストール時の CVE 監査、プロンプトインジェクションのラップ、SSRF 保護といった防御は、外部の糊付けコードではなくコアエンジンに組み込まれています。
 
 <p align="center">
-  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
-  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
+  <img src="assets/shibdemo.webp" width="480" alt="ShibaClaw Desktop Demo" style="margin-right: 12px; vertical-align: middle;">
+  <img src="assets/shibmobiledemo.webp" width="188" alt="ShibaClaw Mobile Demo" style="vertical-align: middle;">
 </p>
 
 > [!NOTE]

@@ -59,8 +59,8 @@
 ShibaClaw 是一个自托管的 AI 智能体，可在你自己的机器或服务器上运行：一个 Python 引擎，内置 Web UI，原生支持 28 家模型提供商，并集成了 11 个聊天平台（Discord、Telegram、Slack、WhatsApp、Matrix 等）。它围绕三大优先事项构建 —— 简洁、安全与隐私 —— 防御能力（如安装时 CVE 审计、提示注入包裹、SSRF 防护）内置于核心引擎，而非作为外部胶水代码附加。
 
 <p align="center">
-  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
-  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
+  <img src="assets/shibdemo.webp" width="480" alt="ShibaClaw Desktop Demo" style="margin-right: 12px; vertical-align: middle;">
+  <img src="assets/shibmobiledemo.webp" width="188" alt="ShibaClaw Mobile Demo" style="vertical-align: middle;">
 </p>
 
 > [!NOTE]

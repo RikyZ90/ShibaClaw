@@ -59,8 +59,8 @@ Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 ShibaClaw é um agente de IA autohospedado que você executa na sua própria máquina ou servidor: um motor Python com interface web integrada, suporte nativo a 28 provedores de modelos e 11 integrações de plataformas de chat (Discord, Telegram, Slack, WhatsApp, Matrix e mais). É construído em torno de três prioridades —— simplicidade, segurança e privacidade —— com defesas como auditoria CVE na instalação, encapsulamento de injeção de prompts e proteção SSRF integradas no motor central em vez de coladas como código externo.
 
 <p align="center">
-  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
-  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
+  <img src="assets/shibdemo.webp" width="480" alt="ShibaClaw Desktop Demo" style="margin-right: 12px; vertical-align: middle;">
+  <img src="assets/shibmobiledemo.webp" width="188" alt="ShibaClaw Mobile Demo" style="vertical-align: middle;">
 </p>
 
 > [!NOTE]

@@ -59,8 +59,8 @@ Vollständige Versionshistorie im [Changelog](./CHANGELOG.md).
 ShibaClaw ist ein selbstgehosteter KI-Agent, den du auf deiner eigenen Maschine oder deinem Server betreibst: eine Python-Engine mit integrierter Web-Oberfläche, nativem SDK-Support für 28 Modellanbieter und 11 Chat-Plattform-Integrationen (Discord, Telegram, Slack, WhatsApp, Matrix und mehr). Er ist um drei Prioritäten herum aufgebaut —— Einfachheit, Sicherheit und Privatsphäre —— mit Verteidigungsmechanismen wie CVE-Audit bei der Installation, Prompt-Injection-Wrapping und SSRF-Schutz, die im Kern-Engine integriert sind, statt als externer Klebstoff angeheftet zu werden.
 
 <p align="center">
-  <video src="assets/shibdemo.mp4" width="480" controls autoplay loop muted playsinline style="margin-right: 12px; vertical-align: middle;"></video>
-  <video src="assets/shibmobiledemo.mp4" width="188" controls autoplay loop muted playsinline style="vertical-align: middle;"></video>
+  <img src="assets/shibdemo.webp" width="480" alt="ShibaClaw Desktop Demo" style="margin-right: 12px; vertical-align: middle;">
+  <img src="assets/shibmobiledemo.webp" width="188" alt="ShibaClaw Mobile Demo" style="vertical-align: middle;">
 </p>
 
 > [!NOTE]
