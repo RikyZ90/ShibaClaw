@@ -653,9 +653,9 @@ function populateSettings(cfg) {
     $("s-agent-maxTokens").value = d.maxTokens ?? 8192;
     $("s-agent-ctxTokens").value = d.contextWindowTokens ?? 65536;
     $("s-agent-maxIter").value = d.maxToolIterations ?? 40;
-    $("s-agent-toolTimeout").value = d.toolTimeout ?? 660;
-    $("s-agent-loopWallTimeout").value = d.loopWallTimeout ?? 600;
-    $("s-agent-subagentTimeout").value = d.subagentTimeout ?? 600;
+    $("s-agent-toolTimeout").value = d.toolTimeout ?? 0;
+    $("s-agent-loopWallTimeout").value = d.loopWallTimeout ?? 0;
+    $("s-agent-subagentTimeout").value = d.subagentTimeout ?? 0;
     $("s-agent-workspace").value = d.workspace || "~/.shibaclaw/workspace";
     $("s-agent-reasoning").value = d.reasoningEffort || "";
 
@@ -864,7 +864,7 @@ function populateSettings(cfg) {
     $("s-tool-proxy").value = tw.proxy || "";
     const te = cfg.tools?.exec || {};
     $("s-tool-execEnable").checked = te.enable !== false;
-    $("s-tool-execTimeout").value = te.timeout ?? 60;
+    $("s-tool-execTimeout").value = te.timeout ?? 0;
     $("s-tool-restrict").checked = !!cfg.tools?.restrictToWorkspace;
 
 

@@ -117,7 +117,23 @@ async def api_context_get(request: Request):
             )
     total_tokens += msg_tokens
 
-    ctx_window = defaults.context_window_tokens or 0
+    # ── Resolve active model & context window limit ──
+    active_model = None
+    if session_id and agent_manager.pm:
+        sess_ctx = agent_manager.pm.get_or_create(session_id)
+        active_model = sess_ctx.metadata.get("model")
+    if not active_model and agent_manager.config:
+        active_model = agent_manager.config.agents.defaults.model
+
+    model_limit = None
+    if active_model:
+        from shibaclaw.cli.model_info import get_model_context_limit
+        model_limit = get_model_context_limit(active_model)
+
+    user_cfg_limit = defaults.context_window_tokens or 0
+    # Auto-detection priority: if model_limit found, use it; otherwise fallback to user setting or default 65536
+    ctx_window = model_limit if (model_limit and model_limit > 0) else (user_cfg_limit if user_cfg_limit > 0 else 65536)
+
     pct = min(100, round(total_tokens / ctx_window * 100)) if ctx_window > 0 else 0
 
     if request.query_params.get("summary", "").lower() in ("1", "true", "yes"):
@@ -130,6 +146,8 @@ async def api_context_get(request: Request):
                     "total": total_tokens,
                     "context_window": ctx_window,
                     "usage_pct": pct,
+                    "auto_detected": model_limit is not None,
+                    "active_model": active_model,
                 }
             }
         )

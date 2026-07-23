@@ -34,7 +34,7 @@ class SubagentManager:
         web_proxy: str | None = None,
         exec_config: "ExecToolConfig | None" = None,
         restrict_to_workspace: bool = False,
-        timeout: int = 600,
+        timeout: int = 0,
         agent_runner: Any = None,
     ):
         from shibaclaw.config.schema import ExecToolConfig, WebSearchConfig

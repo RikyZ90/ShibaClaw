@@ -106,6 +106,8 @@
 
         const isNew = !name;
         const title = isNew ? "Add MCP Server" : `Edit – ${escapeHtml(name)}`;
+        const isEdit = !!name;
+        const type = s.type || (s.url ? "sse" : "stdio");
 
         const argsVal = Array.isArray(s.args) ? s.args.join(", ") : (s.args || "");
         const toolsVal = Array.isArray(s.enabled_tools) ? s.enabled_tools.join(", ") : (s.enabled_tools || "*");
@@ -119,7 +121,7 @@
         const clientIdVal = oauth.client_id || oauth.clientId || "";
         const clientSecretVal = oauth.client_secret || oauth.clientSecret || "";
         const scopesVal = Array.isArray(oauth.scopes) ? oauth.scopes.join(", ") : (oauth.scopes || "");
-        const oauthTimeoutVal = oauth.callback_timeout || oauth.callbackTimeout || 120;
+        const oauthTimeoutVal = oauth.callback_timeout ?? oauth.callbackTimeout ?? 0;
 
         card.innerHTML = `
             <div class="mcp-editor-header">
@@ -129,27 +131,26 @@
             <div class="mcp-editor-body">
                 <div class="field-row">
                     <label>Server Name <span class="req">*</span></label>
-                    <input id="mcp-ed-name" type="text" class="form-input" placeholder="my-server" value="${escapeHtml(name || "")}" ${!isNew ? "" : ""}>
+                    <input id="mcp-ed-name" type="text" class="form-input" placeholder="my-server" value="${escapeHtml(name || "")}" ${isEdit ? "readonly style='opacity:0.6'" : ""}>
                 </div>
                 <div class="field-row">
                     <label>Transport Type</label>
                     <select id="mcp-ed-type" class="form-input">
-                        <option value="" ${!s.type ? "selected" : ""}>Auto-detect</option>
-                        <option value="stdio" ${s.type === "stdio" ? "selected" : ""}>stdio</option>
-                        <option value="sse" ${s.type === "sse" ? "selected" : ""}>sse</option>
-                        <option value="streamableHttp" ${s.type === "streamableHttp" ? "selected" : ""}>streamableHttp</option>
+                        <option value="stdio" ${type === "stdio" ? "selected" : ""}>stdio</option>
+                        <option value="sse" ${type === "sse" ? "selected" : ""}>sse</option>
+                        <option value="streamableHttp" ${type === "streamableHttp" ? "selected" : ""}>streamableHttp</option>
                     </select>
                 </div>
-                <div class="field-row">
+                <div class="field-row" id="mcp-row-command" style="display:${type === "stdio" ? "flex" : "none"}">
                     <label>Command</label>
                     <input id="mcp-ed-command" type="text" class="form-input" placeholder="npx, node, python…" value="${escapeHtml(s.command || "")}">
                 </div>
-                <div class="field-row">
+                <div class="field-row" id="mcp-row-args" style="display:${type === "stdio" ? "flex" : "none"}">
                     <label>Args <span class="hint">(comma-separated)</span></label>
                     <input id="mcp-ed-args" type="text" class="form-input" placeholder="-y, @modelcontextprotocol/server-filesystem, /path" value="${escapeHtml(argsVal)}">
                 </div>
-                <div class="field-row">
-                    <label>URL <span class="hint">(SSE / HTTP)</span></label>
+                <div class="field-row" id="mcp-row-url" style="display:${type !== "stdio" ? "flex" : "none"}">
+                    <label>URL</label>
                     <input id="mcp-ed-url" type="text" class="form-input" placeholder="http://localhost:3000/sse" value="${escapeHtml(s.url || "")}">
                 </div>
                 <div class="field-row">
@@ -161,8 +162,8 @@
                     <textarea id="mcp-ed-env" class="form-input mcp-ed-textarea" placeholder='{"API_KEY": "…"}'>${escapeHtml(envVal)}</textarea>
                 </div>
                 <div class="field-row">
-                    <label>Tool Timeout <span class="hint">(seconds, 0 for no limit)</span></label>
-                    <input id="mcp-ed-timeout" type="number" class="form-input" value="${s.tool_timeout ?? 30}" min="0">
+                    <label>Tool Timeout (s) <span class="field-info-trigger" title="0 = no timeout"><span class="material-icons-round">info</span><span class="field-info-bubble">0 = no timeout</span></span></label>
+                    <input id="mcp-ed-timeout" type="number" class="form-input" value="${s.tool_timeout ?? 0}" min="0">
                 </div>
                 <div class="field-row">
                     <label>Enabled Tools <span class="hint">(comma-sep, * = all)</span></label>
@@ -197,8 +198,8 @@
                         <input id="mcp-ed-oauth-scopes" type="text" class="form-input" placeholder="read, write" value="${escapeHtml(scopesVal)}">
                     </div>
                     <div class="field-row">
-                        <label>Callback Timeout <span class="hint">(seconds)</span></label>
-                        <input id="mcp-ed-oauth-timeout" type="number" class="form-input" value="${oauthTimeoutVal}" min="10" max="600">
+                        <label>Callback Timeout (s) <span class="field-info-trigger" title="0 = no timeout"><span class="material-icons-round">info</span><span class="field-info-bubble">0 = no timeout</span></span></label>
+                        <input id="mcp-ed-oauth-timeout" type="number" class="form-input" value="${oauthTimeoutVal}" min="0">
                     </div>
                 </div>
             </div>
@@ -280,7 +281,7 @@
             const clientSecret = (document.getElementById("mcp-ed-oauth-client-secret")?.value || "").trim() || null;
             const scopes = (document.getElementById("mcp-ed-oauth-scopes")?.value || "")
                 .split(",").map(s => s.trim()).filter(Boolean);
-            const callbackTimeout = parseFloat(document.getElementById("mcp-ed-oauth-timeout")?.value) || 120.0;
+            const callbackTimeout = parseFloat(document.getElementById("mcp-ed-oauth-timeout")?.value || "0");
 
             if (!authUrl || !tokenUrl || !clientId) {
                 _showEditorErr(errEl, "Authorization URL, Token URL, and Client ID are required for OAuth.");
@@ -305,7 +306,7 @@
             url: document.getElementById("mcp-ed-url")?.value.trim() || null,
             headers: Object.keys(headers).length ? headers : null,
             env: Object.keys(env).length ? env : null,
-            tool_timeout: parseInt(document.getElementById("mcp-ed-timeout")?.value) || 30,
+            tool_timeout: parseInt(document.getElementById("mcp-ed-timeout")?.value || "0"),
             enabled_tools: (document.getElementById("mcp-ed-tools")?.value || "*")
                 .split(",").map(s => s.trim()).filter(Boolean),
             oauth: oauth

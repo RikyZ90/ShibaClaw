@@ -42,6 +42,12 @@ _STATIC_MODEL_COST = {
     "gemini-1.5-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
     "gemini-2.0-pro-exp-02-05": {"max_input_tokens": 2000000, "max_tokens": 8192},
     "gemini-2.0-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
+    "gemini-2.5-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
+    "gemini-2.5-pro": {"max_input_tokens": 2000000, "max_tokens": 8192},
+    "gemini-3.0-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
+    "gemini-3.6-flash": {"max_input_tokens": 1000000, "max_tokens": 8192},
+    "deepseek-v3": {"max_input_tokens": 128000, "max_tokens": 8192},
+    "deepseek-r1": {"max_input_tokens": 128000, "max_tokens": 8192},
     "MiniMax-Text-01": {"max_input_tokens": 128000, "max_tokens": 8192},
     "MiniMax-M2.1": {"max_input_tokens": 128000, "max_tokens": 8192},
     "llama3-8b-8192": {"max_input_tokens": 8192, "max_tokens": 8192},
@@ -103,6 +109,9 @@ def find_model_info(model_name: str) -> dict[str, Any] | None:
 
 def get_model_context_limit(model: str, provider: str = "auto") -> int | None:
     """Get the maximum input context tokens for a model."""
+    if not model:
+        return None
+
     info = find_model_info(model)
     if info:
         max_input = info.get("max_input_tokens")
@@ -112,6 +121,14 @@ def get_model_context_limit(model: str, provider: str = "auto") -> int | None:
         max_tokens = info.get("max_tokens")
         if max_tokens and isinstance(max_tokens, int):
             return max_tokens
+
+    m_lower = model.lower()
+    if "gemini" in m_lower:
+        return 2_000_000 if "pro" in m_lower else 1_000_000
+    if "claude" in m_lower:
+        return 200_000
+    if any(k in m_lower for k in ("gpt-4", "o1", "o3", "deepseek", "qwen", "llama", "glm")):
+        return 128_000
 
     return None
 

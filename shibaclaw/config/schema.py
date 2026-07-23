@@ -45,9 +45,9 @@ class AgentDefaults(Base):
     context_window_tokens: int = 65_536
     temperature: float = 0.1
     max_tool_iterations: int = 40
-    tool_timeout: int = 660
-    loop_wall_timeout: int = 600
-    subagent_timeout: int = 600
+    tool_timeout: int = 0
+    loop_wall_timeout: int = 0
+    subagent_timeout: int = 0
     reasoning_effort: str | None = None
     learning_enabled: bool = True
     learning_interval: int = 10
@@ -221,10 +221,10 @@ class ExecToolConfig(Base):
     """Shell exec tool configuration."""
 
     enable: bool = True
-    timeout: int = 120
+    timeout: int = 0
     path_append: str = ""
     install_audit: bool = True
-    install_audit_timeout: int = 120
+    install_audit_timeout: int = 0
     install_audit_block_severity: str = "high"
 
 
@@ -271,7 +271,7 @@ class MCPOAuthConfig(Base):
     token_url: str = Field(..., description="Provider's token exchange endpoint URL.")
     client_id: str = Field(..., description="OAuth application client ID.")
     scopes: list[str] = Field(default_factory=list)
-    callback_timeout: float = Field(default=120.0)
+    callback_timeout: float = Field(default=0.0)
 
     def resolve_client_secret(self, server_name: str) -> str | None:
         """Return the client secret from the encrypted vault."""
@@ -295,7 +295,7 @@ class MCPServerConfig(Base):
     url: str = ""
     headers: dict[str, str] = Field(default_factory=dict)
     oauth: MCPOAuthConfig | None = Field(default=None)
-    tool_timeout: int = 30
+    tool_timeout: int = 0
     enabled_tools: list[str] = Field(default_factory=lambda: ["*"])
     klavis_app: str | None = Field(default=None, description="Connected App ID on Klavis Strata.")
 

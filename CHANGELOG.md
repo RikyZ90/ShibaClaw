@@ -1,3 +1,12 @@
+## [0.9.12] - 2026-07-23
+
+### Added
+- **Model Context Window Auto-Detection** — WebUI token usage tracking and agent context estimation now dynamically resolve the active LLM model's maximum input context window (e.g. 1M/2M for Gemini 2.5/3.6, 200k for Claude 3.5/3.7, 128k for GPT-4o, DeepSeek, Qwen, and Llama).
+- **Default No-Timeout (Infinite) Mode & Visual Info Tooltips** — Standardized all default timeout configuration values (`tool_timeout`, `loop_wall_timeout`, `subagent_timeout`, `exec_timeout`, `mcp.tool_timeout`, `mcp.callback_timeout`) to `0` (no timeout / infinite execution). Added interactive native info icons (ℹ️) with `0 = no timeout (infinito)` tooltips across WebUI settings forms and MCP editor modals.
+
+### Fixed
+- **WebUI Context Token Badge Visual Overflow** — Resolved an issue where sessions exceeding default `65536` historical tokens displayed an inaccurate red `172%` usage badge in the WebUI. The badge and context modal now scale dynamically against the active model's real context limit and active prompt context, matching VS Code / Antigravity IDE compact display behavior.
+
 ## [0.9.11] - 2026-07-22
 
 ### Security

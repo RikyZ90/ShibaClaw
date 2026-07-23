@@ -576,14 +576,14 @@
                     <div class="field-row"><label for="s-agent-maxIter">Max Tool Iterations</label><input type="number"
                             id="s-agent-maxIter" class="form-input" value="40" min="0"
                             title="Max tool iterations (0 for no limit)"></div>
-                    <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s)</label><input type="number"
-                            id="s-agent-toolTimeout" class="form-input" value="660" min="0"
+                    <div class="field-row"><label for="s-agent-toolTimeout">Tool Timeout (s) <span class="field-info-trigger" title="0 = no timeout (infinito)"><span class="material-icons-round">info</span><span class="field-info-bubble">0 = no timeout (infinito)</span></span></label><input type="number"
+                            id="s-agent-toolTimeout" class="form-input" value="0" min="0"
                             title="Max seconds for all tool executions combined (0 for no timeout)"></div>
-                    <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s)</label><input
-                            type="number" id="s-agent-loopWallTimeout" class="form-input" value="600" min="0"
+                    <div class="field-row"><label for="s-agent-loopWallTimeout">Agent Loop Timeout (s) <span class="field-info-trigger" title="0 = no timeout (infinito)"><span class="material-icons-round">info</span><span class="field-info-bubble">0 = no timeout (infinito)</span></span></label><input
+                            type="number" id="s-agent-loopWallTimeout" class="form-input" value="0" min="0"
                             title="Max seconds for the entire agent loop (0 for no timeout)"></div>
-                    <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s)</label><input
-                            type="number" id="s-agent-subagentTimeout" class="form-input" value="600" min="0"
+                    <div class="field-row"><label for="s-agent-subagentTimeout">Subagent Timeout (s) <span class="field-info-trigger" title="0 = no timeout (infinito)"><span class="material-icons-round">info</span><span class="field-info-bubble">0 = no timeout (infinito)</span></span></label><input
+                            type="number" id="s-agent-subagentTimeout" class="form-input" value="0" min="0"
                             title="Max seconds for a single subagent execution (0 for no timeout)"></div>
                     <div class="field-row"><label for="s-agent-reasoning">Reasoning Effort</label><input type="text"
                             id="s-agent-reasoning" class="form-input" placeholder="null (not set)"></div>
@@ -707,8 +707,8 @@
                             class="toggle"><input type="checkbox" id="s-tool-execEnable"><span
                                 class="toggle-slider"></span></label>
                     </div>
-                    <div class="field-row"><label for="s-tool-execTimeout">Exec Timeout (s)</label><input type="number"
-                            id="s-tool-execTimeout" class="form-input" value="60"></div>
+                    <div class="field-row"><label for="s-tool-execTimeout">Exec Timeout (s) <span class="field-info-trigger" title="0 = no timeout (infinito)"><span class="material-icons-round">info</span><span class="field-info-bubble">0 = no timeout (infinito)</span></span></label><input type="number"
+                            id="s-tool-execTimeout" class="form-input" value="0" min="0" title="Max seconds for shell execution (0 for no timeout)"></div>
                     <div class="field-row"><label for="s-tool-restrict">Restrict to Workspace</label><label
                             class="toggle toggle-danger"><input type="checkbox" id="s-tool-restrict"><span
                                 class="toggle-slider"></span></label>

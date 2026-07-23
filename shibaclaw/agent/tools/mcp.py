@@ -16,7 +16,7 @@ from shibaclaw.agent.tools.registry import SkillVault
 class MCPWrappedTool(Tool):
     """Dynamically registers an individual tool from an MCP server as a native tool, with eager self-healing reconnect capabilities."""
 
-    def __init__(self, server_name: str, tool_def: Any, session: Any, timeout: int = 30) -> None:
+    def __init__(self, server_name: str, tool_def: Any, session: Any, timeout: int = 0) -> None:
         self._server_name = server_name
         self._tool_name = tool_def.name
         self._name = f"mcp_{server_name}_{tool_def.name}"
@@ -478,7 +478,7 @@ class MCPCallTool(Tool):
             return f"Error: Tool '{tool_name}' is not enabled on MCP server '{server_name}'."
 
         args = arguments or {}
-        timeout = cfg.tool_timeout if cfg else 30
+        timeout = cfg.tool_timeout if cfg else 0
         try:
             result = await asyncio.wait_for(
                 session.call_tool(tool_name, arguments=args),
@@ -511,7 +511,7 @@ class MCPCallTool(Tool):
                         try:
                             result = await asyncio.wait_for(
                                 session.call_tool(tool_name, arguments=args),
-                                timeout=timeout,
+                                timeout=timeout if timeout > 0 else None,
                             )
                             parts = []
                             for block in result.content:
