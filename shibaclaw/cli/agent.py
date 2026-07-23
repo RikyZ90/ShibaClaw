@@ -17,7 +17,7 @@ from shibaclaw import __logo__
 
 from .utils import (
     ThinkingSpinner,
-    console,
+    get_console,
     flush_pending_tty_input,
     print_agent_response,
     print_cli_progress_line,
@@ -181,7 +181,7 @@ def agent_command(
         asyncio.run(run_once())
     else:
         _init_prompt_session()
-        console.print(
+        get_console().print(
             f"{__logo__} Interactive mode (type [bold]exit[/bold] or [bold]Ctrl+C[/bold] to quit)\n"
         )
 
@@ -241,7 +241,7 @@ def agent_command(
                             continue
                         if cmd.lower() in {"exit", "quit", "/exit", "/quit", ":q"}:
                             restore_terminal(_SAVED_TERM_ATTRS)
-                            console.print("\nGoodbye!")
+                            get_console().print("\nGoodbye!")
                             break
 
                         turn_done.clear()
@@ -268,7 +268,7 @@ def agent_command(
                             print_agent_response(turn_response[0], render_markdown=markdown)
                     except (KeyboardInterrupt, EOFError):
                         restore_terminal(_SAVED_TERM_ATTRS)
-                        console.print("\nGoodbye!")
+                        get_console().print("\nGoodbye!")
                         break
             finally:
                 agent_loop.stop()
