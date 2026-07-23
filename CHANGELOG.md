@@ -6,6 +6,7 @@
 
 ### Fixed
 - **WebUI Context Token Badge Visual Overflow** — Resolved an issue where sessions exceeding default `65536` historical tokens displayed an inaccurate red `172%` usage badge in the WebUI. The badge and context modal now scale dynamically against the active model's real context limit and active prompt context, matching VS Code / Antigravity IDE compact display behavior.
+- **Agent CLI Console ImportError** — Resolved an `ImportError` for `console` in `shibaclaw/cli/agent.py` by replacing direct `console` import references with `get_console()` helper calls for interactive agent CLI output (#148).
 
 ## [0.9.11] - 2026-07-22
 
