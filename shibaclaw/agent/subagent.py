@@ -42,7 +42,7 @@ class SubagentManager:
         self.provider = provider
         self.workspace = workspace
         self.bus = bus
-        self.model = model or provider.get_default_model()
+        self.model = model or (provider.get_default_model() if provider else None)
         self.web_search_config = web_search_config or WebSearchConfig()
         self.web_proxy = web_proxy
         self.exec_config = exec_config or ExecToolConfig()
