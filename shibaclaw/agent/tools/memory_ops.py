@@ -24,9 +24,11 @@ class MemoryForgetTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Remove lines containing a needle string from MEMORY.md and HISTORY.md "
-            "(case-insensitive). Does not delete the files. Use when the user asks "
-            "to forget specific facts or redact sensitive text from long-term memory."
+            "Preview or remove lines containing a needle string from MEMORY.md and "
+            "HISTORY.md (case-insensitive). Default is preview-only; set confirm=true "
+            "after showing the user the preview to quarantine and delete matches. "
+            "Does not delete the files. Use when the user asks to forget specific facts "
+            "or redact sensitive text from long-term memory."
         )
 
     @property
@@ -36,18 +38,27 @@ class MemoryForgetTool(Tool):
             "properties": {
                 "needle": {
                     "type": "string",
-                    "description": "Substring to match; matching lines are removed.",
+                    "description": "Substring to match; matching lines are removed when confirmed.",
+                },
+                "confirm": {
+                    "type": "boolean",
+                    "description": (
+                        "Must be true to actually quarantine/remove. "
+                        "False/omitted returns a preview only."
+                    ),
                 },
             },
             "required": ["needle"],
         }
 
-    async def execute(self, *, needle: str, **_: Any) -> str:
+    async def execute(self, *, needle: str, confirm: bool = False, **_: Any) -> str:
         if not (needle or "").strip():
             return "Error: needle is required."
-        counts = await self._store.forget_memory_lines(needle)
+        counts = await self._store.forget_memory_lines(needle, confirm=bool(confirm))
         if counts.get("error"):
             return f"Error: {counts['error']}"
+        if counts.get("preview"):
+            return json.dumps({"ok": True, **counts}, ensure_ascii=False)
         return json.dumps({"ok": True, "removed": counts}, ensure_ascii=False)
 
 

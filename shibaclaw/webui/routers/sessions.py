@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 
+from loguru import logger
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -99,8 +100,12 @@ async def api_sessions_patch(request: Request):
                         {"error": f"Model not allowed for profile '{profile_id}'"},
                         status_code=400,
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Model allowlist validation failed: {}", e)
+                return JSONResponse(
+                    {"error": f"Model allowlist validation failed: {e}"},
+                    status_code=403,
+                )
         session.metadata["model"] = model
     if "reasoning_effort" in data:
         session.metadata["reasoning_effort"] = data["reasoning_effort"]
@@ -117,7 +122,12 @@ async def api_sessions_patch(request: Request):
             )
         session.metadata["permission_mode"] = mode or None
     if "incognito" in data:
-        session.metadata["incognito"] = bool(data["incognito"])
+        enabling = bool(data["incognito"])
+        was_incognito = bool(session.metadata.get("incognito"))
+        session.metadata["incognito"] = enabling
+        if enabling and not was_incognito:
+            # Toggle onto existing persisted session → wipe disk file.
+            pm.purge_persisted_session(session.key)
     touch_keys = (
         "nickname",
         "profile_id",

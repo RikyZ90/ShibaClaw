@@ -75,7 +75,11 @@ async def test_interactive_hub_resolve_ask():
         await asyncio.sleep(0.05)
         assert events and events[0]["kind"] == "ask"
         rid = events[0]["request_id"]
-        assert hub.resolve(rid, {"ok": True, "option_id": "yes", "label": "Yes"})
+        assert hub.resolve(
+            rid,
+            {"ok": True, "option_id": "yes", "label": "Yes"},
+            session_key="webui:t",
+        )
 
     task = asyncio.create_task(answer())
     result = await hub.request(
@@ -107,12 +111,12 @@ async def test_interactive_hub_per_session_emit():
     async def answer_a():
         await asyncio.sleep(0.02)
         rid = a_events[0]["request_id"]
-        hub.resolve(rid, {"ok": True, "option_id": "a"})
+        hub.resolve(rid, {"ok": True, "option_id": "a"}, session_key="webui:a")
 
     async def answer_b():
         await asyncio.sleep(0.02)
         rid = b_events[0]["request_id"]
-        hub.resolve(rid, {"ok": True, "option_index": 1})
+        hub.resolve(rid, {"ok": True, "option_index": 1}, session_key="webui:b")
 
     ta = asyncio.create_task(answer_a())
     tb = asyncio.create_task(answer_b())
@@ -186,7 +190,7 @@ async def test_credential_hub_stores_without_returning_secret(tmp_path: Path, mo
     async def answer():
         await asyncio.sleep(0.05)
         rid = events[0]["request_id"]
-        hub.resolve(rid, {"secret": "super-secret-value"})
+        hub.resolve(rid, {"secret": "super-secret-value"}, session_key="webui:t")
 
     task = asyncio.create_task(answer())
     result = await hub.request(

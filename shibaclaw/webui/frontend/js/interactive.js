@@ -12,14 +12,23 @@ function _removeInteractiveCard(requestId) {
     if (el) el.remove();
 }
 
-function _replyInteractive(requestId, response) {
-    realtime.emit("interactive_reply", { request_id: requestId, response });
+function _replyInteractive(requestId, response, sessionKey) {
+    const sk =
+        sessionKey ||
+        (typeof state !== "undefined" && state.sessionId) ||
+        "";
+    realtime.emit("interactive_reply", {
+        request_id: requestId,
+        session_key: sk,
+        response,
+    });
     _removeInteractiveCard(requestId);
 }
 
 function renderAskCard(payload) {
     const requestId = payload.request_id;
     if (!requestId) return;
+    const sessionKey = payload.session_key || "";
     activateChat();
     _removeInteractiveCard(requestId);
 
@@ -54,11 +63,15 @@ function renderAskCard(payload) {
 
     card.querySelectorAll(".interactive-option").forEach((btn) => {
         btn.addEventListener("click", () => {
-            _replyInteractive(requestId, {
-                ok: true,
-                option_id: btn.dataset.id,
-                label: btn.dataset.label,
-            });
+            _replyInteractive(
+                requestId,
+                {
+                    ok: true,
+                    option_id: btn.dataset.id,
+                    label: btn.dataset.label,
+                },
+                sessionKey
+            );
         });
     });
 
@@ -68,7 +81,7 @@ function renderAskCard(payload) {
         const send = () => {
             const text = input.value.trim();
             if (!text) return;
-            _replyInteractive(requestId, { ok: true, text });
+            _replyInteractive(requestId, { ok: true, text }, sessionKey);
         };
         sendBtn.addEventListener("click", send);
         input.addEventListener("keydown", (e) => {
@@ -81,7 +94,11 @@ function renderAskCard(payload) {
     const skip = card.querySelector(".interactive-skip");
     if (skip) {
         skip.addEventListener("click", () => {
-            _replyInteractive(requestId, { ok: true, action: "skip", skipped: true });
+            _replyInteractive(
+                requestId,
+                { ok: true, action: "skip", skipped: true },
+                sessionKey
+            );
         });
     }
 
@@ -92,6 +109,7 @@ function renderAskCard(payload) {
 function renderCredentialCard(payload) {
     const requestId = payload.request_id;
     if (!requestId) return;
+    const sessionKey = payload.session_key || "";
     activateChat();
     _removeInteractiveCard(requestId);
 
@@ -113,7 +131,7 @@ function renderCredentialCard(payload) {
     const store = () => {
         const secret = (input?.value || "").trim();
         if (!secret) return;
-        _replyInteractive(requestId, { ok: true, secret });
+        _replyInteractive(requestId, { ok: true, secret }, sessionKey);
         if (input) input.value = "";
     };
     card.querySelector(".interactive-send")?.addEventListener("click", store);
@@ -124,7 +142,11 @@ function renderCredentialCard(payload) {
         }
     });
     card.querySelector(".interactive-skip")?.addEventListener("click", () => {
-        _replyInteractive(requestId, { ok: true, action: "skip", skipped: true });
+        _replyInteractive(
+            requestId,
+            { ok: true, action: "skip", skipped: true },
+            sessionKey
+        );
     });
 
     chatHistory.appendChild(card);

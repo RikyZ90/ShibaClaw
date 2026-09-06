@@ -270,12 +270,40 @@ class PackManager:
         """Save a session without blocking the asyncio event loop."""
         await asyncio.to_thread(self.save, session)
 
+    def purge_persisted_session(self, key: str) -> bool:
+        """Delete on-disk JSONL for *key* and invalidate related caches.
+
+        Keeps the in-memory session (if any) so an active incognito turn
+        continues in RAM. Returns True if a file was removed.
+        """
+        path = self._get_session_path(key)
+        deleted = False
+        if path.exists():
+            try:
+                path.unlink()
+                deleted = True
+            except OSError as e:
+                logger.warning("Failed to purge session file {}: {}", path, e)
+        self._cache_persisted_messages_count.pop(key, None)
+        self._cache_persisted_last_consolidated.pop(key, None)
+        self._cache_persisted_last_learned.pop(key, None)
+        self._cache_persisted_metadata_json.pop(key, None)
+        self._cache_mtime_ns[key] = None
+        # Drop list-cache entries for this path.
+        path_str = str(path)
+        self._list_sessions_cache = {
+            p: v for p, v in self._list_sessions_cache.items() if p != path_str
+        }
+        return deleted
+
     def save(self, session: Session) -> None:
         """Save a session to disk."""
         # Incognito: keep in-memory only (lost on restart).
         if session.metadata.get("incognito") or session.metadata.get("ephemeral"):
             self._cache[session.key] = session
             self._cache_mtime_ns[session.key] = None
+            # Defense-in-depth: wipe any previously persisted file.
+            self.purge_persisted_session(session.key)
             return
 
         path = self._get_session_path(session.key)

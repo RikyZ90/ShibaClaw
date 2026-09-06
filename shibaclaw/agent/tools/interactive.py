@@ -6,6 +6,7 @@ import re
 from typing import Any, Awaitable, Callable
 
 from shibaclaw.agent.interactive import DEFAULT_INTERACTIVE_TIMEOUT, get_interactive_hub
+from shibaclaw.agent.interactive_ctx import build_interactive_turn, turn_interactive
 from shibaclaw.agent.tools.base import Tool
 from shibaclaw.brain.manager import PackManager
 from shibaclaw.bus.events import OutboundMessage
@@ -22,10 +23,6 @@ class AskUserTool(Tool):
         send_callback: Callable[[OutboundMessage], Awaitable[None]] | None = None,
     ) -> None:
         self._send_callback = send_callback
-        self._session_key = ""
-        self._channel = ""
-        self._chat_id = ""
-        self._initiator_user_id = ""
 
     def set_context(
         self,
@@ -35,19 +32,17 @@ class AskUserTool(Tool):
         metadata: dict[str, Any] | None = None,
         **_kwargs: Any,
     ) -> None:
-        self._channel = channel or ""
-        self._chat_id = chat_id or ""
-        self._session_key = session_key or (
-            f"{channel}:{chat_id}" if channel and chat_id else ""
+        # Bind per-task ContextVar — shared tool instances stay stateless.
+        from shibaclaw.agent.interactive_ctx import bind_interactive_turn
+
+        bind_interactive_turn(
+            build_interactive_turn(
+                channel=channel,
+                chat_id=chat_id,
+                session_key=session_key,
+                metadata=metadata,
+            )
         )
-        meta = metadata or {}
-        # Prefer explicit sender; fall back to private-chat id.
-        sender = meta.get("sender_id") or meta.get("user_id") or meta.get("from_user_id")
-        if sender is None and channel == "telegram" and str(chat_id).lstrip("-").isdigit():
-            # Private chats: positive chat_id == user id
-            if not str(chat_id).startswith("-"):
-                sender = chat_id
-        self._initiator_user_id = str(sender).strip() if sender is not None else ""
 
     @property
     def name(self) -> str:
@@ -102,6 +97,7 @@ class AskUserTool(Tool):
         allow_skip: bool = True,
         **_kwargs: Any,
     ) -> str:
+        ctx = turn_interactive()
         prompt = (prompt or "").strip()
         if not prompt:
             return "Error: prompt is required"
@@ -117,12 +113,15 @@ class AskUserTool(Tool):
 
         hub = get_interactive_hub()
         telegram_wired = False
+        session_key = ctx.session_key
         if (
-            self._channel.lower() == "telegram"
+            ctx.channel.lower() == "telegram"
             and clean_options
             and self._send_callback
-            and self._chat_id
+            and ctx.chat_id
         ):
+            chat_id = ctx.chat_id
+            send_cb = self._send_callback
 
             async def telegram_emit(event: dict[str, Any]) -> None:
                 rid = str(event.get("request_id") or "")
@@ -132,10 +131,10 @@ class AskUserTool(Tool):
                     for o in opts
                     if isinstance(o, dict) and o.get("id")
                 ]
-                await self._send_callback(
+                await send_cb(
                     OutboundMessage(
                         channel="telegram",
-                        chat_id=self._chat_id,
+                        chat_id=chat_id,
                         content=str(event.get("prompt") or prompt),
                         metadata={
                             "ask_request_id": rid,
@@ -144,7 +143,7 @@ class AskUserTool(Tool):
                     )
                 )
 
-            hub.set_emit(telegram_emit, session_key=self._session_key)
+            hub.set_emit(telegram_emit, session_key=session_key)
             telegram_wired = True
 
         try:
@@ -153,23 +152,24 @@ class AskUserTool(Tool):
                 "options": clean_options,
                 "allow_free_text": bool(allow_free_text),
                 "allow_skip": bool(allow_skip),
-                "channel": self._channel,
+                "channel": ctx.channel,
             }
-            if self._initiator_user_id:
-                payload["initiator_user_id"] = self._initiator_user_id
-                payload["allowed_user_ids"] = [self._initiator_user_id]
+            if ctx.initiator_user_id:
+                payload["initiator_user_id"] = ctx.initiator_user_id
+                payload["allowed_user_ids"] = [ctx.initiator_user_id]
+            if ctx.origin_ws_id:
+                payload["origin_ws_id"] = ctx.origin_ws_id
             result = await hub.request(
                 kind="ask",
-                session_key=self._session_key,
+                session_key=session_key,
                 payload=payload,
                 timeout=DEFAULT_INTERACTIVE_TIMEOUT,
             )
         finally:
             if telegram_wired:
-                hub.set_emit(None, session_key=self._session_key)
+                hub.set_emit(None, session_key=session_key)
 
         if result.get("skipped") or result.get("error") == "no_interactive_ui":
-            # Fallback text for Telegram/CLI: list options; no wait.
             lines = [f"Question for user: {prompt}"]
             if clean_options:
                 lines.append("Options:")
@@ -204,20 +204,23 @@ class AskUserTool(Tool):
 class RequestCredentialTool(Tool):
     """Request a secret via masked WebUI prompt; store in vault; never return value."""
 
-    def __init__(self) -> None:
-        self._session_key = ""
-        self._channel = ""
-
     def set_context(
         self,
         channel: str,
         chat_id: str,
         session_key: str | None = None,
+        metadata: dict[str, Any] | None = None,
         **_kwargs: Any,
     ) -> None:
-        self._channel = channel or ""
-        self._session_key = session_key or (
-            f"{channel}:{chat_id}" if channel and chat_id else ""
+        from shibaclaw.agent.interactive_ctx import bind_interactive_turn
+
+        bind_interactive_turn(
+            build_interactive_turn(
+                channel=channel,
+                chat_id=chat_id,
+                session_key=session_key,
+                metadata=metadata,
+            )
         )
 
     @property
@@ -266,6 +269,7 @@ class RequestCredentialTool(Tool):
         hint: str | None = None,
         **_kwargs: Any,
     ) -> str:
+        ctx = turn_interactive()
         title = (title or "").strip()
         key = (key or "").strip()
         if not title or not key:
@@ -275,7 +279,7 @@ class RequestCredentialTool(Tool):
                 "Error: key must match [A-Za-z0-9_.-]{1,64} "
                 "(no spaces or path separators)"
             )
-        if self._channel and self._channel.lower() not in {
+        if ctx.channel and ctx.channel.lower() not in {
             "webui",
             "cli",
             "system",
@@ -287,16 +291,19 @@ class RequestCredentialTool(Tool):
             )
 
         hub = get_interactive_hub()
+        payload: dict[str, Any] = {
+            "title": title,
+            "key": key,
+            "namespace": _RUNTIME_NS,
+            "hint": (hint or "").strip(),
+            "channel": ctx.channel,
+        }
+        if ctx.origin_ws_id:
+            payload["origin_ws_id"] = ctx.origin_ws_id
         result = await hub.request(
             kind="credential",
-            session_key=self._session_key,
-            payload={
-                "title": title,
-                "key": key,
-                "namespace": _RUNTIME_NS,
-                "hint": (hint or "").strip(),
-                "channel": self._channel,
-            },
+            session_key=ctx.session_key,
+            payload=payload,
             timeout=DEFAULT_INTERACTIVE_TIMEOUT,
         )
 
@@ -312,7 +319,6 @@ class RequestCredentialTool(Tool):
         if not result.get("ok", False):
             return f"Credential request failed: {result.get('error', 'unknown')}"
 
-        # Secret is written in InteractiveHub.resolve — never present here.
         if result.get("stored") is False:
             return "Credential was not stored."
 
@@ -325,18 +331,23 @@ class RequestCredentialTool(Tool):
 class UpdateProgressTool(Tool):
     """Publish a durable session progress card (plan / status / steps)."""
 
-    def __init__(self) -> None:
-        self._session_key = ""
-
     def set_context(
         self,
         channel: str,
         chat_id: str,
         session_key: str | None = None,
+        metadata: dict[str, Any] | None = None,
         **_kwargs: Any,
     ) -> None:
-        self._session_key = session_key or (
-            f"{channel}:{chat_id}" if channel and chat_id else ""
+        from shibaclaw.agent.interactive_ctx import bind_interactive_turn
+
+        bind_interactive_turn(
+            build_interactive_turn(
+                channel=channel,
+                chat_id=chat_id,
+                session_key=session_key,
+                metadata=metadata,
+            )
         )
 
     @property
@@ -382,6 +393,7 @@ class UpdateProgressTool(Tool):
         detail: str | None = None,
         **_kwargs: Any,
     ) -> str:
+        ctx = turn_interactive()
         title = (title or "").strip() or "Progress"
         status = (status or "working").strip().lower()
         if status not in {"working", "done", "blocked", "error"}:
@@ -392,10 +404,10 @@ class UpdateProgressTool(Tool):
             "status": status,
             "steps": clean_steps,
             "detail": (detail or "").strip()[:300],
-            "session_key": self._session_key,
+            "session_key": ctx.session_key,
         }
         hub = get_interactive_hub()
-        hub.set_progress_card(self._session_key, card)
+        hub.set_progress_card(ctx.session_key, card)
         try:
             await hub.emit({"kind": "progress_card", **card})
         except Exception:
@@ -406,24 +418,29 @@ class UpdateProgressTool(Tool):
 class SessionSearchTool(Tool):
     """Search past conversation transcripts (owner WebUI/CLI only)."""
 
-    # Global transcript search is intentionally not available on Telegram/other
-    # channels — those turns must not read WebUI or unrelated session bodies.
     _ALLOWED_CHANNELS = frozenset({"webui", "cli", "system"})
 
     def __init__(self, sessions: PackManager) -> None:
         self._sessions = sessions
-        self._channel = ""
-        self._session_key = ""
 
     def set_context(
         self,
         channel: str,
         chat_id: str,
         session_key: str | None = None,
+        metadata: dict[str, Any] | None = None,
         **_kwargs: Any,
     ) -> None:
-        self._channel = (channel or "").strip().lower()
-        self._session_key = session_key or ""
+        from shibaclaw.agent.interactive_ctx import bind_interactive_turn
+
+        bind_interactive_turn(
+            build_interactive_turn(
+                channel=channel,
+                chat_id=chat_id,
+                session_key=session_key,
+                metadata=metadata,
+            )
+        )
 
     @property
     def name(self) -> str:
@@ -454,7 +471,8 @@ class SessionSearchTool(Tool):
         }
 
     async def execute(self, query: str, limit: int = 20, **_kwargs: Any) -> str:
-        if self._channel not in self._ALLOWED_CHANNELS:
+        ctx = turn_interactive()
+        if ctx.channel.strip().lower() not in self._ALLOWED_CHANNELS:
             return (
                 "Error: session_search is only available on WebUI/CLI "
                 "(not Telegram or other chat channels)."

@@ -674,7 +674,12 @@ async def gateway_command(
                 response = payload.get("response") or {}
                 if not isinstance(response, dict):
                     response = {"value": response}
-                ok = bool(rid) and get_interactive_hub().resolve(rid, response)
+                ok = bool(rid) and get_interactive_hub().resolve(
+                    rid,
+                    response,
+                    session_key=payload.get("session_key"),
+                    origin_ws_id=payload.get("origin_ws_id"),
+                )
                 await ws.send(_ok({"resolved": ok, "request_id": rid}))
 
             elif action == "restart":

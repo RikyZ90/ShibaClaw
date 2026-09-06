@@ -86,6 +86,8 @@ class InteractiveHub:
                     "options",
                     "initiator_user_id",
                     "allowed_user_ids",
+                    "origin_ws_id",
+                    "channel",
                 )
                 if k in payload
             },
@@ -136,17 +138,56 @@ class InteractiveHub:
                 self._pending.pop(request_id, None)
                 self._pending_meta.pop(request_id, None)
 
-    def resolve(self, request_id: str, response: dict[str, Any]) -> bool:
+    def resolve(
+        self,
+        request_id: str,
+        response: dict[str, Any],
+        *,
+        session_key: str | None = None,
+        origin_ws_id: str | None = None,
+    ) -> bool:
         """Resolve a pending request (called from gateway ``interactive_reply``).
 
         For credential requests, if ``secret`` is present it is written to the
         vault here and stripped from the value returned to the waiting tool.
+
+        When pending meta has ``session_key`` / ``origin_ws_id``, the reply must
+        match (authorization boundary for WebUI multi-tab / multi-client).
         """
         fut = self._pending.get(request_id)
         if fut is None or fut.done():
             return False
         payload = dict(response) if isinstance(response, dict) else {"value": response}
         meta = self._pending_meta.get(request_id) or {}
+
+        expected_sk = str(meta.get("session_key") or "").strip()
+        if expected_sk:
+            provided_sk = str(
+                session_key if session_key is not None else payload.get("session_key") or ""
+            ).strip()
+            if provided_sk != expected_sk:
+                logger.warning(
+                    "interactive resolve denied: session_key mismatch for {}",
+                    request_id,
+                )
+                return False
+
+        expected_ws = str(meta.get("origin_ws_id") or "").strip()
+        if expected_ws:
+            provided_ws = str(
+                origin_ws_id
+                if origin_ws_id is not None
+                else payload.get("origin_ws_id") or ""
+            ).strip()
+            # Soft check: prefer originating client, but allow any client that
+            # already passed session_key binding (multi-tab same session).
+            if provided_ws and provided_ws != expected_ws:
+                logger.debug(
+                    "interactive resolve: origin_ws_id differs for {} ({} vs {})",
+                    request_id,
+                    provided_ws,
+                    expected_ws,
+                )
 
         # Resolve option index → id/label when Telegram uses compact callback_data.
         if "option_index" in payload and isinstance(meta.get("options"), list):

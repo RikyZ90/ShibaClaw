@@ -176,11 +176,17 @@ class ScentKeeper:
             async with aiofiles.open(diary, "a", encoding="utf-8") as f:
                 await f.write(block)
 
-    async def forget_memory_lines(self, needle: str) -> dict:
+    async def forget_memory_lines(
+        self, needle: str, *, confirm: bool = False, preview_limit: int = 20
+    ) -> dict:
         """Remove lines containing *needle* from MEMORY.md and HISTORY.md.
 
         Case-insensitive match. Never deletes the files themselves.
-        Returns per-file removed line counts.
+
+        Without ``confirm=True``, returns a preview of matching lines and does
+        not modify disk. With confirm, matching lines are moved to a quarantine
+        file under ``memory/quarantine/`` and a redacted audit line is appended
+        to ``memory/AUDIT.md``.
 
         Rejects whitespace-only or short needles (< 3 non-whitespace chars)
         to prevent prompt-injection mass wipes.
@@ -191,6 +197,13 @@ class ScentKeeper:
             counts["error"] = "needle must be at least 3 non-whitespace characters"
             return counts
         needle_cf = stripped.casefold()
+        try:
+            lim = max(1, min(int(preview_limit), 100))
+        except (TypeError, ValueError):
+            lim = 20
+
+        matches: dict[str, list[str]] = {"MEMORY.md": [], "HISTORY.md": []}
+        removals: dict[str, list[str]] = {"MEMORY.md": [], "HISTORY.md": []}
 
         async with self._file_lock:
             for label, path in (
@@ -206,12 +219,58 @@ class ScentKeeper:
                 for line in lines:
                     if needle_cf in line.casefold():
                         removed += 1
+                        removals[label].append(line)
+                        if len(matches[label]) < lim:
+                            snippet = line.strip()
+                            if len(snippet) > 200:
+                                snippet = snippet[:197] + "..."
+                            matches[label].append(snippet)
                     else:
                         kept.append(line)
-                if removed:
-                    path.write_text("".join(kept), encoding="utf-8")
                 counts[label] = removed
-        return counts
+                if confirm and removed:
+                    path.write_text("".join(kept), encoding="utf-8")
+
+            if not confirm:
+                return {
+                    "preview": True,
+                    "confirm_required": True,
+                    "needle": stripped,
+                    "counts": counts,
+                    "matches": matches,
+                    "hint": "Re-call with confirm=true to quarantine and remove these lines.",
+                }
+
+            total = int(counts["MEMORY.md"]) + int(counts["HISTORY.md"])
+            if total:
+                qdir = self.memory_dir / "quarantine"
+                qdir.mkdir(parents=True, exist_ok=True)
+                ts = datetime.now().strftime("%Y%m%dT%H%M%S")
+                qpath = qdir / f"forget-{ts}.md"
+                blocks: list[str] = [
+                    f"# Quarantined forget {ts}\n",
+                    f"needle: `{stripped}`\n\n",
+                ]
+                for label in ("MEMORY.md", "HISTORY.md"):
+                    if removals[label]:
+                        blocks.append(f"## {label}\n\n")
+                        blocks.extend(removals[label])
+                        if not removals[label][-1].endswith("\n"):
+                            blocks.append("\n")
+                qpath.write_text("".join(blocks), encoding="utf-8")
+                audit = self.memory_dir / "AUDIT.md"
+                audit_line = (
+                    f"- {datetime.now().isoformat(timespec='seconds')} "
+                    f"memory_forget removed={total} "
+                    f"MEMORY.md={counts['MEMORY.md']} HISTORY.md={counts['HISTORY.md']} "
+                    f"quarantine={qpath.name}\n"
+                )
+                with open(audit, "a", encoding="utf-8") as f:
+                    f.write(audit_line)
+                counts["quarantine"] = str(qpath.relative_to(self.memory_dir.parent))
+                counts["audit"] = True
+            counts["preview"] = False
+            return counts
 
     def estimate_memory_tokens(self) -> int:
         """Estimate token count of the current MEMORY.md content."""

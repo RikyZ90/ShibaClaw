@@ -1316,12 +1316,15 @@ class ShibaBrain:
                 session.metadata["model"] = canonical
                 await self.sessions.asave(session)
 
-        # Profile model allowlist — reject / clear disallowed session model
+        # Profile model allowlist — reject / clear disallowed session model.
+        # Fail closed when an allowlist cannot be evaluated (auth boundary).
         if session.metadata.get("model"):
             try:
                 from shibaclaw.agent.profiles import ProfileManager
 
-                if not ProfileManager(self.workspace).model_allowed(
+                pm_prof = ProfileManager(self.workspace)
+                allowed = pm_prof.get_allowed_models(profile_id)
+                if allowed is not None and not pm_prof.model_allowed(
                     profile_id, session.metadata.get("model")
                 ):
                     blocked = session.metadata.pop("model", None)
@@ -1335,7 +1338,18 @@ class ShibaBrain:
                         ),
                     )
             except Exception as e:
-                logger.debug("model allowlist check skipped: {}", e)
+                logger.warning("model allowlist check failed closed: {}", e)
+                blocked = session.metadata.pop("model", None)
+                await self.sessions.asave(session)
+                return OutboundMessage(
+                    channel=msg.channel,
+                    chat_id=msg.chat_id,
+                    content=(
+                        "Could not validate profile model allowlist"
+                        + (f" for `{blocked}`" if blocked else "")
+                        + ". Cleared session model override — using profile/default."
+                    ),
+                )
 
         cmd = msg.content.strip().lower()
         if cmd == "/new":

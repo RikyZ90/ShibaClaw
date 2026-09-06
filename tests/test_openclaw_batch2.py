@@ -81,10 +81,85 @@ async def test_memory_forget_rejects_short_needle(tmp_path: Path):
     short = await store.forget_memory_lines("ab")
     assert short.get("error")
     assert "secret password here" in store.memory_file.read_text(encoding="utf-8")
-    ok = await store.forget_memory_lines("password")
+
+    preview = await store.forget_memory_lines("password")
+    assert preview.get("preview") is True
+    assert preview["counts"]["MEMORY.md"] == 1
+    assert "secret password here" in store.memory_file.read_text(encoding="utf-8")
+
+    ok = await store.forget_memory_lines("password", confirm=True)
     assert not ok.get("error")
+    assert not ok.get("preview")
     assert ok["MEMORY.md"] == 1
     assert "password" not in store.memory_file.read_text(encoding="utf-8")
+    assert (tmp_path / "memory" / "quarantine").exists()
+    assert (tmp_path / "memory" / "AUDIT.md").exists()
+
+
+def test_incognito_toggle_purges_persisted_file(tmp_path: Path):
+    pm = PackManager(tmp_path)
+    s = pm.get_or_create("webui:was-normal")
+    s.add_message("user", "persisted-secret-phrase")
+    pm.save(s)
+    path = pm._get_session_path("webui:was-normal")
+    assert path.exists()
+    assert any(
+        "persisted-secret-phrase" in h.get("snippet", "")
+        for h in pm.search_messages("persisted-secret-phrase")
+    )
+
+    s.metadata["incognito"] = True
+    pm.purge_persisted_session(s.key)
+    pm.save(s)
+    assert not path.exists()
+    assert pm.search_messages("persisted-secret-phrase") == []
+
+
+@pytest.mark.asyncio
+async def test_interactive_turn_context_isolation():
+    import asyncio
+
+    from shibaclaw.agent.interactive_ctx import (
+        InteractiveTurnContext,
+        bind_interactive_turn,
+        reset_interactive_turn,
+        turn_interactive,
+    )
+
+    results: dict[str, str] = {}
+
+    async def worker(name: str, sk: str) -> None:
+        token = bind_interactive_turn(
+            InteractiveTurnContext(channel="webui", chat_id=name, session_key=sk)
+        )
+        try:
+            await asyncio.sleep(0.05)
+            results[name] = turn_interactive().session_key
+        finally:
+            reset_interactive_turn(token)
+
+    await asyncio.gather(
+        worker("a", "webui:a"),
+        worker("b", "webui:b"),
+    )
+    assert results["a"] == "webui:a"
+    assert results["b"] == "webui:b"
+
+
+@pytest.mark.asyncio
+async def test_interactive_resolve_requires_session_key():
+    import asyncio
+
+    from shibaclaw.agent.interactive import InteractiveHub
+
+    hub = InteractiveHub()
+    fut = asyncio.get_running_loop().create_future()
+    hub._pending["rid123"] = fut
+    hub._pending_meta["rid123"] = {"session_key": "webui:alpha", "kind": "ask"}
+    assert hub.resolve("rid123", {"ok": True}, session_key="webui:other") is False
+    assert not fut.done()
+    assert hub.resolve("rid123", {"ok": True, "text": "hi"}, session_key="webui:alpha")
+    assert fut.done()
 
 
 def test_session_rewind_fork_incognito(tmp_path: Path):
