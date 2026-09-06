@@ -213,7 +213,8 @@ class GatewayClient:
             is_lossy_event = (
                 isinstance(item, dict)
                 and item.get("type") == "event"
-                and item.get("name") in {"chat.progress", "chat.response_token"}
+                and item.get("name")
+                in {"chat.progress", "chat.response_token"}
             )
             if is_lossy_event:
                 return
@@ -298,6 +299,9 @@ class GatewayClient:
                 if item.get("type") == "event" and item.get("name") == "chat.progress":
                     p = item.get("payload", {})
                     yield {"t": "p", "c": p.get("c", ""), "h": p.get("h", False)}
+
+                elif item.get("type") == "event" and item.get("name") == "chat.interactive":
+                    yield {"t": "i", "payload": item.get("payload") or {}}
 
                 elif item.get("type") == "event" and item.get("name") == "chat.response_token":
                     p = item.get("payload", {})

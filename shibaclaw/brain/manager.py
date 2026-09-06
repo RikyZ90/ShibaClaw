@@ -115,6 +115,37 @@ class Session:
         self.last_consolidated = 0
         self.updated_at = datetime.now()
 
+    def rewind(self, to_index: int) -> int:
+        """Truncate messages to ``to_index`` (exclusive end), aligned to a legal boundary.
+
+        Returns the actual keep length.
+        """
+        if to_index <= 0:
+            self.messages = []
+            self.last_consolidated = 0
+            self.last_learned = 0
+            self.updated_at = datetime.now()
+            return 0
+        keep = min(to_index, len(self.messages))
+        sliced = self.messages[:keep]
+        start = self._find_legal_start(sliced)
+        if start:
+            sliced = sliced[start:]
+        self.messages = sliced
+        self.last_consolidated = min(self.last_consolidated, len(self.messages))
+        self.last_learned = min(self.last_learned, len(self.messages))
+        self.updated_at = datetime.now()
+        return len(self.messages)
+
+    def fork_messages(self, from_index: int) -> list[dict[str, Any]]:
+        """Return a copy of messages up to ``from_index`` on a legal boundary."""
+        keep = max(0, min(from_index, len(self.messages)))
+        sliced = list(self.messages[:keep])
+        start = self._find_legal_start(sliced)
+        if start:
+            sliced = sliced[start:]
+        return sliced
+
 
 class PackManager:
     """
@@ -239,8 +270,42 @@ class PackManager:
         """Save a session without blocking the asyncio event loop."""
         await asyncio.to_thread(self.save, session)
 
+    def purge_persisted_session(self, key: str) -> bool:
+        """Delete on-disk JSONL for *key* and invalidate related caches.
+
+        Keeps the in-memory session (if any) so an active incognito turn
+        continues in RAM. Returns True if a file was removed.
+        """
+        path = self._get_session_path(key)
+        deleted = False
+        if path.exists():
+            try:
+                path.unlink()
+                deleted = True
+            except OSError as e:
+                logger.warning("Failed to purge session file {}: {}", path, e)
+        self._cache_persisted_messages_count.pop(key, None)
+        self._cache_persisted_last_consolidated.pop(key, None)
+        self._cache_persisted_last_learned.pop(key, None)
+        self._cache_persisted_metadata_json.pop(key, None)
+        self._cache_mtime_ns[key] = None
+        # Drop list-cache entries for this path.
+        path_str = str(path)
+        self._list_sessions_cache = {
+            p: v for p, v in self._list_sessions_cache.items() if p != path_str
+        }
+        return deleted
+
     def save(self, session: Session) -> None:
         """Save a session to disk."""
+        # Incognito: keep in-memory only (lost on restart).
+        if session.metadata.get("incognito") or session.metadata.get("ephemeral"):
+            self._cache[session.key] = session
+            self._cache_mtime_ns[session.key] = None
+            # Defense-in-depth: wipe any previously persisted file.
+            self.purge_persisted_session(session.key)
+            return
+
         path = self._get_session_path(session.key)
         key = session.key
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -344,3 +409,115 @@ class PackManager:
 
         self._list_sessions_cache = new_cache
         return sorted(sessions, key=lambda x: x.get("updated_at", ""), reverse=True)
+
+    def fork_session(self, source_key: str, from_index: int) -> Session | None:
+        """Create a new session with messages forked from ``source_key``."""
+        src = self.get_or_create(source_key)
+        msgs = src.fork_messages(from_index)
+        new_key = f"{source_key}:fork:{uuid_short()}"
+        session = Session(key=new_key)
+        session.messages = msgs
+        session.metadata = {
+            **{k: v for k, v in src.metadata.items() if k not in {"incognito", "ephemeral"}},
+            "forked_from": source_key,
+            "fork_index": from_index,
+            "nickname": (src.metadata.get("nickname") or source_key) + " (fork)",
+        }
+        self._cache[new_key] = session
+        self.save(session)
+        return session
+
+    def rewind_session(self, key: str, to_index: int) -> Session | None:
+        session = self.get_or_create(key)
+        session.rewind(to_index)
+        # Force full rewrite
+        self._cache_persisted_messages_count.pop(key, None)
+        self.save(session)
+        return session
+
+    def search_messages(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Scan session JSONL bodies for an exact case-insensitive phrase.
+
+        Returns newest-first hits with session_key, role, timestamp, snippet.
+        """
+        needle = (query or "").strip().lower()
+        if not needle:
+            return []
+        try:
+            lim = max(1, min(int(limit), 100))
+        except (TypeError, ValueError):
+            lim = 20
+
+        hits: list[dict[str, Any]] = []
+        try:
+            entries = os.scandir(self.sessions_dir)
+        except FileNotFoundError:
+            return []
+
+        with entries:
+            files = [e for e in entries if e.is_file() and e.name.endswith(".jsonl")]
+        files.sort(key=lambda e: e.stat().st_mtime, reverse=True)
+
+        for entry in files:
+            if len(hits) >= lim:
+                break
+            session_key = ""
+            try:
+                with open(entry.path, encoding="utf-8") as f:
+                    for line in f:
+                        if len(hits) >= lim:
+                            break
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if data.get("_type") == "metadata":
+                            session_key = str(data.get("key") or session_key)
+                            continue
+                        content = data.get("content")
+                        if isinstance(content, list):
+                            parts: list[str] = []
+                            for block in content:
+                                if isinstance(block, dict) and isinstance(
+                                    block.get("text"), str
+                                ):
+                                    parts.append(block["text"])
+                                elif isinstance(block, str):
+                                    parts.append(block)
+                            text = "\n".join(parts)
+                        elif isinstance(content, str):
+                            text = content
+                        else:
+                            continue
+                        if needle not in text.lower():
+                            continue
+                        if not session_key:
+                            session_key = entry.name[:-6].replace("_", ":", 1)
+                        idx = text.lower().find(needle)
+                        start = max(0, idx - 40)
+                        end = min(len(text), idx + len(needle) + 60)
+                        snippet = text[start:end].replace("\n", " ")
+                        if start > 0:
+                            snippet = "…" + snippet
+                        if end < len(text):
+                            snippet = snippet + "…"
+                        hits.append(
+                            {
+                                "session_key": session_key,
+                                "role": data.get("role", ""),
+                                "timestamp": data.get("timestamp"),
+                                "snippet": snippet[:240],
+                            }
+                        )
+            except OSError:
+                continue
+        return hits
+
+
+def uuid_short() -> str:
+    import uuid
+
+    return uuid.uuid4().hex[:8]

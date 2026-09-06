@@ -48,9 +48,33 @@ class _FsTool(Tool):
         self._workspace = workspace
         self._allowed_dir = allowed_dir
         self._extra_allowed_dirs = extra_allowed_dirs
+        self._readonly = False
+
+    def configure_sandbox(
+        self,
+        *,
+        allowed_dir: Path | None,
+        extra_allowed_dirs: list[Path] | None = None,
+        readonly: bool = False,
+    ) -> None:
+        """Rebind default workspace restriction (registration-time defaults)."""
+        self._allowed_dir = allowed_dir
+        if extra_allowed_dirs is not None:
+            self._extra_allowed_dirs = extra_allowed_dirs
+        self._readonly = readonly
+
+    def _effective_allowed(self) -> tuple[Path | None, bool]:
+        from shibaclaw.agent.sandbox_ctx import resolve_turn_sandbox
+
+        allowed, readonly, _ = resolve_turn_sandbox(
+            default_allowed_dir=self._allowed_dir,
+            default_readonly=self._readonly,
+        )
+        return allowed, readonly
 
     def _resolve(self, path: str) -> Path:
-        resolved = _resolve_path(path, self._workspace, self._allowed_dir, self._extra_allowed_dirs)
+        allowed, _ = self._effective_allowed()
+        resolved = _resolve_path(path, self._workspace, allowed, self._extra_allowed_dirs)
         secretary_dir = (self._workspace / "memory" / "secretary").resolve() if self._workspace else None
         if secretary_dir and resolved.is_relative_to(secretary_dir):
             raise PermissionError(
@@ -202,6 +226,9 @@ class WriteFileTool(_FsTool):
         }
 
     async def execute(self, path: str, content: str, **kwargs: Any) -> str:
+        _, readonly = self._effective_allowed()
+        if readonly:
+            return "Error: session permission mode is readonly (writes disabled)"
         try:
             fp = self._resolve(path)
             fp.parent.mkdir(parents=True, exist_ok=True)
@@ -283,6 +310,9 @@ class EditFileTool(_FsTool):
         replace_all: bool = False,
         **kwargs: Any,
     ) -> str:
+        _, readonly = self._effective_allowed()
+        if readonly:
+            return "Error: session permission mode is readonly (writes disabled)"
         try:
             fp = self._resolve(path)
             if not fp.exists():

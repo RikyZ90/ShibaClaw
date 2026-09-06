@@ -78,6 +78,49 @@ class ProfileManager:
         except (TypeError, ValueError):
             return None
 
+    def get_allowed_models(self, profile_id: str | None) -> list[str] | None:
+        """Return model allowlist for *profile_id*, or None if unrestricted.
+
+        Distinguishes missing key (None = unrestricted) from empty list
+        (``[]`` = deny all models).
+        """
+        pid = profile_id or DEFAULT_PROFILE_ID
+        meta = self._load_manifest().get(pid, {})
+        if "allowed_models" not in meta:
+            return None
+        allowed = meta.get("allowed_models")
+        if not isinstance(allowed, list):
+            return None
+        return [str(x).strip() for x in allowed if str(x).strip()]
+
+    def model_allowed(self, profile_id: str | None, model: str | None) -> bool:
+        """True if model is permitted for profile.
+
+        Matching: exact (case-insensitive) or ``fnmatch`` wildcards
+        (e.g. ``openai/*``). Substring matching is intentionally not used.
+        ``None`` allowlist = unrestricted; ``[]`` = deny all.
+        """
+        import fnmatch
+
+        if not model:
+            return True
+        allowed = self.get_allowed_models(profile_id)
+        if allowed is None:
+            return True
+        if not allowed:
+            return False
+        m = model.strip().lower()
+        for entry in allowed:
+            e = entry.strip().lower()
+            if not e:
+                continue
+            if m == e or fnmatch.fnmatch(m, e):
+                return True
+            # Also allow matching bare model id against provider/model entries.
+            if "/" in m and fnmatch.fnmatch(m.split("/", 1)[1], e):
+                return True
+        return False
+
     def get_default_knowledge_bases(self, profile_id: str | None) -> list[str]:
         """Return default Knowledge Base collection ids for *profile_id*."""
         pid = profile_id or DEFAULT_PROFILE_ID
@@ -211,6 +254,8 @@ class ProfileManager:
                 result["temperature"] = meta["temperature"]
             if "knowledge_bases" in meta:
                 result["knowledge_bases"] = meta["knowledge_bases"]
+            if "allowed_models" in meta:
+                result["allowed_models"] = meta["allowed_models"]
             return result
 
         soul = self.get_soul_content(profile_id)
@@ -235,6 +280,8 @@ class ProfileManager:
             result["temperature"] = meta["temperature"]
         if "knowledge_bases" in meta:
             result["knowledge_bases"] = meta["knowledge_bases"]
+        if "allowed_models" in meta:
+            result["allowed_models"] = meta["allowed_models"]
         return result
 
     def create_profile(
@@ -249,6 +296,7 @@ class ProfileManager:
         enabled_tools: list[str] | None = None,
         temperature: float | None = None,
         knowledge_bases: list[str] | None = None,
+        allowed_models: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create a custom profile."""
         profile_dir = self.profiles_dir / profile_id
@@ -273,6 +321,8 @@ class ProfileManager:
             entry["temperature"] = temperature
         if knowledge_bases is not None:
             entry["knowledge_bases"] = knowledge_bases
+        if allowed_models is not None:
+            entry["allowed_models"] = allowed_models
         manifest[profile_id] = entry
         self._save_manifest(manifest)
         return self.get_profile(profile_id)  # type: ignore[return-value]
@@ -289,6 +339,7 @@ class ProfileManager:
         enabled_tools: list[str] | None = ...,
         temperature: float | None = ...,
         knowledge_bases: list[str] | None = ...,
+        allowed_models: list[str] | None = ...,
     ) -> dict[str, Any] | None:
         """Update profile metadata or soul content."""
         manifest = self._load_manifest()
@@ -323,6 +374,7 @@ class ProfileManager:
                 ("enabled_tools", enabled_tools),
                 ("temperature", temperature),
                 ("knowledge_bases", knowledge_bases),
+                ("allowed_models", allowed_models),
             ):
                 if value is not ...:
                     if value is None:
@@ -364,6 +416,7 @@ class ProfileManager:
             ("enabled_tools", enabled_tools),
             ("temperature", temperature),
             ("knowledge_bases", knowledge_bases),
+            ("allowed_models", allowed_models),
         ):
             if value is not ...:
                 if value is None:

@@ -26,10 +26,9 @@ def _sync_packaged_update_manifest() -> None:
 
 
 def _check_build_environment() -> None:
-    if sys.version_info >= (3, 14):
+    if sys.version_info < (3, 12):
         raise SystemExit(
-            "Windows desktop packaging currently requires Python 3.12 or 3.13. "
-            "pywebview/pythonnet is not yet building cleanly on Python 3.14."
+            "Windows desktop packaging requires Python 3.12 or newer."
         )
 
     missing = []

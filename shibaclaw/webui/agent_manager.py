@@ -135,11 +135,16 @@ class AgentManager:
 
         await _gateway_post("/reload", {})
 
-    async def archive_via_gateway(self, snapshot: list[dict]):
+    async def archive_via_gateway(
+        self, snapshot: list[dict], session_key: str | None = None
+    ):
         """Send session snapshot to the gateway for memory archival."""
         from shibaclaw.webui.utils import _gateway_post
 
-        await _gateway_post("/api/archive", {"snapshot": snapshot})
+        body: dict = {"snapshot": snapshot}
+        if session_key:
+            body["session_key"] = session_key
+        await _gateway_post("/api/archive", body)
 
 
 agent_manager = AgentManager()

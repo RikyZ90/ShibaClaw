@@ -149,6 +149,20 @@ function initSocket() {
         _finalizeStreamBubble(data.id);
     });
 
+    realtime.on("agent_interactive", (data) => {
+        if (data.session_key && data.session_key !== state.sessionId) return;
+        clearTimeout(state._typingBubbleTimeout);
+        hideTypingBubble();
+        const payload = data.payload || data;
+        if (typeof handleInteractivePayload === "function") {
+            handleInteractivePayload(payload);
+        }
+        const kind = payload.kind || "interactive";
+        if (kind !== "progress_card") {
+            addProcessStep(data.id || "interactive", kind, "ASK");
+        }
+    });
+
     function _isSameSessionKey(keyA, keyB) {
         if (!keyA || !keyB) return true;
         const cleanA = String(keyA).replace(/^webui:/, "").trim();
@@ -329,6 +343,10 @@ function initSocket() {
                 } else if (evt.type === "agent_tool" || evt.type === "tool") {
                     showThinking(evt.content);
                     addProcessStep(evt.id, evt.content, "EXE");
+                } else if (evt.type === "interactive") {
+                    if (typeof handleInteractivePayload === "function") {
+                        handleInteractivePayload(evt.payload || {});
+                    }
                 }
             }
             if (events.length > 0) {
