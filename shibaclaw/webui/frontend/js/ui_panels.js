@@ -288,10 +288,57 @@ function _wireSessionSearch() {
     if (!input || _sessionSearchWired) return;
     _sessionSearchWired = true;
     if (_sessionSearchQuery) input.value = _sessionSearchQuery;
+    let msgSearchTimer = null;
     input.addEventListener("input", () => {
         _sessionSearchQuery = input.value || "";
         _renderSessionsList();
+        clearTimeout(msgSearchTimer);
+        const q = (_sessionSearchQuery || "").trim();
+        if (q.length < 2) {
+            _clearMessageHits();
+            return;
+        }
+        msgSearchTimer = setTimeout(() => _searchMessageBodies(q), 280);
     });
+}
+
+function _clearMessageHits() {
+    const el = document.getElementById("session-msg-hits");
+    if (el) el.remove();
+}
+
+async function _searchMessageBodies(q) {
+    try {
+        const res = await authFetch(
+            `/api/sessions/search?q=${encodeURIComponent(q)}&limit=12`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        _renderMessageHits(data.hits || [], q);
+    } catch {
+        /* ignore */
+    }
+}
+
+function _renderMessageHits(hits, q) {
+    _clearMessageHits();
+    const list = $("history-list");
+    if (!list || !hits.length) return;
+    const wrap = document.createElement("div");
+    wrap.id = "session-msg-hits";
+    wrap.className = "session-msg-hits";
+    for (const hit of hits) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "session-msg-hit";
+        const key = hit.session_key || "";
+        btn.innerHTML = `<strong>${escapeHtml(_cleanSessionTitle(key, key))}</strong> · ${escapeHtml(hit.role || "")}<br>${escapeHtml(hit.snippet || "")}`;
+        btn.addEventListener("click", () => {
+            if (typeof loadSession === "function") loadSession(key);
+        });
+        wrap.appendChild(btn);
+    }
+    list.prepend(wrap);
 }
 
 function _sessionMatchesQuery(sess, q) {

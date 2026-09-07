@@ -1,3 +1,17 @@
+## [1.0.0] - 2026-09-07
+
+### Added
+- **OpenClaw-Inspired Interactive UX (Batch 1)** — Introduced in-turn interactive tools: `ask_user` for structured multi-choice prompts, `request_credential` for masked sensitive secrets isolated in vault (`runtime/` namespace, strictly withheld from LLM context), `update_progress` for durable progress cards in WebUI, and `session_search` for exact-phrase session history scanning. Added gateway event `chat.interactive`, action `interactive_reply`, and per-session `permission_mode` (`full` | `workspace` | `readonly`) dynamically rebinding filesystem and execution sandboxes.
+- **OpenClaw-Inspired Governance, Memory & Operations (Batch 2)** — Automation approve-once grants (`requireApproval` flag with fingerprint invalidation on command changes; `automation.approve` / `automation.revoke`); memory ownership tools (`memory_forget`, Dream Diary `DREAM_DIARY.md`, provenance tracking); Skill Workshop staging (up to 3 pending proposals with approve/reject API); plugin installation trust confirmation with skill `trust` metadata; configuration audit history (`~/.shibaclaw/config_history.jsonl`, `GET /api/config-history`); Telegram structured ask via inline keyboard callbacks resolving through `InteractiveHub`; per-profile `allowed_models` restrictions; conversation fork and rewind REST APIs; `shibaclaw doctor [--fix]` CLI diagnostic command; unconstrained Telegram Mini App full chat for non-admin users; and ephemeral incognito sessions (RAM-only execution skipping memory consolidation).
+- **Cross-Platform CI & Verification** — Added comprehensive GitHub Actions workflow testing matrix across Ubuntu and Windows, verifying cross-platform installation and Windows desktop packaging.
+
+### Security & Fixed
+- **Interactive Tool Concurrency Isolation** — Refactored interactive tools (`shibaclaw/agent/interactive_ctx.py`) to use per-execution `ContextVar` scoping instead of shared mutable state on singleton tool instances, preventing cross-session message and credential leaks under concurrent load.
+- **Incognito Session Privacy Enforcement** — Toggling a previously saved session into incognito mode now purges existing JSONL session logs from disk and clears active memory caches.
+- **Fail-Closed Profile Model Allowlist** — Profile `allowed_models` enforcement now strictly fails closed upon evaluation errors, preventing unauthorized fallback execution.
+- **Memory Forget Quarantine & Confirmation** — `memory_forget` now requires explicit user confirmation, routes pruned entries into quarantine rather than destructive immediate deletion, and logs redacted audit trails.
+- **WebUI Interactive Reply Validation** — Securely bound interactive WebUI replies to `session_key` to avoid cross-session response spoofing.
+
 ## [0.9.20] - 2026-08-07
 
 ### Added

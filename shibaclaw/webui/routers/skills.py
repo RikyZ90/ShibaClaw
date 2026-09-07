@@ -55,6 +55,16 @@ async def api_skills_list(request: Request):
         missing = loader._get_missing_requirements(skill_meta) if not available else ""
         always_yaml = bool(skill_meta.get("always") or meta.get("always"))
 
+        trust = {
+            "name": s["name"],
+            "description": meta.get("description", s["name"]),
+            "path": s["path"],
+            "source": s["source"],
+        }
+        caps = skill_meta.get("capabilities") or meta.get("capabilities")
+        if caps:
+            trust["capabilities"] = caps
+
         skills.append(
             {
                 "name": s["name"],
@@ -65,6 +75,7 @@ async def api_skills_list(request: Request):
                 "missing_requirements": missing,
                 "always": always_yaml,
                 "pinned": s["name"] in pinned,
+                "trust": trust,
             }
         )
 
@@ -75,6 +86,54 @@ async def api_skills_list(request: Request):
             "max_pinned_skills": max_pinned,
         }
     )
+
+
+async def api_skills_workshop_list(request: Request):
+    """List pending Skill Workshop proposals."""
+    try:
+        loader = _get_loader()
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    from shibaclaw.agent.skill_workshop import SkillWorkshop
+
+    workshop = SkillWorkshop(loader.workspace)
+    return JSONResponse({"pending": workshop.list_pending()})
+
+
+async def api_skills_workshop_approve(request: Request):
+    """Approve a pending workshop proposal by id."""
+    data = await request.json()
+    proposal_id = str(data.get("id") or "").strip()
+    if not proposal_id:
+        return JSONResponse({"error": "id is required"}, status_code=400)
+    try:
+        loader = _get_loader()
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    from shibaclaw.agent.skill_workshop import SkillWorkshop
+
+    result = SkillWorkshop(loader.workspace).approve(proposal_id)
+    if not result.get("ok"):
+        return JSONResponse({"error": result.get("error", "failed")}, status_code=400)
+    return JSONResponse({"status": "approved", **result})
+
+
+async def api_skills_workshop_reject(request: Request):
+    """Reject a pending workshop proposal by id."""
+    data = await request.json()
+    proposal_id = str(data.get("id") or "").strip()
+    if not proposal_id:
+        return JSONResponse({"error": "id is required"}, status_code=400)
+    try:
+        loader = _get_loader()
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    from shibaclaw.agent.skill_workshop import SkillWorkshop
+
+    result = SkillWorkshop(loader.workspace).reject(proposal_id)
+    if not result.get("ok"):
+        return JSONResponse({"error": result.get("error", "failed")}, status_code=400)
+    return JSONResponse({"status": "rejected", **result})
 
 
 async def api_skills_pin(request: Request):

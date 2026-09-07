@@ -1,0 +1,151 @@
+/* Interactive ask / credential / progress cards */
+.interactive-card {
+    margin: 10px 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-color, #333);
+    border-radius: 12px;
+    background: var(--bg-secondary, #1a1a1a);
+    max-width: 520px;
+}
+
+.interactive-card-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text-primary, #eee);
+    line-height: 1.4;
+}
+
+.interactive-hint {
+    font-size: 12px;
+    color: var(--text-secondary, #999);
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.interactive-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.interactive-option,
+.interactive-send,
+.interactive-skip {
+    border: 1px solid var(--border-color, #444);
+    background: var(--bg-primary, #111);
+    color: var(--text-primary, #eee);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.interactive-option:hover,
+.interactive-send:hover {
+    border-color: var(--shiba-gold, #c9a227);
+}
+
+.interactive-skip {
+    background: transparent;
+    color: var(--text-secondary, #999);
+    margin-top: 4px;
+}
+
+.interactive-freetext {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.interactive-input {
+    flex: 1;
+    border: 1px solid var(--border-color, #444);
+    background: var(--bg-primary, #111);
+    color: var(--text-primary, #eee);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+
+.credential-card .interactive-input {
+    font-family: ui-monospace, monospace;
+}
+
+.progress-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.progress-card-title {
+    font-weight: 600;
+}
+
+.progress-card-status {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color, #444);
+    color: var(--text-secondary, #999);
+}
+
+.progress-card[data-status="done"] .progress-card-status {
+    color: #6ee7a8;
+    border-color: #6ee7a8;
+}
+
+.progress-card[data-status="error"] .progress-card-status,
+.progress-card[data-status="blocked"] .progress-card-status {
+    color: #f87171;
+    border-color: #f87171;
+}
+
+.progress-card-steps {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-secondary, #bbb);
+    font-size: 13px;
+}
+
+.progress-card-steps li {
+    margin: 4px 0;
+}
+
+.step-badge.ASK {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.session-msg-hits {
+    margin: 8px 0 4px;
+    padding: 0 4px;
+}
+
+.session-msg-hit {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #aaa);
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.session-msg-hit:hover {
+    background: var(--bg-secondary, #222);
+    color: var(--text-primary, #eee);
+}
+
+.session-msg-hit strong {
+    color: var(--shiba-gold, #c9a227);
+    font-weight: 600;
+}

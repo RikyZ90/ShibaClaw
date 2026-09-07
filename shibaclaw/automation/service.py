@@ -398,6 +398,8 @@ class AutomationService:
             "name": j.name,
             "enabled": j.enabled,
             "deleteAfterRun": j.delete_after_run,
+            "requireApproval": j.require_approval,
+            "approvedFingerprint": j.approved_fingerprint,
             "createdAtMs": j.created_at_ms,
             "updatedAtMs": j.updated_at_ms,
             "schedule": {
@@ -438,6 +440,8 @@ class AutomationService:
             name=d.get("name", ""),
             enabled=d.get("enabled", True),
             delete_after_run=d.get("deleteAfterRun", False),
+            require_approval=d.get("requireApproval", False),
+            approved_fingerprint=d.get("approvedFingerprint"),
             created_at_ms=d.get("createdAtMs", 0),
             updated_at_ms=d.get("updatedAtMs", 0),
             schedule=AutomationSchedule(
@@ -473,15 +477,22 @@ class AutomationService:
         schedule: AutomationSchedule,
         payload: AutomationPayload,
         delete_after_run: bool = False,
+        require_approval: bool = False,
     ) -> AutomationJob:
         """Add (and persist) a new job. Returns the created job."""
         _validate_schedule(schedule)
         now = _now_ms()
+        from shibaclaw.automation.grants import operation_fingerprint
+
         job = AutomationJob(
             id=str(uuid.uuid4())[:8],
             name=name,
             enabled=True,
             delete_after_run=delete_after_run,
+            require_approval=require_approval,
+            approved_fingerprint=(
+                None if require_approval else operation_fingerprint(schedule, payload)
+            ),
             created_at_ms=now,
             updated_at_ms=now,
             schedule=schedule,
@@ -492,6 +503,28 @@ class AutomationService:
         self._save_unlocked()
         self._rearm()
         logger.info("AutomationService: added job '{}' ({}) [{}]", name, job.id, payload.kind)
+        return job
+
+    def approve_job(self, job_id: str) -> AutomationJob | None:
+        """Approve the job's current operation fingerprint (approve-once)."""
+        from shibaclaw.automation.grants import operation_fingerprint
+
+        job = self._jobs.get(job_id)
+        if not job:
+            return None
+        job.approved_fingerprint = operation_fingerprint(job.schedule, job.payload)
+        job.require_approval = True
+        job.updated_at_ms = _now_ms()
+        self._save_unlocked()
+        return job
+
+    def revoke_job_approval(self, job_id: str) -> AutomationJob | None:
+        job = self._jobs.get(job_id)
+        if not job:
+            return None
+        job.approved_fingerprint = None
+        job.updated_at_ms = _now_ms()
+        self._save_unlocked()
         return job
 
     def remove_job(self, job_id: str) -> bool:
@@ -521,13 +554,20 @@ class AutomationService:
 
     def update_job(self, job_id: str, patch: dict) -> AutomationJob | None:
         """Update a job partially by id."""
+        from shibaclaw.automation.grants import operation_fingerprint
+
         job = self._jobs.get(job_id)
         if not job:
             return None
+        prev_fp = operation_fingerprint(job.schedule, job.payload)
         if "name" in patch:
             job.name = patch["name"]
         if "enabled" in patch:
             job.enabled = patch["enabled"]
+        if "requireApproval" in patch or "require_approval" in patch:
+            job.require_approval = bool(
+                patch.get("requireApproval", patch.get("require_approval"))
+            )
         if "deleteAfterRun" in patch or "delete_after_run" in patch:
             job.delete_after_run = patch.get("deleteAfterRun", patch.get("delete_after_run"))
         if "schedule" in patch:
@@ -572,6 +612,13 @@ class AutomationService:
                     profile_id=profile_id,
                     targets=targets or {},
                 )
+        new_fp = operation_fingerprint(job.schedule, job.payload)
+        if new_fp != prev_fp and job.require_approval:
+            job.approved_fingerprint = None
+            logger.info(
+                "AutomationService: cleared approval for '{}' — operation changed",
+                job.name,
+            )
         job.updated_at_ms = _now_ms()
         if job.enabled:
             job.state.next_run_at_ms = _compute_next_run(job.schedule, _now_ms()) or 0
@@ -769,7 +816,25 @@ class AutomationService:
         ).strip()
 
     async def _execute(self, job: AutomationJob, force: bool = False) -> None:
+        from shibaclaw.automation.grants import job_is_approved
+
         start_ms = _now_ms()
+        if not force and not job_is_approved(job):
+            job.state.last_status = "skipped"
+            job.state.last_error = "approval_required"
+            job.state.run_count += 1
+            job.state.last_run_at_ms = start_ms
+            job.updated_at_ms = start_ms
+            # One-shot jobs must not stay enabled with next_run=0 forever.
+            if job.schedule.kind == "at":
+                job.enabled = False
+                job.state.next_run_at_ms = 0
+            logger.warning(
+                "AutomationService: job '{}' blocked — approve-once grant missing/stale",
+                job.name,
+            )
+            self._save_unlocked()
+            return
         logger.info(
             "AutomationService: executing '{}' [{}] ({})",
             job.name,

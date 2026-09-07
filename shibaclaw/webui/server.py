@@ -94,11 +94,15 @@ from .routers.profiles import (
     api_profiles_update,
 )
 from .routers.sessions import (
+    api_config_history,
     api_sessions_archive,
     api_sessions_delete,
+    api_sessions_fork,
     api_sessions_get,
     api_sessions_list,
     api_sessions_patch,
+    api_sessions_rewind,
+    api_sessions_search,
 )
 from .routers.settings import api_models_get, api_settings_get, api_settings_post
 from .routers.skills import (
@@ -106,6 +110,9 @@ from .routers.skills import (
     api_skills_import,
     api_skills_list,
     api_skills_pin,
+    api_skills_workshop_approve,
+    api_skills_workshop_list,
+    api_skills_workshop_reject,
 )
 from .routers.system import (
     api_restart_server,
@@ -176,10 +183,14 @@ def create_app(
         Route("/api/settings", api_settings_post, methods=["POST"]),
         Route("/api/models", api_models_get, methods=["GET"]),
         Route("/api/sessions", api_sessions_list),
+        Route("/api/sessions/search", api_sessions_search),
+        Route("/api/config-history", api_config_history, methods=["GET"]),
+        Route("/api/sessions/{session_id}/fork", api_sessions_fork, methods=["POST"]),
+        Route("/api/sessions/{session_id}/rewind", api_sessions_rewind, methods=["POST"]),
+        Route("/api/sessions/{session_id}/archive", api_sessions_archive, methods=["POST"]),
         Route("/api/sessions/{session_id}", api_sessions_get, methods=["GET"]),
         Route("/api/sessions/{session_id}", api_sessions_patch, methods=["PATCH"]),
         Route("/api/sessions/{session_id}", api_sessions_delete, methods=["DELETE"]),
-        Route("/api/sessions/{session_id}/archive", api_sessions_archive, methods=["POST"]),
         Route("/api/context", api_context_get),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
@@ -249,6 +260,9 @@ def create_app(
         Route("/api/skills", api_skills_list, methods=["GET"]),
         Route("/api/skills/pin", api_skills_pin, methods=["POST"]),
         Route("/api/skills/import", api_skills_import, methods=["POST"]),
+        Route("/api/skills/workshop", api_skills_workshop_list, methods=["GET"]),
+        Route("/api/skills/workshop/approve", api_skills_workshop_approve, methods=["POST"]),
+        Route("/api/skills/workshop/reject", api_skills_workshop_reject, methods=["POST"]),
         Route("/api/skills/{name}", api_skills_delete, methods=["DELETE"]),
         Route("/api/profiles", api_profiles_list, methods=["GET"]),
         Route("/api/profiles", api_profiles_create, methods=["POST"]),

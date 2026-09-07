@@ -13,6 +13,7 @@ const jsFiles = [
     'frontend/js/realtime.js',
     'frontend/js/api_socket.js',
     'frontend/js/chat.js',
+    'frontend/js/interactive.js',
     'frontend/js/files.js',
     'frontend/js/ui_panels.js',
     'frontend/js/settings_panel.js',

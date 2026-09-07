@@ -263,6 +263,17 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(payload)
         os.replace(tmp_path, path)  # atomic rename
+        try:
+            from shibaclaw.config.history import append_config_history
+
+            append_config_history(
+                actor="save_config",
+                reason="save_config",
+                data=data,
+                changed_keys=sorted(data.keys()) if isinstance(data, dict) else [],
+            )
+        except Exception:
+            pass
     except Exception:
         try:
             os.unlink(tmp_path)
