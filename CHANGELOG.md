@@ -10,7 +10,10 @@
 - **Incognito Session Privacy Enforcement** — Toggling a previously saved session into incognito mode now purges existing JSONL session logs from disk and clears active memory caches.
 - **Fail-Closed Profile Model Allowlist** — Profile `allowed_models` enforcement now strictly fails closed upon evaluation errors, preventing unauthorized fallback execution.
 - **Memory Forget Quarantine & Confirmation** — `memory_forget` now requires explicit user confirmation, routes pruned entries into quarantine rather than destructive immediate deletion, and logs redacted audit trails.
-- **WebUI Interactive Reply Validation** — Securely bound interactive WebUI replies to `session_key` to avoid cross-session response spoofing.
+### Changed
+- **Slim Core Dependencies & uv Packaging (PR #167)** — Modularized dependencies with new optional extras (`[desktop]`, `[audit]`, `[rag]`, `[server]`, `[full]`) for lean VPS and headless server deployments. Standardized development, packaging, and CI workflows on `uv` (`astral-sh/setup-uv@v5` with frozen `uv.lock`).
+- **Lazy Loading & Startup Optimization** — Lazy discovery and import of only enabled built-in channels and plugins at gateway startup; deferred LangChain, RAG vectorstores, and OpenAI Codex OAuth imports until explicitly invoked.
+- **Dynamic RAG Availability & Clean Errors** — Replaced static `RAG_AVAILABLE` state with dynamic module-level resolution to eliminate import-order race conditions and ensure accurate test suite evaluation; aligned missing extra error messages to `uv sync --extra ...`.
 
 ## [0.9.20] - 2026-08-07
 
