@@ -72,3 +72,6 @@ class AutomationJob:
     created_at_ms: int = 0
     updated_at_ms: int = 0
     delete_after_run: bool = False
+    # OpenClaw-style approve-once: when True, job won't run until fingerprint matches.
+    require_approval: bool = False
+    approved_fingerprint: str | None = None

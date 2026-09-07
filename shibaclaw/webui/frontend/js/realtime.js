@@ -154,6 +154,8 @@ const realtime = (() => {
         else if (t === "message_queued") fire("message_queued", msg);
         else if (t === "thinking")    fire("agent_thinking", msg);
         else if (t === "tool")        fire("agent_tool", msg);
+        else if (t === "interactive") fire("agent_interactive", msg);
+        else if (t === "interactive_ack") fire("interactive_ack", msg);
         else if (t === "response_chunk") fire("agent_response_chunk", msg);
         else if (t === "response")    fire("agent_response", msg);
         else if (t === "session_reset")  {

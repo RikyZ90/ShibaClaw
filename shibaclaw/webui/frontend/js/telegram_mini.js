@@ -1,5 +1,5 @@
 // ── Telegram Mini App bootstrap ──
-// Mini App (Telegram.WebApp): admin-only UI.
+// Mini App (Telegram.WebApp): full chat UI (+ optional sidebar).
 // Browser / site (:8443): never touches this path → full WebUI.
 
 function getTelegramWebApp() {
@@ -89,14 +89,18 @@ function showTelegramAccessDenied(message) {
     }
 }
 
-function ensureTelegramMiniAdminChrome() {
-    const headerLeft = document.querySelector("#settings-view .settings-header-left");
+function ensureTelegramMiniChrome() {
+    // Optional sidebar / settings access for Mini App chat mode
+    const headerLeft =
+        document.querySelector("#chat-header .header-left") ||
+        document.querySelector(".chat-header .header-left") ||
+        document.querySelector("#settings-view .settings-header-left");
     if (headerLeft && !document.getElementById("tg-mini-menu-btn")) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.id = "tg-mini-menu-btn";
-        btn.title = "Admin menu";
-        btn.setAttribute("aria-label", "Open admin menu");
+        btn.title = "Menu";
+        btn.setAttribute("aria-label", "Open menu");
         btn.innerHTML = '<span class="material-icons-round">menu</span>';
         btn.addEventListener("click", () => {
             const sidebar = document.getElementById("sidebar");
@@ -104,25 +108,12 @@ function ensureTelegramMiniAdminChrome() {
         });
         headerLeft.insertBefore(btn, headerLeft.firstChild);
     }
-
-    if (!window._tgMiniCloseSettingsPatched && typeof window.closeSettingsView === "function") {
-        const origClose = window.closeSettingsView;
-        window.closeSettingsView = function () {
-            if (document.body.classList.contains("tg-mini-admin")) {
-                const sidebar = document.getElementById("sidebar");
-                if (sidebar) sidebar.classList.add("open");
-                return;
-            }
-            return origClose.apply(this, arguments);
-        };
-        window._tgMiniCloseSettingsPatched = true;
-    }
 }
 
 function hideTelegramBrokenControls() {
     // Only when actually inside Telegram Mini App
     if (!isTelegramMiniApp()) return;
-    document.body.classList.add("tg-mini", "tg-mini-admin");
+    document.body.classList.add("tg-mini");
     const restart = document.getElementById("btn-restart");
     if (restart) restart.style.display = "none";
     document.querySelectorAll(
@@ -130,32 +121,13 @@ function hideTelegramBrokenControls() {
     ).forEach((el) => {
         el.style.display = "none";
     });
-    ensureTelegramMiniAdminChrome();
+    ensureTelegramMiniChrome();
 }
 
-function enterTelegramMiniAdminMode() {
+function enterTelegramMiniChatMode() {
     if (!isTelegramMiniApp()) return;
     hideTelegramBrokenControls();
-
-    try {
-        localStorage.setItem("shibaclaw_settings_tab", "channels");
-    } catch (_) { /* ignore */ }
-
-    const open = async () => {
-        try {
-            if (typeof window.openSettingsView === "function") {
-                await window.openSettingsView();
-            } else if (typeof window.openModal === "function") {
-                await window.openModal("settings-modal");
-            }
-            if (typeof window.switchSettingsTab === "function") {
-                window.switchSettingsTab("channels");
-            }
-        } catch (e) {
-            console.warn("enterTelegramMiniAdminMode open settings failed", e);
-        }
-    };
-    setTimeout(() => { void open(); }, 50);
+    // Full chat UI — do not force-open settings
 }
 
 function safeSetStoredToken(token) {
@@ -212,7 +184,7 @@ async function loginWithTelegramInitData(initData) {
         } catch (e) {
             console.error("startApp after telegram auth failed", e);
         }
-        enterTelegramMiniAdminMode();
+        enterTelegramMiniChatMode();
         return { ok: true };
     }
     return { ok: false, error: data.error || ("HTTP " + res.status) };
@@ -263,7 +235,7 @@ async function attemptTelegramMiniAuth() {
                 } catch (e) {
                     console.error("startApp after token verify failed", e);
                 }
-                enterTelegramMiniAdminMode();
+                enterTelegramMiniChatMode();
                 return true;
             }
         } catch (_) { /* fall through */ }

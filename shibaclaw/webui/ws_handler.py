@@ -242,6 +242,9 @@ async def ws_endpoint(websocket: WebSocket):
             elif msg_type == "transcribe":
                 await _handle_transcribe(ws_id, websocket, data)
 
+            elif msg_type == "interactive_reply":
+                await _handle_interactive_reply(ws_id, websocket, data)
+
     except WebSocketDisconnect:
         pass
     except Exception as e:
@@ -428,6 +431,8 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
                     "mentioned_kbs": message.get("mentioned_kbs", []),
                     "mentioned_mcps": message.get("mentioned_mcps", []),
                     "mentioned_apps": message.get("mentioned_apps", []),
+                    "origin_ws_id": ws_id,
+                    "ws_id": ws_id,
                 },
             }
 
@@ -472,6 +477,25 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
                             "id": message["id"],
                             "content": event.get("c", ""),
                             "tool_hint": event.get("h", False),
+                            "session_key": session_key,
+                        },
+                    )
+                elif event.get("t") == "i":
+                    interactive = event.get("payload") or {}
+                    evt = {
+                        "type": "interactive",
+                        "id": message["id"],
+                        "payload": interactive,
+                    }
+                    curr_ps = processing_state.get(session_key)
+                    if curr_ps:
+                        curr_ps["events"].append(evt)
+                    await _emit_to_session(
+                        session_key,
+                        {
+                            "type": "interactive",
+                            "id": message["id"],
+                            "payload": interactive,
                             "session_key": session_key,
                         },
                     )
@@ -568,6 +592,53 @@ async def _handle_cancel(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> Non
     request_id = data.get("id")
     if request_id:
         await gateway_client.cancel_request(request_id)
+
+
+async def _handle_interactive_reply(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:
+    """Forward interactive ask/credential answers to the gateway hub."""
+    request_id = str(data.get("request_id") or "").strip()
+    response = data.get("response")
+    if not request_id:
+        await _emit_to_ws(ws, {"type": "error", "message": "interactive_reply needs request_id"})
+        return
+    if not isinstance(response, dict):
+        response = {"value": response}
+
+    session_key = str(data.get("session_key") or "").strip()
+    if not session_key:
+        session_key = str(sessions.get(ws_id, {}).get("session_key") or "").strip()
+    # Client must be subscribed to the session it claims to answer for.
+    if session_key and ws_id not in _session_subscribers.get(session_key, ()):
+        await _emit_to_ws(
+            ws,
+            {
+                "type": "error",
+                "message": "interactive_reply session_key not bound to this client",
+            },
+        )
+        return
+
+    # Never log secrets.
+    safe = {k: ("***" if k == "secret" else v) for k, v in response.items()}
+    logger.debug("interactive_reply {} {}", request_id, safe)
+    result = await gateway_client.request(
+        "interactive_reply",
+        {
+            "request_id": request_id,
+            "response": response,
+            "session_key": session_key or None,
+            "origin_ws_id": ws_id,
+        },
+        timeout=15,
+    )
+    await _emit_to_ws(
+        ws,
+        {
+            "type": "interactive_ack",
+            "request_id": request_id,
+            "resolved": bool(result and result.get("resolved")),
+        },
+    )
 
 
 async def _handle_new_session(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:

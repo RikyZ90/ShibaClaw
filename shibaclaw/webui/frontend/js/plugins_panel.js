@@ -81,6 +81,13 @@ window.installPlugin = async function (explicitName) {
     const name = (explicitName || (input ? input.value : "")).trim();
     if (!name) return;
 
+    const trustMsg =
+        `Install plugin package?\n\n` +
+        `Package: ${name}\n` +
+        `This runs pip install and can execute package setup code.\n` +
+        `Review the package source before confirming.`;
+    if (!window.confirm(trustMsg)) return;
+
     const logEl = document.getElementById("plugin-action-log");
     const container = input ? input.parentElement : null;
     if (logEl) {

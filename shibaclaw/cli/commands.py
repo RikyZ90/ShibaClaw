@@ -354,6 +354,88 @@ def status():
                 safe_print(f"{spec.label}: {status_text}")
 
 
+@app.command()
+def doctor(
+    fix: bool = typer.Option(
+        False, "--fix", "--yes", help="Apply config migrations and re-save config.json"
+    ),
+):
+    """Health-check config, workspace, sessions, vault, and automation store."""
+    import json
+    from pathlib import Path
+
+    from shibaclaw.config.loader import (
+        _migrate_config,
+        get_config_path,
+        save_config,
+    )
+    from shibaclaw.config.paths import get_app_root, get_automation_dir
+    from shibaclaw.config.schema import Config
+
+    def _mark(ok: bool) -> str:
+        return "[green]✓[/green]" if ok else "[red]✗[/red]"
+
+    cfg_path = get_config_path()
+    safe_print(f"{__logo__} [bold]shibaclaw Doctor[/bold]\n")
+
+    config_exists = cfg_path.exists()
+    raw: dict | None = None
+    config_valid = False
+    cfg: Config | None = None
+    if config_exists:
+        try:
+            with open(cfg_path, encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                raw = loaded
+                cfg = Config.model_validate(_migrate_config(dict(loaded)))
+                config_valid = True
+            else:
+                config_valid = False
+        except Exception as e:
+            safe_print(f"[dim]Config parse error: {e}[/dim]")
+            config_valid = False
+        if cfg is None:
+            cfg = Config()
+    else:
+        cfg = Config()
+
+    safe_print(f"Config exists: {cfg_path} {_mark(config_exists)}")
+    safe_print(f"Config valid: {_mark(config_valid)}")
+
+    workspace = cfg.workspace_path if cfg else Path.home() / ".shibaclaw" / "workspace"
+    sessions_dir = workspace / "sessions"
+    vault_path = get_app_root() / "credentials.enc"
+    automation_path = get_automation_dir() / "automation.json"
+
+    safe_print(f"Workspace: {workspace} {_mark(workspace.is_dir())}")
+    safe_print(f"Sessions dir: {sessions_dir} {_mark(sessions_dir.is_dir())}")
+    safe_print(f"Credentials vault: {vault_path} {_mark(vault_path.exists())}")
+
+    if automation_path.exists():
+        automation_ok = False
+        try:
+            with open(automation_path, encoding="utf-8") as f:
+                json.load(f)
+            automation_ok = True
+        except Exception:
+            automation_ok = False
+        safe_print(f"Automation store: {automation_path} {_mark(automation_ok)}")
+    else:
+        safe_print(f"Automation store: {automation_path} [dim]not present[/dim]")
+
+    if fix and config_exists and raw is not None:
+        try:
+            migrated = _migrate_config(dict(raw))
+            fixed = Config.model_validate(migrated)
+            save_config(fixed, cfg_path)
+            safe_print("\n[green]Applied config migrations (re-saved).[/green]")
+        except Exception as e:
+            safe_print(f"\n[red]Migration failed: {e}[/red]")
+    elif fix and not config_exists:
+        safe_print("\n[yellow]No config file to migrate.[/yellow]")
+
+
 channels_app = typer.Typer(help="Manage channels")
 app.add_typer(channels_app, name="channels")
 
