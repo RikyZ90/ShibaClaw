@@ -42,12 +42,14 @@ def load_channel_class(module_name: str) -> type[BaseChannel]:
     raise ImportError(f"No BaseChannel subclass in shibaclaw.integrations.{module_name}")
 
 
-def discover_plugins() -> dict[str, type[BaseChannel]]:
+def discover_plugins(only_names: set[str] | frozenset[str] | None = None) -> dict[str, type[BaseChannel]]:
     """Discover external channel plugins registered via entry_points."""
     from importlib.metadata import entry_points
 
     plugins: dict[str, type[BaseChannel]] = {}
     for ep in entry_points(group="shibaclaw.integrations"):
+        if only_names is not None and ep.name not in only_names:
+            continue
         try:
             cls = ep.load()
             plugins[ep.name] = cls
@@ -56,7 +58,7 @@ def discover_plugins() -> dict[str, type[BaseChannel]]:
     return plugins
 
 
-def discover_local_plugins() -> dict[str, type[BaseChannel]]:
+def discover_local_plugins(only_names: set[str] | frozenset[str] | None = None) -> dict[str, type[BaseChannel]]:
     """Discover local plugins stored in the user's plugins directory."""
     import sys
     from shibaclaw.config.paths import get_plugins_dir
@@ -73,6 +75,9 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
     for _, name, ispkg in pkgutil.iter_modules([str(plugins_dir)]):
         if not ispkg:
             continue
+        short_name = name.replace("shibaclaw-channel-", "").replace("shibaclaw_channel_", "").replace("shibaclaw_", "")
+        if only_names is not None and short_name not in only_names and name not in only_names:
+            continue
         # Force re-scan for newly-extracted packages
         if name in sys.modules:
             del sys.modules[name]
@@ -81,8 +86,6 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
             for attr in dir(mod):
                 obj = getattr(mod, attr)
                 if isinstance(obj, type) and issubclass(obj, _Base) and obj is not _Base:
-                    # Strip 'shibaclaw-channel-' prefix if it exists to get the short name
-                    short_name = name.replace("shibaclaw-channel-", "").replace("shibaclaw_channel_", "").replace("shibaclaw_", "")
                     obj._local_package_name = name  # Preserve for uninstall
                     plugins[short_name] = obj
                     break
@@ -93,9 +96,9 @@ def discover_local_plugins() -> dict[str, type[BaseChannel]]:
 
 
 def discover_enabled(enabled_names: set[str] | frozenset[str]) -> dict[str, type[BaseChannel]]:
-    """Load only the requested built-in channel modules (+ all plugins).
+    """Load only the requested built-in channel modules and plugins.
 
-    Skips importing disabled channel modules at gateway startup.
+    Skips importing disabled channel modules and plugins at gateway startup.
     """
     builtin: dict[str, type[BaseChannel]] = {}
     for modname in discover_channel_names():
@@ -106,8 +109,8 @@ def discover_enabled(enabled_names: set[str] | frozenset[str]) -> dict[str, type
         except ImportError as e:
             logger.debug("Channel '{}' not loadable: {}", modname, e)
 
-    external = discover_plugins()
-    local = discover_local_plugins()
+    external = discover_plugins(only_names=enabled_names)
+    local = discover_local_plugins(only_names=enabled_names)
 
     all_external = {**external, **local}
 

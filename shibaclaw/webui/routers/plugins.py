@@ -391,7 +391,7 @@ async def api_install_plugin(request: Request) -> JSONResponse:
         return JSONResponse(
             {
                 "ok": False,
-                "error": "The RAG plugin is not bundled in this .exe version. Please update ShibaClaw to the latest version, or run from source with `pip install 'shibaclaw[rag]'`.",
+                "error": "The RAG plugin is not bundled in this .exe version. Please update ShibaClaw to the latest version, or run from source with `uv sync --extra rag`.",
             },
             status_code=400,
         )

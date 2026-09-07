@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Defer langchain / filelock imports until RAG is actually used.
-RAG_AVAILABLE = False
+_rag_available: Optional[bool] = None
 
 _RAG_MSG = "RAG dependencies are not installed. Run: uv sync --extra rag"
 
@@ -33,9 +33,9 @@ def _file_lock(path: str):
 
 
 def is_rag_available() -> bool:
-    global RAG_AVAILABLE, Document, BSHTMLLoader, CSVLoader, PyPDFLoader, TextLoader, FAISS, RecursiveCharacterTextSplitter
-    if RAG_AVAILABLE:
-        return True
+    global _rag_available, Document, BSHTMLLoader, CSVLoader, PyPDFLoader, TextLoader, FAISS, RecursiveCharacterTextSplitter
+    if _rag_available is not None:
+        return _rag_available
     import importlib.util
     import sys
 
@@ -54,7 +54,7 @@ def is_rag_available() -> bool:
                 sys.modules.pop(mod_name, None)
         class Document:
             pass
-        RAG_AVAILABLE = False
+        _rag_available = False
         return False
 
     try:
@@ -68,13 +68,20 @@ def is_rag_available() -> bool:
         from langchain_community.vectorstores import FAISS  # noqa: F401
         from langchain_text_splitters import RecursiveCharacterTextSplitter  # noqa: F401
         Document = _Document
-        RAG_AVAILABLE = True
+        _rag_available = True
         return True
     except Exception:
         class Document:
             pass
-        RAG_AVAILABLE = False
+        _rag_available = False
         return False
+
+
+def __getattr__(name: str) -> Any:
+    if name == "RAG_AVAILABLE":
+        return is_rag_available()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +320,7 @@ class KnowledgeManager:
 
     def search(self, collection_ids: List[str], query: str, k: int = 4) -> List[Document]:
         if not is_rag_available():
-            raise RuntimeError("Local RAG dependencies are not installed. Please run `pip install 'shibaclaw[rag]'`.")
+            raise RuntimeError(_RAG_MSG)
         results = []
         for cid in collection_ids:
             try:
