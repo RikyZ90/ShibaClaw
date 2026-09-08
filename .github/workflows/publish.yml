@@ -61,7 +61,7 @@ jobs:
           node build.mjs
 
       - name: Build package
-        run: uv run hatch build
+        run: uv build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
