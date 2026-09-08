@@ -1,26 +1,26 @@
 {
-    "version": "0.9.20",
-    "release_notes": "Redesigned WebUI sidebar with handcrafted Shiba Gold aesthetics, fixed session menu clipping and z-index elevation, and resolved agent avatar rendering and fallback resolution.",
+    "version": "1.0.0",
+    "release_notes": "Milestone v1.0.0 release featuring the interactive WebUI Memory Manager, OpenClaw-inspired in-turn interactive UX (ask_user, request_credential, update_progress), zero-leak incognito mode, LangChain 1.4+ security upgrades, and modular packaging.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped version to 0.9.20."
+            "note": "Bumped version to 1.0.0."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Added v0.9.20 release notes."
+            "note": "Added v1.0.0 release notes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Updated documentation version to 0.9.20."
+            "note": "Updated documentation version to 1.0.0."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Bumped packaged update manifest to v0.9.20."
+            "note": "Bumped packaged update manifest to v1.0.0."
         }
     ]
 }

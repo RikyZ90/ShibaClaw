@@ -40,18 +40,16 @@
 > Les notes de version se trouvent dans [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Nouveautés — v0.9.20</b> (cliquez pour déplier)</summary>
+<summary>🚀 <b>Nouveautés — Version Majeure v1.0.0</b> (cliquez pour déplier)</summary>
 
-**Dernière version (2026-08-07) :**
+**Dernière version v1.0.0 (2026-09-08) :**
 
-- **Refonte de la barre latérale WebUI & améliorations Telegram** — Telegram et la WebUI ont reçu de nombreuses améliorations ! Nouvelle barre latérale WebUI aux tons Shiba Gold, bulles d'information pour les **Rich Messages** Telegram, conseils sur les `@username` dans les listes `allow_from` et barre d'actions compacte.
-- **Telegram Bot API 10.1 Rich Messages** — Support optionnel des Rich Messages Telegram Bot API 10.1 (`sendRichMessage`), avec génération automatique de blocs de mise en page pour expressions mathématiques, tableaux formatés et collages médias.
-- **Automatisation du secrétaire Telegram & Auth Mini App** — Automatisation du secrétaire Telegram, authentification Mini App et contrôle d'accès aux outils par profil.
-- **Correction du menu déroulant de session & Z-Index** — Résolution du tronquage du menu et ajout d'un z-index prioritaire (`z-index: 100`) avec détection intelligente des limites.
-- **Rendu de l'avatar de l'agent & gestion de secours** — Correction des dimensions de l'avatar (30px × 30px), affichage et résolution dynamique du chemin de l'image.
-- **Gestion des exceptions du client Gateway** — Résolution d'une `AttributeError` en référençant le bon espace de noms `websockets.exceptions`.
-- **Isolation de session des sujets de forum en DM privé** — Les sujets dans les discussions privées suivent désormais une isolation par sujet (`telegram:{chat_id}:topic:{thread_id}`).
-- **Inclusion de `callback_query` dans le Polling Telegram** — Ajout de `callback_query` dans `allowed_updates` pour le bon fonctionnement des boutons de claviers en ligne.
+- **Étape Majeure 1.0.0 — Framework d'Agent Prêt pour la Production** — ShibaClaw franchit le cap de la 1.0.0 ! Un assistant IA personnel auto-hébergé conçu pour la confidentialité, la modularité et une stabilité à toute épreuve, compatible Python 3.12–3.14 avec intégration continue multiplateforme Ubuntu/Windows.
+- **Gestionnaire de Mémoire Interactif & Quarantaine en Direct** — Nouveau panneau dédié dans la WebUI (icône `psychology` dans la barre latérale) et API REST (`/api/memory`). Visualisez et modifiez en direct les connaissances à long terme (`MEMORY.md`), les préférences utilisateur (`USER.md`), l'historique chronologique (`HISTORY.md`) et le journal de rêves (`DREAM_DIARY.md`), avec suivi du budget de tokens et mise en quarantaine sécurisée des faits oubliés.
+- **Expérience Interactive Nouvelle Génération Human-in-the-Loop** — Interaction fluide pendant les tours de l'agent : questions structurées à choix multiples (`ask_user`), masquage sécurisé de clés/identifiants en coffre-fort (`request_credential`, hors du contexte LLM), cartes de progression visuelles (`update_progress`), recherche rapide d'historique (`session_search`) et modes de permission dynamiques par session (`full` | `workspace` | `readonly`).
+- **Sécurité Renforcée & Sessions Incognito Zéro Fuite** — Portée `ContextVar` par exécution d'outil pour prévenir les fuites de concurrence inter-sessions. Les sessions incognito purgent les logs JSONL du disque et ignorent la consolidation de mémoire. Listes de modèles autorisés avec rejet strict par défaut (fail-closed).
+- **Mise à Niveau Complète LangChain 1.4+ & Correction des Alertes Dependabot** — Rénovation de la pile RAG vers LangChain 1.4+ (`langchain>=1.4.0`, `langchain-core>=1.6.2`, `langchain-openai>=1.6.0`, `langchain-text-splitters>=1.1.2`), éliminant toutes les failles de sécurité répertoriées (`pip-audit` sans avertissement).
+- **Architecture Modulaire Allégée, `uv` & Commande Doctor** — Dépendances scindées en options (`[desktop]`, `[audit]`, `[rag]`, `[server]`, `[full]`), démarrage quasi-instantané grâce au chargement différé des canaux/plugins, et suite de diagnostics CLI `shibaclaw doctor [--fix]`.
 
 Consultez le [Changelog](./CHANGELOG.md) pour l'historique complet des versions.
 
@@ -72,7 +70,8 @@ ShibaClaw est un agent IA auto-hébergé que vous exécutez sur votre propre mac
 ## Fonctionnalités
 
 - **Cœur axé sur la sécurité** —— coffre de credentials chiffré, audit CVE à l'installation, encapsulation d'injection de prompts, protection SSRF/DNS-rebinding
-- **Mémoire à trois niveaux** —— mémoire de travail, sémantique (FAISS) et procédurale, avec apprentissage proactif et auto-compaction
+- **Mémoire à trois niveaux & Gestionnaire WebUI** —— mémoire de travail, sémantique (FAISS) et procédurale, avec gestion interactive dans la WebUI, édition en direct, journal de rêves et quarantaine
+- **UX interactive Human-in-the-Loop** —— requêtes structurées en cours de tour (`ask_user`), identifiants masqués en coffre-fort, cartes de progression et sandboxing dynamique
 - **28 fournisseurs, SDK natifs** —— OpenAI, Anthropic, Gemini, DeepSeek et plus, sans couche proxy LiteLLM
 - **Web et mobile** —— exposez la WebUI sur votre LAN et utilisez le même agent depuis votre téléphone
 - **Application de bureau Windows** —— lanceur natif avec intégration à la barre d'état système

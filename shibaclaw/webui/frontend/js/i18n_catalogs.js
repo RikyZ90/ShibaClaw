@@ -1,6 +1,8 @@
 // Auto-generated i18n catalogs for ShibaClaw WebUI.
 window.__I18N_CATALOGS__ = {
   "en": {
+    "memory.title": "Memory Manager",
+    "nav.memory": "Memory",
     "apps.backend_warn": "Configure the Klavis backend to enable app connections.",
     "apps.configure_backend": "Configure backend",
     "apps.connect": "Connect",

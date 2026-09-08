@@ -20,8 +20,8 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/bundle.css?v=1788667001591">
-    <link rel="stylesheet" href="/static/css/sidebar_modern.css?v=1788667001591">
+    <link rel="stylesheet" href="/static/bundle.css?v=1788852433962">
+    <link rel="stylesheet" href="/static/css/sidebar_modern.css?v=1788852433962">
 
     <!-- WebSocket adapter and Marked.js -->
     <script src="/static/vendor/marked.min.js"></script>
@@ -114,6 +114,11 @@
                         data-i18n-title="nav.knowledge" data-i18n-aria="nav.knowledge" title="Knowledge Base"
                         aria-label="Knowledge Base">
                         <span class="material-icons-round">library_books</span>
+                    </button>
+                    <button class="btn-command" onclick="openModal('memory-modal')"
+                        data-i18n-title="nav.memory" data-i18n-aria="nav.memory" title="Memory"
+                        aria-label="Memory">
+                        <span class="material-icons-round">psychology</span>
                     </button>
                     <button class="btn-command" onclick="openModal('connected-apps-modal')" data-i18n-title="nav.apps"
                         data-i18n-aria="nav.apps" title="Apps" aria-label="Apps">
@@ -1203,6 +1208,72 @@
         </div>
     </div>
 
+    <!-- ══ Memory Manager Modal ══════════════════════════════════════════ -->
+    <div id="memory-modal" class="modal-backdrop">
+        <div class="modal" style="width: 800px; max-width: 95vw; height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-icons-round" style="color: var(--shiba-gold);">psychology</span>
+                    <h2 data-i18n="memory.title">Memory Manager</h2>
+                    <div id="memory-token-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.05); margin-left: 8px; font-weight: 500;"></div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="btn-icon" data-i18n-aria="common.refresh" data-i18n-title="common.refresh" aria-label="Refresh"
+                        title="Refresh" onclick="loadMemoryData()">
+                        <span class="material-icons-round">refresh</span>
+                    </button>
+                    <button class="btn-icon" data-i18n-aria="common.close" data-i18n-title="common.close" aria-label="Close"
+                        title="Close" onclick="closeModal('memory-modal')">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toolbar with Forget Search and Tabs -->
+            <div style="padding: 10px 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; flex-shrink: 0; background: rgba(0,0,0,0.1);">
+                <div style="display: flex; gap: 4px;">
+                    <button class="auto-tab memory-tab-btn active" data-tab="memory" onclick="switchMemoryTab('memory')">
+                        <span class="material-icons-round" style="font-size: 15px;">memory</span> MEMORY.md
+                    </button>
+                    <button class="auto-tab memory-tab-btn" data-tab="user" onclick="switchMemoryTab('user')">
+                        <span class="material-icons-round" style="font-size: 15px;">person</span> USER.md
+                    </button>
+                    <button class="auto-tab memory-tab-btn" data-tab="history" onclick="switchMemoryTab('history')">
+                        <span class="material-icons-round" style="font-size: 15px;">history</span> HISTORY.md
+                    </button>
+                    <button class="auto-tab memory-tab-btn" data-tab="diary" onclick="switchMemoryTab('diary')">
+                        <span class="material-icons-round" style="font-size: 15px;">bedtime</span> Dream &amp; Quarantine
+                    </button>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="text" id="memory-forget-input" class="form-input" style="font-size: 12px; padding: 4px 8px; width: 180px;" placeholder="Search or redact fact..." onkeydown="if(event.key==='Enter')searchForgetMemory()">
+                    <button type="button" class="btn-secondary btn-sm" onclick="searchForgetMemory()" title="Search line to redact">
+                        <span class="material-icons-round" style="font-size: 14px;">search</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content Area -->
+            <div class="modal-body" id="memory-content-area" style="flex: 1; overflow-y: auto; padding: 16px;">
+                <!-- Filled dynamically by memory.js -->
+            </div>
+
+            <!-- Footer with Edit/Save actions -->
+            <div class="modal-footer" style="flex-shrink: 0; justify-content: space-between; align-items: center; padding: 10px 16px; border-top: 1px solid var(--border-color);">
+                <div id="memory-save-status" style="font-size: 12px;"></div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-secondary btn-sm" id="btn-memory-edit-toggle" onclick="toggleMemoryEdit()">
+                        <span class="material-icons-round">edit</span> Edit
+                    </button>
+                    <button type="button" class="btn-primary btn-sm" id="btn-memory-save" onclick="saveCurrentMemoryFile()" style="display: none;">
+                        <span class="material-icons-round">save</span> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ══ Connected Apps Modal ══════════════════════════════════════════ -->
     <div id="connected-apps-modal" class="modal-backdrop">
         <div class="modal" style="width: 720px; max-width: 95vw;">
@@ -1511,8 +1582,8 @@
         </div>
     </div>
 
-    <script src="/static/bundle.js?v=1788667001591"></script>
-    <script src="/static/js/chat_history_window.js?v=1788667001591"></script>
+    <script src="/static/bundle.js?v=1788852433962"></script>
+    <script src="/static/js/chat_history_window.js?v=1788852433962"></script>
 </body>
 
 </html>

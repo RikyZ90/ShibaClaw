@@ -4122,7 +4122,7 @@ wheels = [
 
 [[package]]
 name = "shibaclaw"
-version = "0.9.20"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },

@@ -40,18 +40,16 @@
 > Versionshinweise finden sich in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Neuigkeiten — v0.9.20</b> (zum Ausklappen klicken)</summary>
+<summary>🚀 <b>Neuigkeiten — v1.0.0 Meilenstein-Release</b> (zum Ausklappen klicken)</summary>
 
-**Neueste Version (2026-08-07):**
+**Neueste Version v1.0.0 (2026-09-08):**
 
-- **Neugestaltete WebUI-Sidebar & Telegram-UI-Verbesserungen** — Telegram und die WebUI haben viel Liebe und Verbesserungen erhalten! Überarbeitetes Design mit Shiba-Gold-Akzenten, Infotooltips für Telegram **Rich Messages**, `@username`-Hinweisen in `allow_from`-Erlaubnislisten und kompakter Werkzeugleiste.
-- **Telegram Bot API 10.1 Rich Messages** — Opt-in-Unterstützung für Telegram Bot API 10.1 Rich Messages (`sendRichMessage`), mit automatischer Layout-Blockerstellung für mathematische Ausdrücke, formatierte Tabellen und Medien-Collagen.
-- **Telegram Sekretär-Automatisierung & Mini-App-Auth** — Konsolidierte Telegram-Sekretär-Automatisierung, Mini-App-Authentifizierung und profilbasierte Werkzeug-Zugriffskontrollen.
-- **Korrektur des Sitzungs-Dropdown-Menüs & Z-Index** — Menü-Clipping behoben und Z-Index-Stapelung (`z-index: 100`) mit intelligenter Rahmenerkennung hinzugefügt.
-- **Agenten-Avatar-Darstellung & Fallbacks** — Fehler bei Avatargröße (30px × 30px), Anzeige-Eigenschaften und dynamischer Pfadauflösung (`/static/shibaclaw_logo.webp`) behoben.
-- **Gateway-Client-Ausnahmebehandlung** — Behebung von `AttributeError` im Gateway-Client-Verbindungsspeicher durch korrekte Verweisung auf `websockets.exceptions`.
-- **Private DM Forum Themen-Sitzungsisolierung** — Themen in privaten Chats folgen nun einer Isolierung pro Thema (`telegram:{chat_id}:topic:{thread_id}`).
-- **Fehlender `callback_query` Update-Typ beim Telegram-Polling** — `callback_query` zu `allowed_updates` hinzugefügt, damit Inline-Keyboard-Buttons ordnungsgemäß funktionieren.
+- **Meilenstein 1.0.0 — Produktionsreifes Agenten-Framework** — ShibaClaw erreicht Version 1.0.0! Ein vollständig selbstgehosteter persönlicher KI-Assistent, optimiert für Privatsphäre, Modularität und maximale Stabilität mit voller Unterstützung für Python 3.12–3.14 sowie plattformübergreifender Ubuntu/Windows-CI.
+- **Interaktiver Speicher-Manager & Live-Quarantäne** — Brandneues dediziertes WebUI-Panel (`psychology`-Icon in der Seitenleiste) und REST-Endpunkte (`/api/memory`). Langzeitwissen (`MEMORY.md`), Benutzerpräferenzen (`USER.md`), Sitzungschronik (`HISTORY.md`) und Traumtagebuch-Reflexionen (`DREAM_DIARY.md`) direkt im Browser inspizieren und editieren – inklusive Echtzeit-Token-Budgetierung und sicherer Quarantäne-Redaktion.
+- **Interaktive Next-Gen Human-in-the-Loop-UX** — Nahtlose Benutzerinteraktion während laufender Agenten-Turns: strukturierte `ask_user`-Auswahlmenüs, maskierte Tresor-Eingaben via `request_credential` (streng vom LLM-Kontext isoliert), persistente `update_progress`-Fortschrittskarten, schnelle `session_search`-Verlaufssuche und dynamische Sandbox-Berechtigungsmodi (`full` | `workspace` | `readonly`).
+- **Gehärtete Sicherheit & Leckfreie Inkognito-Sitzungen** — Tool-Isolierung per `ContextVar` verhindert Datenlecks bei gleichzeitigen Anfragen. Inkognito-Sitzungen löschen JSONL-Protokolle von der Festplatte und überspringen die Speicherkonsolidierung. Ausfallsichere (fail-closed) Modell-Erlaubnislisten pro Profil.
+- **Vollständiges LangChain 1.4+ Upgrade & Dependabot-Behebungen** — Modernisierung des gesamten RAG-Stacks auf LangChain 1.4+ (`langchain>=1.4.0`, `langchain-core>=1.6.2`, `langchain-openai>=1.6.0`, `langchain-text-splitters>=1.1.2`) zur Beseitigung aller bekannten Sicherheitslücken (`pip-audit` sauber).
+- **Schlanke modulare Architektur, `uv` & Diagnose-Doctor** — Modularisierte Extras (`[desktop]`, `[audit]`, `[rag]`, `[server]`, `[full]`), blitzschneller Start durch verzögerte Plugin- und Kanal-Initialisierung sowie `shibaclaw doctor [--fix]` Diagnosewerkzeuge.
 
 Vollständige Versionshistorie im [Changelog](./CHANGELOG.md).
 
@@ -72,7 +70,8 @@ ShibaClaw ist ein selbstgehosteter KI-Agent, den du auf deiner eigenen Maschine 
 ## Funktionen
 
 - **Sicherheitsorientierter Kern** —— verschlüsseltes Credential-Tresor, CVE-Audit bei Installation, Prompt-Injection-Wrapping, SSRF/DNS-Rebinding-Schutz
-- **Dreistufiger Speicher** —— Working-, Semantic- (FAISS) und Procedural-Speicher mit proaktivem Lernen und Auto-Kompaktierung
+- **Dreistufiger Speicher & WebUI-Manager** —— Working-, Semantic- (FAISS) und Procedural-Speicher mit interaktiver WebUI-Verwaltung, Live-Bearbeitung, Traumtagebuch und Quarantäne
+- **Interaktive Human-in-the-Loop-UX** —— strukturierte In-Turn-Abfragen (`ask_user`), maskierte Tresor-Eingaben, Fortschrittskarten und dynamische Sandbox-Rechte
 - **28 Anbieter, native SDKs** —— OpenAI, Anthropic, Gemini, DeepSeek und mehr, keine LiteLLM-Proxy-Schicht
 - **Web und mobil** —— WebUI im LAN bereitstellen und denselben Agenten vom Handy aus nutzen
 - **Windows-Desktop-App** —— nativer Launcher mit System-Tray-Integration

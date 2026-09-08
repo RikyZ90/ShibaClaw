@@ -981,6 +981,8 @@ window.openModal = async function (id) {
             state.fsOpenTarget = null;
             openFileEditor(target, target.split(/[\\/\\]/).pop());
         }
+    } else if (id === "memory-modal") {
+        if (typeof loadMemoryData === "function") await loadMemoryData();
     } else if (id === "changelog-modal") {
         const contentEl = $("changelog-content");
         contentEl.innerHTML = '<div class="loader">Fetching release notes...</div>';

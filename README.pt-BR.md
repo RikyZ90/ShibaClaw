@@ -40,18 +40,16 @@
 > As notas de versão estão em [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>📢 <b>Novidades — v0.9.20</b> (clique para expandir)</summary>
+<summary>🚀 <b>Novidades — Versão Marco v1.0.0</b> (clique para expandir)</summary>
 
-**Última versão (2026-08-07):**
+**Última versão v1.0.0 (2026-09-08):**
 
-- **Barra lateral da WebUI redimensionada e melhorias na UI do Telegram** — O Telegram e a WebUI receberam aprimoramentos! Inclui tokens de design Shiba Gold, dicas de ferramentas para **Rich Messages** do Telegram, orientação explícita para `@username` nas listas de permissão `allow_from` e barra de ferramentas compacta.
-- **Telegram Bot API 10.1 Rich Messages** — Suporte opt-in para Telegram Bot API 10.1 Rich Messages (`sendRichMessage`), com geração automática de blocos para expressões matemáticas, tabelas formatadas e colagens de mídia.
-- **Automação de Secretária no Telegram & Autenticação de Mini App** — Automação de secretária, autenticação de Mini App e controle de acesso a ferramentas por perfil.
-- **Correção do menu suspenso de sessão e sobreposição Z-Index** — Resolvido o corte de menu e adicionada prioridade `z-index: 100` com detecção inteligente de bordas.
-- **Renderização e fallback do avatar do agente** — Corrigido o tamanho do avatar (30px × 30px), propriedades de exibição e resolução de caminhos (`/static/shibaclaw_logo.webp`).
-- **Tratamento de exceções do cliente Gateway** — Correção de `AttributeError` referenciando o namespace `websockets.exceptions` correto.
-- **Isolamento de sessão de tópicos em DMs privadas** — Tópicos em conversas privadas agora seguem isolamento por tópico (`telegram:{chat_id}:topic:{thread_id}`).
-- **Inclusão do tipo `callback_query` no Polling do Telegram** — Adicionado `callback_query` em `allowed_updates` para funcionamento dos botões inline.
+- **Marco 1.0.0 — Framework de Agente Pronto para Produção** — O ShibaClaw atinge a versão 1.0.0! Um assistente de IA pessoal auto-hospedado projetado para privacidade, modularidade e estabilidade robusta, com suporte integral ao Python 3.12–3.14 e CI multiplataforma no Ubuntu e Windows.
+- **Gerenciador de Memória Interativo & Quarentena em Tempo Real** — Novo painel dedicado na WebUI (ícone `psychology` na barra lateral) e endpoints REST (`/api/memory`). Inspecione e edite em tempo real a memória de longo prazo (`MEMORY.md`), preferências do usuário (`USER.md`), linha do tempo de sessões (`HISTORY.md`) e reflexões do diário de sonhos (`DREAM_DIARY.md`), com orçamento de tokens e redação segura em quarentena.
+- **UX Interativa de Nova Geração Human-in-the-Loop** — Interação fluida durante a execução do agente: prompts estruturados de múltipla escolha (`ask_user`), isolamento de credenciais mascaradas em cofre (`request_credential`, estritamente fora do contexto do LLM), cartões visuais de progresso (`update_progress`), busca rápida no histórico (`session_search`) e permissões dinâmicas de sandbox por sessão (`full` | `workspace` | `readonly`).
+- **Segurança Reforçada & Sessões Anônimas Sem Vazamentos** — Escopo de ferramentas isolado via `ContextVar` para evitar vazamentos de concorrência entre sessões. O modo anônimo (Incognito) apaga logs JSONL do disco e ignora a consolidação de memória. Listas de modelos permitidos por perfil com proteção fail-closed.
+- **Atualização Completa para LangChain 1.4+ e Correções Dependabot** — Migração do stack RAG para LangChain 1.4+ moderno (`langchain>=1.4.0`, `langchain-core>=1.6.2`, `langchain-openai>=1.6.0`, `langchain-text-splitters>=1.1.2`), eliminando todas as vulnerabilidades relatadas (`pip-audit` limpo).
+- **Arquitetura Modular Leve, `uv` & Utilitário Doctor** — Pacotes opcionais modulares (`[desktop]`, `[audit]`, `[rag]`, `[server]`, `[full]`), inicialização em sub-segundos com descoberta sob demanda de plugins/canais e suíte de diagnóstico CLI `shibaclaw doctor [--fix]`.
 
 Veja o [Changelog](./CHANGELOG.md) para o histórico completo de lançamentos.
 
@@ -72,7 +70,8 @@ ShibaClaw é um agente de IA autohospedado que você executa na sua própria má
 ## Recursos
 
 - **Núcleo com foco em segurança** —— cofre de credenciais criptografado, auditoria CVE na instalação, encapsulamento de injeção de prompts, proteção SSRF/DNS-rebinding
-- **Memória de três níveis** —— memória de trabalho, semântica (FAISS) e procedimental, com aprendizado proativo e auto-compactação
+- **Memória de três níveis & Gerenciador WebUI** —— memória de trabalho, semântica (FAISS) e procedimental, com gerenciamento interativo via WebUI, edição ao vivo, diário de sonhos e quarentena segura
+- **UX interativa Human-in-the-Loop** —— prompts estruturados durante o turno (`ask_user`), credenciais mascaradas em cofre, cartões de progresso e sandbox dinâmico
 - **28 provedores, SDKs nativos** —— OpenAI, Anthropic, Gemini, DeepSeek e mais, sem camada proxy LiteLLM
 - **Web e móvel** —— exponha a WebUI na sua LAN e use o mesmo agente pelo celular
 - **App de desktop Windows** —— lançador nativo com integração à bandeja do sistema

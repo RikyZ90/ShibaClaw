@@ -37,18 +37,16 @@
 ---
 
 <details open>
-<summary>📢 <b>What's new — v0.9.20</b> (click to expand)</summary>
+<summary>🚀 <b>What's new — v1.0.0 Milestone Release</b> (click to expand)</summary>
 
-**Latest release (2026-08-07):**
+**Latest release v1.0.0 (2026-09-08):**
 
-- **Redesigned WebUI Sidebar & Telegram UI Enhancements** — Telegram and WebUI received extra love! Implemented tactile Shiba Gold design tokens, high-contrast dark charcoal surface hierarchy (`#111113`), info tooltips for Telegram **Rich Messages**, `@username` guidance in `allow_from` mouseover tooltips, compact tool action rail, and handcrafted command search bar.
-- **Telegram Bot API 10.1 Rich Messages** — Opt-in Telegram Bot API 10.1 Rich Messages support (`sendRichMessage` via direct `do_api_request`), featuring automatic layout block generation (`auto-build rich blocks`) for mathematical expressions, formatted tables, and media collages.
-- **Telegram Secretary Automation, Mini App Auth & Profile Access Control Integration** — Consolidated Telegram secretary automation, Mini App auth, and profile-based tool access control into core metadata, manifest updates, and build assets.
-- **Session Dropdown Menu Clipping & Z-Index Elevation** — Resolved dropdown clipping caused by `.channel-group-items` overflow containment. Added `.has-active-dropdown` z-index elevation (`z-index: 100`) and smart bottom boundary flip detection.
-- **Agent Avatar Rendering & Dynamic Fallbacks** — Fixed agent avatar sizing (30px × 30px circular badge), display properties, and dynamic `onerror` fallback resolution (`/static/shibaclaw_logo.webp` <-> `/shibaclaw_logo.webp`).
-- **Gateway Client WebSocket Exception Handling** — Resolved `AttributeError` by referencing the correct `websockets.exceptions` namespace in Gateway client reconnect/disconnect loop.
-- **Private DM Forum Topics Session Isolation** — Bot API 9.3+ topics in private chats with the bot follow per-topic session isolation (`telegram:{chat_id}:topic:{thread_id}`).
-- **Telegram Polling Missing `callback_query` Update Type** — Included `callback_query` in `allowed_updates` so inline keyboard callbacks reach the bot.
+- **Milestone 1.0.0 — Production-Ready Agent Framework** — ShibaClaw hits 1.0.0! A complete, self-hosted personal AI assistant built for privacy, modularity, and rock-solid stability with full Python 3.12–3.14 and cross-platform Ubuntu/Windows CI.
+- **Interactive Memory Manager & Live Quarantine** — Brand-new dedicated WebUI panel (`psychology` sidebar icon) and REST endpoints (`/api/memory`). Inspect and live-edit long-term knowledge (`MEMORY.md`), user preferences (`USER.md`), session timeline (`HISTORY.md`), and dream diary reflections (`DREAM_DIARY.md`) with real-time token budgeting and safe quarantine redaction.
+- **Next-Gen In-Turn Interactive UX & Human-in-the-Loop** — Seamless interaction during agent turns: structured `ask_user` multi-choice prompts, masked `request_credential` vault isolation (kept strictly outside LLM context), durable `update_progress` visual cards, fast `session_search`, and dynamic per-session sandbox permissions (`full` | `workspace` | `readonly`).
+- **Hardened Security & Zero-Leak Incognito Sessions** — Per-execution `ContextVar` tool scoping prevents cross-session concurrency leaks. Incognito sessions strictly purge JSONL logs from disk and bypass memory consolidation. Automated fail-closed profile model allowlists prevent unauthorized model fallbacks.
+- **Complete LangChain 1.4+ Upgrade & Dependabot Fixes** — Upgraded the entire RAG stack to modern LangChain 1.4+ (`langchain>=1.4.0`, `langchain-core>=1.6.2`, `langchain-openai>=1.6.0`, `langchain-text-splitters>=1.1.2`), resolving all known upstream security advisories (`pip-audit` clean).
+- **Modular Packaging, `uv` & Diagnostic Doctor** — Slim core engine with modular extras (`[desktop]`, `[audit]`, `[rag]`, `[server]`, `[full]`), sub-second startup with lazy plugin/channel discovery, and `shibaclaw doctor [--fix]` diagnostics.
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 
@@ -69,7 +67,8 @@ ShibaClaw is a self-hosted AI agent you run on your own machine or server: a Pyt
 ## Features
 
 - **Security-first core** — encrypted credentials vault, install-time CVE audit, prompt-injection wrapping, SSRF/DNS-rebinding guard
-- **Three-tier memory** — working, semantic (FAISS), and procedural memory with proactive learning and auto-compaction
+- **Three-tier memory & WebUI Manager** — working, semantic (FAISS), and procedural memory with interactive WebUI management, live editing, dream diary, and safe quarantine
+- **Human-in-the-loop interactive UX** — structured in-turn prompts (`ask_user`), masked vault credentials, progress cards, and dynamic permission sandboxing
 - **28 providers, native SDKs** — OpenAI, Anthropic, Gemini, DeepSeek, and more, no LiteLLM proxy layer
 - **Web and mobile** — expose the WebUI on your LAN and use the same agent from your phone
 - **Windows desktop app** — native launcher with system tray integration

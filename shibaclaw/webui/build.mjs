@@ -9,6 +9,7 @@ const jsFiles = [
     'frontend/js/i18n.js',
     'frontend/js/auth.js',
     'frontend/js/knowledge.js',
+    'frontend/js/memory.js',
     'frontend/js/utils.js',
     'frontend/js/realtime.js',
     'frontend/js/api_socket.js',

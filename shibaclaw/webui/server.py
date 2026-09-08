@@ -72,6 +72,7 @@ from .routers.mcp_manager import (
     test_mcp_server,
     upsert_mcp_server,
 )
+from .routers.memory import api_memory_forget, api_memory_get, api_memory_save
 from .routers.oauth import (
     api_oauth_code,
     api_oauth_disconnect,
@@ -192,6 +193,10 @@ def create_app(
         Route("/api/sessions/{session_id}", api_sessions_patch, methods=["PATCH"]),
         Route("/api/sessions/{session_id}", api_sessions_delete, methods=["DELETE"]),
         Route("/api/context", api_context_get),
+        # ── Memory Manager ───────────────────────────────────────────────────
+        Route("/api/memory", api_memory_get, methods=["GET"]),
+        Route("/api/memory/save", api_memory_save, methods=["POST"]),
+        Route("/api/memory/forget", api_memory_forget, methods=["POST"]),
         Route("/api/gateway-health", api_gateway_health),
         Route("/api/gateway-restart", api_gateway_restart, methods=["POST"]),
         # ── Automation (unified) ─────────────────────────────────────────────

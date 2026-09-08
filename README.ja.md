@@ -40,18 +40,16 @@
 > リリースノートは [CHANGELOG.md](./CHANGELOG.md) にあります。
 
 <details open>
-<summary>📢 <b>最新情報 — v0.9.20</b>（クリックで展開）</summary>
+<summary>🚀 <b>最新情報 — v1.0.0 メジャーマイルストーン</b>（クリックで展開）</summary>
 
-**最新リリース（2026-08-07）：**
+**最新リリース v1.0.0（2026-09-08）：**
 
-- **WebUI サイドバーの再設計と Telegram UI の改善** — Telegram と WebUI に大幅な改善を実施！Shiba Gold サイドバーの再設計、Telegram **Rich Messages** のツールチップ、`allow_from` 許可リストでの `@username` ガイドを追加。
-- **Telegram Bot API 10.1 Rich Messages** — Telegram Bot API 10.1 Rich Messages（`sendRichMessage`）のオプトインサポート。数式表現、フォーマットされた表、メディアコラージュの自動ブロック生成。
-- **Telegram 秘書自動化と Mini App 認証** — 秘書自動化、Mini App 認証、プロファイルベースのツールアクセス制御の統合。
-- **セッションドロップダウンメニューの表示切り欠きと z-index 重なり順の修正** — メニュー切り欠きの解消と優先 z-index（`z-index: 100`）および境界検知を追加。
-- **エージェントアバターの描画とフォールバックの修正** — アバターサイズ（30px × 30px）とパス解決のフォールバック（`/static/shibaclaw_logo.webp`）を修正。
-- **Gateway クライアントの例外処理** — `websockets.exceptions` の正しい参照による `AttributeError` を解消。
-- **プライベート DM フォーラムトピックのセッション分離** — プライベートチャットのトピックが個別セッション（`telegram:{chat_id}:topic:{thread_id}`）として分離。
-- **Telegram ポーリングにおける `callback_query` 更新タイプの追加** — インラインキーボードのコールバックが正常に動作するよう `allowed_updates` に追加。
+- **マイルストーン 1.0.0 — 本番対応エージェントフレームワーク** — ShibaClaw がついにバージョン 1.0.0 に到達！プライバシー、モジュール設計、高信頼性を追求したセルフホスト型パーソナル AI アシスタント。Python 3.12〜3.14 のフルサポートと Ubuntu/Windows のクロスプラットフォーム CI を完備。
+- **インタラクティブ・メモリマネージャーと隔離機能** — WebUI サイドバーに専用管理パネル（`psychology` アイコン）と REST API（`/api/memory`）を新設。長期記憶（`MEMORY.md`）、ユーザー設定（`USER.md`）、セッション履歴タイムライン（`HISTORY.md`）、ドリームダイアリー（`DREAM_DIARY.md`）のリアルタイム閲覧・ライブ編集が可能に。トークン使用量予算管理と安全な隔離（quarantine）機能を搭載。
+- **次世代 Human-in-the-Loop インタラクティブ UX** — エージェント実行中の対話的サポート：構造化された選択肢プロンプト（`ask_user`）、LLM コンテキストから完全隔離されたシークレット入力（`request_credential`）、進捗状況カード（`update_progress`）、高速セッション履歴検索（`session_search`）、セッション単位の動的サンドボックス権限モード（`full` | `workspace` | `readonly`）。
+- **セキュリティ強化と完全分離インコグニートセッション** — `ContextVar` によるツール実行スコープ分離で並行セッション間のデータ漏洩を防止。シークレット（Incognito）モードではディスク上の JSONL 履歴を完全消去しメモリ統合をスキップ。プロファイル単位のモデル許可リストによるフェイルクローズド保護。
+- **LangChain 1.4+ への全面移行と Dependabot 脆弱性解消** — RAG スタック全体を最新の LangChain 1.4+（`langchain>=1.4.0`, `langchain-core>=1.6.2`, `langchain-openai>=1.6.0`, `langchain-text-splitters>=1.1.2`）へ刷新し、報告されていた Dependabot セキュリティ脆弱性を完全解消（`pip-audit` クリーン）。
+- **軽量モジュラー構成、`uv` 採用と診断 Doctor コマンド** — 必要に応じたオプショナル依存関係（`[desktop]`, `[audit]`, `[rag]`, `[server]`, `[full]`）、プラグインとチャネルの遅延ロードによる超高速起動、CLI 診断コマンド `shibaclaw doctor [--fix]` を提供。
 
 完全なリリース履歴は [Changelog](./CHANGELOG.md) を参照してください。
 
@@ -72,7 +70,8 @@ ShibaClaw は、自分のマシンやサーバーで動かすセルフホスト�
 ## 機能
 
 - **セキュリティ最優先のコア** —— 暗号化された認証情報保管庫、インストール時 CVE 監査、プロンプトインジェクションのラップ、SSRF/DNS リバインディング保護
-- **3 層メモリ** —— ワーキング・セマンティック（FAISS）・プロシージャル。プロアクティブ学習と自動圧縮付き
+- **3 層メモリ & WebUI マネージャー** —— ワーキング・セマンティック（FAISS）・プロシージャル。WebUI による対話的管理、ライブ編集、ドリームダイアリー、安全な隔離機能付き
+- **Human-in-the-Loop インタラクティブ UX** —— 実行中の構造化プロンプト（`ask_user`）、保管庫保護シークレット、進捗カード、動的権限サンドボックス
 - **28 プロバイダ、ネイティブ SDK** —— OpenAI、Anthropic、Gemini、DeepSeek など。LiteLLM プロキシ層なし
 - **Web とモバイル** —— WebUI を LAN に公開すれば、スマホから同じエージェントを利用可能
 - **Windows デスクトップアプリ** —— システムトレイ統合付きのネイティブランチャー
