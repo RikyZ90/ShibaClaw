@@ -74,7 +74,11 @@ class TurnJournal:
         """The session turn is saved. A redelivery of its input is a duplicate."""
         self._close_open_turn(session_key)
 
-    def claim(self, session_key: str, op_id: str, tool: str) -> Claim:
+    def scope(self, session_key: str) -> int:
+        """Capture a turn scope for work that can outlive the parent turn."""
+        return self._scope(session_key)
+
+    def claim(self, session_key: str, op_id: str, tool: str, *, turn: int | None = None) -> Claim:
         """Record ``ready`` before the caller performs I/O."""
         mode = self.stop_mode(session_key)
         if mode == "hard":
@@ -82,8 +86,8 @@ class TurnJournal:
         if mode == "when_idle":
             return Claim(False, True, _STOP_IDLE)
         op_id = str(op_id or tool)
-        turn = self._scope(session_key)
-        current = self._operations(session_key).get(op_id)
+        turn = self._scope(session_key) if turn is None else turn
+        current = self._operations(session_key, turn=turn).get(op_id)
         if current is None:
             self._append(
                 session_key,
@@ -99,7 +103,7 @@ class TurnJournal:
             return Claim(True)
         status = current["status"]
         if status in _OPEN:
-            self.mark(session_key, op_id, "interrupted", _UNFINISHED)
+            self.mark(session_key, op_id, "interrupted", _UNFINISHED, turn=turn)
             return Claim(False, False, _UNFINISHED)
         return Claim(False, False, current["result"] or _UNFINISHED)
 
@@ -109,30 +113,35 @@ class TurnJournal:
         op_id: str,
         tool: str,
         run: Callable[[], Awaitable[str]],
+        *,
+        turn: int | None = None,
     ) -> tuple[str, bool]:
-        claim = self.claim(session_key, op_id, tool)
+        turn = self._scope(session_key) if turn is None else turn
+        claim = self.claim(session_key, op_id, tool, turn=turn)
         if not claim.run:
             return claim.result, claim.halt
         op_id = str(op_id or tool)
-        self.mark(session_key, op_id, "awaiting")
+        self.mark(session_key, op_id, "awaiting", turn=turn)
         try:
             result = await run()
         except asyncio.CancelledError:
-            self.mark(session_key, op_id, "canceled", "canceled")
+            self.mark(session_key, op_id, "canceled", "canceled", turn=turn)
             raise
         except JournalError:
             raise
         except Exception as exc:
             result = f"Error: Tool '{tool}' failed: {exc}"
-            self.mark(session_key, op_id, "failed", result)
+            self.mark(session_key, op_id, "failed", result, turn=turn)
             return result, False
         if not isinstance(result, str):
             result = str(result)
         status = "failed" if result.startswith("Error") else "completed"
-        self.mark(session_key, op_id, status, result)
+        self.mark(session_key, op_id, status, result, turn=turn)
         return result, False
 
-    def mark(self, session_key: str, op_id: str, status: str, result: str = "") -> None:
+    def mark(
+        self, session_key: str, op_id: str, status: str, result: str = "", *, turn: int | None = None
+    ) -> None:
         if len(result) <= RESULT_CAP:
             stored = result
         else:
@@ -142,7 +151,7 @@ class TurnJournal:
             {
                 "kind": "operation",
                 "id": str(op_id),
-                "turn": self._scope(session_key),
+                "turn": self._scope(session_key) if turn is None else turn,
                 "status": status,
                 "result": stored,
             },
@@ -241,8 +250,8 @@ class TurnJournal:
                 status = str(row.get("status") or "open")
         return status
 
-    def _operations(self, session_key: str) -> dict[str, dict[str, str]]:
-        scope = self._scope(session_key)
+    def _operations(self, session_key: str, *, turn: int | None = None) -> dict[str, dict[str, str]]:
+        scope = self._scope(session_key) if turn is None else turn
         found: dict[str, dict[str, str]] = {}
         for row in self._load(session_key):
             if row.get("kind") != "operation":

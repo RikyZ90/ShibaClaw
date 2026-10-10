@@ -1,6 +1,8 @@
 // ── Event Listeners ───────────────────────────────────────────
+const sidebarMediaQuery = window.matchMedia("(max-width: 900px)");
+
 function isMobileSidebar() {
-    return window.matchMedia("(max-width: 900px)").matches;
+    return sidebarMediaQuery.matches;
 }
 
 function setSidebarOpen(open) {
@@ -57,7 +59,7 @@ function initListeners() {
     window.visualViewport?.addEventListener("resize", syncMobileViewport);
     window.visualViewport?.addEventListener("scroll", syncMobileViewport);
     window.addEventListener("resize", syncMobileViewport);
-    window.matchMedia("(max-width: 768px)").addEventListener("change", () => setSidebarOpen(false));
+    sidebarMediaQuery.addEventListener("change", () => setSidebarOpen(false));
 
     btnSend.addEventListener("click", sendMessage);
 

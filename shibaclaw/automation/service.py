@@ -26,6 +26,9 @@ import time
 import uuid
 import os
 import threading
+from contextlib import contextmanager
+from copy import deepcopy
+from functools import wraps
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
@@ -59,6 +62,64 @@ _HEARTBEAT_TOOL = [
 OnScheduledCallback = Callable[["AutomationJob"], Awaitable[Optional[str]]]
 OnHeartbeatCallback = Callable[..., Awaitable[str]]
 OnNotifyCallback = Callable[..., Awaitable[None]]
+
+
+@contextmanager
+def _store_file_lock(store_path: Path):
+    """Serialize read/merge/write cycles across gateway and CLI processes."""
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    with store_path.with_name(store_path.name + ".lock").open("a+b") as handle:
+        if os.name == "nt":
+            import msvcrt
+
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _merge_changed_fields(base: dict, local: dict, external: dict) -> dict:
+    """Apply only locally changed fields to the latest persisted job."""
+    merged = deepcopy(external)
+    for key, value in local.items():
+        if key not in base or value != base[key]:
+            if (
+                isinstance(value, dict)
+                and isinstance(base.get(key), dict)
+                and isinstance(external.get(key), dict)
+            ):
+                merged[key] = _merge_changed_fields(base[key], value, external[key])
+            else:
+                merged[key] = deepcopy(value)
+    for key in base.keys() - local.keys():
+        merged.pop(key, None)
+    return merged
+
+
+def _refresh_before_mutation(method):
+    @wraps(method)
+    def mutate(self, *args, **kwargs):
+        # Also excludes the executor's save thread while the local job changes.
+        with self._io_lock:
+            self.sync_from_disk()
+            return method(self, *args, **kwargs)
+
+    return mutate
 
 
 def _now_ms() -> int:
@@ -256,7 +317,7 @@ class AutomationService:
         self._model = model
         self._jobs: dict[str, AutomationJob] = {}
         self._save_lock = asyncio.Lock()
-        self._io_lock = threading.Lock()
+        self._io_lock = threading.RLock()
         self._timer_task: asyncio.Task | None = None
         self._sync_task: asyncio.Task | None = None
         self._wake = asyncio.Event()
@@ -266,19 +327,17 @@ class AutomationService:
         self._task_cache: dict[str, tuple[int | None, str, list[tuple[str, str]]]] = {}
         self._provider_warning_logged = False
         self._last_mtime: float = 0.0
+        self._store_stamp: tuple[int, int, int] | None = None
+        self._store_snapshot: dict[str, dict] = {}
         self._load()
 
     def _load(self) -> None:
         """Load jobs from automation.json; fall back to migrating jobs.json."""
         if self._store_path.exists():
             try:
-                data = json.loads(self._store_path.read_text(encoding="utf-8"))
-                for d in data.get("jobs", []):
-                    job = self._job_from_dict(d)
-                    self._jobs[job.id] = job
-                self._last_mtime = self._store_path.stat().st_mtime
-                logger.debug("AutomationService: loaded {} jobs", len(self._jobs))
-                return
+                if self.sync_from_disk():
+                    logger.debug("AutomationService: loaded {} jobs", len(self._jobs))
+                    return
             except Exception as exc:
                 logger.warning("AutomationService: failed to load store: {}", exc)
         self._migrate_legacy()
@@ -340,34 +399,63 @@ class AutomationService:
             logger.warning("AutomationService: legacy migration failed: {}", exc)
 
     def sync_from_disk(self) -> bool:
-        """Replace in-memory jobs when another process wrote the store."""
-        path = self._store_path
+        """Reload external updates without dropping pending local changes."""
         try:
-            mtime = path.stat().st_mtime if path.exists() else 0.0
-        except OSError:
-            return False
-        if mtime <= self._last_mtime:
-            return False
-        try:
-            data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"jobs": []}
-            jobs: dict[str, AutomationJob] = {}
-            for item in data.get("jobs", []):
-                job = self._job_from_dict(item)
-                jobs[job.id] = job
+            with self._io_lock, _store_file_lock(self._store_path):
+                return self._sync_from_disk_unlocked()
         except Exception as exc:
             logger.warning("AutomationService: skip external reload: {}", exc)
             return False
+
+    def _sync_from_disk_unlocked(self) -> bool:
+        path = self._store_path
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            stat = None
+        stamp = (stat.st_mtime_ns, stat.st_size, stat.st_ino) if stat else None
+        if stamp == self._store_stamp:
+            return False
+        data = json.loads(path.read_text(encoding="utf-8")) if stat else {"jobs": []}
+        external = {
+            item["id"]: self._job_to_dict(self._job_from_dict(item))
+            for item in data.get("jobs", [])
+        }
+        local = {job.id: self._job_to_dict(job) for job in self._jobs.values()}
+        merged = deepcopy(external)
+        for job_id in self._store_snapshot.keys() - local.keys():
+            merged.pop(job_id, None)
+        for job_id, value in local.items():
+            if job_id not in self._store_snapshot:
+                merged[job_id] = deepcopy(value)
+            elif job_id in external:
+                merged[job_id] = _merge_changed_fields(
+                    self._store_snapshot[job_id], value, external[job_id]
+                )
+            # A deleted external job must not be resurrected by run-state updates.
+        jobs = {}
+        for job_id, value in merged.items():
+            refreshed = self._job_from_dict(value)
+            job = self._jobs.get(job_id)
+            if job is not None:
+                # Running callbacks retain the same job instance across reloads.
+                vars(job).update(vars(refreshed))
+            else:
+                job = refreshed
+            jobs[job_id] = job
         self._jobs = jobs
-        self._last_mtime = mtime
+        self._store_snapshot = deepcopy(external)
+        self._store_stamp = stamp
+        self._last_mtime = stat.st_mtime if stat else 0.0
         return True
 
     def _save_unlocked(self) -> None:
-        self.sync_from_disk()
         try:
-            self._store_path.parent.mkdir(parents=True, exist_ok=True)
-            data = {"jobs": [self._job_to_dict(j) for j in self._jobs.values()]}
-            tmp_path = self._store_path.with_suffix(".tmp")
-            with self._io_lock:
+            with self._io_lock, _store_file_lock(self._store_path):
+                self._sync_from_disk_unlocked()
+                snapshot = deepcopy({j.id: self._job_to_dict(j) for j in self._jobs.values()})
+                data = {"jobs": list(snapshot.values())}
+                tmp_path = self._store_path.with_suffix(".tmp")
                 tmp_path.write_text(
                     json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
                 )
@@ -379,7 +467,10 @@ class AutomationService:
                         if attempt == 2:
                             raise
                         time.sleep(0.05)
-                self._last_mtime = self._store_path.stat().st_mtime
+                stat = self._store_path.stat()
+                self._store_stamp = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
+                self._last_mtime = stat.st_mtime
+                self._store_snapshot = snapshot
         except Exception as exc:
             logger.warning("AutomationService: failed to save store: {}", exc)
 
@@ -495,6 +586,7 @@ class AutomationService:
             ),
         )
 
+    @_refresh_before_mutation
     def add_job(
         self,
         name: str,
@@ -529,6 +621,7 @@ class AutomationService:
         logger.info("AutomationService: added job '{}' ({}) [{}]", name, job.id, payload.kind)
         return job
 
+    @_refresh_before_mutation
     def approve_job(self, job_id: str) -> AutomationJob | None:
         """Approve the job's current operation fingerprint (approve-once)."""
         from shibaclaw.automation.grants import operation_fingerprint
@@ -542,6 +635,7 @@ class AutomationService:
         self._save_unlocked()
         return job
 
+    @_refresh_before_mutation
     def revoke_job_approval(self, job_id: str) -> AutomationJob | None:
         job = self._jobs.get(job_id)
         if not job:
@@ -551,6 +645,7 @@ class AutomationService:
         self._save_unlocked()
         return job
 
+    @_refresh_before_mutation
     def remove_job(self, job_id: str) -> bool:
         """Remove a job by ID. Returns True if found and removed."""
         if job_id not in self._jobs:
@@ -561,6 +656,7 @@ class AutomationService:
         logger.info("AutomationService: removed job {}", job_id)
         return True
 
+    @_refresh_before_mutation
     def enable_job(self, job_id: str, enabled: bool = True) -> AutomationJob | None:
         """Enable or disable a job."""
         job = self._jobs.get(job_id)
@@ -576,6 +672,7 @@ class AutomationService:
         self._rearm()
         return job
 
+    @_refresh_before_mutation
     def update_job(self, job_id: str, patch: dict) -> AutomationJob | None:
         """Update a job partially by id."""
         from shibaclaw.automation.grants import operation_fingerprint
@@ -654,13 +751,15 @@ class AutomationService:
 
     async def run_job(self, job_id: str, force: bool = False) -> bool:
         """Manually trigger a job (regardless of its schedule)."""
-        job = self._jobs.get(job_id)
-        if not job:
-            return False
-        if not force and not job.enabled:
-            return False
-        asyncio.create_task(self._run_job_bg(job, force=True))
-        return True
+        with self._io_lock:
+            self.sync_from_disk()
+            job = self._jobs.get(job_id)
+            if not job:
+                return False
+            if not force and not job.enabled:
+                return False
+            asyncio.create_task(self._run_job_bg(job, force=True))
+            return True
 
     def list_jobs(self, include_disabled: bool = True) -> list[AutomationJob]:
         jobs = list(self._jobs.values())
@@ -703,10 +802,11 @@ class AutomationService:
             return
         self._running = True
         now = _now_ms()
-        for j in self._jobs.values():
-            if j.enabled and j.schedule.kind != "at":
-                if j.state.next_run_at_ms and j.state.next_run_at_ms < now:
-                    j.state.next_run_at_ms = _compute_next_run(j.schedule, now) or 0
+        with self._io_lock:
+            for j in self._jobs.values():
+                if j.enabled and j.schedule.kind != "at":
+                    if j.state.next_run_at_ms and j.state.next_run_at_ms < now:
+                        j.state.next_run_at_ms = _compute_next_run(j.schedule, now) or 0
         await self._fire_overdue_at_jobs()
         self._sync_task = asyncio.create_task(self._watch_store(), name="automation-sync")
         self._rearm()
@@ -795,16 +895,17 @@ class AutomationService:
     async def _on_timer(self) -> None:
         self.sync_from_disk()
         now = _now_ms()
-        due = [
-            j
-            for j in self._jobs.values()
-            if j.enabled and j.state.next_run_at_ms and now >= j.state.next_run_at_ms
-        ]
-        for job in due:
-            if job.schedule.kind == "at":
-                job.state.next_run_at_ms = 0
-            else:
-                job.state.next_run_at_ms = _compute_next_run(job.schedule, now) or 0
+        with self._io_lock:
+            due = [
+                j
+                for j in self._jobs.values()
+                if j.enabled and j.state.next_run_at_ms and now >= j.state.next_run_at_ms
+            ]
+            for job in due:
+                if job.schedule.kind == "at":
+                    job.state.next_run_at_ms = 0
+                else:
+                    job.state.next_run_at_ms = _compute_next_run(job.schedule, now) or 0
         await self._save()
         self._rearm()
         for job in due:
@@ -859,53 +960,57 @@ class AutomationService:
         from shibaclaw.automation.grants import job_is_approved
 
         start_ms = _now_ms()
-        if not force and not job_is_approved(job):
-            job.state.last_status = "skipped"
-            job.state.last_error = "approval_required"
-            job.state.run_count += 1
-            job.state.last_run_at_ms = start_ms
-            job.updated_at_ms = start_ms
-            # One-shot jobs must not stay enabled with next_run=0 forever.
-            if job.schedule.kind == "at":
-                job.enabled = False
-                job.state.next_run_at_ms = 0
-            logger.warning(
-                "AutomationService: job '{}' blocked — approve-once grant missing/stale",
-                job.name,
-            )
-            self._save_unlocked()
-            return
+        with self._io_lock:
+            if not force and not job_is_approved(job):
+                job.state.last_status = "skipped"
+                job.state.last_error = "approval_required"
+                job.state.run_count += 1
+                job.state.last_run_at_ms = start_ms
+                job.updated_at_ms = start_ms
+                # One-shot jobs must not stay enabled with next_run=0 forever.
+                if job.schedule.kind == "at":
+                    job.enabled = False
+                    job.state.next_run_at_ms = 0
+                logger.warning(
+                    "AutomationService: job '{}' blocked — approve-once grant missing/stale",
+                    job.name,
+                )
+                self._save_unlocked()
+                return
+            job.state.last_status = "running"
         logger.info(
             "AutomationService: executing '{}' [{}] ({})",
             job.name,
             job.payload.kind,
             job.id,
         )
-        job.state.last_status = "running"
         try:
             if job.payload.kind == "scheduled":
                 await self._execute_scheduled(job)
             else:
                 await self._execute_heartbeat(job)
-            if job.state.last_status != "skipped":
-                job.state.last_status = "ok"
-                job.state.last_error = ""
+            with self._io_lock:
+                if job.state.last_status != "skipped":
+                    job.state.last_status = "ok"
+                    job.state.last_error = ""
         except Exception as exc:
-            job.state.last_status = "error"
-            job.state.last_error = str(exc)
+            with self._io_lock:
+                job.state.last_status = "error"
+                job.state.last_error = str(exc)
             logger.error("AutomationService: job '{}' failed: {}", job.name, exc)
         finally:
-            job.state.run_count += 1
-            job.state.last_run_at_ms = start_ms
-            job.updated_at_ms = _now_ms()
-            if job.delete_after_run:
-                self._jobs.pop(job.id, None)
-                logger.info("AutomationService: removed job '{}'", job.name)
-            elif job.schedule.kind == "at":
-                job.enabled = False
-                job.state.next_run_at_ms = 0
-            elif force:
-                job.state.next_run_at_ms = _compute_next_run(job.schedule, _now_ms()) or 0
+            with self._io_lock:
+                job.state.run_count += 1
+                job.state.last_run_at_ms = start_ms
+                job.updated_at_ms = _now_ms()
+                if job.delete_after_run:
+                    self._jobs.pop(job.id, None)
+                    logger.info("AutomationService: removed job '{}'", job.name)
+                elif job.schedule.kind == "at":
+                    job.enabled = False
+                    job.state.next_run_at_ms = 0
+                elif force:
+                    job.state.next_run_at_ms = _compute_next_run(job.schedule, _now_ms()) or 0
 
     async def _execute_scheduled(self, job: AutomationJob) -> None:
         """Run a scheduled job: send a fixed message through the agent."""
@@ -914,7 +1019,8 @@ class AutomationService:
             return
         if not job.payload.message.strip():
             logger.info("AutomationService: job '{}' skipped — empty message", job.name)
-            job.state.last_status = "skipped"
+            with self._io_lock:
+                job.state.last_status = "skipped"
             return
         await self._on_scheduled(job)
 
@@ -926,13 +1032,15 @@ class AutomationService:
                     "AutomationService: heartbeat '{}' skipped — no AI provider", job.name
                 )
                 self._provider_warning_logged = True
-            job.state.last_status = "skipped"
+            with self._io_lock:
+                job.state.last_status = "skipped"
             return
         self._provider_warning_logged = False
         hb_path = self._workspace / (job.payload.heartbeat_file or "TASK.md")
         if not hb_path.exists():
             logger.debug("AutomationService: heartbeat file '{}' not found, skipping", hb_path)
-            job.state.last_status = "skipped"
+            with self._io_lock:
+                job.state.last_status = "skipped"
             return
         try:
             raw_content, sections = self._load_task_document(hb_path)
@@ -946,12 +1054,14 @@ class AutomationService:
                 job.name,
                 hb_path.name,
             )
-            job.state.last_status = "skipped"
+            with self._io_lock:
+                job.state.last_status = "skipped"
             return
         action, tasks = await self._heartbeat_decide(active_tasks)
         if action != "run":
             logger.info("AutomationService: heartbeat '{}' → skip (LLM decision)", job.name)
-            job.state.last_status = "skipped"
+            with self._io_lock:
+                job.state.last_status = "skipped"
             return
         logger.info("AutomationService: heartbeat '{}' → run: {}", job.name, tasks[:80])
         if not self._on_heartbeat:

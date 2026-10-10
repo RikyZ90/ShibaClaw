@@ -1,11 +1,20 @@
 ## [Unreleased]
 
+## [1.0.4] - 2026-10-10
+
 ### Added
 - **LLM retry** — equal-jitter backoff, permanent-error classification (no retry on 4xx auth/model/context), optional `fallback_models`, and a small cache used only after every fallback fails. No model is selected unless the caller passes `fallback_models`.
 - **Opt-in self-evolution** — `/evolve on|off|status` and `/panic` (owner DM, CLI, or WebUI). An alarm takes one backlog class on an `evolve/*` branch. A separate `shibaclaw agent --model` process reviews. `EVOLVE_QUIET` and `EVOLVE_SKIP` are not delivered. The package does not restart itself. `GET /api/evolve` shows the gate, chronicle, and recent commits.
 - **Chat-first workspace shell** — conversation list is the sidebar, workspace tools collapse to icons, and the layout fits phone, tablet, and desktop including Android WebView.
 - **Durable turn journal** — Tool calls are recorded before they run, so a crash or a redelivered input does not execute the same call twice. `/stop` still cancels the turn; `/stop idle` lets the current tool finish. Incognito sessions keep this journal in memory.
 - **Subagent MEA** — `spawn_mea` runs a manage-execute-audit pass and returns a structured synthesis. `IdempotentSaga` and `SupervisorTree` are available for multi-step work with rollback and child restart.
+
+### Fixed
+- **Private MEA tasks and coordinated stop** — Incognito and ephemeral task progress stays in memory. Delegated tool calls use a stable journal scope; `/stop idle` finishes the current tool and prevents later tools, while `/stop` cancels running work.
+- **Safe outage cache** — Cache keys retain the complete message history, including tool calls, results and provider metadata. Outage fallback only reuses text replies, and SSE parsing fallback can recover the original model's cached reply after retries fail.
+- **Conversation reset and tool protocol** — `/new` cancels active work and clears checkpoints. Recovery pivots follow complete tool-result batches so context pruning preserves matching tool calls and results.
+- **Concurrent automation updates** — Gateway and CLI writes preserve pending additions, edits, removals and run state, with a process lock around store updates. Manual triggers refresh external disable and deletion changes.
+- **Sidebar resize accessibility** — Sidebar behavior and resize listeners share the 900px breakpoint, keeping focus, visibility and accessibility state aligned across tablet and desktop layouts.
 
 ## [1.0.3] - 2026-09-30
 

@@ -1,46 +1,91 @@
 {
-    "version": "1.0.3",
-    "release_notes": "Release v1.0.3 adds WebUI workspace navigation, themes, and agent management; fixes PyJWT security advisories; and improves frontend asset cache busting.",
+    "version": "1.0.4",
+    "release_notes": "Release v1.0.4 adds MEA task runs, optional LLM fallback, a tool-call journal, opt-in self-evolution and a responsive chat-first workspace. It fixes private task persistence, coordinated stop and reset, outage caching, concurrent automation updates and sidebar resize accessibility.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Bumped application version to 1.0.3 and constrained PyJWT to a secure version."
-        },
-        {
-            "path": "CHANGELOG.md",
-            "overwrite": true,
-            "note": "Added v1.0.3 notes for the latest two commits and the PyJWT security fix."
-        },
-        {
-            "path": "README.md",
-            "overwrite": true,
-            "note": "Updated English and localized README release notes to v1.0.3."
-        },
-        {
-            "path": "shibaclaw/updater/update_manifest.json",
-            "overwrite": true,
-            "note": "Bumped the packaged update manifest to v1.0.3."
-        },
-        {
-            "path": "shibaclaw/desktop/app.manifest",
-            "overwrite": true,
-            "note": "Updated the Windows desktop application version to 1.0.3.0."
-        },
-        {
-            "path": "shibaclaw/webui/package.json",
-            "overwrite": true,
-            "note": "Updated the WebUI package version to 1.0.3."
-        },
-        {
-            "path": "shibaclaw/webui/package-lock.json",
-            "overwrite": true,
-            "note": "Updated the WebUI lockfile package version to 1.0.3."
+            "note": "Bumped the project version to 1.0.4."
         },
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Updated PyJWT to 2.14.0 to resolve known security advisories."
+            "note": "Synchronized the locked ShibaClaw project version to 1.0.4."
+        },
+        {
+            "path": "CHANGELOG.md",
+            "overwrite": true,
+            "note": "Added v1.0.4 release notes for merged features and regression fixes."
+        },
+        {
+            "path": "README.md",
+            "overwrite": true,
+            "note": "Updated English and localized README release notes with v1.0.4 features and fixes."
+        },
+        {
+            "path": "shibaclaw/updater/update_manifest.json",
+            "overwrite": true,
+            "note": "Synchronized the packaged update manifest with v1.0.4."
+        },
+        {
+            "path": "shibaclaw/desktop/app.manifest",
+            "overwrite": true,
+            "note": "Updated the Windows desktop application version to 1.0.4.0."
+        },
+        {
+            "path": "shibaclaw/webui/package.json",
+            "overwrite": true,
+            "note": "Updated the WebUI package version to 1.0.4."
+        },
+        {
+            "path": "shibaclaw/webui/package-lock.json",
+            "overwrite": true,
+            "note": "Synchronized the WebUI lockfile package version to 1.0.4."
+        },
+        {
+            "path": "shibaclaw/agent/loop.py",
+            "overwrite": true,
+            "note": "Clear checkpoints on reset, coordinate task stop and preserve complete tool-result batches."
+        },
+        {
+            "path": "shibaclaw/agent/subagent.py",
+            "overwrite": true,
+            "note": "Keep private MEA progress in memory and apply stable tool journal scopes and stop handling."
+        },
+        {
+            "path": "shibaclaw/agent/tools/spawn.py",
+            "overwrite": true,
+            "note": "Propagate private task context to MEA runs."
+        },
+        {
+            "path": "shibaclaw/agent/turn_journal.py",
+            "overwrite": true,
+            "note": "Keep delegated tool operations in their original turn scope."
+        },
+        {
+            "path": "shibaclaw/thinkers/base.py",
+            "overwrite": true,
+            "note": "Use full-history text-only outage caching and recover cached replies after SSE fallback fails."
+        },
+        {
+            "path": "shibaclaw/automation/service.py",
+            "overwrite": true,
+            "note": "Preserve pending updates and run state while serializing gateway and CLI store writes."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/main.js",
+            "overwrite": true,
+            "note": "Use one 900px media query for sidebar behavior and resize handling."
+        },
+        {
+            "path": "shibaclaw/webui/static/bundle.js",
+            "overwrite": true,
+            "note": "Rebuilt WebUI assets with the sidebar resize fix."
+        },
+        {
+            "path": "shibaclaw/webui/static/index.html",
+            "overwrite": true,
+            "note": "Updated generated asset references for the rebuilt WebUI."
         }
     ]
 }

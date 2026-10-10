@@ -38,13 +38,13 @@
 ---
 
 <details open>
-<summary>🚀 <b>What's new — v1.0.3</b> (click to expand)</summary>
+<summary>🚀 <b>What's new — v1.0.4</b> (click to expand)</summary>
 
-**Latest release v1.0.3 (2026-09-30):**
+**Latest release v1.0.4 (2026-10-10):**
 
-- **New Workspace UI Style** — A refreshed interface for navigating workspaces, applying themes, and managing agents, with localized controls and interaction tests.
-- **Safer Python Dependencies** — Updated PyJWT to 2.14.0 to resolve 10 advisories affecting version 2.13.0.
-- **Reliable WebUI Updates** — Versioned CSS and JavaScript assets prevent browsers from reusing stale files after an update.
+- **Subagent task execution** — Adds manage-execute-audit (MEA) runs, with supervision and rollback helpers for multi-step work.
+- **More flexible agent workflows** — Adds optional LLM fallback, a tool-call journal, opt-in self-evolution controls, and a chat-first workspace for desktop and mobile.
+- **Reliability fixes** — Corrects private MEA progress, task cancellation, conversation reset, outage caching, concurrent automation updates and sidebar accessibility during resizing.
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 

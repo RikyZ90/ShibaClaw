@@ -41,13 +41,13 @@
 > Las notas de versión están en [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>🚀 <b>Novedades — v1.0.3</b> (haz clic para expandir)</summary>
+<summary>🚀 <b>Novedades — v1.0.4</b> (haz clic para expandir)</summary>
 
-**Última versión v1.0.3 (2026-09-30):**
+**Última versión v1.0.4 (2026-10-10):**
 
-- **Nuevo estilo de la interfaz Workspace** — Interfaz renovada para navegar por espacios de trabajo, aplicar temas y gestionar agentes, con controles localizados y pruebas de interacción.
-- **Dependencias Python más seguras** — PyJWT se actualizó a la versión 2.14.0 para corregir 10 avisos que afectaban a la versión 2.13.0.
-- **Actualizaciones fiables de la WebUI** — Los recursos CSS y JavaScript versionados evitan que el navegador reutilice archivos obsoletos después de una actualización.
+- **Ejecución de tareas con subagentes** — Incorpora ejecuciones MEA (gestionar-ejecutar-auditar) y herramientas de supervisión y reversión para tareas de varios pasos.
+- **Flujos de agente más flexibles** — Añade fallback LLM opcional, un registro de llamadas a herramientas, controles optativos de autoevolución y un workspace centrado en el chat para escritorio y móvil.
+- **Correcciones de fiabilidad** — Corrige el progreso MEA privado, la cancelación de tareas, el reinicio de conversaciones, la caché durante fallos, las actualizaciones simultáneas de automatizaciones y la accesibilidad de la barra lateral al redimensionar.
 
 Consulta el [Changelog](./CHANGELOG.md) para el historial completo de versiones.
 

@@ -1,3 +1,6 @@
+import copy
+import json
+
 import pytest
 
 from shibaclaw.thinkers.base import LLMResponse, Thinker, ToolCallRequest
@@ -126,12 +129,14 @@ async def _no_sleep(*_args, **_kwargs):
 
 
 @pytest.mark.asyncio
-async def test_permanent_error_does_not_retry(monkeypatch):
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_permanent_error_does_not_retry(monkeypatch, streaming):
     monkeypatch.setattr("asyncio.sleep", _no_sleep)
     thinker = _Scripted([
         LLMResponse(content="Error 401 unauthorized", finish_reason="error"),
     ])
-    result = await thinker.chat_with_retry(
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    result = await chat(
         messages=[{"role": "user", "content": "hi"}],
         model="primary",
     )
@@ -140,13 +145,15 @@ async def test_permanent_error_does_not_retry(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_transient_error_retries_and_caches_first_success(monkeypatch):
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_transient_error_retries_and_caches_first_success(monkeypatch, streaming):
     monkeypatch.setattr("asyncio.sleep", _no_sleep)
     thinker = _Scripted([
         LLMResponse(content="Error 429 rate limit", finish_reason="error"),
         LLMResponse(content="ok", finish_reason="stop"),
     ])
-    result = await thinker.chat_with_retry(
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    result = await chat(
         messages=[{"role": "user", "content": "hi"}],
         model="primary",
     )
@@ -155,12 +162,14 @@ async def test_transient_error_retries_and_caches_first_success(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_omitted_fallback_does_not_switch_model(monkeypatch):
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_omitted_fallback_does_not_switch_model(monkeypatch, streaming):
     monkeypatch.setattr("asyncio.sleep", _no_sleep)
     thinker = _Scripted([
         LLMResponse(content="Error 503 overloaded", finish_reason="error"),
     ])
-    await thinker.chat_with_retry(
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    await chat(
         messages=[{"role": "user", "content": "hi"}],
         model="primary",
     )
@@ -168,7 +177,8 @@ async def test_omitted_fallback_does_not_switch_model(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cache_does_not_return_tool_calls_when_tools_disabled(monkeypatch):
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_cache_does_not_return_tool_calls_when_tools_disabled(monkeypatch, streaming):
     monkeypatch.setattr("asyncio.sleep", _no_sleep)
     tool_reply = LLMResponse(
         content=None,
@@ -180,8 +190,9 @@ async def test_cache_does_not_return_tool_calls_when_tools_disabled(monkeypatch)
         LLMResponse(content="Error 503 overloaded", finish_reason="error"),
     ])
     messages = [{"role": "user", "content": "run"}]
-    await thinker.chat_with_retry(messages=messages, model="primary", tools=[{"type": "function"}])
-    result = await thinker.chat_with_retry(
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    await chat(messages=messages, model="primary", tools=[{"type": "function"}])
+    result = await chat(
         messages=messages,
         model="primary",
         tools=None,
@@ -191,18 +202,214 @@ async def test_cache_does_not_return_tool_calls_when_tools_disabled(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_exhausted_fallback_uses_primary_cache(monkeypatch):
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_exhausted_fallback_uses_primary_cache(monkeypatch, streaming):
     monkeypatch.setattr("asyncio.sleep", _no_sleep)
     messages = [{"role": "user", "content": "same"}]
     thinker = _Scripted([
         LLMResponse(content="cached-primary", finish_reason="stop"),
         LLMResponse(content="Error 503 overloaded", finish_reason="error"),
     ])
-    await thinker.chat_with_retry(messages=messages, model="primary")
-    result = await thinker.chat_with_retry(
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    await chat(messages=messages, model="primary")
+    result = await chat(
         messages=messages,
         model="primary",
         fallback_models=["other"],
     )
     assert "cached-primary" in (result.content or "")
+
+
+_TOOLS = [{
+    "type": "function",
+    "function": {"name": "exec", "parameters": {"type": "object"}},
+}]
+_OUTAGE_WARNING = "\n\n[WARNING: This is a cached response returned due to LLM provider outage.]"
+
+
+def _tool_history(report="report-A", call_id="copy-A"):
+    return [
+        {"role": "system", "content": "Archive only the report that was copied."},
+        {"role": "user", "content": "archive the report"},
+        {"role": "assistant", "content": None, "tool_calls": [{
+            "id": call_id, "type": "function", "function": {
+                "name": "exec",
+                "arguments": json.dumps({"command": f"copy {report} archive"}),
+            },
+        }]},
+        {"role": "tool", "tool_call_id": call_id, "name": "exec", "content": "Success"},
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("history_change", [
+    "arguments", "call_id", "tool_name", "result_id", "result_name",
+    "thought_signature", "reasoning_details", "thinking_blocks", "message_name",
+])
+async def test_outage_cache_does_not_cross_semantic_histories(monkeypatch, streaming, history_change):
+    monkeypatch.setattr("asyncio.sleep", _no_sleep)
+    messages = _tool_history()
+    other = copy.deepcopy(messages)
+    call = other[2]["tool_calls"][0]
+    if history_change == "arguments":
+        call["function"]["arguments"] = json.dumps({"command": "copy report-B archive"})
+    elif history_change == "call_id":
+        call["id"] = "copy-B"
+        other[3]["tool_call_id"] = "copy-B"
+    elif history_change == "tool_name":
+        call["function"]["name"] = "copy_file"
+    elif history_change == "result_id":
+        other[3]["tool_call_id"] = "different-result"
+    elif history_change == "result_name":
+        other[3]["name"] = "copy_file"
+    elif history_change == "thought_signature":
+        call["thought_signature"] = "provider-signature-B"
+    elif history_change == "reasoning_details":
+        other[2]["reasoning_details"] = [{"type": "reasoning.encrypted", "data": "reasoning-B"}]
+    elif history_change == "thinking_blocks":
+        other[2]["thinking_blocks"] = [{"type": "thinking", "thinking": "report-B", "signature": "B"}]
+    elif history_change == "message_name":
+        other[1]["name"] = "different-user"
+    assert [(m["role"], m.get("content")) for m in messages] == [
+        (m["role"], m.get("content")) for m in other
+    ]
+    thinker = _Scripted([
+        LLMResponse(content="Archived report-A"),
+        LLMResponse(content="Error 503 overloaded", finish_reason="error"),
+    ])
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    await chat(messages=messages, model="primary", tools=_TOOLS)
+    result = await chat(messages=other, model="primary", tools=_TOOLS)
+    assert result.finish_reason == "error"
+    assert not result.tool_calls
+    assert len(thinker.models) == 5  # Initial success, then all four outage attempts.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_live_tool_response_is_returned_but_never_replayed_from_cache(monkeypatch, streaming):
+    monkeypatch.setattr("asyncio.sleep", _no_sleep)
+    messages = _tool_history()
+    tool_reply = LLMResponse(
+        content="Archive the report",
+        finish_reason="tool_calls",
+        tool_calls=[ToolCallRequest(id="delete-A", name="exec", arguments={"command": "delete report-A"})],
+    )
+    thinker = _Scripted([
+        tool_reply,
+        LLMResponse(content="Error 503 overloaded", finish_reason="error"),
+    ])
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    live = await chat(messages=messages, model="primary", tools=_TOOLS)
+    assert live is tool_reply
+    assert live.tool_calls[0].arguments == {"command": "delete report-A"}
+    assert not Thinker._RESPONSE_CACHE
+
+    # Also reject unsafe entries populated before the policy change or mutated by callers.
+    Thinker._RESPONSE_CACHE[Thinker._get_cache_key(messages, "primary", _TOOLS)] = tool_reply
+    result = await chat(messages=messages, model="primary", tools=_TOOLS)
+    assert result.finish_reason == "error"
+    assert not result.tool_calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_exact_tool_history_can_recover_text_without_replaying_actions(monkeypatch, streaming):
+    monkeypatch.setattr("asyncio.sleep", _no_sleep)
+    messages = _tool_history()
+    cached_reply = LLMResponse(content="Archived report-A")
+    thinker = _Scripted([
+        cached_reply,
+        LLMResponse(content="Error 503 overloaded", finish_reason="error"),
+    ])
+    chat = thinker.chat_with_retry_streaming if streaming else thinker.chat_with_retry
+    await chat(messages=messages, model="primary", tools=_TOOLS)
+    result = await chat(messages=copy.deepcopy(messages), model="primary", tools=_TOOLS)
+    assert result.content == "Archived report-A" + _OUTAGE_WARNING
+    assert not result.tool_calls
+    assert cached_reply.content == "Archived report-A"
+
+
+class _SSEScripted(_Scripted):
+    def __init__(self, replies, streaming_replies=None):
+        super().__init__(replies)
+        self.streaming_replies = list(streaming_replies or [
+            LLMResponse(content="Error SSE stream parser", finish_reason="error"),
+        ])
+        self.streaming_models = []
+
+    async def chat_streaming(self, **kwargs):
+        self.streaming_models.append(kwargs.get("model"))
+        if len(self.streaming_replies) > 1:
+            return self.streaming_replies.pop(0)
+        return self.streaming_replies[0]
+
+
+def _record_retry_delays(monkeypatch):
+    delays = []
+
+    async def record_sleep(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr("asyncio.sleep", record_sleep)
+    monkeypatch.setattr(Thinker, "_jitter_delay", staticmethod(lambda delay: delay))
+    return delays
+
+
+@pytest.mark.asyncio
+async def test_sse_to_nonstream_outage_recovers_exact_cached_text(monkeypatch):
+    delays = _record_retry_delays(monkeypatch)
+    messages = _tool_history()
+    thinker = _SSEScripted([
+        LLMResponse(content="Exact cached answer"),
+        LLMResponse(content="Error 503 overloaded", finish_reason="error"),
+    ])
+    await thinker.chat_with_retry(messages=messages, model="primary", tools=_TOOLS)
+    result = await thinker.chat_with_retry_streaming(messages=messages, model="primary", tools=_TOOLS)
+    assert result.content == "Exact cached answer" + _OUTAGE_WARNING
+    assert result.finish_reason == "stop"
+    assert not result.tool_calls
+    assert thinker.streaming_models == ["primary"]
+    assert thinker.models == ["primary"] * 5
+    assert delays == [1, 1, 2, 4]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fallback_succeeds", [False, True])
+async def test_sse_fallback_models_are_tried_before_primary_cache(monkeypatch, fallback_succeeds):
+    delays = _record_retry_delays(monkeypatch)
+    messages = [{"role": "user", "content": "same"}]
+    error = LLMResponse(content="Error 503 overloaded", finish_reason="error")
+    final = LLMResponse(content="Fresh fallback answer") if fallback_succeeds else error
+    thinker = _SSEScripted([LLMResponse(content="Primary cached answer"), *([error] * 4), final])
+    await thinker.chat_with_retry(messages=messages, model="primary")
+    # A child's own cache must not interrupt the remaining configured fallback chain.
+    Thinker._remember_response(messages, "backup", LLMResponse(content="Backup cached answer"))
+    result = await thinker.chat_with_retry_streaming(
+        messages=messages, model="primary", fallback_models=["primary", "", "backup"],
+    )
+    expected = "Fresh fallback answer" if fallback_succeeds else "Primary cached answer" + _OUTAGE_WARNING
+    assert result.content == expected
+    assert thinker.streaming_models == ["primary"]
+    assert thinker.models == ["primary"] * 5 + ["backup"] * (1 if fallback_succeeds else 4)
+    assert delays == [1, 1, 2, 4] + ([] if fallback_succeeds else [1, 2, 4])
+
+
+@pytest.mark.asyncio
+async def test_sse_failure_inside_fallback_leaves_cache_lookup_to_outer_call(monkeypatch):
+    delays = _record_retry_delays(monkeypatch)
+    messages = [{"role": "user", "content": "same"}]
+    error = LLMResponse(content="Error 503 overloaded", finish_reason="error")
+    sse_error = LLMResponse(content="Error SSE stream parser", finish_reason="error")
+    thinker = _SSEScripted([LLMResponse(content="Primary cached answer"), error], [*([error] * 4), sse_error])
+    await thinker.chat_with_retry(messages=messages, model="primary")
+    Thinker._remember_response(messages, "backup", LLMResponse(content="Backup cached answer"))
+    result = await thinker.chat_with_retry_streaming(
+        messages=messages, model="primary", fallback_models=["backup"],
+    )
+    assert result.content == "Primary cached answer" + _OUTAGE_WARNING
+    assert thinker.streaming_models == ["primary"] * 4 + ["backup"]
+    assert thinker.models == ["primary"] + ["backup"] * 4
+    assert delays == [1, 2, 4, 1, 1, 2, 4]
 

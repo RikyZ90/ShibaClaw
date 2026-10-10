@@ -598,8 +598,11 @@ class ShibaBrain:
                     if name == "message":
                         tool.set_context(channel, chat_id, message_id)
                     elif name in {"spawn", "spawn_mea"}:
+                        kwargs = {"model": model, "provider": provider}
+                        if name == "spawn_mea":
+                            kwargs["ephemeral"] = self._checkpoint_forbidden(session_key, metadata)
                         tool.set_context(
-                            channel, chat_id, session_key, model=model, provider=provider
+                            channel, chat_id, session_key, **kwargs
                         )
                     else:
                         tool.set_context(channel, chat_id, session_key)
@@ -1032,6 +1035,8 @@ class ShibaBrain:
                 )
 
                 stop_turn = False
+                tool_pivots: list[dict] = []
+                answered_calls: set[str] = set()
                 for tool_call in response.tool_calls:
                     tools_used.append(tool_call.name)
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
@@ -1051,6 +1056,7 @@ class ShibaBrain:
                                 "Please reassess your goal and try a different approach."
                             ),
                         )
+                        answered_calls.add(tool_call.id)
                         continue
                     if self._tool_disabled_for_profile(tool_call.name, profile_id):
                         messages = self.context.add_tool_result(
@@ -1062,6 +1068,7 @@ class ShibaBrain:
                                 f"for this profile."
                             ),
                         )
+                        answered_calls.add(tool_call.id)
                         continue
                     if self._tool_blocked_for_non_allowlisted(
                         tool_call.name, metadata, channel
@@ -1075,6 +1082,7 @@ class ShibaBrain:
                                 "Non-allowlisted senders may only use web_search/web_fetch."
                             ),
                         )
+                        answered_calls.add(tool_call.id)
                         continue
                     async def _run_tool(call: Any = tool_call) -> str:
                         result = ""
@@ -1121,6 +1129,9 @@ class ShibaBrain:
                                 else:
                                     result = tool_future.result()
                             except asyncio.CancelledError:
+                                if not tool_future.done():
+                                    tool_future.cancel()
+                                    await asyncio.gather(tool_future, return_exceptions=True)
                                 raise
                             except Exception as exc:
                                 result = f"Error: Tool '{call.name}' failed: {exc}"
@@ -1191,7 +1202,7 @@ class ShibaBrain:
                         break
                     if result.startswith("Error:"):
                         if stuck_detector.add_tool_error(tool_call.name, result):
-                            messages.append(
+                            tool_pivots.append(
                                 stuck_detector.get_tool_error_pivot_prompt(tool_call.name, result)
                             )
                     if len(result) > self._TOOL_RESULT_LOOP_MAX_CHARS:
@@ -1209,10 +1220,19 @@ class ShibaBrain:
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )
+                    answered_calls.add(tool_call.id)
                     if halt:
                         final_content = result
                         stop_turn = True
                         break
+                if stop_turn:
+                    for call in response.tool_calls:
+                        if call.id not in answered_calls:
+                            messages = self.context.add_tool_result(
+                                messages, call.id, call.name,
+                                final_content or "Stopped. This tool was not started.",
+                            )
+                messages.extend(tool_pivots)
                 tool_names = [tc.name for tc in response.tool_calls]
                 sre_monitor.add_tool_sequence(tool_names)
                 sre_monitor.add_progress_metric(float(len(executed_tool_calls)))
@@ -1270,6 +1290,7 @@ class ShibaBrain:
                 checkpoint_mgr.save_checkpoint(session_key, messages, iteration, metadata)
             else:
                 checkpoint_mgr.delete_checkpoint(session_key)
+        if session_key:
             self._steering_queues.pop(session_key, None)
 
         return final_content, tools_used, messages
@@ -1441,19 +1462,29 @@ class ShibaBrain:
     async def _handle_stop(self, msg: InboundMessage, session_key: str, mode: str) -> str:
         """Hard stop cancels the turn. Idle stop lets the current tool finish."""
         journal = self._journal_for(session_key)
-        tasks = [task for task in self._active_tasks.get(session_key, []) if not task.done()]
+        current = asyncio.current_task()
+        tasks = [
+            task for task in self._active_tasks.get(session_key, [])
+            if task is not current and not task.done()
+        ]
         if mode == "when_idle":
-            if not tasks:
+            if not tasks and not self.subagents.has_running_for_session(session_key):
                 return "No active scent to stop."
             if journal is not None:
                 journal.request_stop(session_key, "when_idle")
+            self.subagents.request_stop(session_key, "when_idle")
             return "Stopping when the current tool finishes."
+        self.subagents.request_stop(session_key, "hard")
         if journal is not None:
             try:
                 journal.request_stop(session_key, "hard")
             except JournalError as exc:
                 logger.error("turn journal: {}", exc)
-        tasks = self._active_tasks.pop(session_key, [])
+        kept = [task for task in self._active_tasks.get(session_key, []) if task is current]
+        if kept:
+            self._active_tasks[session_key] = kept
+        else:
+            self._active_tasks.pop(session_key, None)
         cancelled = sum(1 for task in tasks if not task.done() and task.cancel())
         for task in tasks:
             try:
@@ -1747,6 +1778,9 @@ class ShibaBrain:
             content = await self._handle_stop(msg, key, "when_idle")
             return OutboundMessage(channel=msg.channel, chat_id=msg.chat_id, content=content)
         if cmd == "/new":
+            await self._handle_stop(msg, key, "hard")
+            CheckpointManager(self.context.workspace).delete_checkpoint(key)
+            self._steering_queues.pop(key, None)
             snapshot = session.messages[session.last_consolidated :]
             incognito = bool(
                 session.metadata.get("incognito") or session.metadata.get("ephemeral")

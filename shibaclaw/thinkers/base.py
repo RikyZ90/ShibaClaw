@@ -132,10 +132,8 @@ class Thinker(ABC):
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> None:
-        """Keep a few successful replies for outage fallback. Drop the oldest."""
-        if response.finish_reason == "error":
-            return
-        if response.tool_calls and (not tools or tool_choice == "none"):
+        """Keep successful text replies for outages; never replay executable actions."""
+        if response.finish_reason == "error" or response.tool_calls:
             return
         key = cls._get_cache_key(messages, model, tools, tool_choice)
         cls._RESPONSE_CACHE[key] = response
@@ -154,7 +152,7 @@ class Thinker(ABC):
         cached = cls._RESPONSE_CACHE.get(key)
         if cached is None:
             return None
-        if cached.tool_calls and (not tools or tool_choice == "none"):
+        if cached.tool_calls:
             return None
         import copy
         recalled = copy.deepcopy(cached)
@@ -170,13 +168,14 @@ class Thinker(ABC):
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> str:
-        clean_msgs = [{"role": m["role"], "content": m.get("content")} for m in messages if "role" in m]
+        # Tool IDs, arguments, results and provider reasoning/signature fields
+        # are part of the request's identity, even when role/content match.
         tool_blob = json.dumps(
             {"tools": tools, "tool_choice": tool_choice},
             sort_keys=True,
             default=str,
         )
-        return f"{model}:{tool_blob}:{json.dumps(clean_msgs, sort_keys=True, ensure_ascii=False)}"
+        return f"{model}:{tool_blob}:{json.dumps(messages, sort_keys=True, ensure_ascii=False)}"
 
     @staticmethod
     def _jitter_delay(base_delay: float) -> float:
@@ -542,7 +541,13 @@ class Thinker(ABC):
                 kw_chat.pop("on_token", None)
                 kw_chat["fallback_models"] = fallback_models
                 kw_chat["origin_model"] = origin
-                return await self.chat_with_retry(**kw_chat)
+                response = await self.chat_with_retry(**kw_chat)
+                if response.finish_reason == "error" and origin_model is None:
+                    cached = self._recall_cached(messages, origin, tools, tool_choice)
+                    if cached is not None:
+                        logger.warning("LLM call failed after SSE fallback. Falling back to cached response.")
+                        return cached
+                return response
 
         # Final attempt
         try:
