@@ -52,6 +52,7 @@ window.subagentUI = {
     },
     selectSession(value) {
         this.sessionKey = this.key(value);
+        this.needsSync = true;
         if (!this.sessions.has(this.sessionKey)) this.sessions.set(this.sessionKey, new Map());
         document.querySelectorAll('.subagent-run-card').forEach(el => el.remove());
         this.closeDrawer();
@@ -84,7 +85,7 @@ window.subagentUI = {
         }
         // Merge by revision: progress may arrive while the snapshot is in flight.
         for (const row of data.tasks || []) this.receive({ ...row, session_key: data.session_key });
-        if (key === this.sessionKey) { this.offline = false; this.render(); }
+        if (key === this.sessionKey) { this.offline = false; this.needsSync = false; this.lastSync = Date.now(); this.render(); }
     },
     setConnected(connected) { this.offline = !connected; this.render(); },
     rows() { return [...(this.sessions.get(this.sessionKey)?.values() || [])]; },
@@ -181,6 +182,14 @@ window.subagentUI = {
         }
     },
     tick() {
+        // Recover a lost terminal event or a gateway restart without reloading
+        // the browser. This never invokes an LLM and only polls pending work.
+        if (typeof realtime !== 'undefined' && realtime.connected && this.sessionKey &&
+            (this.needsSync || this.rows().some(row => !this.terminal.has(row.status))) &&
+            Date.now() - (this.lastSync || 0) > 15000) {
+            this.lastSync = Date.now();
+            realtime.emit('subagent_sync', {});
+        }
         document.querySelectorAll('.subagent-run-duration').forEach(el => {
             const start = Number(el.getAttribute('data-started'));
             const end = Number(el.getAttribute('data-finished')) || Date.now() / 1000;

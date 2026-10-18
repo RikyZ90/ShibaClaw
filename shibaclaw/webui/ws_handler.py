@@ -274,9 +274,11 @@ async def _handle_subagents(ws_id: str, ws: WebSocket, data: dict, *, cancel: bo
         })
         await _emit_to_ws(ws, {"type": "subagent_cancel_ack", "session_key": key,
                                "task_id": data.get("task_id"), "cancelled": bool(result and result.get("cancelled"))})
-    result = await gateway_client.request("subagent_snapshot", {"session_key": key})
+    result = await gateway_client.request("subagent_snapshot", {"session_key": key}, timeout=5)
     if isinstance(result, dict) and isinstance(result.get("tasks"), list):
         await _emit_to_ws(ws, {"type": "subagent_snapshot", "session_key": key, "tasks": result["tasks"], "snapshot_at": result.get("snapshot_at")})
+    else:
+        await _emit_to_ws(ws, {"type": "subagent_sync_error", "session_key": key})
 
 
 async def _emit_session_status(ws: WebSocket, session_key: str) -> None:

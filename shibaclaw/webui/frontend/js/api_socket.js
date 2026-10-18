@@ -288,6 +288,9 @@ function initSocket() {
     realtime.on("subagent_status", data => window.subagentUI?.receive(data));
     realtime.on("subagent_snapshot", data => window.subagentUI?.snapshot(data));
     realtime.on("subagent_cancel_ack", data => window.subagentUI?.cancelAck(data));
+    realtime.on("subagent_sync_error", data => {
+        if (_isSameSessionKey(data.session_key, state.sessionId)) window.subagentUI?.setConnected(false);
+    });
 
     realtime.on("session_reset", (data) => {
         if (typeof window.setWorkspaceChatTitle === "function") window.setWorkspaceChatTitle("");

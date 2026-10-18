@@ -117,3 +117,19 @@ test('restored cards sit between the request and the later reply', () => {
     assert.equal(history.children[1].getAttribute('data-task-id'), 'sub_123');
     assert.equal(history.children[2], reply);
 });
+
+test('pending work retries synchronization after a lost terminal event or gateway reconnect', () => {
+    const { ui, context: app, emissions } = setup();
+    ui.receive(row());
+    app.realtime.connected = true;
+    ui.lastSync = 0;
+    ui.tick();
+    assert.equal(emissions.at(-1)[0], 'subagent_sync');
+    const count = emissions.length;
+    ui.tick();
+    assert.equal(emissions.length, count);
+    ui.snapshot({ session_key: 'a', tasks: [row({ status: 'incomplete', revision: 3 })] });
+    ui.lastSync = 0;
+    ui.tick();
+    assert.equal(emissions.length, count);
+});
