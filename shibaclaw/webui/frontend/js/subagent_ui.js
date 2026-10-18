@@ -5,10 +5,18 @@ window.subagentUI = {
     sessionKey: '',
     terminal: new Set(['succeeded', 'failed', 'cancelled', 'timed_out', 'incomplete']),
     labels: {
-        running: ['In progress', 'In corso'], succeeded: ['Completed', 'Completato'],
+        running: ['In progress', 'In corso'], succeeded: ['Execution finished', 'Esecuzione terminata'],
         failed: ['Failed', 'Errore'], cancelled: ['Cancelled', 'Annullato'],
         timed_out: ['Timed out', 'Tempo scaduto'], incomplete: ['Incomplete', 'Incompleto'],
         executing: ['Execution', 'Esecuzione'], auditing: ['Audit', 'Verifica'],
+        verifying: ['Project checks', 'Controlli progetto'],
+        verification: ['Verification', 'Verifica'],
+        not_configured: ['Not configured', 'Non configurata'], pending: ['Pending', 'In attesa'],
+        passed: ['Passed', 'Superata'], blocked: ['Blocked', 'Bloccata'],
+        check_failed: ['Failed', 'Fallita'], check_error: ['Could not run', 'Non eseguita'],
+        exit_code: ['Exit code', 'Codice di uscita'], audit_verdict: ['Agent audit', "Audit dell’agente"],
+        log_truncated: ['Log truncated', 'Log troncato'],
+        not_run: ['Not run', 'Non eseguita'],
         details: ['Task details', 'Dettagli del task'], cancel: ['Cancel task', 'Annulla task'],
         cancel_error: ['Could not cancel the task. Reconnecting may help.', 'Impossibile annullare il task. Prova a riconnetterti.'],
         disconnected: ['Connection lost · status may be outdated', 'Connessione persa · stato da aggiornare'],
@@ -126,7 +134,7 @@ window.subagentUI = {
     },
     statusText(row) {
         if (this.offline && !this.terminal.has(row.status)) return this.text('disconnected');
-        const phase = row.kind === 'mea' ? ` · ${this.text(row.phase || 'executing')}` : '';
+        const phase = !this.terminal.has(row.status) ? ` · ${this.text(row.phase || 'executing')}` : '';
         return `${this.text(row.status || 'running')}${phase}${row.current_tool ? ` · ${row.current_tool}` : ''}`;
     },
     renderCard(history, row) {
@@ -158,6 +166,13 @@ window.subagentUI = {
         card.appendChild(header);
         card.appendChild(this.node('p', 'subagent-run-summary', (row.task || '').slice(0, 160)));
         card.appendChild(this.node('div', 'subagent-run-status', this.statusText(row)));
+        const verification = row.verification || { status: 'not_configured', checks: [] };
+        card.setAttribute('data-verification', verification.status);
+        const verificationStatus = this.node('div', 'subagent-run-verification',
+            `${this.text('verification')}: ${this.checkStatus(verification.status)}`);
+        verificationStatus.setAttribute('data-verification', verification.status);
+        verificationStatus.setAttribute('role', 'status');
+        card.appendChild(verificationStatus);
         const details = this.node('details', 'subagent-run-details');
         details.open = open;
         details.appendChild(this.node('summary', '', this.text('details')));
@@ -167,7 +182,19 @@ window.subagentUI = {
             row.steps.forEach(step => steps.appendChild(this.node('li', '', step.tool)));
             details.appendChild(steps);
         }
-        if (row.verdict) details.appendChild(this.node('p', '', row.verdict));
+        if (row.verdict) details.appendChild(this.node('p', '', `${this.text('audit_verdict')}: ${row.verdict}`));
+        if (verification.project) details.appendChild(this.node('p', 'subagent-check-project', `${verification.project} · ${verification.cwd || ''}`));
+        if (verification.reason) details.appendChild(this.node('p', 'subagent-run-error', verification.reason));
+        for (const check of verification.checks || []) {
+            const item = this.node('section', 'subagent-check');
+            item.appendChild(this.node('strong', '', `${check.name}: ${this.checkStatus(check.status)}`));
+            item.appendChild(this.node('pre', 'subagent-check-command', check.command));
+            const code = check.exit_code == null ? '—' : String(check.exit_code);
+            item.appendChild(this.node('p', '', `${this.text('exit_code')}: ${code}${check.duration_ms == null ? '' : ` · ${check.duration_ms} ms`}`));
+            if (check.output) item.appendChild(this.node('pre', 'subagent-run-result', check.output));
+            if (check.output_truncated) item.appendChild(this.node('p', '', this.text('log_truncated')));
+            details.appendChild(item);
+        }
         if (row.result) details.appendChild(this.node('pre', 'subagent-run-result', row.result));
         if (row.error) details.appendChild(this.node('pre', 'subagent-run-error', row.error));
         card.appendChild(details);
@@ -187,6 +214,9 @@ window.subagentUI = {
             const target = focusCancel ? card.querySelector('.subagent-run-cancel') : null;
             (target && !target.disabled ? target : details.querySelector('summary'))?.focus({ preventScroll: true });
         }
+    },
+    checkStatus(status) {
+        return this.text(status === 'failed' ? 'check_failed' : status === 'error' ? 'check_error' : status || 'not_configured');
     },
     cancelAck(data) {
         if (this.key(data.session_key) !== this.sessionKey) return;

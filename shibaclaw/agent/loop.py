@@ -163,6 +163,7 @@ class ShibaBrain:
             restrict_to_workspace=restrict_to_workspace,
             timeout=subagent_timeout,
             agent_runner=self,
+            verification_config=config.tools.verification if config else None,
         )
 
         self._running = False

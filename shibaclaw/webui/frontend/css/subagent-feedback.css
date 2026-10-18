@@ -203,3 +203,16 @@
 .subagent-run-summary { font-size: 13px; color: var(--text-secondary, #b7b2bf); margin: 6px 0; }
 
 .subagent-run-steps { margin: 8px 0; padding-left: 20px; }
+.subagent-run-verification { margin-top: 4px; font-size: 13px; }
+.subagent-run-verification[data-verification="passed"] { color: var(--success-color, #38875c); }
+.subagent-run-verification[data-verification="failed"],
+.subagent-run-verification[data-verification="blocked"],
+.subagent-run-verification[data-verification="timed_out"],
+.subagent-run-verification[data-verification="incomplete"] { color: var(--error-color, #c34848); }
+.subagent-check { border-top: 1px solid var(--border-color, #7774); padding: 10px 0; min-width: 0; }
+.subagent-check-command { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.subagent-check-project { overflow-wrap: anywhere; }
+.subagent-run-card[data-verification="failed"],
+.subagent-run-card[data-verification="blocked"],
+.subagent-run-card[data-verification="timed_out"],
+.subagent-run-card[data-verification="incomplete"] { border-left-color: var(--error-color, #c34848); }

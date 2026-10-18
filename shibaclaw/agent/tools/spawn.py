@@ -12,6 +12,16 @@ if TYPE_CHECKING:
     from shibaclaw.agent.subagent import SubagentManager
 
 
+def _verification_parameter(manager: "SubagentManager") -> dict:
+    projects = list(manager.verification_config.projects)
+    if not projects:
+        return {}
+    return {"verification_project": {
+        "type": "string", "enum": projects,
+        "description": "Registered project to work in and verify with operator-configured checks after execution. Omit for tasks unrelated to these projects.",
+    }}
+
+
 @dataclass(frozen=True)
 class _SpawnContext:
     channel: str = "cli"
@@ -95,6 +105,7 @@ class SpawnTool(Tool):
                     ),
                     "default": "isolated",
                 },
+                **_verification_parameter(self._manager),
             },
             "required": ["task"],
         }
@@ -104,11 +115,18 @@ class SpawnTool(Tool):
         task: str,
         label: str | None = None,
         mode: str = "isolated",
+        verification_project: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Spawn a subagent to execute the given task."""
         context = self._context.get()
         extra = {}
+        if verification_project is not None:
+            try:
+                self._manager.prepare_verification(verification_project)
+            except ValueError as exc:
+                return f"Error: {exc}"
+            extra["verification_project"] = verification_project
         if context.allowed_tools is not None:
             extra["allowed_tools"] = context.allowed_tools
         if context.parent_turn_id is not None:
@@ -196,6 +214,7 @@ class SpawnMeaTool(Tool):
                     "description": "Context mode for MEA subagents: 'isolated' (default) or 'fork'.",
                     "default": "isolated",
                 },
+                **_verification_parameter(self._manager),
             },
             "required": ["task"],
         }
@@ -205,11 +224,18 @@ class SpawnMeaTool(Tool):
         task: str,
         label: str | None = None,
         mode: str = "isolated",
+        verification_project: str | None = None,
         **kwargs: Any,
     ) -> str:
         """Execute the MEA loop for the given task."""
         context = self._context.get()
         extra = {}
+        if verification_project is not None:
+            try:
+                self._manager.prepare_verification(verification_project)
+            except ValueError as exc:
+                return f"Error: {exc}"
+            extra["verification_project"] = verification_project
         if context.allowed_tools is not None:
             extra["allowed_tools"] = context.allowed_tools
         if context.parent_turn_id is not None:

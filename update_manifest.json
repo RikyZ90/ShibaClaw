@@ -216,6 +216,41 @@
             "path": "shibaclaw/agent/task_runs.py",
             "overwrite": true,
             "note": "Add session-scoped delegation history with private-run isolation."
+        },
+        {
+            "path": "shibaclaw/config/schema.py",
+            "overwrite": true,
+            "note": "Configure opt-in project verification commands and bounded timeouts."
+        },
+        {
+            "path": "shibaclaw/agent/verification.py",
+            "overwrite": true,
+            "note": "Run configured project checks with process-backed evidence and journaled outcomes."
+        },
+        {
+            "path": "shibaclaw/agent/tools/shell.py",
+            "overwrite": true,
+            "note": "Expose structured exit status and stop command process trees on interruption."
+        },
+        {
+            "path": "shibaclaw/agent/tools/spawn.py",
+            "overwrite": true,
+            "note": "Select registered verification projects for both delegation tools."
+        },
+        {
+            "path": "docs/PROJECT_VERIFICATION.md",
+            "overwrite": true,
+            "note": "Document project check configuration, evidence and execution semantics."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/subagent_ui.js",
+            "overwrite": true,
+            "note": "Display project verification separately from execution with expandable command evidence."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/css/subagent-feedback.css",
+            "overwrite": true,
+            "note": "Display project verification separately from execution with expandable command evidence."
         }
     ]
 }

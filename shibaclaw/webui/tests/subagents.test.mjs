@@ -23,6 +23,42 @@ function row(overrides = {}) {
         status: 'running', kind: 'spawn', revision: 1, started_at: Date.now() / 1000 - 5, ...overrides };
 }
 
+test('execution and verification stay distinct and failed evidence remains literal text', () => {
+    const { ui, document } = setup();
+    const payload = '<img src=x onerror=alert(1)>';
+    ui.receive(row({ status: 'succeeded', verification: {
+        status: 'failed', project: payload, cwd: '/project', checks: [
+            { name: payload, command: payload, status: 'failed', exit_code: 7, duration_ms: 250, output: payload, output_truncated: true },
+        ],
+    } }));
+    const card = document.getElementById('task-run-sub_123');
+    assert.ok(card.querySelector('.subagent-run-status').textContent.includes('Execution finished'));
+    assert.equal(card.querySelector('.subagent-run-verification').textContent, 'Verification: Failed');
+    assert.equal(card.getAttribute('data-verification'), 'failed');
+    assert.ok(card.querySelector('.subagent-check').textContent.includes('Exit code: 7'));
+    assert.ok(card.querySelector('.subagent-check').textContent.includes('Log truncated'));
+    assert.equal(card.querySelector('.subagent-check-command').innerHTML, '&lt;img src=x onerror=alert(1)&gt;');
+    assert.equal(card.querySelector('.subagent-run-result').innerHTML, '&lt;img src=x onerror=alert(1)&gt;');
+});
+
+test('old cards do not gain a verification pass and pending checks retain cancellation', () => {
+    const { ui, document } = setup();
+    ui.receive(row());
+    const card = document.getElementById('task-run-sub_123');
+    assert.equal(card.querySelector('.subagent-run-verification').textContent, 'Verification: Not configured');
+    ui.receive(row({ revision: 2, phase: 'verifying', verification: { status: 'running', checks: [
+        { name: 'Tests', command: 'python check.py', status: 'running', exit_code: null },
+    ] } }));
+    assert.ok(card.querySelector('.subagent-run-status').textContent.includes('Project checks'));
+    assert.ok(card.querySelector('.subagent-check').textContent.includes('Exit code: —'));
+    assert.ok(card.querySelector('.subagent-run-cancel'));
+    card.querySelector('.subagent-run-details').open = true;
+    ui.receive(row({ revision: 3, status: 'succeeded', verification: { status: 'passed', checks: [] } }));
+    assert.equal(card.querySelector('.subagent-run-verification').textContent, 'Verification: Passed');
+    assert.equal(card.querySelector('.subagent-run-details').open, true);
+    assert.equal(card.querySelector('.subagent-run-cancel'), null);
+});
+
 test('labels, task details and results stay plain text, including malicious markup', () => {
     const { ui, document } = setup();
     const payload = '<img src=x onerror=alert(1)>';

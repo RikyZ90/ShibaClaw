@@ -8,6 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from loguru import logger
+from shibaclaw.agent.verification import finish_verification
 
 TERMINAL = {"succeeded", "failed", "cancelled", "timed_out", "incomplete"}
 
@@ -21,9 +22,13 @@ class TaskRuns:
     def _path(self, key: str) -> Path:
         return self.root / (hashlib.sha256(key.encode()).hexdigest() + ".json")
 
-    def snapshot(self, key: str) -> list[dict]:
+    def is_private(self, key: str) -> bool:
         if self._path(key).with_suffix(".private").exists():
             self.private.add(key)
+        return key in self.private
+
+    def snapshot(self, key: str) -> list[dict]:
+        self.is_private(key)
         if key not in self.sessions:
             rows = []
             if key not in self.private:
@@ -40,6 +45,9 @@ class TaskRuns:
                 ):
                     continue
                 if row.get("status") not in TERMINAL:
+                    row["verification"] = finish_verification(row.get("verification", {}), "incomplete")
+                    if row.get("execution_status") in {None, "running"}:
+                        row["execution_status"] = "incomplete"
                     row.update(
                         status="incomplete",
                         error="Gateway restarted before this task finished.",
