@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Align package, desktop, WebUI, updater manifests, lockfiles, and README release summaries with v1.1.0.
+
 ### Added
 - Persistent, session-scoped chat cards for background delegation, including task details, tool steps, duration, final outcomes, MEA execution/audit phases, and individual cancellation.
 - Delegation snapshots restore task state after reconnecting or switching chats. Private task content stays in memory, and interrupted tasks are marked incomplete after a gateway restart.

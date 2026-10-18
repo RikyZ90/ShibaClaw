@@ -44,9 +44,12 @@
 > Las notas de versión están en [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>🚀 <b>Novedades — v1.0.65</b> (haz clic para expandir)</summary>
+<summary>🚀 <b>Novedades — v1.1.0</b> (haz clic para expandir)</summary>
 
-**Versión v1.0.65 (2026-10-17):**
+**Versión v1.1.0 (2026-10-18):**
+
+- **Delegación fiable y comprobaciones de proyecto** — Las tareas en segundo plano conservan su estado al reconectar el chat, distinguen la ejecución de la verificación opcional y muestran códigos de salida reales, registros limitados y duración. Consulta [la guía](./docs/PROJECT_VERIFICATION.md).
+- **Visualización del chat** — Recupera correctamente las respuestas finales y los mensajes perdidos, conserva la entrada activa al recibir resultados en segundo plano y muestra los detalles de forma segura en escritorio y móvil.
 
 - **Instalación en Windows** — El comando de PowerShell descarga el instalador para el usuario, verifica su SHA256 y lo inicia. Durante el primer arranque, la ventana sigue respondiendo mientras se inicia el servicio local.
 
