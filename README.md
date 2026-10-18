@@ -44,14 +44,8 @@
 
 - **Reliable delegation and project checks** — Background tasks keep their status across chat reconnects, distinguish execution from optional project verification, and show real exit codes, bounded logs, and check durations. See [project verification](./docs/PROJECT_VERIFICATION.md) for setup.
 - **Chat rendering** — Restores final responses and missed messages accurately, keeps active input intact when a background result arrives, and renders task details safely on desktop and mobile.
-
 - **Windows installation** — The PowerShell command downloads the per-user setup, verifies its SHA256, and launches it. First-launch startup keeps the native window responsive while the local service starts.
 
-- **v1.0.3 design, restored runtime improvements** — Keeps the original v1.0.3 interface design while reintegrating the non-UI improvements and fixes from v1.0.4/v1.0.5: runtime reliability, provider retries and catalogs, subscription OAuth, automation, subagents, and opt-in self-evolution. Privacy protections, exact Gemini catalog host validation, and dependency security updates are retained. The later interface redesign is not included.
-- **Targeted interface fixes** — Keeps sidebar history and footer controls reachable and moves Settings into the compact footer. The context-usage badge is the single accessible context button. Desktop and wider phones use one composer toolbar; narrow phones use two rows with 44px touch targets, single-line model names, and percentage-only context usage. Model, effort, and collection menus share the theme, follow their buttons, and stay inside the viewport.
-- **Subscription login cards restored** — Claude and Google Gemini login cards are available again in Settings, including code entry and connection status. Gemini still requires server-side `SHIBACLAW_GEMINI_OAUTH_CLIENT_ID` and `SHIBACLAW_GEMINI_OAUTH_CLIENT_SECRET` configuration. Live OAuth sign-in has not been verified for this version.
-- **Evolution status panel restored** — Restores access to the read-only Evolution workspace panel in the retained interface.
-- **Library features restored** — Restores the profile relationship graph and profile details, plus editable You and People documents, within the original visual design. Library uses one compact toolbar, with a section selector on narrow screens. Sidebar navigation uses compact icons with hover/focus names and persistent labels on touch screens.
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 
