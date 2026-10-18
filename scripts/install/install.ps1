@@ -85,7 +85,7 @@ function Install-ShibaClawSetup {
     }
     $setupArguments = @(Get-ShibaClawSetupArguments -Destination $Destination)
     if ($RequestedVersion -and $RequestedVersion -notmatch '^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
-        throw 'Version must be a release version such as 1.0.65 or v1.0.65.'
+        throw 'Version must be a release version such as 1.1.0 or v1.1.0.'
     }
     $downloadUrl = $null
     $expectedHash = $LocalSha256

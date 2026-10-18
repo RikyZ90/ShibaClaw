@@ -3,6 +3,8 @@
 import asyncio
 import os
 import re
+import signal
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,13 @@ _WINDOWS_DENY_PATTERNS: list[str] = [
     r"\bSet-ExecutionPolicy\b",          # policy bypass
     r"\bInvoke-WebRequest\b.*\|.*powershell",  # download-and-run
 ]
+
+
+@dataclass(frozen=True)
+class ExecResult:
+    output: str
+    exit_code: int | None = None
+    status: str = "error"
 
 
 class _BoundedBuffer:
@@ -196,9 +205,19 @@ class ExecTool(Tool):
         timeout: int | None = None,
         **kwargs: Any,
     ) -> str:
+        return (await self.execute_result(command, working_dir, timeout, _allow_shortcuts=True, **kwargs)).output
+
+    async def execute_result(
+        self,
+        command: str,
+        working_dir: str | None = None,
+        timeout: int | None = None,
+        **kwargs: Any,
+    ) -> ExecResult:
+        """Return the real process exit code separately from untrusted output."""
         restrict, readonly = self._effective_flags()
         if readonly:
-            return "Error: session permission mode is readonly (exec disabled)"
+            return ExecResult("Error: session permission mode is readonly (exec disabled)", status="blocked")
         cwd = working_dir or self.working_dir or os.getcwd()
         # Temporarily apply turn restrict for guard checks.
         prev = self.restrict_to_workspace
@@ -208,17 +227,18 @@ class ExecTool(Tool):
         finally:
             self.restrict_to_workspace = prev
         if guard_error:
-            return guard_error
+            return ExecResult(guard_error, status="blocked")
 
         # ── Smart Install Guard: audit before executing ──
+        audit_result = None
         if self.install_audit:
             audit_result = await self._audit_install_command(command, cwd)
             if audit_result is not None and not audit_result.allowed:
                 report = audit_result.format_report()
-                return f"Error: Install blocked by vulnerability audit\n\n{report}"
+                return ExecResult(f"Error: Install blocked by vulnerability audit\n\n{report}", status="blocked")
 
         cmd_lower = command.strip().lower()
-        if cmd_lower in ("ls", "dir", "ls -l", "ls -la", "ls -a", "dir /w", "dir /w /p"):
+        if kwargs.get("_allow_shortcuts") and cmd_lower in ("ls", "dir", "ls -l", "ls -la", "ls -a", "dir /w", "dir /w /p"):
             try:
                 entries = os.listdir(cwd)
                 output_lines = [f"Directory of {cwd}"]
@@ -226,10 +246,10 @@ class ExecTool(Tool):
                     path = os.path.join(cwd, entry)
                     size = os.path.getsize(path) if os.path.isfile(path) else "<DIR>"
                     output_lines.append(f"{size:>10}  {entry}")
-                return "\n".join(output_lines)
+                return ExecResult("\n".join(output_lines), 0, "passed")
             except Exception as e:
-                return f"Error reading directory: {e}"
-        elif cmd_lower.startswith(("cat ", "type ")):
+                return ExecResult(f"Error reading directory: {e}")
+        elif kwargs.get("_allow_shortcuts") and cmd_lower.startswith(("cat ", "type ")):
             parts = command.strip().split(maxsplit=1)
             if len(parts) == 2 and not any(c in parts[1] for c in ("*", "?", ">", "|", "&")):
                 file_path = os.path.join(cwd, parts[1].strip('"\''))
@@ -239,9 +259,9 @@ class ExecTool(Tool):
                             content = f.read(self._MAX_OUTPUT)
                             if len(content) == self._MAX_OUTPUT:
                                 content += f"\n\n... (truncated to {self._MAX_OUTPUT} chars) ...\n"
-                            return content
+                            return ExecResult(content, 0, "passed")
                     except Exception as e:
-                        return f"Error reading file: {e}"
+                        return ExecResult(f"Error reading file: {e}")
 
         effective_timeout = min(timeout or self.timeout, self._MAX_TIMEOUT)
 
@@ -257,10 +277,13 @@ class ExecTool(Tool):
                 try:
                     args = shlex.split(command, posix=False)
                 except ValueError as e:
-                    return f"Error parsing command: {e}"
+                    return ExecResult(f"Error parsing command: {e}")
+
+                # create_subprocess_exec takes argv, not shell-quoted tokens.
+                args = [arg[1:-1] if len(arg) >= 2 and arg[0] == arg[-1] and arg[0] in "\"'" else arg for arg in args]
 
                 if not args:
-                    return "Error: Empty command after parsing"
+                    return ExecResult("Error: Empty command after parsing")
 
                 process = await asyncio.create_subprocess_exec(
                     *args,
@@ -268,16 +291,16 @@ class ExecTool(Tool):
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
                     env=env,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
                 )
             else:
                 try:
                     args = shlex.split(command)
                 except ValueError as e:
-                    return f"Error parsing command: {e}"
+                    return ExecResult(f"Error parsing command: {e}")
 
                 if not args:
-                    return "Error: Empty command after parsing"
+                    return ExecResult("Error: Empty command after parsing")
 
                 process = await asyncio.create_subprocess_exec(
                     *args,
@@ -285,6 +308,7 @@ class ExecTool(Tool):
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
                     env=env,
+                    start_new_session=True,
                 )
 
             # ── Bounded streaming read ──────────────────────────────
@@ -330,14 +354,16 @@ class ExecTool(Tool):
 
                 if process.returncode is None:
                     # Overall timeout reached
-                    process.kill()
-                    try:
-                        await asyncio.wait_for(process.wait(), timeout=5.0)
-                    except asyncio.TimeoutError:
-                        pass
+                    await self._terminate_process(process)
                     drain_out.cancel()
                     drain_err.cancel()
-                    return f"Error: Command timed out after {effective_timeout} seconds"
+                    await asyncio.gather(drain_out, drain_err, return_exceptions=True)
+                    output = stdout_buf.decode() + "\n" + stderr_buf.decode()
+                    return ExecResult(
+                        f"Error: Command timed out after {effective_timeout} seconds\n{output}"[:self._MAX_OUTPUT],
+                        process.returncode,
+                        "timed_out",
+                    )
 
                 # Process finished — drain remaining output
                 await asyncio.wait_for(
@@ -345,10 +371,17 @@ class ExecTool(Tool):
                     timeout=5.0,
                 )
             except asyncio.CancelledError:
-                process.kill()
+                await self._terminate_process(process)
                 drain_out.cancel()
                 drain_err.cancel()
+                await asyncio.gather(drain_out, drain_err, return_exceptions=True)
                 raise
+            except asyncio.TimeoutError:
+                await self._terminate_process(process)
+                drain_out.cancel()
+                drain_err.cancel()
+                await asyncio.gather(drain_out, drain_err, return_exceptions=True)
+                return ExecResult("Error: Command output streams did not close after process exit")
 
             stdout_text = stdout_buf.decode()
             stderr_text = stderr_buf.decode()
@@ -380,10 +413,38 @@ class ExecTool(Tool):
                 warnings_text = "\n".join(f"⚠️  {w}" for w in audit_result.warnings)
                 result = f"{result}\n\n🔍 Install Audit Warnings:\n{warnings_text}"
 
-            return result
+            return ExecResult(result, process.returncode, "passed" if process.returncode == 0 else "failed")
 
         except Exception as e:
-            return f"Error executing command: {str(e)}"
+            return ExecResult(f"Error executing command: {str(e)}")
+
+    @staticmethod
+    async def _terminate_process(process: asyncio.subprocess.Process) -> None:
+        """Stop the command's process tree before reporting timeout/cancellation."""
+        try:
+            if os.name == "nt":
+                killer = await asyncio.create_subprocess_exec(
+                    "taskkill", "/PID", str(process.pid), "/T", "/F",
+                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+                )
+                try:
+                    await asyncio.wait_for(killer.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    killer.kill()
+                    await killer.wait()
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            pass
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+        try:
+            await asyncio.wait_for(process.wait(), timeout=5)
+        except asyncio.TimeoutError:
+            pass
 
     async def _audit_install_command(
         self,

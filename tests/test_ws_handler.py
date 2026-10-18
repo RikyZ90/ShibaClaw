@@ -187,3 +187,32 @@ async def test_ws_handler_steering_fallback():
     _ws_clients.clear()
     processing_state.clear()
 
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("final_text", "media"), [("Complete answer", []), ("", ["/tmp/image.png"])])
+async def test_ws_handler_final_response_is_authoritative(monkeypatch, final_text, media):
+    from shibaclaw.webui import ws_handler
+
+    key, ws_id = "webui:render-final", "ws-render-final"
+    socket = MagicMock(send_text=AsyncMock())
+    monkeypatch.setattr(agent_manager, "config", MagicMock())
+    monkeypatch.setattr(agent_manager, "_pack_manager", MagicMock())
+    monkeypatch.setitem(sessions, ws_id, {"session_key": key, "processing": False, "queue": deque()})
+    monkeypatch.setitem(_ws_clients, ws_id, socket)
+    emit, tts = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(ws_handler, "_emit_to_session", emit)
+    monkeypatch.setattr(ws_handler, "_emit_session_status_all", AsyncMock())
+    monkeypatch.setattr(ws_handler, "_synthesize_tts_response", tts)
+
+    async def stream(payload, request_id):
+        yield {"t": "rt", "c": "Partial draft"}
+        yield {"t": "r", "content": final_text, "media": media}
+
+    monkeypatch.setattr(gateway_client, "chat_stream", stream)
+    await _handle_user_message(ws_id, socket, {"content": "hello", "id": "render-final"})
+    await _session_tasks[key]
+    response, = [call.args[1] for call in emit.call_args_list if call.args[1].get("type") == "response"]
+    assert response["content"] == final_text
+    assert bool(response["attachments"]) == bool(media)
+    assert tts.await_args.args[1] == final_text

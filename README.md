@@ -38,9 +38,12 @@
 ---
 
 <details open>
-<summary>🚀 <b>What's new — v1.0.65</b> (click to expand)</summary>
+<summary>🚀 <b>What's new — v1.1.0</b> (click to expand)</summary>
 
-**Version v1.0.65 (2026-10-17):**
+**Version v1.1.0 (2026-10-18):**
+
+- **Reliable delegation and project checks** — Background tasks keep their status across chat reconnects, distinguish execution from optional project verification, and show real exit codes, bounded logs, and check durations. See [project verification](./docs/PROJECT_VERIFICATION.md) for setup.
+- **Chat rendering** — Restores final responses and missed messages accurately, keeps active input intact when a background result arrives, and renders task details safely on desktop and mobile.
 
 - **Windows installation** — The PowerShell command downloads the per-user setup, verifies its SHA256, and launches it. First-launch startup keeps the native window responsive while the local service starts.
 

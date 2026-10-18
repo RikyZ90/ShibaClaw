@@ -163,6 +163,7 @@ class ShibaBrain:
             restrict_to_workspace=restrict_to_workspace,
             timeout=subagent_timeout,
             agent_runner=self,
+            verification_config=config.tools.verification if config else None,
         )
 
         self._running = False
@@ -616,8 +617,15 @@ class ShibaBrain:
                             "provider": provider,
                             "parent_messages": parent_messages,
                         }
-                        if name == "spawn_mea":
-                            kwargs["ephemeral"] = self._checkpoint_forbidden(session_key, metadata)
+                        kwargs["ephemeral"] = self._checkpoint_forbidden(session_key, metadata)
+                        definitions = self._filter_tools_for_profile(self.tools.get_definitions(), profile_id)
+                        definitions = self._filter_tools_for_allowlist(definitions, metadata, channel)
+                        kwargs["allowed_tools"] = frozenset(
+                            (d.get("function") or {}).get("name") or d.get("name") or ""
+                            for d in definitions
+                        )
+                        journal = self._journal_for(session_key)
+                        kwargs["parent_turn_id"] = str(journal.scope(session_key)) if session_key else None
                         tool.set_context(
                             channel, chat_id, session_key, **kwargs
                         )
@@ -1728,6 +1736,9 @@ class ShibaBrain:
         profile_id_override: str | None = None,
         model_override: str | None = None,
     ) -> OutboundMessage | None:
+        generation = (msg.metadata or {}).get("_delegation_generation")
+        if generation is not None and generation != self.subagents.generations.get(msg.session_key, 0):
+            return None
         cmd_head = msg.content.strip().lower().split()
         head = cmd_head[0].split("@", 1)[0] if cmd_head else ""
         if head in {"/evolve", "/panic"}:
@@ -1907,6 +1918,8 @@ class ShibaBrain:
                         snapshot, session_key=session.key
                     )
                 )
+            self.subagents.generations[key] = self.subagents.generations.get(key, 0) + 1
+            self.subagents.runs.clear(key)
             session.clear()
             await self.sessions.asave(session)
             self.sessions.invalidate(session.key)
@@ -2096,7 +2109,8 @@ class ShibaBrain:
         _pre_saved_count = 1
 
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:
-            if msg.metadata and msg.metadata.get("secretary_summon"):
+            if msg.metadata and (msg.metadata.get("secretary_summon") or
+                                 (msg.metadata.get("hidden") and msg.metadata.get("task_id"))):
                 return
             meta = {"_progress": True, "_tool_hint": tool_hint, **(msg.metadata or {})}
             await self.bus.publish_outbound(
@@ -2282,14 +2296,17 @@ class ShibaBrain:
         if task is not None:
             self._active_tasks.setdefault(session_key, []).append(task)
         try:
-            return await self._process_message(
-                msg,
-                session_key=session_key,
-                on_progress=on_progress,
-                on_response_token=on_response_token,
-                profile_id_override=profile_id,
-                model_override=model,
-            )
+            async def process():
+                return await self._process_message(
+                    msg, session_key=session_key, on_progress=on_progress,
+                    on_response_token=on_response_token, profile_id_override=profile_id,
+                    model_override=model,
+                )
+            if content.strip().lower() in {"/stop", "/stop idle", "/stop when_idle", "/new"}:
+                return await process()
+            lock = self._session_locks.setdefault(session_key, asyncio.Lock())
+            async with lock:
+                return await process()
         finally:
             if task is not None:
                 self._remove_active_task(session_key, task)

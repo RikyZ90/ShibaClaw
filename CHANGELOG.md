@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+### Changed
+- Align package, desktop, WebUI, updater manifests, lockfiles, and README release summaries with v1.1.0.
+
+### Added
+- Persistent, session-scoped chat cards for background delegation, including task details, tool steps, duration, final outcomes, MEA execution/audit phases, and individual cancellation.
+- Delegation snapshots restore task state after reconnecting or switching chats. Private task content stays in memory, and interrupted tasks are marked incomplete after a gateway restart.
+- Opt-in project verification for `spawn` and `spawn_mea`: operator-configured commands run in the selected project directory and record real exit codes, bounded logs, timings, timeouts, and permission failures. Chat cards distinguish execution completion, agent audit, and project verification; results survive reconnects while private runs stay in memory. See `docs/PROJECT_VERIFICATION.md` for configuration.
+
+### Fixed
+- Render subagent labels and results as text, inherit the parent's tool capabilities, serialize result delivery with other session turns, and apply worker timeouts without timing out the parent's reply.
+- Distinguish failed, cancelled, timed-out, and incomplete tasks from successful runs, and discard queued results after a conversation reset.
+- Keep the foreground chat's typing indicator, processing state and message queue intact when a background task replies. Recover pending task state after gateway reconnections without invoking an LLM.
+- Prefer the authoritative final response over partial streamed chunks, preserve attachment-only replies, restore repeated user questions as separate turns, and reload missed messages after reconnecting. Render code-block language captions as text to prevent malformed or injected headers.
+- Batch task snapshots and preserve unchanged cards, expanded details, keyboard focus and pending cancellation state; remove expired cards from the visible history, and keep numbered tool steps inside card bounds on mobile.
+
 ## [1.0.65] - 2026-10-17
 
 ### Changed

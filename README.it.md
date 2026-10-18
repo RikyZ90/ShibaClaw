@@ -41,9 +41,12 @@
 ---
 
 <details open>
-<summary>🚀 <b>Novità — v1.0.65</b> (fai clic per espandere)</summary>
+<summary>🚀 <b>Novità — v1.1.0</b> (fai clic per espandere)</summary>
 
-**Versione v1.0.65 (2026-10-17):**
+**Versione v1.1.0 (2026-10-18):**
+
+- **Delega affidabile e verifiche per progetto** — Le attività in background mantengono lo stato dopo la riconnessione della chat, distinguono l’esecuzione dalla verifica facoltativa e mostrano codici di uscita reali, log limitati e durata dei controlli. Consulta [la guida](./docs/PROJECT_VERIFICATION.md).
+- **Rendering della chat** — Ripristina correttamente risposte finali e messaggi persi, mantiene l’input attivo quando arriva un risultato in background e mostra i dettagli delle attività in modo sicuro su desktop e mobile.
 
 - **Installazione Windows** — Il comando PowerShell scarica il setup per utente, ne verifica lo SHA256 e lo avvia. Durante il primo avvio la finestra resta reattiva mentre parte il servizio locale.
 

@@ -44,9 +44,12 @@
 > Versionshinweise finden sich in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>🚀 <b>Neuigkeiten — v1.0.65</b> (zum Ausklappen klicken)</summary>
+<summary>🚀 <b>Neuigkeiten — v1.1.0</b> (zum Ausklappen klicken)</summary>
 
-**Version v1.0.65 (2026-10-17):**
+**Version v1.1.0 (2026-10-18):**
+
+- **Zuverlässige Delegation und Projektprüfungen** — Hintergrundaufgaben behalten ihren Status nach Chat-Verbindungen, unterscheiden Ausführung von optionaler Projektprüfung und zeigen echte Exit-Codes, begrenzte Logs und Prüfdauer. Siehe [Anleitung](./docs/PROJECT_VERIFICATION.md).
+- **Chat-Darstellung** — Endgültige Antworten und verpasste Nachrichten werden korrekt wiederhergestellt; Hintergrundresultate lassen die laufende Eingabe unberührt. Aufgabendetails erscheinen sicher auf Desktop und Mobilgeräten.
 
 - **Windows-Installation** — Der PowerShell-Befehl lädt das Setup für den aktuellen Benutzer herunter, prüft dessen SHA256 und startet es. Beim ersten Start bleibt das Fenster reaktionsfähig, während der lokale Dienst startet.
 

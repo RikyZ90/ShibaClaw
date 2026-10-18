@@ -656,6 +656,7 @@ async function loadSession(sessionId) {
     const loadSeq = (state.sessionLoadSeq || 0) + 1;
     state.sessionLoadSeq = loadSeq;
     state.sessionId = sessionId;
+    window.subagentUI?.selectSession(sessionId);
     localStorage.setItem("shiba_session_id", sessionId);
 
     document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
@@ -721,6 +722,7 @@ async function loadSession(sessionId) {
         }
     } finally {
         if (realtime.connected && _isCurrentSessionLoad(loadSeq, sessionId)) {
+            window.subagentUI?.render();
             realtime.emit("switch_session", { session_id: sessionId });
         }
     }
@@ -747,7 +749,6 @@ function _syncSessionUI(data, loadSeq, sessionId) {
 function _parseSessionMessages(messages, loadSeq, sessionId) {
     let turnSteps = [];
     let turnId = 0;
-    let lastUserContent = null;
     const parsedMessages = [];
     const parsedGroups = [];
 
@@ -758,8 +759,7 @@ function _parseSessionMessages(messages, loadSeq, sessionId) {
         if (msg.role === "user") {
             if (msg.metadata && msg.metadata.hidden) continue;
             const hasMedia = !!(msg.metadata && msg.metadata.media && msg.metadata.media.length);
-            if ((!msg.content && !hasMedia) || (msg.content && msg.content === lastUserContent)) continue;
-            if (msg.content) lastUserContent = msg.content;
+            if (!msg.content && !hasMedia) continue;
 
             const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
             if (turnSteps.length > 0 && hasExeSteps) {

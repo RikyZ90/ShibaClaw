@@ -1,46 +1,51 @@
 {
-    "version": "1.0.65",
-    "release_notes": "Release v1.0.65 improves the Windows desktop installation and first-launch experience. The PowerShell bootstrap downloads the per-user setup, verifies its SHA256 against GitHub release metadata, and starts it. The desktop opens its native window before initializing the tray and backend, avoiding the startup freeze and .NET error. The Windows release workflow packages the setup, update feed and packages, then verifies uploaded assets and checksums before publishing.",
+    "version": "1.1.0",
+    "release_notes": "Release v1.1.0 adds persistent delegation status across chat reconnects and optional per-project verification with actual command exit codes, bounded logs, and execution evidence. The WebUI distinguishes execution, audit, and verification, preserves foreground chat state when background tasks finish, and restores final or missed messages accurately.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Set the application version to 1.0.65 and preserve the PyJWT security floor."
+            "note": "Set the application version to 1.1.0 and preserve the PyJWT security floor."
+        },
+        {
+            "path": "scripts/install/install.ps1",
+            "overwrite": true,
+            "note": "Refresh the example release version in Windows installation guidance."
         },
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Synchronize the locked ShibaClaw version to 1.0.65 and retain dependency security updates."
+            "note": "Synchronize the locked ShibaClaw version to 1.1.0 and retain dependency security updates."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Document the retained v1.0.3 design, targeted mobile fixes, and reintegrated non-UI improvements from v1.0.4/v1.0.5."
+            "note": "Document the current delegation and chat fixes under Unreleased while retaining prior release history."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Update the English release summary to v1.0.65."
+            "note": "Update the English release summary to v1.1.0."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Synchronize the packaged update manifest with v1.0.65."
+            "note": "Synchronize the packaged update manifest with v1.1.0."
         },
         {
             "path": "shibaclaw/desktop/app.manifest",
             "overwrite": true,
-            "note": "Update the Windows desktop application version to 1.0.65.0."
+            "note": "Update the Windows desktop application version to 1.1.0.0."
         },
         {
             "path": "shibaclaw/webui/package.json",
             "overwrite": true,
-            "note": "Update the WebUI package version to 1.0.65."
+            "note": "Update the WebUI package version to 1.1.0."
         },
         {
             "path": "shibaclaw/webui/package-lock.json",
             "overwrite": true,
-            "note": "Synchronize the WebUI lockfile package version to 1.0.65."
+            "note": "Synchronize the WebUI lockfile package version to 1.1.0."
         },
         {
             "path": "shibaclaw/agent/loop.py",
@@ -155,37 +160,37 @@
         {
             "path": "README.de.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "README.es.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "README.fr.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "README.it.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "README.ja.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "README.pt-BR.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "README.zh-CN.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.0.65."
+            "note": "Update the localized release summary to v1.1.0."
         },
         {
             "path": "shibaclaw/webui/routers/oauth.py",
@@ -211,6 +216,46 @@
             "path": "shibaclaw/webui/build.mjs",
             "overwrite": true,
             "note": "Bundle the restored Evolution panel with the current interface assets."
+        },
+        {
+            "path": "shibaclaw/agent/task_runs.py",
+            "overwrite": true,
+            "note": "Add session-scoped delegation history with private-run isolation."
+        },
+        {
+            "path": "shibaclaw/config/schema.py",
+            "overwrite": true,
+            "note": "Configure opt-in project verification commands and bounded timeouts."
+        },
+        {
+            "path": "shibaclaw/agent/verification.py",
+            "overwrite": true,
+            "note": "Run configured project checks with process-backed evidence and journaled outcomes."
+        },
+        {
+            "path": "shibaclaw/agent/tools/shell.py",
+            "overwrite": true,
+            "note": "Expose structured exit status and stop command process trees on interruption."
+        },
+        {
+            "path": "shibaclaw/agent/tools/spawn.py",
+            "overwrite": true,
+            "note": "Select registered verification projects for both delegation tools."
+        },
+        {
+            "path": "docs/PROJECT_VERIFICATION.md",
+            "overwrite": true,
+            "note": "Document project check configuration, evidence and execution semantics."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/subagent_ui.js",
+            "overwrite": true,
+            "note": "Display project verification separately from execution with expandable command evidence."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/css/subagent-feedback.css",
+            "overwrite": true,
+            "note": "Display project verification separately from execution with expandable command evidence."
         }
     ]
 }

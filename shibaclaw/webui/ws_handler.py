@@ -239,6 +239,12 @@ async def ws_endpoint(websocket: WebSocket):
             elif msg_type == "switch_session":
                 await _handle_switch_session(ws_id, websocket, data)
 
+            elif msg_type == "subagent_sync":
+                await _handle_subagents(ws_id, websocket, data)
+
+            elif msg_type == "subagent_cancel":
+                await _handle_subagents(ws_id, websocket, data, cancel=True)
+
             elif msg_type == "transcribe":
                 await _handle_transcribe(ws_id, websocket, data)
 
@@ -254,6 +260,25 @@ async def ws_endpoint(websocket: WebSocket):
         sessions.pop(ws_id, None)
         _ws_clients.pop(ws_id, None)
         logger.info("🌐 WebUI client disconnected: {}", ws_id)
+
+
+async def _handle_subagents(ws_id: str, ws: WebSocket, data: dict, *, cancel: bool = False) -> None:
+    # The authenticated socket's subscription is authoritative; never accept a
+    # different session key supplied by the browser for granular cancellation.
+    key = sessions.get(ws_id, {}).get("session_key")
+    if not key:
+        return
+    if cancel:
+        result = await gateway_client.request("subagent_cancel", {
+            "session_key": key, "task_id": str(data.get("task_id") or ""),
+        })
+        await _emit_to_ws(ws, {"type": "subagent_cancel_ack", "session_key": key,
+                               "task_id": data.get("task_id"), "cancelled": bool(result and result.get("cancelled"))})
+    result = await gateway_client.request("subagent_snapshot", {"session_key": key}, timeout=5)
+    if isinstance(result, dict) and isinstance(result.get("tasks"), list):
+        await _emit_to_ws(ws, {"type": "subagent_snapshot", "session_key": key, "tasks": result["tasks"], "snapshot_at": result.get("snapshot_at")})
+    else:
+        await _emit_to_ws(ws, {"type": "subagent_sync_error", "session_key": key})
 
 
 async def _emit_session_status(ws: WebSocket, session_key: str) -> None:
@@ -511,8 +536,8 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
                         },
                     )
                 elif event.get("t") == "r":
-                    if not response_content:
-                        response_content = event.get("content", "")
+                    if isinstance(event.get("content"), str):
+                        response_content = event["content"]
                     response_media = event.get("media", [])
                     finish_reason = event.get("finish_reason")
                 elif event.get("t") == "e":
@@ -684,6 +709,7 @@ async def _handle_switch_session(ws_id: str, ws: WebSocket, data: dict[str, Any]
         _subscribe_ws_to_session(ws_id, session_id)
         logger.info("🔀 WebUI {} switched to session: {}", ws_id, session_id)
         await _emit_session_status(ws, session_id)
+        await _handle_subagents(ws_id, ws, {})
 
 
 async def _handle_transcribe(ws_id: str, ws: WebSocket, data: dict[str, Any]) -> None:

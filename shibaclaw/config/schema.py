@@ -228,6 +228,23 @@ class ExecToolConfig(Base):
     install_audit_block_severity: str = "high"
 
 
+class VerificationCheckConfig(Base):
+    """An operator-configured command; commands are never supplied by a model."""
+
+    name: str = Field(min_length=1, max_length=120)
+    command: str = Field(min_length=1, max_length=2000)
+    timeout: int = Field(default=120, ge=1, le=600)
+
+
+class VerificationProjectConfig(Base):
+    path: str = Field(default=".", min_length=1)
+    checks: list[VerificationCheckConfig] = Field(min_length=1, max_length=10)
+
+
+class VerificationConfig(Base):
+    projects: dict[str, VerificationProjectConfig] = Field(default_factory=dict)
+
+
 class RagConfig(Base):
     """RAG (Retrieval-Augmented Generation) configuration."""
 
@@ -305,6 +322,7 @@ class ToolsConfig(Base):
 
     web: WebToolsConfig = Field(default_factory=WebToolsConfig)
     exec: ExecToolConfig = Field(default_factory=ExecToolConfig)
+    verification: VerificationConfig = Field(default_factory=VerificationConfig)
     restrict_to_workspace: bool = True
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
 
