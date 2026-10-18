@@ -133,3 +133,30 @@ test('pending work retries synchronization after a lost terminal event or gatewa
     ui.tick();
     assert.equal(emissions.length, count);
 });
+
+test('a background task result does not clear a foreground turn or its queue', () => {
+    const { context: app } = browserFixture();
+    const handlers = new Map();
+    const visible = [];
+    let cleared = 0;
+    app.realtime = { on: (name, callback) => handlers.set(name, callback), connect() {} };
+    app.getStoredToken = () => '';
+    app.state.sessionId = 'webui:a';
+    app.state.processing = true;
+    app.state.queueCount = 2;
+    app.hideTypingBubble = app.hideThinking = app.collapseProcessGroup = app.setWorkingState = () => cleared++;
+    app.addAgentMessage = (...args) => visible.push(args);
+    app.updateQueueIndicator = app.updateSendButton = app.autoTitleSession = app.loadHistory = app.refreshTokenBadge = () => {};
+    vm.runInContext(readFrontend('js/api_socket.js'), app);
+    app.hideTypingBubble = app.hideThinking = app.collapseProcessGroup = app.setWorkingState = () => cleared++;
+    app.updateQueueIndicator = app.updateSendButton = app.autoTitleSession = app.loadHistory = app.refreshTokenBadge = () => {};
+    app.initSocket();
+    handlers.get('agent_response')({ id: 'result', session_key: 'webui:a', content: 'Finished research', metadata: { task_id: 'sub_123' } });
+    assert.equal(visible.length, 1);
+    assert.equal(cleared, 0);
+    assert.equal(app.state.processing, true);
+    assert.equal(app.state.queueCount, 2);
+    handlers.get('agent_response')({ id: 'foreground', session_key: 'webui:a', content: 'Finished parent turn' });
+    assert.equal(app.state.processing, false);
+    assert.equal(app.state.queueCount, 1);
+});

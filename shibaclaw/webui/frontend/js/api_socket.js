@@ -204,10 +204,13 @@ function initSocket() {
 
     realtime.on("agent_response", (data) => {
         if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
-        clearTimeout(state._typingBubbleTimeout);
-        hideTypingBubble();
-        hideThinking();
-        collapseProcessGroup(data.id);
+        const backgroundTask = !!data.metadata?.task_id;
+        if (!backgroundTask) {
+            clearTimeout(state._typingBubbleTimeout);
+            hideTypingBubble();
+            hideThinking();
+            collapseProcessGroup(data.id);
+        }
 
         // If streaming already created the bubble, finalize it with the complete content
         const mid = data.id || "stream";
@@ -252,11 +255,13 @@ function initSocket() {
             window.speechTTS.play(data.content);
         }
 
-        if (state.queueCount && state.queueCount > 0) state.queueCount = Math.max(0, state.queueCount - 1);
-        updateQueueIndicator();
-        state.processing = false;
-        setWorkingState(false);
-        updateSendButton();
+        if (!backgroundTask) {
+            if (state.queueCount && state.queueCount > 0) state.queueCount = Math.max(0, state.queueCount - 1);
+            updateQueueIndicator();
+            state.processing = false;
+            setWorkingState(false);
+            updateSendButton();
+        }
         autoTitleSession();
         loadHistory();
         refreshTokenBadge();

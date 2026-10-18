@@ -2108,7 +2108,8 @@ class ShibaBrain:
         _pre_saved_count = 1
 
         async def _bus_progress(content: str, *, tool_hint: bool = False) -> None:
-            if msg.metadata and msg.metadata.get("secretary_summon"):
+            if msg.metadata and (msg.metadata.get("secretary_summon") or
+                                 (msg.metadata.get("hidden") and msg.metadata.get("task_id"))):
                 return
             meta = {"_progress": True, "_tool_hint": tool_hint, **(msg.metadata or {})}
             await self.bus.publish_outbound(
