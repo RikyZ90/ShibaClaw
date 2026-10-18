@@ -160,3 +160,32 @@ test('a background task result does not clear a foreground turn or its queue', (
     assert.equal(app.state.processing, false);
     assert.equal(app.state.queueCount, 1);
 });
+
+test('a snapshot renders once and preserves unchanged card nodes and keyboard focus', () => {
+    const { ui, document } = setup();
+    ui.receive(row());
+    const card = document.getElementById('task-run-sub_123');
+    const summary = card.querySelector('summary');
+    summary.focus();
+    let renders = 0;
+    const render = ui.render.bind(ui);
+    ui.render = () => { renders++; render(); };
+    ui.snapshot({ session_key: 'a', tasks: [row(), row({ task_id: 'sub_other' })] });
+    assert.equal(renders, 1);
+    assert.equal(card.querySelector('summary'), summary);
+    assert.equal(document.activeElement, summary);
+    ui.receive(row({ revision: 2, current_tool: 'read_file' }));
+    assert.equal(document.activeElement, card.querySelector('summary'));
+});
+
+test('task updates retain a pending cancellation and enforce the visible history limit', () => {
+    const { ui, document } = setup();
+    ui.receive(row());
+    document.getElementById('task-run-sub_123').querySelector('.subagent-run-cancel').click();
+    ui.receive(row({ revision: 2, current_tool: 'read_file' }));
+    assert.equal(document.getElementById('task-run-sub_123').querySelector('.subagent-run-cancel').disabled, true);
+    const tasks = Array.from({ length: 101 }, (_, i) => row({ task_id: `done_${i}`, status: 'succeeded' }));
+    ui.snapshot({ session_key: 'a', tasks });
+    assert.equal(document.querySelectorAll('.subagent-run-card').length, 101); // 100 completed + the active task
+    assert.equal(document.getElementById('task-run-done_0'), null);
+});

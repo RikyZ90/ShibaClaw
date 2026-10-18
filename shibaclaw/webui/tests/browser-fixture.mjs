@@ -33,6 +33,7 @@ class Element extends EventTarget {
         this._text = '';
         for (const [key, value] of Object.entries(attrs)) this.setAttribute(key, value);
         this.classList = {
+            [Symbol.iterator]: () => this.className.split(/\s+/).filter(Boolean)[Symbol.iterator](),
             contains: name => this.className.split(/\s+/).includes(name),
             add: (...names) => { this.className = [...new Set([...this.className.split(/\s+/).filter(Boolean), ...names])].join(' '); },
             remove: (...names) => { this.className = this.className.split(/\s+/).filter(name => !names.includes(name)).join(' '); },
@@ -45,6 +46,7 @@ class Element extends EventTarget {
         };
     }
     get id() { return this.getAttribute('id'); }
+    set id(value) { this.setAttribute('id', value); }
     get className() { return this.getAttribute('class') || ''; }
     set className(value) { this.setAttribute('class', value); }
     setAttribute(name, value) {
@@ -86,7 +88,11 @@ class Element extends EventTarget {
         return this._html ?? this.textContent.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
     }
     set innerHTML(value) { this.replaceChildren(); this._html = String(value); }
-    focus() { this.focused = true; }
+    contains(other) {
+        for (let node = other; node; node = node.parentNode) if (node === this) return true;
+        return false;
+    }
+    focus() { this.focused = true; if (this._document) this._document.activeElement = this; }
     click() { this.dispatchEvent({ type: "click" }); }
     matches(selector) {
         if (selector === 'body') return this.tagName === 'BODY';
@@ -97,6 +103,7 @@ class Element extends EventTarget {
             return value === undefined ? actual !== null : actual === value.replaceAll('"', '').replaceAll("'", '');
         }
         if (selector.startsWith('.')) return selector.slice(1).split('.').every(name => this.classList.contains(name));
+        if (/^[a-z][a-z0-9-]*$/i.test(selector)) return this.tagName === selector.toUpperCase();
         throw new Error(`Unsupported fixture selector: ${selector}`);
     }
     querySelectorAll(selector) {
@@ -128,7 +135,7 @@ export function browserFixture({ stored = {}, dark = false } = {}) {
     document.readyState = 'complete';
     document.documentElement = document.appendChild(new Element('html'));
     document.body = document.documentElement.appendChild(new Element('body'));
-    document.createElement = tag => new Element(tag);
+    document.createElement = tag => { const node = new Element(tag); node._document = document; return node; };
     document.createElementNS = (_, tag) => new Element(tag);
     document.getElementById = id => document.querySelector(`#${id}`);
     const html = readFrontend('index.html');

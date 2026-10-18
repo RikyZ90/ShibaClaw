@@ -105,6 +105,7 @@ function initSocket() {
             if (state.sessionId && state.sessionId !== data.session_id) {
                 realtime.emit("switch_session", { session_id: state.sessionId });
             }
+            if (state.sessionId) loadSession(state.sessionId);
             return;
         }
         state._initialConnectDone = true;
@@ -130,7 +131,7 @@ function initSocket() {
     });
 
     realtime.on("agent_thinking", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         // We no longer add a destructive GEN block if we have a stream bubble,
@@ -143,7 +144,7 @@ function initSocket() {
     });
 
     realtime.on("agent_tool", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         showThinking(data.content);
@@ -153,7 +154,7 @@ function initSocket() {
     });
 
     realtime.on("agent_interactive", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         clearTimeout(state._typingBubbleTimeout);
         hideTypingBubble();
         const payload = data.payload || data;
@@ -214,19 +215,17 @@ function initSocket() {
 
         // If streaming already created the bubble, finalize it with the complete content
         const mid = data.id || "stream";
+        const accumulated = state._streamBuffers ? state._streamBuffers[mid] : null;
+        const finalContent = typeof data.content === "string" ? data.content : (accumulated || "");
         const streamBubble = document.getElementById("stream-bubble-" + mid);
         _cancelScheduledStreamRender(mid);
+        if (state._streamBuffers) delete state._streamBuffers[mid];
         if (streamBubble) {
-            // Clean up stream buffer
-            const accumulated = state._streamBuffers ? state._streamBuffers[mid] : null;
-            if (state._streamBuffers) delete state._streamBuffers[mid];
-            // Re-render with final content for this bubble
-            const finalContent = accumulated || data.content;
-            if (finalContent) {
-                streamBubble.innerHTML = renderMarkdown(finalContent);
-                enhanceCodeBlocks(streamBubble);
-                try { streamBubble.setAttribute('data-raw-content', finalContent || ''); } catch (e) { }
-            }
+            // The server's final message is authoritative, including empty text
+            // on attachment-only responses. Chunks can be incomplete or revised.
+            streamBubble.innerHTML = renderMarkdown(finalContent);
+            enhanceCodeBlocks(streamBubble);
+            streamBubble.setAttribute('data-raw-content', finalContent);
             streamBubble.removeAttribute("id"); // Remove stream id marker
 
             // Append any attachments
@@ -236,14 +235,15 @@ function initSocket() {
                 });
             }
         } else {
-            addAgentMessage(data.id, data.content, data.attachments || []);
+            addAgentMessage(data.id, finalContent, data.attachments || []);
         }
 
         if (typeof window._historyWindowAppendLive === "function") {
             try {
                 window._historyWindowAppendLive("agent", {
                     role: "assistant",
-                    content: data.content || "",
+                    content: finalContent,
+                    metadata: { attachments: data.attachments || [] },
                     attachments: data.attachments || [],
                 });
             } catch (e) { /* ignore */ }
@@ -251,8 +251,8 @@ function initSocket() {
 
         // Play text-to-speech if enabled and no audio file is attached
         const hasAudioAttachment = data.attachments && data.attachments.some(file => typeof file.type === "string" && file.type.startsWith("audio/"));
-        if (window.speechTTS && window.speechTTS.enabled && data.content && !hasAudioAttachment) {
-            window.speechTTS.play(data.content);
+        if (window.speechTTS && window.speechTTS.enabled && finalContent && !hasAudioAttachment) {
+            window.speechTTS.play(finalContent);
         }
 
         if (!backgroundTask) {
@@ -279,6 +279,7 @@ function initSocket() {
     });
 
     realtime.on("message_queued", (data) => {
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         state.queueCount = data.position || (state.queueCount + 1);
         updateQueueIndicator();
     });
@@ -325,7 +326,7 @@ function initSocket() {
     });
 
     realtime.on("session_status", (data) => {
-        if (data.session_key && data.session_key !== state.sessionId) return;
+        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
         if (data.processing) {
             state.processing = true;
             setWorkingState(true);

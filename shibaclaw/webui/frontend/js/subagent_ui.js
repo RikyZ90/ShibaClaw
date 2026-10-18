@@ -1,6 +1,7 @@
 /** Session-scoped delegation cards. All task content is rendered as plain text. */
 window.subagentUI = {
     sessions: new Map(),
+    pendingCancels: new Set(),
     sessionKey: '',
     terminal: new Set(['succeeded', 'failed', 'cancelled', 'timed_out', 'incomplete']),
     labels: {
@@ -58,7 +59,7 @@ window.subagentUI = {
         this.closeDrawer();
         this.render();
     },
-    receive(data) {
+    receive(data, render = true) {
         const row = data.metadata || data;
         const key = this.key(row.session_key || data.session_key);
         if (!key || !row.task_id) return;
@@ -70,7 +71,8 @@ window.subagentUI = {
         rows.set(row.task_id, { ...old, ...row });
         const completed = [...rows.values()].filter(item => this.terminal.has(item.status));
         completed.slice(0, Math.max(0, completed.length - 100)).forEach(item => rows.delete(item.task_id));
-        if (key === this.sessionKey) this.render();
+        if (this.terminal.has(row.status)) this.pendingCancels.delete(row.task_id);
+        if (render && key === this.sessionKey) this.render();
     },
     snapshot(data) {
         const key = this.key(data.session_key);
@@ -84,7 +86,7 @@ window.subagentUI = {
             }
         }
         // Merge by revision: progress may arrive while the snapshot is in flight.
-        for (const row of data.tasks || []) this.receive({ ...row, session_key: data.session_key });
+        for (const row of data.tasks || []) this.receive({ ...row, session_key: data.session_key }, false);
         if (key === this.sessionKey) { this.offline = false; this.needsSync = false; this.lastSync = Date.now(); this.render(); }
     },
     setConnected(connected) { this.offline = !connected; this.render(); },
@@ -114,7 +116,12 @@ window.subagentUI = {
         if (!history) return;
         // Preserve the reader's position; no forced scroll for background updates.
         const pinned = history.scrollHeight - history.clientHeight - history.scrollTop < 80;
+        const visibleIds = new Set(rows.map(row => row.task_id));
+        history.querySelectorAll('.subagent-run-card').forEach(card => {
+            if (!visibleIds.has(card.getAttribute('data-task-id'))) card.remove();
+        });
         for (const row of rows) this.renderCard(history, row);
+        this.tick();
         if (pinned && rows.length && typeof scrollToBottom === 'function') scrollToBottom();
     },
     statusText(row) {
@@ -125,6 +132,9 @@ window.subagentUI = {
     renderCard(history, row) {
         const id = `task-run-${row.task_id}`;
         let card = document.getElementById(id);
+        if (card && card._runRevision === row.revision && card._runOffline === !!this.offline) return;
+        const focused = card?.contains?.(document.activeElement);
+        const focusCancel = focused && document.activeElement?.classList.contains('subagent-run-cancel');
         const open = card?.querySelector('.subagent-run-details')?.open || false;
         if (!card) {
             card = this.node('article', 'subagent-run-card');
@@ -134,6 +144,8 @@ window.subagentUI = {
             if (nextMessage) history.insertBefore(card, nextMessage);
             else history.appendChild(card);
         }
+        card._runRevision = row.revision;
+        card._runOffline = !!this.offline;
         card.setAttribute('data-status', row.status);
         card.setAttribute('data-parent-turn', row.parent_turn_id || '');
         card.replaceChildren();
@@ -162,19 +174,24 @@ window.subagentUI = {
         if (!this.terminal.has(row.status)) {
             const cancel = this.node('button', 'subagent-run-cancel', this.text('cancel'));
             cancel.type = 'button';
-            cancel.disabled = !!this.offline;
+            cancel.disabled = !!this.offline || this.pendingCancels.has(row.task_id);
             cancel.addEventListener('click', () => {
                 cancel.disabled = true;
+                this.pendingCancels.add(row.task_id);
                 const sent = realtime.emit('subagent_cancel', { task_id: row.task_id });
                 if (sent === false) this.cancelAck({ task_id: row.task_id, session_key: row.session_key, cancelled: false });
             });
             card.appendChild(cancel);
         }
-        this.tick();
+        if (focused) {
+            const target = focusCancel ? card.querySelector('.subagent-run-cancel') : null;
+            (target && !target.disabled ? target : details.querySelector('summary'))?.focus({ preventScroll: true });
+        }
     },
     cancelAck(data) {
         if (this.key(data.session_key) !== this.sessionKey) return;
         const card = document.getElementById(`task-run-${data.task_id}`);
+        if (!data.cancelled) this.pendingCancels.delete(data.task_id);
         if (!data.cancelled && card) {
             card.appendChild(this.node('p', 'subagent-run-error', this.text('cancel_error')));
             const button = card.querySelector('.subagent-run-cancel');

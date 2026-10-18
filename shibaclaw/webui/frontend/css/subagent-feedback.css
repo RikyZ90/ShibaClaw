@@ -201,3 +201,5 @@
 @media (max-width: 600px) { .subagent-run-card { margin-inline: 4px; padding: 10px 12px; } }
 @media (prefers-reduced-motion: reduce) { .subagent-avatar::after, .spinner-mini { animation: none; } }
 .subagent-run-summary { font-size: 13px; color: var(--text-secondary, #b7b2bf); margin: 6px 0; }
+
+.subagent-run-steps { margin: 8px 0; padding-left: 20px; }

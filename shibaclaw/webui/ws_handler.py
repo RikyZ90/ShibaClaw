@@ -536,8 +536,8 @@ async def _handle_user_message(ws_id: str, ws: WebSocket, data: dict[str, Any]) 
                         },
                     )
                 elif event.get("t") == "r":
-                    if not response_content:
-                        response_content = event.get("content", "")
+                    if isinstance(event.get("content"), str):
+                        response_content = event["content"]
                     response_media = event.get("media", [])
                     finish_reason = event.get("finish_reason")
                 elif event.get("t") == "e":

@@ -591,10 +591,14 @@ function enhanceCodeBlocks(container) {
         if (!pre.querySelector(".code-block-header")) {
             const header = document.createElement("div");
             header.className = "code-block-header";
-            header.innerHTML = `
-                <span>${lang || "code"}</span>
-                <button class="btn-copy-code" onclick="copyCode(this)">Copy</button>
-            `;
+            const label = document.createElement("span");
+            label.textContent = lang || "code";
+            const copy = document.createElement("button");
+            copy.type = "button";
+            copy.className = "btn-copy-code";
+            copy.textContent = "Copy";
+            copy.addEventListener("click", () => copyCode(copy));
+            header.append(label, copy);
             pre.insertBefore(header, pre.firstChild);
         }
     });

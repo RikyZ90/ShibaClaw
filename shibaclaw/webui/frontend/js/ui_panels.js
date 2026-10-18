@@ -749,7 +749,6 @@ function _syncSessionUI(data, loadSeq, sessionId) {
 function _parseSessionMessages(messages, loadSeq, sessionId) {
     let turnSteps = [];
     let turnId = 0;
-    let lastUserContent = null;
     const parsedMessages = [];
     const parsedGroups = [];
 
@@ -760,8 +759,7 @@ function _parseSessionMessages(messages, loadSeq, sessionId) {
         if (msg.role === "user") {
             if (msg.metadata && msg.metadata.hidden) continue;
             const hasMedia = !!(msg.metadata && msg.metadata.media && msg.metadata.media.length);
-            if ((!msg.content && !hasMedia) || (msg.content && msg.content === lastUserContent)) continue;
-            if (msg.content) lastUserContent = msg.content;
+            if (!msg.content && !hasMedia) continue;
 
             const hasExeSteps = turnSteps.some(s => s.badge === "EXE");
             if (turnSteps.length > 0 && hasExeSteps) {
