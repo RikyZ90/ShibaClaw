@@ -1,4 +1,4 @@
-## [Unreleased]
+## [1.1.0] - 2026-10-18
 
 ### Changed
 - Align package, desktop, WebUI, updater manifests, lockfiles, and README release summaries with v1.1.0.
