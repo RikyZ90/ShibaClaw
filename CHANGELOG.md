@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+- Persistent, session-scoped chat cards for background delegation, including task details, tool steps, duration, final outcomes, MEA execution/audit phases, and individual cancellation.
+- Delegation snapshots restore task state after reconnecting or switching chats. Private task content stays in memory, and interrupted tasks are marked incomplete after a gateway restart.
+
+### Fixed
+- Render subagent labels and results as text, inherit the parent's tool capabilities, serialize result delivery with other session turns, and apply worker timeouts without timing out the parent's reply.
+- Distinguish failed, cancelled, timed-out, and incomplete tasks from successful runs, and discard queued results after a conversation reset.
+
 ## [1.0.65] - 2026-10-17
 
 ### Changed

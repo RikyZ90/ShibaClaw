@@ -657,6 +657,27 @@ async def gateway_command(
                 else:
                     await ws.send(_ok({"cancelled": False, "request_id": target_id}))
 
+            elif action == "subagent_snapshot":
+                key = str(payload.get("session_key") or "")
+                await ws.send(_ok({"tasks": agent.subagents.snapshot(key), "snapshot_at": time.time()}))
+
+            elif action == "subagent_private":
+                key = str(payload.get("session_key") or "")
+                agent.subagents.runs.set_private(key)
+                await ws.send(_ok({"private": True}))
+
+            elif action == "subagent_forget":
+                key = str(payload.get("session_key") or "")
+                await agent.subagents.cancel_by_session(key)
+                agent.subagents.generations[key] = agent.subagents.generations.get(key, 0) + 1
+                agent.subagents.runs.clear(key)
+                await ws.send(_ok({"forgotten": True}))
+
+            elif action == "subagent_cancel":
+                key = str(payload.get("session_key") or "")
+                cancelled = await agent.subagents.cancel_task(key, str(payload.get("task_id") or ""))
+                await ws.send(_ok({"cancelled": cancelled}))
+
             elif action == "steer":
                 session_key = payload.get("session_key")
                 content = payload.get("content")

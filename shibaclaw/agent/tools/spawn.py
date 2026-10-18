@@ -20,6 +20,8 @@ class _SpawnContext:
     model: str | None = None
     provider: Any | None = None
     ephemeral: bool = False
+    allowed_tools: frozenset[str] | None = None
+    parent_turn_id: str | None = None
     parent_messages: tuple[dict[str, Any], ...] | None = None
 
 
@@ -40,6 +42,9 @@ class SpawnTool(Tool):
         model: str | None = None,
         provider: Any | None = None,
         parent_messages: list[dict[str, Any]] | None = None,
+        allowed_tools: frozenset[str] | None = None,
+        parent_turn_id: str | None = None,
+        **options: Any,
     ) -> None:
         """Set the origin context and active LLM configuration for subagent execution."""
         self._context.set(_SpawnContext(
@@ -48,6 +53,9 @@ class SpawnTool(Tool):
             session_key=session_key or f"{channel}:{chat_id}",
             model=model,
             provider=provider,
+            ephemeral=bool(options.get("ephemeral", False)),
+            allowed_tools=allowed_tools,
+            parent_turn_id=parent_turn_id,
             parent_messages=tuple(deepcopy(parent_messages)) if parent_messages is not None else None,
         ))
 
@@ -100,6 +108,13 @@ class SpawnTool(Tool):
     ) -> str:
         """Spawn a subagent to execute the given task."""
         context = self._context.get()
+        extra = {}
+        if context.allowed_tools is not None:
+            extra["allowed_tools"] = context.allowed_tools
+        if context.parent_turn_id is not None:
+            extra["parent_turn_id"] = context.parent_turn_id
+        if context.ephemeral:
+            extra["ephemeral"] = True
         return await self._manager.spawn(
             task=task,
             label=label,
@@ -110,6 +125,7 @@ class SpawnTool(Tool):
             model=context.model,
             provider=context.provider,
             parent_messages=deepcopy(list(context.parent_messages)) if context.parent_messages is not None else None,
+            **extra,
         )
 
 
@@ -132,6 +148,9 @@ class SpawnMeaTool(Tool):
         provider: Any | None = None,
         ephemeral: bool = False,
         parent_messages: list[dict[str, Any]] | None = None,
+        allowed_tools: frozenset[str] | None = None,
+        parent_turn_id: str | None = None,
+        **options: Any,
     ) -> None:
         """Set the origin context and active LLM configuration for subagent execution."""
         self._context.set(_SpawnContext(
@@ -140,6 +159,8 @@ class SpawnMeaTool(Tool):
             session_key=session_key or f"{channel}:{chat_id}",
             model=model,
             provider=provider,
+            allowed_tools=allowed_tools,
+            parent_turn_id=parent_turn_id,
             ephemeral=ephemeral,
             parent_messages=tuple(deepcopy(parent_messages)) if parent_messages is not None else None,
         ))
@@ -188,6 +209,11 @@ class SpawnMeaTool(Tool):
     ) -> str:
         """Execute the MEA loop for the given task."""
         context = self._context.get()
+        extra = {}
+        if context.allowed_tools is not None:
+            extra["allowed_tools"] = context.allowed_tools
+        if context.parent_turn_id is not None:
+            extra["parent_turn_id"] = context.parent_turn_id
         bg_task = asyncio.create_task(
             self._manager.execute_mea_loop(
                 task=task,
@@ -200,6 +226,7 @@ class SpawnMeaTool(Tool):
                 ephemeral=context.ephemeral,
                 mode=mode,
                 parent_messages=deepcopy(list(context.parent_messages)) if context.parent_messages is not None else None,
+                **extra,
             )
         )
         self._manager.track(context.session_key, bg_task)

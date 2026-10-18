@@ -98,6 +98,8 @@ function initSocket() {
 
     realtime.on("connected", (data) => {
         fetchStatus();
+        window.subagentUI?.setConnected(true);
+        realtime.emit("subagent_sync", {});
 
         if (state._initialConnectDone) {
             if (state.sessionId && state.sessionId !== data.session_id) {
@@ -115,6 +117,7 @@ function initSocket() {
     });
 
     realtime.on("disconnect", () => {
+        window.subagentUI?.setConnected(false);
         statusDot.className = "status-dot disconnected";
         statusText.textContent = (typeof t === "function" ? t("status.disconnected") : "Disconnected");
         hideTypingBubble();
@@ -282,21 +285,9 @@ function initSocket() {
         state._typingBubbleTimeout = setTimeout(() => showTypingBubble(), 150);
     });
 
-    realtime.on("subagent_status", (data) => {
-        if (data.session_key && !_isSameSessionKey(data.session_key, state.sessionId)) return;
-        const meta = data.metadata || data;
-        const status = meta.status;
-        const taskId = meta.task_id || data.id;
-        const label = meta.label || "Subagent Task";
-
-        if (window.subagentUI) {
-            if (status === "running") {
-                window.subagentUI.startSubagent(taskId, label, "Executing background task...");
-            } else if (status === "completed" || status === "failed") {
-                window.subagentUI.finishSubagent(taskId);
-            }
-        }
-    });
+    realtime.on("subagent_status", data => window.subagentUI?.receive(data));
+    realtime.on("subagent_snapshot", data => window.subagentUI?.snapshot(data));
+    realtime.on("subagent_cancel_ack", data => window.subagentUI?.cancelAck(data));
 
     realtime.on("session_reset", (data) => {
         if (typeof window.setWorkspaceChatTitle === "function") window.setWorkspaceChatTitle("");
@@ -305,6 +296,8 @@ function initSocket() {
         });
         state.processGroups = {};
         state.sessionId = data.session_id;
+        window.subagentUI?.selectSession(data.session_id);
+        realtime.emit("subagent_sync", {});
         state.activeModelId = "";
         _clearAllStreamRenders();
         state._streamBuffers = {};

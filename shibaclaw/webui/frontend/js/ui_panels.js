@@ -656,6 +656,7 @@ async function loadSession(sessionId) {
     const loadSeq = (state.sessionLoadSeq || 0) + 1;
     state.sessionLoadSeq = loadSeq;
     state.sessionId = sessionId;
+    window.subagentUI?.selectSession(sessionId);
     localStorage.setItem("shiba_session_id", sessionId);
 
     document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
@@ -721,6 +722,7 @@ async function loadSession(sessionId) {
         }
     } finally {
         if (realtime.connected && _isCurrentSessionLoad(loadSeq, sessionId)) {
+            window.subagentUI?.render();
             realtime.emit("switch_session", { session_id: sessionId });
         }
     }

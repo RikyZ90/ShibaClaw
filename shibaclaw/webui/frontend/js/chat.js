@@ -428,6 +428,7 @@ function createMessageGroup(type, targetContainer = chatHistory, opts = {}) {
 
 function addTimestamp(group, dateStr) {
     const d = dateStr ? new Date(dateStr) : new Date();
+    group.setAttribute("data-message-at", String(d.getTime() / 1000));
     const time = document.createElement("div");
     time.className = "message-time";
     time.textContent = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

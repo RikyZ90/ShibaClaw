@@ -1533,3 +1533,27 @@ Background notifications may include `source` and `metadata` fields. Update noti
 
 *Generated from source code — last updated with ShibaClaw v0.4.5*
 
+
+### Delegated task events
+
+`spawn` and `spawn_mea` publish `subagent_status` events. The `metadata` object
+contains `task_id`, `session_key`, `parent_turn_id`, `revision`, `kind`, `label`,
+`task`, `status`, `phase`, `started_at`, and optional `finished_at`, `steps`,
+`current_tool`, `result`, `error`, and `verdict` fields. Times are Unix seconds.
+
+The status is `running`, `succeeded`, `failed`, `cancelled`, `timed_out`, or
+`incomplete`. MEA uses `executing` and `auditing` phases. Clients should reject
+older revisions and retain terminal cards instead of removing them.
+
+Authenticated browser sockets can send `subagent_sync` to receive a
+`subagent_snapshot` containing the current session's `tasks` and `snapshot_at`.
+Switching sessions also sends a snapshot. `subagent_cancel` accepts a `task_id`;
+the server uses the socket's subscribed session, never a caller-supplied session.
+It responds with `subagent_cancel_ack` and an updated snapshot.
+
+History retains up to 100 completed runs per session, plus active runs. Results
+are limited to 16,000 characters, errors to 8,000, and tool steps to 60 names
+(without tool arguments or observations). Private task content stays in memory.
+After a gateway restart, previously running tasks become `incomplete`; they are
+not automatically re-executed. Persistent privacy toggles use a content-free
+marker to prevent an offline gateway from writing task content again.

@@ -211,6 +211,11 @@
             "path": "shibaclaw/webui/build.mjs",
             "overwrite": true,
             "note": "Bundle the restored Evolution panel with the current interface assets."
+        },
+        {
+            "path": "shibaclaw/agent/task_runs.py",
+            "overwrite": true,
+            "note": "Add session-scoped delegation history with private-run isolation."
         }
     ]
 }

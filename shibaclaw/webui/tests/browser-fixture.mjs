@@ -59,6 +59,12 @@ class Element extends EventTarget {
         this.children.push(child);
         return child;
     }
+    insertBefore(child, anchor) {
+        if (child.parentNode) child.parentNode.children.splice(child.parentNode.children.indexOf(child), 1);
+        child.parentNode = this;
+        this.children.splice(this.children.indexOf(anchor), 0, child);
+        return child;
+    }
     remove() { if (this.parentNode) { this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1); this.parentNode = null; } }
     toggleAttribute(name, force) {
         const on = force ?? !this.attributes.has(name);

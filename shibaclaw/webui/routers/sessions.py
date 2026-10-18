@@ -127,6 +127,11 @@ async def api_sessions_patch(request: Request):
         session.metadata["incognito"] = enabling
         if enabling and not was_incognito:
             # Toggle onto existing persisted session → wipe disk file.
+            from shibaclaw.agent.task_runs import TaskRuns
+            from shibaclaw.webui.gateway_client import gateway_client
+
+            TaskRuns(agent_manager.config.workspace_path).set_private(session_id, persist=True)
+            await gateway_client.request("subagent_private", {"session_key": session_id})
             pm.purge_persisted_session(session.key)
     touch_keys = (
         "nickname",
@@ -225,6 +230,12 @@ async def api_sessions_delete(request: Request):
 
     path = pm._get_session_path(session_id)
     if path.exists():
+        from shibaclaw.agent.task_runs import TaskRuns
+        from shibaclaw.webui.gateway_client import gateway_client
+
+        TaskRuns(agent_manager.config.workspace_path).set_private(session_id, persist=True)
+        await gateway_client.request("subagent_forget", {"session_key": session_id})
+        TaskRuns(agent_manager.config.workspace_path).clear(session_id)
         os.remove(path)
         pm.invalidate(session_id)
         return JSONResponse({"status": "deleted"})
