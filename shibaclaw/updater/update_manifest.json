@@ -1,11 +1,11 @@
 {
-    "version": "1.1.0",
-    "release_notes": "Release v1.1.0 adds persistent delegation status across chat reconnects and optional per-project verification with actual command exit codes, bounded logs, and execution evidence. The WebUI distinguishes execution, audit, and verification, preserves foreground chat state when background tasks finish, and restores final or missed messages accurately.",
+    "version": "1.1.1",
+    "release_notes": "Release v1.1.1 fixes six Dependabot vulnerability alerts by updating aiohttp, yarl, certifi, and Pillow. It also includes persistent delegation status across chat reconnects, optional per-project verification, and WebUI fixes for chat state and message recovery.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Set the application version to 1.1.0 and preserve the PyJWT security floor."
+            "note": "Set the application version to 1.1.1 and preserve the PyJWT security floor."
         },
         {
             "path": "scripts/install/install.ps1",
@@ -15,7 +15,7 @@
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Synchronize the locked ShibaClaw version to 1.1.0 and retain dependency security updates."
+            "note": "Synchronize the locked ShibaClaw version to 1.1.1 and retain dependency security updates."
         },
         {
             "path": "CHANGELOG.md",
@@ -25,27 +25,27 @@
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Update the English release summary to v1.1.0."
+            "note": "Update the English release summary to v1.1.1."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Synchronize the packaged update manifest with v1.1.0."
+            "note": "Synchronize the packaged update manifest with v1.1.1."
         },
         {
             "path": "shibaclaw/desktop/app.manifest",
             "overwrite": true,
-            "note": "Update the Windows desktop application version to 1.1.0.0."
+            "note": "Update the Windows desktop application version to 1.1.1.0."
         },
         {
             "path": "shibaclaw/webui/package.json",
             "overwrite": true,
-            "note": "Update the WebUI package version to 1.1.0."
+            "note": "Update the WebUI package version to 1.1.1."
         },
         {
             "path": "shibaclaw/webui/package-lock.json",
             "overwrite": true,
-            "note": "Synchronize the WebUI lockfile package version to 1.1.0."
+            "note": "Synchronize the WebUI lockfile package version to 1.1.1."
         },
         {
             "path": "shibaclaw/agent/loop.py",
@@ -160,37 +160,37 @@
         {
             "path": "README.de.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "README.es.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "README.fr.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "README.it.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "README.ja.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "README.pt-BR.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "README.zh-CN.md",
             "overwrite": true,
-            "note": "Update the localized release summary to v1.1.0."
+            "note": "Update the localized release summary to v1.1.1."
         },
         {
             "path": "shibaclaw/webui/routers/oauth.py",

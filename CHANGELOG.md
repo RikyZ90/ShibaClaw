@@ -1,3 +1,10 @@
+## [1.1.1] - 2026-10-20
+
+### Security
+- Updated `aiohttp` to 3.14.5 and `yarl` to 1.25.1 to resolve Dependabot alerts #51–#53.
+- Updated `certifi` to 2026.10.19 to resolve Dependabot alert #54.
+- Updated Pillow to 13.0.0 and allowed that version in the desktop dependency range to resolve Dependabot alerts #55–#56.
+
 ## [1.1.0] - 2026-10-18
 
 ### Changed
