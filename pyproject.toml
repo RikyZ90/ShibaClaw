@@ -51,7 +51,7 @@ dependencies = [
 desktop = [
     "pywebview>=6.2.1,<7.0",
     "pystray>=0.19.5,<1.0.0",
-    "pillow>=12.3.0,<13.0.0",
+    "pillow>=13.0.0,<14.0.0",
     "velopack==1.2.161; sys_platform == 'win32'",
 ]
 audit = [
