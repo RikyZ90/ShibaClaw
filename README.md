@@ -300,4 +300,6 @@ Local, privacy-first retrieval-augmented generation: organize documents into nam
 
 <p align="center">
 See <a href="./CONTRIBUTING.md">CONTRIBUTING.md</a> to contribute and <a href="./CHANGELOG.md">CHANGELOG.md</a> for release history.
+<br>
+If ShibaClaw is useful to you, consider <a href="https://github.com/sponsors/RikyZ90">supporting its development on GitHub Sponsors</a>.
 </p>
