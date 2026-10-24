@@ -30,9 +30,9 @@ Keep DeepWiki as an additional code-exploration link. The maintained README is c
 
 The repository API reports `has_pages: true`, but the conventional [Pages URL](https://rikyz90.github.io/ShibaClaw/) returned **HTTP 404** during this audit. The checked default branch has no project landing-page entry point, `CNAME`, static-site configuration or Pages workflow; the live branch list contains only `main`. The public Pages API also returned 404, so the configured Pages source or a possible custom hostname could not be established. A feature flag alone does not establish that a usable site exists.
 
-**Landing page preparation:** a static page is now prepared under [`site/`](../site/README.md), with the existing product demos, installation links, documentation, security and contribution links. The build copies an explicit set of public assets into `dist/pages/`; the GitHub Pages workflow checks the page and deploys only from `main`. Demo animations load on request, and static previews keep the initial page small.
+**Landing page:** the static page in [`site/`](../site/README.md) is published with the existing product demos, installation links, documentation, security and contribution links. The build copies an explicit set of public assets into `dist/pages/`; the GitHub Pages workflow checks the page and deploys only from `main`. Demo animations load on request, and static previews keep the initial page small.
 
-Follow the [site maintenance guide](../site/README.md) to preview and publish it. The intended URL is `https://rikyz90.github.io/ShibaClaw/` **only after a successful deployment and an HTTP 200 check**; keep the README homepage until then. The page is prepared locally and has not yet been published. A custom domain can wait until there is an owner and renewal plan.
+Follow the [site maintenance guide](../site/README.md) to preview and maintain the published page at [rikyz90.github.io/ShibaClaw](https://rikyz90.github.io/ShibaClaw/). Its first GitHub Actions deployment succeeded, the page and assets returned HTTP 200, and the repository Homepage now points to it. A custom domain can wait until there is an owner and renewal plan.
 
 ### Topics: exactly 20
 
