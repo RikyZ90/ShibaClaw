@@ -18,14 +18,14 @@
 </p>
 
 <p align="center">
-  <a href="#features">Funktionen</a> ·
-  <a href="#quick-start">Schnellstart</a> ·
-  <a href="#security">Sicherheit</a> ·
-  <a href="#memory-system">Speicher</a> ·
-  <a href="#supported-providers">Anbieter</a> ·
-  <a href="#architecture">Architektur</a> ·
-  <a href="#channels">Kanäle</a> ·
-  <a href="#troubleshooting">Fehlerbehebung</a>
+  <a href="#funktionen">Funktionen</a> ·
+  <a href="#schnellstart">Schnellstart</a> ·
+  <a href="#sicherheit">Sicherheit</a> ·
+  <a href="#speichersystem">Speicher</a> ·
+  <a href="#unterstützte-anbieter">Anbieter</a> ·
+  <a href="#architektur">Architektur</a> ·
+  <a href="#kanäle">Kanäle</a> ·
+  <a href="#fehlerbehebung">Fehlerbehebung</a>
 </p>
 
 <p align="center">

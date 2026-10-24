@@ -18,14 +18,14 @@
 </p>
 
 <p align="center">
-  <a href="#features">功能</a> ·
-  <a href="#quick-start">快速开始</a> ·
-  <a href="#security">安全</a> ·
-  <a href="#memory-system">记忆</a> ·
-  <a href="#supported-providers">提供商</a> ·
-  <a href="#architecture">架构</a> ·
-  <a href="#channels">渠道</a> ·
-  <a href="#troubleshooting">故障排查</a>
+  <a href="#功能">功能</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#安全">安全</a> ·
+  <a href="#记忆系统">记忆</a> ·
+  <a href="#支持的提供商">提供商</a> ·
+  <a href="#架构">架构</a> ·
+  <a href="#渠道">渠道</a> ·
+  <a href="#故障排查">故障排查</a>
 </p>
 
 <p align="center">

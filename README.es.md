@@ -18,14 +18,14 @@
 </p>
 
 <p align="center">
-  <a href="#features">Características</a> ·
-  <a href="#quick-start">Inicio Rápido</a> ·
-  <a href="#security">Seguridad</a> ·
-  <a href="#memory-system">Memoria</a> ·
-  <a href="#supported-providers">Proveedores</a> ·
-  <a href="#architecture">Arquitectura</a> ·
-  <a href="#channels">Canales</a> ·
-  <a href="#troubleshooting">Solución de Problemas</a>
+  <a href="#características">Características</a> ·
+  <a href="#inicio-rápido">Inicio Rápido</a> ·
+  <a href="#seguridad">Seguridad</a> ·
+  <a href="#sistema-de-memoria">Memoria</a> ·
+  <a href="#proveedores-soportados">Proveedores</a> ·
+  <a href="#arquitectura">Arquitectura</a> ·
+  <a href="#canales">Canales</a> ·
+  <a href="#solución-de-problemas">Solución de Problemas</a>
 </p>
 
 <p align="center">

@@ -18,14 +18,14 @@
 </p>
 
 <p align="center">
-  <a href="#features">機能</a> ·
-  <a href="#quick-start">クイックスタート</a> ·
-  <a href="#security">セキュリティ</a> ·
-  <a href="#memory-system">メモリ</a> ·
-  <a href="#supported-providers">プロバイダ</a> ·
-  <a href="#architecture">アーキテクチャ</a> ·
-  <a href="#channels">チャンネル</a> ·
-  <a href="#troubleshooting">トラブルシューティング</a>
+  <a href="#機能">機能</a> ·
+  <a href="#クイックスタート">クイックスタート</a> ·
+  <a href="#セキュリティ">セキュリティ</a> ·
+  <a href="#メモリシステム">メモリ</a> ·
+  <a href="#対応プロバイダ">プロバイダ</a> ·
+  <a href="#アーキテクチャ">アーキテクチャ</a> ·
+  <a href="#チャンネル">チャンネル</a> ·
+  <a href="#トラブルシューティング">トラブルシューティング</a>
 </p>
 
 <p align="center">
