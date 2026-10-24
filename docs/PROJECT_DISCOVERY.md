@@ -30,7 +30,9 @@ Keep DeepWiki as an additional code-exploration link. The maintained README is c
 
 The repository API reports `has_pages: true`, but the conventional [Pages URL](https://rikyz90.github.io/ShibaClaw/) returned **HTTP 404** during this audit. The checked default branch has no project landing-page entry point, `CNAME`, static-site configuration or Pages workflow; the live branch list contains only `main`. The public Pages API also returned 404, so the configured Pages source or a possible custom hostname could not be established. A feature flag alone does not establish that a usable site exists.
 
-**Next step, if a separate homepage is wanted:** publish one small GitHub Pages page with the positioning sentence, existing demo assets, install links, documentation, security and contribution links. Reuse repository assets and point installation buttons at the maintained README or release assets. Set its title and description, use meaningful image alt text, and check mobile layout and links before making its URL the homepage. The intended URL is `https://rikyz90.github.io/ShibaClaw/` **only after a successful deployment and an HTTP 200 check**. A custom domain can wait until there is an owner and renewal plan. No site was created or deployed in this task.
+**Landing page preparation:** a static page is now prepared under [`site/`](../site/README.md), with the existing product demos, installation links, documentation, security and contribution links. The build copies an explicit set of public assets into `dist/pages/`; the GitHub Pages workflow checks the page and deploys only from `main`. Demo animations load on request, and static previews keep the initial page small.
+
+Follow the [site maintenance guide](../site/README.md) to preview and publish it. The intended URL is `https://rikyz90.github.io/ShibaClaw/` **only after a successful deployment and an HTTP 200 check**; keep the README homepage until then. The page is prepared locally and has not yet been published. A custom domain can wait until there is an owner and renewal plan.
 
 ### Topics: exactly 20
 
