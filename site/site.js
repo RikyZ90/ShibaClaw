@@ -48,3 +48,37 @@ document.querySelectorAll('[data-copy]').forEach((button) => {
         }
     });
 });
+
+const projectInfo = document.querySelector?.('.hero-notes');
+if (projectInfo) {
+    const badges = [
+        {
+            href: 'https://pepy.tech/projects/shibaclaw',
+            src: 'https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads',
+            alt: 'PyPI total downloads',
+            width: 116,
+        },
+        {
+            href: 'https://hub.docker.com/r/rikyz90/shibaclaw',
+            src: 'https://img.shields.io/docker/pulls/rikyz90/shibaclaw?style=flat-square',
+            alt: 'Docker Hub pulls',
+            width: 102,
+        },
+    ];
+
+    badges.forEach(({ href, src, alt, width }) => {
+        const link = document.createElement('a');
+        link.href = href;
+        link.setAttribute('aria-label', alt);
+
+        const badge = document.createElement('img');
+        badge.src = src;
+        badge.alt = alt;
+        badge.width = width;
+        badge.height = 20;
+        badge.decoding = 'async';
+
+        link.appendChild(badge);
+        projectInfo.appendChild(link);
+    });
+}
