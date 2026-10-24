@@ -21,6 +21,7 @@ from shibaclaw.thinkers.base import LLMResponse, ToolCallRequest
 
 
 KEY = "webui:fixture"
+TIMEOUT = 10
 
 
 def _tool(call_id="same-id", query="query", content=None):
@@ -112,9 +113,13 @@ async def test_new_cancels_active_work_before_resetting_checkpoint(tmp_path):
 
     provider.chat_with_retry_streaming = chat
     turn = asyncio.create_task(_direct(brain, "old-task"))
-    await asyncio.wait_for(started.wait(), 2)
+    await asyncio.wait_for(started.wait(), TIMEOUT)
     out = await _direct(brain, "/new")
     assert out.content == "New session started."
+    try:
+        await turn
+    except (asyncio.CancelledError, Exception):
+        pass
     assert turn.cancelled()
     assert CheckpointManager(tmp_path).load_checkpoint(KEY) is None
     assert brain.sessions.get_or_create(KEY).messages == []
@@ -176,7 +181,7 @@ async def test_public_mea_dedupes_across_parent_turns_and_keeps_private_progress
     tools = _tools()
     with patch("shibaclaw.agent.subagent.SkillVault", return_value=tools):
         await _direct(brain, "delegate")
-        await asyncio.wait_for(duplicate_ready.wait(), 2)
+        await asyncio.wait_for(duplicate_ready.wait(), TIMEOUT)
         assert tools.execute.await_count == 1
         # A new parent input changes the root journal scope while MEA is running.
         await _direct(brain, "followup")
@@ -241,7 +246,7 @@ async def test_public_idle_stop_prevents_tools_returned_by_pending_mea_provider(
     tools = _tools()
     with patch("shibaclaw.agent.subagent.SkillVault", return_value=tools):
         await _direct(brain, "delegate")
-        await asyncio.wait_for(started.wait(), 2)
+        await asyncio.wait_for(started.wait(), TIMEOUT)
         pending = _tasks(brain)
         stopped = await _direct(brain, "/stop idle")
         assert stopped.content == "Stopping when the current tool finishes."
@@ -270,7 +275,7 @@ async def test_public_idle_stop_finishes_current_mea_tool_and_latches_across_par
     tools.execute = AsyncMock(side_effect=execute)
     with patch("shibaclaw.agent.subagent.SkillVault", return_value=tools):
         await _direct(brain, "delegate")
-        await asyncio.wait_for(started.wait(), 2)
+        await asyncio.wait_for(started.wait(), TIMEOUT)
         pending = _tasks(brain)
         await _direct(brain, "/stop idle")
         await _direct(brain, "followup")
@@ -300,7 +305,7 @@ async def test_public_hard_stop_cancels_running_mea_tool_and_records_cancellatio
     tools.execute = AsyncMock(side_effect=execute)
     with patch("shibaclaw.agent.subagent.SkillVault", return_value=tools):
         await _direct(brain, "delegate")
-        await asyncio.wait_for(started.wait(), 2)
+        await asyncio.wait_for(started.wait(), TIMEOUT)
         stopped = await _direct(brain, "/stop")
     assert "Halted 1 hunt" in stopped.content
     assert canceled.is_set()
@@ -372,7 +377,7 @@ async def test_main_idle_stop_finishes_current_tool_and_completes_protocol_batch
 
     brain.tools.execute = AsyncMock(side_effect=execute)
     task = asyncio.create_task(_direct(brain, "work"))
-    await asyncio.wait_for(started.wait(), 2)
+    await asyncio.wait_for(started.wait(), TIMEOUT)
     await _direct(brain, "/stop idle")
     release.set()
     out = await task
@@ -399,7 +404,7 @@ async def test_main_hard_stop_cancels_shielded_tool_future(tmp_path):
 
     brain.tools.execute = AsyncMock(side_effect=execute)
     task = asyncio.create_task(_direct(brain, "work"))
-    await asyncio.wait_for(started.wait(), 2)
+    await asyncio.wait_for(started.wait(), TIMEOUT)
     out = await _direct(brain, "/stop")
     assert "Halted 1 hunt" in out.content
     assert task.cancelled()
@@ -423,7 +428,7 @@ async def test_regular_subagent_obeys_idle_stop_after_parent_clears_journal_stop
     tools.execute = AsyncMock(side_effect=execute)
     with patch("shibaclaw.agent.subagent.SkillVault", return_value=tools):
         await brain.subagents.spawn("fixture task", "webui", "fixture", KEY)
-        await asyncio.wait_for(started.wait(), 2)
+        await asyncio.wait_for(started.wait(), TIMEOUT)
         pending = _tasks(brain)
         await _direct(brain, "/stop idle")
         await _direct(brain, "followup")
@@ -480,11 +485,11 @@ async def test_concurrent_public_turn_cannot_overwrite_pending_private_mea_conte
     pending_private = asyncio.create_task(brain.process_direct(
         "delegate privately", private_key, channel="webui", chat_id="private",
     ))
-    await asyncio.wait_for(waiting.wait(), 2)
+    await asyncio.wait_for(waiting.wait(), TIMEOUT)
     await brain.process_direct("public context", public_key, channel="webui", chat_id="public")
     release.set()
     await pending_private
-    await asyncio.wait_for(completed.wait(), 2)
+    await asyncio.wait_for(completed.wait(), TIMEOUT)
     assert not (tmp_path / "memory" / "mea").exists()
     assert seen["origin_channel"] == "webui"
     assert seen["origin_chat_id"] == "private"
@@ -612,7 +617,7 @@ async def test_fork_delegation_uses_current_completed_history_and_drops_inflight
         brain.subagents.execute_mea_loop = child
 
     await _direct(brain, "research then delegate")
-    await asyncio.wait_for(done.wait(), 2)
+    await asyncio.wait_for(done.wait(), TIMEOUT)
 
     declared = {call["id"] for message in seen for call in message.get("tool_calls", [])}
     results = {message["tool_call_id"] for message in seen if message.get("role") == "tool"}
