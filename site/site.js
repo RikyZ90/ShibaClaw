@@ -51,34 +51,47 @@ document.querySelectorAll('[data-copy]').forEach((button) => {
 
 const projectInfo = document.querySelector?.('.hero-notes');
 if (projectInfo) {
+    const signals = document.createElement('div');
+    signals.setAttribute('aria-label', 'Project distribution signals');
+    signals.style.display = 'flex';
+    signals.style.alignItems = 'center';
+    signals.style.flexWrap = 'wrap';
+    signals.style.gap = '12px';
+    signals.style.marginTop = '12px';
+
     const badges = [
         {
             href: 'https://pepy.tech/projects/shibaclaw',
-            src: 'https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=YELLOWGREEN&right_color=ORANGE&left_text=downloads',
+            src: 'https://static.pepy.tech/personalized-badge/shibaclaw?period=total&units=ABBREVIATION&left_color=101113&right_color=101113&left_text=PyPI%20downloads',
             alt: 'PyPI total downloads',
-            width: 116,
         },
         {
             href: 'https://hub.docker.com/r/rikyz90/shibaclaw',
-            src: 'https://img.shields.io/docker/pulls/rikyz90/shibaclaw?style=flat-square',
+            src: 'https://img.shields.io/docker/pulls/rikyz90/shibaclaw?style=flat-square&label=Docker%20pulls&labelColor=101113&color=101113',
             alt: 'Docker Hub pulls',
-            width: 102,
         },
     ];
 
-    badges.forEach(({ href, src, alt, width }) => {
+    badges.forEach(({ href, src, alt }) => {
         const link = document.createElement('a');
         link.href = href;
         link.setAttribute('aria-label', alt);
+        link.style.display = 'inline-flex';
+        link.style.alignItems = 'center';
+        link.style.opacity = '0.82';
 
         const badge = document.createElement('img');
         badge.src = src;
         badge.alt = alt;
-        badge.width = width;
-        badge.height = 20;
+        badge.height = 16;
+        badge.style.height = '16px';
+        badge.style.width = 'auto';
         badge.decoding = 'async';
+        badge.loading = 'lazy';
 
         link.appendChild(badge);
-        projectInfo.appendChild(link);
+        signals.appendChild(link);
     });
+
+    projectInfo.insertAdjacentElement('afterend', signals);
 }
