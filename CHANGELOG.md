@@ -1,3 +1,12 @@
+## [1.1.2] - 2026-10-25
+
+### Security
+- Require `filelock>=4.2.1` and `pypdf>=6.21.2` for the optional RAG dependencies; the lockfile selects patched `filelock` 4.2.4 and `pypdf` 6.21.2.
+- Refresh the locked transitive `setuptools` dependency to 84.2.1.
+
+### Documentation
+- Add the project landing page, integration guides, and distribution badges; improve contributor and discovery documentation.
+
 ## [1.1.1] - 2026-10-20
 
 ### Security

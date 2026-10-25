@@ -44,11 +44,11 @@
 > Las notas de versión están en [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>🚀 <b>Novedades — v1.1.1</b> (haz clic para expandir)</summary>
+<summary>🚀 <b>Novedades — v1.1.2</b> (haz clic para expandir)</summary>
 
-**Versión v1.1.1 (2026-10-20):**
+**Versión v1.1.2 (2026-10-25):**
 
-- **Correcciones de seguridad** — Actualiza `aiohttp`, `yarl`, `certifi` y Pillow para corregir seis alertas de vulnerabilidad de Dependabot.
+- **Correcciones de seguridad** — Exige versiones corregidas de `filelock` y `pypdf` para el soporte RAG opcional y actualiza la dependencia `setuptools` del archivo de bloqueo.
 - **Delegación fiable y comprobaciones de proyecto** — Las tareas en segundo plano conservan su estado al reconectar el chat, distinguen la ejecución de la verificación opcional y muestran códigos de salida reales, registros limitados y duración. Consulta [la guía](./docs/PROJECT_VERIFICATION.md).
 - **Visualización del chat** — Recupera correctamente las respuestas finales y los mensajes perdidos, conserva la entrada activa al recibir resultados en segundo plano y muestra los detalles de forma segura en escritorio y móvil.
 

@@ -279,9 +279,9 @@ If ShibaClaw is useful to you, consider [supporting its development on GitHub Sp
 ## What's New
 
 <details>
-<summary><b>v1.1.1 — 2026-10-20</b></summary>
+<summary><b>v1.1.2 — 2026-10-25</b></summary>
 
-- **Security fixes** — Update `aiohttp`, `yarl`, `certifi`, and Pillow to address six Dependabot vulnerability alerts.
+- **Security fixes** — Require patched `filelock` and `pypdf` for optional RAG support and refresh the locked `setuptools` dependency.
 - **Reliable delegation and project checks** — Background tasks keep their status across chat reconnects, distinguish execution from optional project verification, and show real exit codes, bounded logs, and check durations. See [project verification](docs/PROJECT_VERIFICATION.md) for setup.
 - **Chat rendering** — Restores final responses and missed messages accurately, keeps active input intact when a background result arrives, and renders task details safely on desktop and mobile.
 - **Windows installation** — The PowerShell command downloads the per-user setup, verifies its SHA256, and launches it. First-launch startup keeps the native window responsive while the local service starts.

@@ -44,11 +44,11 @@
 > Versionshinweise finden sich in [CHANGELOG.md](./CHANGELOG.md).
 
 <details open>
-<summary>🚀 <b>Neuigkeiten — v1.1.1</b> (zum Ausklappen klicken)</summary>
+<summary>🚀 <b>Neuigkeiten — v1.1.2</b> (zum Ausklappen klicken)</summary>
 
-**Version v1.1.1 (2026-10-20):**
+**Version v1.1.2 (2026-10-25):**
 
-- **Sicherheitsupdates** — Aktualisierung von `aiohttp`, `yarl`, `certifi` und Pillow zur Behebung von sechs Dependabot-Sicherheitsmeldungen.
+- **Sicherheitsupdates** — Für die optionale RAG-Unterstützung sind korrigierte Versionen von `filelock` und `pypdf` erforderlich; die gesperrte `setuptools`-Version wurde aktualisiert.
 - **Zuverlässige Delegation und Projektprüfungen** — Hintergrundaufgaben behalten ihren Status nach Chat-Verbindungen, unterscheiden Ausführung von optionaler Projektprüfung und zeigen echte Exit-Codes, begrenzte Logs und Prüfdauer. Siehe [Anleitung](./docs/PROJECT_VERIFICATION.md).
 - **Chat-Darstellung** — Endgültige Antworten und verpasste Nachrichten werden korrekt wiederhergestellt; Hintergrundresultate lassen die laufende Eingabe unberührt. Aufgabendetails erscheinen sicher auf Desktop und Mobilgeräten.
 
