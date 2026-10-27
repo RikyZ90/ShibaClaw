@@ -278,6 +278,15 @@ If ShibaClaw is useful to you, consider [supporting its development on GitHub Sp
 
 ## What's New
 
+<details open>
+<summary><b>v1.1.3 — 2026-10-27</b></summary>
+
+- **Provider endpoints** — Configure multiple independently named endpoints, including local servers without API keys; save and enable each endpoint separately.
+- **Model selection** — Find endpoints in chat and Agent settings, enter custom model IDs, and return a chat to its default model.
+- **Automation reliability** — Preserve approvals, delivery settings and task instructions while scheduling, editing and deleting jobs.
+
+</details>
+
 <details>
 <summary><b>v1.1.2 — 2026-10-25</b></summary>
 

@@ -1,4 +1,4 @@
-## [1.1.3] - Unreleased
+## [1.1.3] - 2026-10-27
 
 ### Added
 - Configure multiple independent provider endpoints, including endpoints with the same provider or display name and servers that do not require an API key. Each endpoint can be saved and enabled or disabled individually.

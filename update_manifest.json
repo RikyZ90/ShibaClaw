@@ -1,11 +1,11 @@
 {
-    "version": "1.1.2",
-    "release_notes": "Release v1.1.2 requires patched filelock and pypdf for optional RAG support, updates the locked setuptools dependency, and includes new project documentation and distribution pages.",
+    "version": "1.1.3",
+    "release_notes": "Release v1.1.3 adds independent provider endpoints and custom model selection, and improves automation scheduling, approvals and delivery.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Set the application version to 1.1.2 and retain patched dependency minimums."
+            "note": "Set the application version to 1.1.3."
         },
         {
             "path": "scripts/install/install.ps1",
@@ -15,42 +15,42 @@
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Synchronize the locked ShibaClaw version to 1.1.2 and retain dependency security updates."
+            "note": "Synchronize the locked ShibaClaw package version to 1.1.3."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Document the v1.1.2 dependency security updates while retaining prior release history."
+            "note": "Document the v1.1.3 provider, model selector and automation changes."
         },
         {
             "path": "README.md",
             "overwrite": true,
-            "note": "Update the English release summary to v1.1.2."
+            "note": "Summarize the v1.1.3 changes."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Synchronize the packaged update manifest with v1.1.2."
+            "note": "Publish the 1.1.3 updater manifest."
         },
         {
             "path": "shibaclaw/desktop/app.manifest",
             "overwrite": true,
-            "note": "Update the Windows desktop application version to 1.1.2.0."
+            "note": "Set the Windows application identity version to 1.1.3.0."
         },
         {
             "path": "shibaclaw/webui/package.json",
             "overwrite": true,
-            "note": "Update the WebUI package version to 1.1.2."
+            "note": "Set the WebUI package version to 1.1.3."
         },
         {
             "path": "shibaclaw/webui/package-lock.json",
             "overwrite": true,
-            "note": "Synchronize the WebUI lockfile package version to 1.1.2."
+            "note": "Synchronize WebUI package metadata for 1.1.3."
         },
         {
             "path": "shibaclaw/agent/loop.py",
             "overwrite": true,
-            "note": "Reintegrate durable tool journaling, cancellation and reset, private-session isolation, tool protocol and context guards from v1.0.4/v1.0.5."
+            "note": "Resolve model overrides to the selected provider endpoint."
         },
         {
             "path": "shibaclaw/webui/server.py",
@@ -60,12 +60,12 @@
         {
             "path": "shibaclaw/thinkers/base.py",
             "overwrite": true,
-            "note": "Restore provider retries, explicit model fallbacks, and safe outage caching."
+            "note": "Strip endpoint routing prefixes before provider requests."
         },
         {
             "path": "shibaclaw/thinkers/openai_provider.py",
             "overwrite": true,
-            "note": "Restore authenticated model catalogs and exact Gemini catalog host validation."
+            "note": "Preserve model identifiers when routing to custom endpoints."
         },
         {
             "path": "shibaclaw/agent/subagent.py",
@@ -80,7 +80,7 @@
         {
             "path": "shibaclaw/automation/service.py",
             "overwrite": true,
-            "note": "Restore concurrent automation-store updates and external disable/delete refresh."
+            "note": "Enforce approvals and preserve delivery settings when scheduling jobs."
         },
         {
             "path": "shibaclaw/cli/subscription_oauth.py",
@@ -100,7 +100,7 @@
         {
             "path": "shibaclaw/webui/routers/settings.py",
             "overwrite": true,
-            "note": "Refresh model catalogs after settings or OAuth account changes and prevent in-flight requests from restoring stale cache entries."
+            "note": "Persist endpoint instances and aggregate configured model sources."
         },
         {
             "path": "shibaclaw/webui/frontend/js/main.js",
@@ -115,37 +115,37 @@
         {
             "path": "shibaclaw/webui/frontend/css/workspace.css",
             "overwrite": true,
-            "note": "Keep sidebar content reachable, compact Settings and composer controls, truncate mobile model names, show context percentage, and share dropdown styles. Compact Library navigation into one responsive toolbar. Compact the six navigation actions into an accessible icon grid, retaining touch labels."
+            "note": "Keep model menus scrollable within the viewport."
         },
         {
             "path": "shibaclaw/webui/frontend/index.html",
             "overwrite": true,
-            "note": "Restore Evolution and Library page access alongside independent sidebar scrolling, compact Settings, and one accessible context-usage button."
+            "note": "Show the provider catalog and configured endpoint list."
         },
         {
             "path": "shibaclaw/webui/static/index.html",
             "overwrite": true,
-            "note": "Package the retained interface design with targeted mobile navigation and composer fixes."
+            "note": "Package the updated provider interface."
         },
         {
             "path": "shibaclaw/webui/static/bundle.js",
             "overwrite": true,
-            "note": "Rebuild packaged JavaScript with the mobile viewport, navigation, and composer fixes."
+            "note": "Package the updated provider and automation controls."
         },
         {
             "path": "shibaclaw/webui/static/bundle.css",
             "overwrite": true,
-            "note": "Rebuild packaged styles with mobile scrolling, touch control, and dropdown fixes."
+            "note": "Package the updated provider and model selector styles."
         },
         {
             "path": "shibaclaw/webui/frontend/js/settings_panel.js",
             "overwrite": true,
-            "note": "Restore the Claude and Google Gemini subscription OAuth login cards in Settings."
+            "note": "Save provider endpoint settings individually."
         },
         {
             "path": "shibaclaw/webui/frontend/js/model_selector.js",
             "overwrite": true,
-            "note": "Align model, effort, and collection popups with compact trigger buttons; keep them bounded on resize and show one composer menu at a time."
+            "note": "Select endpoint-specific or manually entered models and restore chat defaults."
         },
         {
             "path": "shibaclaw/webui/frontend/js/knowledge.js",
@@ -210,12 +210,12 @@
         {
             "path": "shibaclaw/webui/frontend/js/i18n_catalogs.js",
             "overwrite": true,
-            "note": "Translate Evolution page headings and restored Library tabs and document controls across the eight interface languages."
+            "note": "Add provider and model selector interface text."
         },
         {
             "path": "shibaclaw/webui/build.mjs",
             "overwrite": true,
-            "note": "Bundle the restored Evolution panel with the current interface assets."
+            "note": "Bundle provider endpoint settings with the WebUI."
         },
         {
             "path": "shibaclaw/agent/task_runs.py",
@@ -225,7 +225,7 @@
         {
             "path": "shibaclaw/config/schema.py",
             "overwrite": true,
-            "note": "Configure opt-in project verification commands and bounded timeouts."
+            "note": "Add independent provider endpoints while retaining legacy provider settings."
         },
         {
             "path": "shibaclaw/agent/verification.py",
@@ -256,6 +256,81 @@
             "path": "shibaclaw/webui/frontend/css/subagent-feedback.css",
             "overwrite": true,
             "note": "Display project verification separately from execution with expandable command evidence."
+        },
+        {
+            "path": "shibaclaw/cli/base.py",
+            "overwrite": true,
+            "note": "Create provider clients with endpoint-specific settings and credentials."
+        },
+        {
+            "path": "shibaclaw/config/loader.py",
+            "overwrite": true,
+            "note": "Migrate endpoint credentials and preserve vault-backed secrets."
+        },
+        {
+            "path": "shibaclaw/helpers/model_ids.py",
+            "overwrite": true,
+            "note": "Keep endpoint-specific model identifiers distinct."
+        },
+        {
+            "path": "shibaclaw/thinkers/azure_openai_provider.py",
+            "overwrite": true,
+            "note": "Route named endpoint deployments with their configured headers."
+        },
+        {
+            "path": "shibaclaw/cli/gateway.py",
+            "overwrite": true,
+            "note": "Deliver automation runs to the selected destination and agent profile."
+        },
+        {
+            "path": "shibaclaw/cli/gateway_utils.py",
+            "overwrite": true,
+            "note": "Resolve automation session and delivery context."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/automation.js",
+            "overwrite": true,
+            "note": "Preserve job delivery and settings in the automation panel."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/provider_settings.js",
+            "overwrite": true,
+            "note": "Add searchable provider catalog and individually configured endpoints."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/js/state.js",
+            "overwrite": true,
+            "note": "Track chat model overrides separately from the configured default."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/css/components.css",
+            "overwrite": true,
+            "note": "Provide compact, scrollable model and endpoint selectors."
+        },
+        {
+            "path": "shibaclaw/webui/frontend/css/modals.css",
+            "overwrite": true,
+            "note": "Reorganize provider settings and model selector layouts."
+        },
+        {
+            "path": "docs/API_REFERENCE.md",
+            "overwrite": true,
+            "note": "Document provider endpoint configuration and model selection APIs."
+        },
+        {
+            "path": "docs/integrations/CLAUDE.md",
+            "overwrite": true,
+            "note": "Document native Anthropic API-key setup."
+        },
+        {
+            "path": "docs/integrations/CUSTOM.md",
+            "overwrite": true,
+            "note": "Document OpenAI-compatible endpoint behavior and contributor-reported checks."
+        },
+        {
+            "path": "docs/integrations/README.md",
+            "overwrite": true,
+            "note": "Update provider integration guidance."
         }
     ]
 }
