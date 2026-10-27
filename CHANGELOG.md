@@ -1,3 +1,11 @@
+## [1.1.3] - Unreleased
+
+### Fixed
+- Enforce automation approvals when recovering overdue one-shot jobs and require renewed approval when a heartbeat is renamed to select different tasks.
+- Keep newly created disabled jobs inactive, preserve heartbeat settings when editing, and reset the profile selection for new jobs.
+- Deliver scheduled results to the configured destination, use the selected agent profile, and isolate automatic sessions by job ID. Existing explicit session keys remain supported.
+- Preserve plugin channels and existing delivery settings when editing jobs. Prevent concurrent or failed deletions from incorrectly removing shared TASK.md instructions, and report action failures in the automation panel.
+
 ## [1.1.2] - 2026-10-25
 
 ### Security

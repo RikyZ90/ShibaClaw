@@ -596,6 +596,7 @@ class AutomationService:
         payload: AutomationPayload,
         delete_after_run: bool = False,
         require_approval: bool = False,
+        enabled: bool = True,
     ) -> AutomationJob:
         """Add (and persist) a new job. Returns the created job."""
         _validate_schedule(schedule)
@@ -605,7 +606,7 @@ class AutomationService:
         job = AutomationJob(
             id=str(uuid.uuid4())[:8],
             name=name,
-            enabled=True,
+            enabled=enabled,
             delete_after_run=delete_after_run,
             require_approval=require_approval,
             approved_fingerprint=(
@@ -615,7 +616,9 @@ class AutomationService:
             updated_at_ms=now,
             schedule=schedule,
             payload=payload,
-            state=AutomationJobState(next_run_at_ms=_compute_next_run(schedule, now) or 0),
+            state=AutomationJobState(
+                next_run_at_ms=(_compute_next_run(schedule, now) or 0) if enabled else 0
+            ),
         )
         self._jobs[job.id] = job
         self._save_unlocked()
@@ -683,6 +686,7 @@ class AutomationService:
         if not job:
             return None
         prev_fp = operation_fingerprint(job.schedule, job.payload)
+        prev_name = job.name
         if "name" in patch:
             job.name = patch["name"]
         if "enabled" in patch:
@@ -738,7 +742,10 @@ class AutomationService:
                     targets=targets or {},
                 )
         new_fp = operation_fingerprint(job.schedule, job.payload)
-        if new_fp != prev_fp and job.require_approval:
+        if job.require_approval and (
+            new_fp != prev_fp
+            or (job.payload.kind == "heartbeat" and job.name != prev_name)
+        ):
             job.approved_fingerprint = None
             logger.info(
                 "AutomationService: cleared approval for '{}' — operation changed",
@@ -892,7 +899,7 @@ class AutomationService:
                 job.name,
                 job.schedule.at_ms,
             )
-            tasks.append(asyncio.create_task(self._run_job_bg(job, force=True)))
+            tasks.append(asyncio.create_task(self._run_job_bg(job)))
         if tasks:
             await asyncio.gather(*tasks)
 
@@ -1070,7 +1077,7 @@ class AutomationService:
         logger.info("AutomationService: heartbeat '{}' → run: {}", job.name, tasks[:80])
         if not self._on_heartbeat:
             return
-        session_key = job.payload.session_key or job.name or f"automation:{job.id}"
+        session_key = job.payload.session_key or f"automation:{job.id}"
         response = await self._on_heartbeat(
             tasks,
             session_key=session_key,
