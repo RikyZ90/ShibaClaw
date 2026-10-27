@@ -9,6 +9,7 @@ Connect ShibaClaw's self-hosted AI agent to a local LLM or a cloud model provide
 | [GitHub Copilot](GITHUB_COPILOT.md) | GitHub device login and a Copilot endpoint bridge | An account with Copilot access; account limits apply |
 | [OpenRouter](OPENROUTER.md) | API key or browser authorization that creates an API key | One account for multiple upstream model providers |
 | [Ollama](OLLAMA.md) | Local OpenAI-compatible HTTP endpoint | A running Ollama server and a downloaded model |
+| [Custom endpoint](CUSTOM.md) | OpenAI-compatible Chat Completions through CustomThinker | An API base URL, credentials and a supported model |
 
 ## Configure a provider and a model
 
