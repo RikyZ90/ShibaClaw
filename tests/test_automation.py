@@ -1,4 +1,6 @@
 import asyncio
+from unittest.mock import AsyncMock
+
 import pytest
 
 from shibaclaw.automation.service import AutomationService
@@ -89,6 +91,71 @@ def test_automation_service_enable_job(tmp_path):
     service.enable_job(job.id, True)
     assert job.enabled is True
     assert job.state.next_run_at_ms > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("schedule", [
+    AutomationSchedule(kind="every", every_ms=60000),
+    AutomationSchedule(kind="at", at_ms=1),
+])
+async def test_new_disabled_job_stays_disabled_after_reload_and_start(tmp_path, schedule):
+    executed = []
+
+    async def on_scheduled(job):
+        executed.append(job.id)
+
+    store_path = tmp_path / "automation.json"
+    service = AutomationService(store_path=store_path, workspace=tmp_path)
+    job = service.add_job(
+        name="Disabled job", schedule=schedule,
+        payload=AutomationPayload(kind="scheduled", message="Do not run"),
+        enabled=False,
+    )
+    assert job.enabled is False
+    assert job.state.next_run_at_ms == 0
+
+    reloaded = AutomationService(
+        store_path=store_path, workspace=tmp_path, on_scheduled=on_scheduled,
+    )
+    try:
+        await reloaded.start()
+        persisted = reloaded.get_job(job.id)
+        assert persisted.enabled is False
+        assert persisted.state.next_run_at_ms == 0
+        assert persisted.state.run_count == 0
+        assert reloaded.status()["next_wake_at_ms"] is None
+        assert executed == []
+    finally:
+        reloaded.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("session_key", [None, "webui:explicit"])
+async def test_same_named_heartbeat_jobs_use_unique_sessions(tmp_path, monkeypatch, session_key):
+    (tmp_path / "TASK.md").write_text(
+        "## Active Tasks\n## Shared name\n- Inspect changes\n", encoding="utf-8",
+    )
+    on_heartbeat = AsyncMock(return_value="")
+    service = AutomationService(
+        store_path=tmp_path / "automation.json", workspace=tmp_path,
+        on_heartbeat=on_heartbeat, provider=object(),
+    )
+    monkeypatch.setattr(service, "_heartbeat_decide", AsyncMock(return_value=("run", "Inspect changes")))
+    jobs = [
+        service.add_job(
+            name="Shared name", schedule=AutomationSchedule(kind="every", every_ms=60000),
+            payload=AutomationPayload(kind="heartbeat", session_key=session_key),
+        )
+        for _ in range(2)
+    ]
+
+    for job in jobs:
+        await service._execute(job)
+
+    assert jobs[0].id != jobs[1].id
+    assert [call.kwargs["session_key"] for call in on_heartbeat.await_args_list] == [
+        session_key or f"automation:{job.id}" for job in jobs
+    ]
 
 
 def test_automation_service_delete_after_run_recurring(tmp_path):

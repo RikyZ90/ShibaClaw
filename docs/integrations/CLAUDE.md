@@ -6,15 +6,13 @@ ShibaClaw has a native Anthropic SDK adapter for Claude text generation, streami
 
 Anthropic's [current authentication policy](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account) recommends API keys for third-party tools. Any permitted subscription access through third-party tools can be conditional and charged to usage credits; identity misrepresentation and routing third-party traffic against subscription limits are prohibited. This repository's subscription flow reuses Claude Code's public OAuth client and client-identification headers. Its presence is not evidence of Anthropic approval for ShibaClaw. Use a provider-authorized API route rather than treating subscription OAuth as a way around billing or restrictions.
 
-**Current native startup caveat:** the shared provider factory requires an OAuth-authenticated state for providers marked `is_oauth`, including Anthropic. Consequently, an Anthropic API key alone can be rejected as “not configured” before the native adapter starts. The adapter itself accepts an API key, but this does not establish a working API-key-only setup through the current CLI/WebUI factory. This documentation change does not modify that behavior. For Claude access through an existing gateway route, use [OpenRouter](OPENROUTER.md) and select an available `anthropic/...` model there.
+The shared provider factory accepts an Anthropic API key without requiring an OAuth login. Independent Anthropic endpoints use the native adapter and keep their credentials separate. Local regression tests cover startup and model routing; they do not establish connectivity or account access to Anthropic's live service.
 
 ## Native configuration and authentication
 
-For an installation where the native startup caveat has been resolved:
-
 1. Create a Claude Console API key with the necessary account/billing access, following the [official API prerequisites](https://platform.claude.com/docs/en/api/overview).
-2. Enter it in **Settings → Providers → Anthropic → API Key** and save. The native adapter also reads the server's `ANTHROPIC_API_KEY` environment variable. An API key takes precedence over subscription credentials inside the adapter.
-3. In **Settings → Agent**, choose **Anthropic** and an available Claude model. Keep the normal API base unless you deliberately operate a compatible endpoint. A partial non-secret configuration is:
+2. Choose **Settings → Provider → Anthropic +**, enter the API key and click **Save endpoint**. Existing legacy configurations also read the server's `ANTHROPIC_API_KEY` environment variable; independent endpoint instances use their own key.
+3. In **Settings → Agent**, choose a Claude model from that endpoint, or type a model ID and choose the corresponding **Use** option. Keep the normal API base unless you deliberately operate a compatible endpoint. An existing legacy configuration can use:
 
    ```json
    {
@@ -29,7 +27,7 @@ For an installation where the native startup caveat has been resolved:
 
 4. After confirming the provider starts, send a short WebUI message, or use `shibaclaw agent "Summarize your capabilities in two sentences."`. API use is billed by the selected provider.
 
-The existing subscription compatibility flow is exposed at **Settings → OAuth → Claude → Login** and `shibaclaw provider login anthropic`. It opens `claude.ai`, requests authorization and expects the complete returned `code#state` value; it checks the state before exchanging the code. Documenting this implementation is not a recommendation to use it without provider authorization, or a workaround for the API-key-only startup limitation.
+The existing subscription compatibility flow is exposed at **Settings → OAuth → Claude → Login** and `shibaclaw provider login anthropic`. It opens `claude.ai`, requests authorization and expects the complete returned `code#state` value; it checks the state before exchanging the code. Documenting this implementation is not a recommendation to use it without provider authorization.
 
 ## Storage, limits and security
 

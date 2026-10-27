@@ -1,3 +1,21 @@
+## [1.1.3] - Unreleased
+
+### Added
+- Configure multiple independent provider endpoints, including endpoints with the same provider or display name and servers that do not require an API key. Each endpoint can be saved and enabled or disabled individually.
+- Enter custom model IDs in the chat and Settings → Agent selectors, including as the default model. Endpoints remain discoverable even when their model catalog is empty; the selectors distinguish duplicate names by URL.
+
+### Changed
+- Reorganize provider settings with a searchable provider catalog and a list of configured endpoints. The chat and Agent model selectors share endpoint discovery, a compact manual-entry flow, and scrollable results.
+- Add a selectable **Default** option in chat to clear the session model override and return to the profile or configured default.
+
+### Fixed
+- Route models and credentials to the selected endpoint without falling back to another provider when that endpoint is disabled or removed. Preserve existing provider configurations and vault-backed keys.
+- Allow native Anthropic API-key configurations to start without requiring an OAuth login.
+- Enforce automation approvals when recovering overdue one-shot jobs and require renewed approval when a heartbeat is renamed to select different tasks.
+- Keep newly created disabled jobs inactive, preserve heartbeat settings when editing, and reset the profile selection for new jobs.
+- Deliver scheduled results to the configured destination, use the selected agent profile, and isolate automatic sessions by job ID. Existing explicit session keys remain supported.
+- Preserve plugin channels and existing delivery settings when editing jobs. Prevent concurrent or failed deletions from incorrectly removing shared `TASK.md` instructions, and report action failures in the automation panel.
+
 ## [1.1.2] - 2026-10-25
 
 ### Security

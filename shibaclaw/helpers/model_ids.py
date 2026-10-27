@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-from shibaclaw.cli.auth import _is_oauth_authenticated
 from shibaclaw.thinkers.registry import PROVIDERS, find_by_name
 
 if TYPE_CHECKING:
@@ -10,7 +9,8 @@ if TYPE_CHECKING:
 
 
 def normalize_provider_name(provider_name: str | None) -> str:
-    return (provider_name or "").strip().lower().replace("-", "_")
+    value = (provider_name or "").strip().lower()
+    return value if value.startswith("endpoint_") else value.replace("-", "_")
 
 
 def split_model_id(model: str | None) -> tuple[str | None, str]:
@@ -19,6 +19,8 @@ def split_model_id(model: str | None) -> tuple[str | None, str]:
         return None, value
 
     prefix, rest = value.split("/", 1)
+    if prefix.startswith("endpoint_"):
+        return prefix, rest.strip()
     spec = find_by_name(normalize_provider_name(prefix))
     if not spec:
         return None, value
@@ -33,12 +35,16 @@ def raw_model_id(model: str | None) -> str:
 
 
 def configured_provider_names(cfg: Config | None) -> list[str]:
+    from shibaclaw.cli.auth import _is_oauth_authenticated
+
     if cfg is None:
         return []
 
     names: list[str] = []
     for spec in PROVIDERS:
         provider_cfg = getattr(cfg.providers, spec.name, None)
+        if not provider_cfg or not provider_cfg.enabled:
+            continue
 
         if spec.name == "custom":
             # ProviderConfig no longer has a plain api_key field; use resolve_api_key().
@@ -50,21 +56,30 @@ def configured_provider_names(cfg: Config | None) -> list[str]:
                 )
             )
         elif spec.is_oauth:
-            ready = _is_oauth_authenticated(spec)
-        elif spec.name == "azure_openai":
-            # resolve_api_key() covers both vault and env-var fallbacks.
             ready = bool(
-                provider_cfg
-                and provider_cfg.resolve_api_key("azure_openai")
-                and provider_cfg.api_base
+                spec.name in {"anthropic", "xai"}
+                and (provider_cfg.api_base or cfg._provider_has_credentials(provider_cfg, spec))
             )
+            if not ready:
+                try:
+                    ready = _is_oauth_authenticated(spec)
+                except Exception:
+                    ready = False
+        elif spec.name == "azure_openai":
+            ready = bool(provider_cfg.api_base)
         elif spec.is_local:
             ready = bool(provider_cfg and provider_cfg.api_base)
         else:
-            ready = cfg._provider_has_credentials(provider_cfg, spec)
+            ready = bool(provider_cfg.api_base or cfg._provider_has_credentials(provider_cfg, spec))
 
         if ready:
             names.append(spec.name)
+
+    names.extend(
+        endpoint_id
+        for endpoint_id, endpoint in cfg.provider_endpoints.items()
+        if endpoint.enabled and (endpoint.api_base or endpoint.resolve_api_key(endpoint_id))
+    )
 
     return names
 
@@ -91,7 +106,9 @@ def canonicalize_model_id(
         return default_model
 
     forced_provider = normalize_provider_name(cfg.agents.defaults.provider)
-    if forced_provider and forced_provider != "auto" and find_by_name(forced_provider):
+    if forced_provider and forced_provider != "auto" and (
+        find_by_name(forced_provider) or forced_provider in cfg.provider_endpoints
+    ):
         return f"{forced_provider}/{value}"
 
     provider_names = list(
@@ -105,7 +122,7 @@ def canonicalize_model_id(
             if normalize_provider_name(name)
         )
     )
-    provider_names = [name for name in provider_names if find_by_name(name)]
+    provider_names = [name for name in provider_names if find_by_name(name) or name in cfg.provider_endpoints]
     if len(provider_names) == 1:
         return f"{provider_names[0]}/{value}"
 

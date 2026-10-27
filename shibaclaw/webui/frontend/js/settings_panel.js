@@ -784,137 +784,8 @@ window.syncSettingsReasoningDropdown = syncSettingsReasoningDropdown;
         }
     } catch (e) { }
 
-    const prov = cfg.providers || {};
-    const list = $("providers-list");
-    list.innerHTML = "";
-
-    const PROV_ICONS = {
-        custom: "tune", azureOpenai: "cloud", anthropic: "psychology", openai: "auto_awesome",
-        openrouter: "route", nvidia: "developer_board", deepseek: "explore", groq: "speed", zhipu: "translate",
-        dashscope: "dashboard", vllm: "memory", ollama: "dns", gemini: "diamond",
-        moonshot: "dark_mode", minimax: "compress", aihubmix: "hub", siliconflow: "waves",
-        volcengine: "volcano", volcentineCodingPlan: "code", byteplus: "add_box",
-        byteplusCodingPlan: "code", openaiCodex: "terminal", githubCopilot: "code",
-        opencodeZen: "spa", opencodeGo: "rocket_launch",
-    };
-
-    const provEntries = Object.entries(prov);
-    let configuredCount = 0;
-    let expandedProv = null;
-
-    const provTiles = new Map();
-
-    for (const [name, pc] of provEntries) {
-        const hasKey = !!(pc.apiKey);
-        if (hasKey) configuredCount++;
-        const displayName = name.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase());
-        const icon = PROV_ICONS[name] || "key";
-
-        const tile = document.createElement("div");
-        tile.className = "provider-tile" + (hasKey ? " configured" : "");
-        tile.dataset.provName = name;
-        tile.dataset.displayName = displayName.toLowerCase();
-        tile.innerHTML = `
-            <div class="provider-tile-icon"><span class="material-icons-round">${icon}</span></div>
-            <div class="provider-tile-name">${displayName}</div>
-            <span class="provider-tile-badge ${hasKey ? 'on' : 'off'}">${hasKey ? '✓ Configured' : 'Not set'}</span>`;
-
-        tile.addEventListener("click", () => {
-            const wasExpanded = tile.classList.contains("expanded");
-
-            list.querySelectorAll(".provider-tile").forEach(t => t.classList.remove("expanded"));
-            const oldExpand = list.querySelector(".provider-tile-expand");
-            if (oldExpand) oldExpand.remove();
-
-            if (wasExpanded) { expandedProv = null; return; }
-
-            tile.classList.add("expanded");
-            expandedProv = name;
-
-            const expandPanel = document.createElement("div");
-            expandPanel.className = "provider-tile-expand";
-            expandPanel.innerHTML = `
-                <div class="provider-expand-header">
-                    <div class="provider-expand-title">
-                        <span class="material-icons-round" style="font-size:18px">${icon}</span>
-                        ${displayName}
-                    </div>
-                    <button class="provider-expand-close" title="Close">
-                        <span class="material-icons-round" style="font-size:18px">close</span>
-                    </button>
-                </div>
-                <div class="field-row">
-                    <label>API Key</label>
-                    <input type="password" class="form-input prov-key" data-prov="${name}" value="${pc.apiKey || ""}" placeholder="${providerKeyPlaceholder(name)}">
-                </div>
-                <div class="field-row">
-                    <label>API Base URL</label>
-                    <input type="text" class="form-input prov-base" data-prov="${name}" value="${pc.apiBase || ""}" placeholder="(default)">
-                </div>`;
-
-            const keyInput = expandPanel.querySelector(".prov-key");
-            if (keyInput) {
-                keyInput.addEventListener("input", (e) => {
-                    pc.apiKey = e.target.value.trim();
-                    if (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers && lastSettingsConfig.providers[name]) {
-                        lastSettingsConfig.providers[name].apiKey = e.target.value.trim();
-                    }
-                });
-            }
-
-            const baseInput = expandPanel.querySelector(".prov-base");
-            if (baseInput) {
-                baseInput.addEventListener("input", (e) => {
-                    pc.apiBase = e.target.value.trim() || null;
-                    if (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers && lastSettingsConfig.providers[name]) {
-                        lastSettingsConfig.providers[name].apiBase = e.target.value.trim() || null;
-                    }
-                });
-            }
-
-            expandPanel.querySelector(".provider-expand-close").addEventListener("click", (e) => {
-                e.stopPropagation();
-                tile.classList.remove("expanded");
-                expandPanel.remove();
-                expandedProv = null;
-            });
-
-            expandPanel.addEventListener("click", (e) => e.stopPropagation());
-
-            tile.after(expandPanel);
-        });
-
-        list.appendChild(tile);
-        provTiles.set(name, tile);
-    }
-
-    const statsEl = $("provider-stats");
-    if (statsEl) {
-        const statsText = typeof t === "function"
-            ? t("settings.provider.stats", { n: configuredCount, t: provEntries.length })
-            : `${configuredCount} Configured · ${provEntries.length} Total`;
-        statsEl.textContent = statsText;
-    }
-
-    const searchInput = document.getElementById("provider-search");
-    if (searchInput) {
-        searchInput.addEventListener("input", debounce(() => {
-            const q = searchInput.value.toLowerCase().trim();
-            for (const [name, tile] of provTiles) {
-                const matches = !q || name.toLowerCase().includes(q) || tile.dataset.displayName.includes(q);
-                tile.style.display = matches ? "" : "none";
-            }
-            const expandPanel = list.querySelector(".provider-tile-expand");
-            if (expandPanel && expandedProv) {
-                const parentTile = provTiles.get(expandedProv);
-                if (parentTile && parentTile.style.display === "none") {
-                    expandPanel.remove();
-                    parentTile.classList.remove("expanded");
-                    expandedProv = null;
-                }
-            }
-        }, 250));
-    }
+    _providerDrafts = {};
+    renderProviderSettings();
 
     const tw = cfg.tools?.web || {};
     const ts = tw.search || {};
@@ -1350,6 +1221,7 @@ window.syncSettingsReasoningDropdown = syncSettingsReasoningDropdown;
 /* Legacy MCP accordion card functions removed in favor of MCP Server Manager panel */
 
 window.saveSettings = async function () {
+    if (_savingProvider || !validateProviderDrafts()) return;
     const ragData = {
         provider: $("s-rag-provider") ? $("s-rag-provider").value : "local",
         apiKey: $("s-rag-apiKey") ? ($("s-rag-apiKey").value || "") : "",
@@ -1376,7 +1248,7 @@ window.saveSettings = async function () {
             }
         },
         rag: ragData,
-        providers: (typeof lastSettingsConfig !== "undefined" && lastSettingsConfig.providers) ? JSON.parse(JSON.stringify(lastSettingsConfig.providers)) : {},
+        ...providerSettingsPatch(),
         tools: {
             web: {
                 proxy: $("s-tool-proxy").value || null,
@@ -1415,18 +1287,6 @@ window.saveSettings = async function () {
             ttsSpeed: parseFloat($("s-audio-ttsSpeed").value) || 1.0,
         }
     };
-
-    document.querySelectorAll(".prov-key").forEach(el => {
-        const name = el.dataset.prov;
-        if (!patch.providers[name]) patch.providers[name] = {};
-        patch.providers[name].apiKey = el.value.trim();
-    });
-    document.querySelectorAll(".prov-base").forEach(el => {
-        const name = el.dataset.prov;
-        if (!patch.providers[name]) patch.providers[name] = {};
-        const value = el.value.trim();
-        patch.providers[name].apiBase = value || null;
-    });
 
     const chDetailRoot = document.getElementById("channels-detail") || document;
     chDetailRoot.querySelectorAll(".ch-enabled").forEach(el => {
@@ -1469,6 +1329,7 @@ window.saveSettings = async function () {
         if (document.getElementById("s-ui-mobile-enter-newline")) localStorage.setItem("shibaclaw_mobile_enter_newline", document.getElementById("s-ui-mobile-enter-newline").checked ? "true" : "false");
     } catch (e) { }
 
+    setProviderSaving(true);
     try {
         const res = await authFetch("/api/settings", {
             method: "POST",
@@ -1480,8 +1341,8 @@ window.saveSettings = async function () {
             throw new Error(data.error || "Unknown error saving settings");
         }
         if (typeof closeSettingsView === "function") closeSettingsView();
-        _availableModels = []; // Clear model cache to force refresh
-        _hasFetchedModels = false;
+        resetAvailableModelsCache();
+        if (typeof updateModelSelectorDisplay === "function") void updateModelSelectorDisplay(state.modelOverrideId || "");
         fetchStatus();
 
         if (data.restarted) {
@@ -1512,5 +1373,7 @@ window.saveSettings = async function () {
         shibaDialog("alert", typeof t === "function" ? t("common.error") : "Error",
             typeof t === "function" ? t("settings.save_error", { err: e }) : "Error saving settings: " + e,
             { confirmText: typeof t === "function" ? t("common.close") : "Close", danger: true });
+    } finally {
+        setProviderSaving(false);
     }
 };

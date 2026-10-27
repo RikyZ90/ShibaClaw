@@ -306,10 +306,23 @@ class ShibaBrain:
 
     def _resolve_provider_for_model(self, model: str | None) -> Thinker | None:
         """Return the provider instance that should serve the requested model."""
-        if not self.config:
-            return self.provider
-
         requested_model = model or self.model
+        from shibaclaw.helpers.model_ids import split_model_id
+
+        explicit_provider, _ = split_model_id(requested_model)
+        strict_endpoint = bool(explicit_provider and explicit_provider.startswith("endpoint_"))
+        fallback = None if strict_endpoint else self.provider
+        if not self.config:
+            return fallback
+
+        if explicit_provider:
+            configured = (
+                self.config.provider_endpoints.get(explicit_provider)
+                if strict_endpoint else getattr(self.config.providers, explicit_provider, None)
+            )
+            if (strict_endpoint and not configured) or (configured and not configured.enabled):
+                return None
+
         if requested_model == self.model:
             return self.provider
 
@@ -318,10 +331,10 @@ class ShibaBrain:
             temp_cfg.agents.defaults.provider = "auto"
             requested_provider_name = temp_cfg.get_provider_name(requested_model)
         except Exception:
-            return self.provider
+            return fallback
 
         if not requested_provider_name:
-            return self.provider
+            return fallback
 
         cached_provider = self._provider_cache.get(requested_provider_name)
         if cached_provider:
@@ -341,12 +354,12 @@ class ShibaBrain:
                 requested_model,
                 exc,
             )
-            return self.provider
+            return fallback
 
         if resolved_provider:
             self._provider_cache[requested_provider_name] = resolved_provider
             return resolved_provider
-        return self.provider
+        return fallback
 
 
     def _filter_tools_for_profile(

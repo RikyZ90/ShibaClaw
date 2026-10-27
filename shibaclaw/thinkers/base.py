@@ -193,6 +193,8 @@ class Thinker(ABC):
         if not model or not provider_name or "/" not in model:
             return model
         prefix, rest = model.split("/", 1)
+        if prefix.startswith("endpoint_"):
+            return rest
         if prefix.lower().replace("-", "_") == provider_name.lower().replace("-", "_"):
             return rest
         return model

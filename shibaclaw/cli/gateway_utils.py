@@ -27,12 +27,13 @@ def resolve_webui_session_key(session_key: str | None, chat_id: str | None) -> s
 
 def resolve_automation_target(job: Any) -> HeartbeatTarget:
     channel = job.payload.channel or "cli"
-    chat_id = job.payload.to or "direct"
+    destination = job.payload.to or (job.payload.targets or {}).get(channel)
+    chat_id = destination or "direct"
     session_key = job.payload.session_key or f"{channel}:{chat_id}"
 
     if channel == "webui":
         session_key = (
-            resolve_webui_session_key(job.payload.session_key, job.payload.to) or session_key
+            resolve_webui_session_key(job.payload.session_key, destination) or session_key
         )
         chat_id = session_key.split(":", 1)[1] if ":" in session_key else session_key
 

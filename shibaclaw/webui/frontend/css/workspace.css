@@ -429,7 +429,8 @@
         overflow-y: auto !important;
         overscroll-behavior: contain;
     }
-    .workspace-ui .model-dropdown-list, .workspace-ui .model-list { max-height: none !important; }
+    .workspace-ui .model-dropdown-list { max-height: none !important; }
+    .workspace-ui .model-list { max-height: 300px !important; min-height: 0; }
     .workspace-ui #model-search-input { font-size: 16px; }
     .workspace-ui .model-item, .workspace-ui .profile-option { min-height: 44px !important; }
     .workspace-ui .model-item-name { min-width: 0; overflow-wrap: anywhere; }

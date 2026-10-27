@@ -17,6 +17,7 @@
 let _autoJobs = [];
 let _autoEditingId = null;
 let _currentAutoTab = 'active';
+let _autoTaskMdUpdate = Promise.resolve();
 
 // ── load + render list ───────────────────────────────────────────────────────
 
@@ -213,12 +214,16 @@ async function loadAutomationPanel() {
                     const cb = e.currentTarget;
                     cb.disabled = true;
                     try {
-                        await authFetch(`/api/automation/jobs/${encodeURIComponent(job.id)}`, {
+                        const res = await authFetch(`/api/automation/jobs/${encodeURIComponent(job.id)}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ enabled: cb.checked }),
                         });
-                    } catch (_) { cb.checked = !cb.checked; }
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    } catch (e) {
+                        cb.checked = !cb.checked;
+                        await shibaDialog('alert', typeof t === 'function' ? t('common.error') : 'Error', String(e), { danger: true });
+                    }
                     cb.disabled = false;
                     await loadAutomationPanel();
                 });
@@ -227,8 +232,11 @@ async function loadAutomationPanel() {
             row.querySelector('.auto-btn-trigger').addEventListener('click', async () => {
                 try {
                     const targetId = job.isVirtual && globalHb ? globalHb.id : job.id;
-                    await authFetch(`/api/automation/jobs/${encodeURIComponent(targetId)}/trigger`, { method: 'POST' });
-                } catch (_) { }
+                    const res = await authFetch(`/api/automation/jobs/${encodeURIComponent(targetId)}/trigger`, { method: 'POST' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                } catch (e) {
+                    await shibaDialog('alert', typeof t === 'function' ? t('common.error') : 'Error', String(e), { danger: true });
+                }
                 await loadAutomationPanel();
             });
 
@@ -261,10 +269,14 @@ async function loadAutomationPanel() {
                     if (!ok) return;
                     try {
                         if (!job.isVirtual) {
-                            await authFetch(`/api/automation/jobs/${encodeURIComponent(job.id)}`, { method: 'DELETE' });
+                            const res = await authFetch(`/api/automation/jobs/${encodeURIComponent(job.id)}`, { method: 'DELETE' });
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         }
-                        if (job.name) await _removeFromTaskMd(job.name);
-                    } catch (_) { }
+                        _autoJobs = _autoJobs.filter(item => item.id !== job.id);
+                        if (job.name) await _removeFromTaskMd([job.name]);
+                    } catch (e) {
+                        await shibaDialog('alert', typeof t === 'function' ? t('common.error') : 'Error', String(e), { danger: true });
+                    }
                     await loadAutomationPanel();
                 });
             }
@@ -297,6 +309,7 @@ window.openJobForm = async function (jobId) {
         'ajf-channel': '',
         'ajf-target-id': '',
         'ajf-session-key': '',
+        'ajf-profile': '',
         'ajf-delete-after': false,
         'ajf-enabled': true,
     };
@@ -370,8 +383,15 @@ function _autoFillForm(job) {
 
     const deliver = !!(payload.deliver);
     document.getElementById('ajf-deliver').checked = deliver;
-    document.getElementById('ajf-channel').value = payload.channel || '';
-    document.getElementById('ajf-target-id').value = payload.to || (payload.targets ? Object.values(payload.targets)[0] : '') || '';
+    const channelSelect = document.getElementById('ajf-channel');
+    if (payload.channel && !Array.from(channelSelect.options).some(option => option.value === payload.channel)) {
+        const option = document.createElement('option');
+        option.value = payload.channel;
+        option.textContent = payload.channel;
+        channelSelect.appendChild(option);
+    }
+    channelSelect.value = payload.channel || '';
+    document.getElementById('ajf-target-id').value = payload.to || (payload.targets || {})[payload.channel] || Object.values(payload.targets || {})[0] || '';
     document.getElementById('ajf-session-key').value = payload.sessionKey || payload.session_key || '';
 
     const profEl = document.getElementById('ajf-profile');
@@ -416,13 +436,22 @@ window.clearCompletedJobs = async function () {
         { confirmText: typeof t === "function" ? t("auto.clear_all") : "Clear All", danger: true });
     if (!ok) return;
 
+    const results = await Promise.allSettled(completedJobs.map(async job => {
+        if (!job.isVirtual) {
+            const res = await authFetch(`/api/automation/jobs/${encodeURIComponent(job.id)}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`${job.name || job.id}: HTTP ${res.status}`);
+        }
+        return job;
+    }));
     try {
-        await Promise.all(completedJobs.map(async job => {
-            await authFetch(`/api/automation/jobs/${encodeURIComponent(job.id)}`, { method: 'DELETE' });
-            if (job.name) await _removeFromTaskMd(job.name);
-        }));
+        const removed = results.filter(result => result.status === 'fulfilled').map(result => result.value);
+        const removedIds = new Set(removed.map(job => job.id));
+        _autoJobs = _autoJobs.filter(job => !removedIds.has(job.id));
+        await _removeFromTaskMd(removed.map(job => job.name));
+        const failure = results.find(result => result.status === 'rejected');
+        if (failure) throw failure.reason;
     } catch (e) {
-        console.error("Error clearing completed jobs:", e);
+        await shibaDialog('alert', typeof t === 'function' ? t('common.error') : 'Error', String(e), { danger: true });
     }
     await loadAutomationPanel();
 };
@@ -492,16 +521,23 @@ window.saveJobForm = async function () {
             return;
         }
 
+        const existingPayload = (_autoJobs.find(job => job.id === _autoEditingId) || {}).payload || {};
+        const originalTarget = existingPayload.to || (existingPayload.targets || {})[existingPayload.channel] || Object.values(existingPayload.targets || {})[0] || '';
         const payload = {
-            kind: 'scheduled',
+            ...existingPayload,
+            kind: existingPayload.kind || 'scheduled',
             message,
-            deliver,
-            channel: deliver ? (channel || null) : null,
-            to: deliver && !channel ? (targetId || null) : null,
-            targets: (deliver && channel && targetId) ? { [channel]: targetId } : {},
             sessionKey: sessionKey || null,
             profileId: profileId || null,
         };
+        if (!_autoEditingId || deliver !== !!existingPayload.deliver || channel !== (existingPayload.channel || '') || targetId !== originalTarget) {
+            Object.assign(payload, {
+                deliver,
+                channel: deliver ? (channel || null) : null,
+                to: deliver ? (targetId || null) : null,
+                targets: (deliver && channel && targetId) ? { [channel]: targetId } : {},
+            });
+        }
 
         const body = {
             name,
@@ -545,30 +581,35 @@ window.saveJobForm = async function () {
     }
 };
 
-async function _removeFromTaskMd(taskName) {
-    try {
-        let taskMd = '';
-        try {
-            const resp = await authFetch(`/api/file-get?path=TASK.md&_t=${Date.now()}`);
-            if (resp.ok) taskMd = await resp.text();
-        } catch (_) { return; }
-
+function _removeFromTaskMd(taskNames) {
+    const update = _autoTaskMdUpdate.then(async () => {
+        taskNames = taskNames.filter(name => name && !_autoJobs.some(job =>
+            (job.name || '').trim().toLowerCase() === name.trim().toLowerCase()));
+        if (!taskNames.length) return;
+        const resp = await authFetch(`/api/file-get?path=TASK.md&_t=${Date.now()}`);
+        if (resp.status === 404) return;
+        if (!resp.ok) throw new Error(`TASK.md: HTTP ${resp.status}`);
+        const taskMd = await resp.text();
         if (!taskMd) return;
 
-        const escapedName = taskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reExisting = new RegExp(`(^|\\r?\\n)(?:###?\\s*Task:\\s*${escapedName}|##\\s+${escapedName})\\s*\\r?\\n[\\s\\S]*?(?=\\r?\\n#+\\s+|$)`, 'gi');
-        const cleaned = taskMd.replace(reExisting, '').replace(/(?:\r?\n){3,}/g, '\n\n').trim() + '\n';
-
+        let cleaned = taskMd;
+        for (const taskName of taskNames) {
+            const escapedName = taskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const reExisting = new RegExp(`(^|\\r?\\n)(?:###?\\s*Task:\\s*${escapedName}|##\\s+${escapedName})\\s*\\r?\\n[\\s\\S]*?(?=\\r?\\n#+\\s+|$)`, 'gi');
+            cleaned = cleaned.replace(reExisting, '');
+        }
+        cleaned = cleaned.replace(/(?:\r?\n){3,}/g, '\n\n').trim() + '\n';
         if (cleaned !== taskMd) {
-            await authFetch('/api/file-save', {
+            const saved = await authFetch('/api/file-save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: 'TASK.md', content: cleaned }),
             });
+            if (!saved.ok) throw new Error(`TASK.md: HTTP ${saved.status}`);
         }
-    } catch (e) {
-        console.warn('Failed to clean TASK.md:', e);
-    }
+    });
+    _autoTaskMdUpdate = update.catch(() => {});
+    return update;
 }
 
 // ── openModal hook ────────────────────────────────────────────────────────────

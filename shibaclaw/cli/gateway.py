@@ -216,7 +216,7 @@ async def gateway_command(
 
     async def on_scheduled_job(job: AutomationJob) -> str | None:
         """Execute a scheduled job: run an agent turn then optionally deliver."""
-        session_key = job.payload.session_key or job.name or f"automation:{job.id}"
+        session_key = job.payload.session_key or f"automation:{job.id}"
 
         async def _noop_progress(*_args, **_kwargs) -> None:
             return None
@@ -228,6 +228,7 @@ async def gateway_command(
             chat_id=job.id,
             on_progress=_noop_progress,
             metadata={"hidden": True},
+            profile_id=job.payload.profile_id,
             model=job.payload.model,
         )
         response = out.content if out else ""
@@ -770,7 +771,10 @@ async def gateway_command(
                     model=p.get("model") or None,
                     targets=p.get("targets") or {},
                 )
-                job = automation.add_job(name, schedule, payload_obj, delete_after_run)
+                job = automation.add_job(
+                    name, schedule, payload_obj, delete_after_run,
+                    enabled=payload.get("enabled", True),
+                )
                 await ws.send(_ok(_ser_job(job)))
 
             elif action == "automation.get":
@@ -995,7 +999,10 @@ async def gateway_command(
                                 model=p.get("model") or None,
                                 targets=p.get("targets") or {},
                             )
-                            job = automation.add_job(name, schedule, payload_obj, delete_after_run)
+                            job = automation.add_job(
+                                name, schedule, payload_obj, delete_after_run,
+                                enabled=body.get("enabled", True),
+                            )
 
                             writer.write(_json_response(_serialize_job(job), 201))
                         elif path.endswith("/update"):

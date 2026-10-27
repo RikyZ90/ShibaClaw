@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
@@ -69,6 +69,8 @@ class ProviderConfig(Base):
 
     api_base: str | None = None
     extra_headers: dict[str, str] | None = None
+    enabled: bool = True
+    name: str = ""
 
     @field_validator("api_base", mode="before")
     @classmethod
@@ -102,6 +104,27 @@ class ProviderConfig(Base):
             except Exception:
                 pass
         return ""
+
+
+class ProviderEndpointConfig(ProviderConfig):
+    """An independently configured instance of an API provider."""
+
+    provider: str = "custom"
+    api_key: str = Field(default="", repr=False)
+
+    def resolve_api_key(self, provider_name: str = "") -> str:
+        return super().resolve_api_key(provider_name) or self.api_key
+
+    @field_validator("provider")
+    @classmethod
+    def _validate_provider(cls, value: str) -> str:
+        from shibaclaw.thinkers.registry import find_by_name
+
+        value = value.strip().lower().replace("-", "_")
+        spec = find_by_name(value)
+        if not spec or (spec.is_oauth and value not in {"anthropic", "xai"}):
+            raise ValueError("Endpoint provider must be a registered API provider")
+        return value
 
 
 class ProvidersConfig(Base):
@@ -361,6 +384,9 @@ class Config(BaseSettings):
     agents: AgentsConfig = Field(default_factory=AgentsConfig)
     channels: ChannelsConfig = Field(default_factory=ChannelsConfig)
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
+    provider_endpoints: dict[
+        Annotated[str, Field(pattern=r"^endpoint_[a-z0-9][a-z0-9_-]*$")], ProviderEndpointConfig
+    ] = Field(default_factory=dict)
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
@@ -384,7 +410,7 @@ class Config(BaseSettings):
     def _provider_has_credentials(
         provider: "ProviderConfig | None", spec: "ProviderSpec | None"
     ) -> bool:
-        if not provider:
+        if not provider or not provider.enabled:
             return False
         if spec:
             resolved = provider.resolve_api_key(spec.name)
@@ -397,12 +423,18 @@ class Config(BaseSettings):
     ) -> "tuple[ProviderConfig | None, str | None]":
         from shibaclaw.thinkers.registry import PROVIDERS
 
+        model_value = (model or self.agents.defaults.model).strip()
+        endpoint_id = model_value.split("/", 1)[0]
+        if endpoint_id.startswith("endpoint_"):
+            endpoint = self.provider_endpoints.get(endpoint_id)
+            return (endpoint, endpoint_id) if endpoint and endpoint.enabled else (None, None)
+
         forced = self.agents.defaults.provider
         if forced != "auto":
-            p = getattr(self.providers, forced, None)
-            return (p, forced) if p else (None, None)
+            p = self.provider_endpoints.get(forced) or getattr(self.providers, forced, None)
+            return (p, forced) if p and p.enabled else (None, None)
 
-        model_lower = (model or self.agents.defaults.model).lower()
+        model_lower = model_value.lower()
         model_normalized = model_lower.replace("-", "_")
         model_prefix = model_lower.split("/", 1)[0] if "/" in model_lower else ""
         normalized_prefix = model_prefix.replace("-", "_")
@@ -413,13 +445,16 @@ class Config(BaseSettings):
 
         def _get_valid_provider(spec: "ProviderSpec") -> "ProviderConfig | None":
             p = getattr(self.providers, spec.name, None)
-            if p and (spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec)):
+            if p and p.enabled and (p.api_base or spec.is_oauth or spec.is_local or self._provider_has_credentials(p, spec)):
                 return p
             return None
 
         if model_prefix:
             for spec in PROVIDERS:
                 if normalized_prefix == spec.name:
+                    configured = getattr(self.providers, spec.name, None)
+                    if configured and not configured.enabled:
+                        return None, None
                     p = _get_valid_provider(spec)
                     if p:
                         return p, spec.name
@@ -435,7 +470,7 @@ class Config(BaseSettings):
             if not spec.is_local:
                 continue
             p = getattr(self.providers, spec.name, None)
-            if not (p and p.api_base):
+            if not (p and p.enabled and p.api_base):
                 continue
             if spec.detect_by_base_keyword and spec.detect_by_base_keyword in p.api_base:
                 return p, spec.name
@@ -448,8 +483,11 @@ class Config(BaseSettings):
             if spec.is_oauth:
                 continue
             p = getattr(self.providers, spec.name, None)
-            if self._provider_has_credentials(p, spec):
+            if p and p.enabled and (p.api_base or self._provider_has_credentials(p, spec)):
                 return p, spec.name
+        for endpoint_id, endpoint in self.provider_endpoints.items():
+            if endpoint.enabled and (endpoint.api_base or endpoint.resolve_api_key(endpoint_id)):
+                return endpoint, endpoint_id
         return None, None
 
     def get_provider(self, model: str | None = None) -> "ProviderConfig | None":
@@ -473,7 +511,8 @@ class Config(BaseSettings):
         if p and p.api_base:
             return p.api_base
         if name:
-            spec = find_by_name(name)
+            endpoint = self.provider_endpoints.get(name)
+            spec = find_by_name(endpoint.provider if endpoint else name)
             if (
                 spec
                 and spec.default_api_base
