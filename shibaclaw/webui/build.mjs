@@ -17,6 +17,7 @@ const jsFiles = [
     'frontend/js/interactive.js',
     'frontend/js/files.js',
     'frontend/js/ui_panels.js',
+    'frontend/js/provider_settings.js',
     'frontend/js/settings_panel.js',
     'frontend/js/update_panel.js',
     'frontend/js/onboard_wizard.js',

@@ -165,6 +165,8 @@ class OpenAIThinker(Thinker):
 
     def _resolve_model(self, model: str) -> str:
         """Resolve model name by applying strip prefixes if needed."""
+        if model.split("/", 1)[0].startswith("endpoint_") and "/" in model:
+            return model.split("/", 1)[1]
         # Get provider spec if we have a known provider
         provider_spec = find_by_name(self._provider_name) if self._provider_name else None
 

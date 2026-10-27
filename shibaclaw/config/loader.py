@@ -84,11 +84,12 @@ def _scrub_secrets_from_dump(data: dict, cm: Any = None) -> dict:
                 cfg[k] = ""
 
     # --- Provider API keys ---
-    providers = data.get("providers", {})
-    if isinstance(providers, dict):
-        for provider_cfg in providers.values():
-            if isinstance(provider_cfg, dict):
-                _clear_secret_fields(provider_cfg)
+    for section in ("providers", "providerEndpoints", "provider_endpoints"):
+        providers = data.get(section, {})
+        if isinstance(providers, dict):
+            for provider_cfg in providers.values():
+                if isinstance(provider_cfg, dict):
+                    _clear_secret_fields(provider_cfg)
 
     # --- Channel secrets ---
     channels = data.get("channels", {})
@@ -234,8 +235,8 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     """
     Save configuration to file atomically.
 
-    When the encrypted vault is active, sensitive fields that have already
-    been migrated are zeroed-out before writing so the JSON never contains
+    When the encrypted vault is active, sensitive fields are migrated to
+    the vault before writing so the JSON never contains
     plaintext credentials.  When the vault is NOT active, secrets are
     preserved in the JSON as-is (they are the only copy).
 
@@ -252,8 +253,10 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     data = config.model_dump(mode="json", by_alias=True)
-    # Only scrub when the vault is active (secrets already migrated there).
+    # Persist credentials before scrubbing their only plaintext copy.
     cm = _get_cm_if_active()
+    if cm:
+        _migrate_secrets_from_raw_dict(data, cm)
     _scrub_secrets_from_dump(data, cm)
     payload = json.dumps(data, indent=2, ensure_ascii=False)
 
@@ -397,16 +400,17 @@ def _migrate_secrets_from_raw_dict(data: dict, cm: Any) -> bool:
     migrated = False
 
     # --- Provider API keys ---
-    providers = data.get("providers", {})
-    if isinstance(providers, dict):
-        for provider_name, provider_cfg in providers.items():
-            if not isinstance(provider_cfg, dict):
-                continue
-            api_key = provider_cfg.pop("apiKey", None) or provider_cfg.pop("api_key", None)
-            if api_key:
-                snake_name = _provider_alias_to_snake(provider_name)
-                cm.set_secret("providers", f"{snake_name}.api_key", api_key)
-                migrated = True
+    for section in ("providers", "providerEndpoints", "provider_endpoints"):
+        providers = data.get(section, {})
+        if isinstance(providers, dict):
+            for provider_name, provider_cfg in providers.items():
+                if not isinstance(provider_cfg, dict):
+                    continue
+                api_key = provider_cfg.pop("apiKey", None) or provider_cfg.pop("api_key", None)
+                if api_key:
+                    snake_name = _provider_alias_to_snake(provider_name) if section == "providers" else provider_name
+                    cm.set_secret("providers", f"{snake_name}.api_key", api_key)
+                    migrated = True
 
     # --- Web search API key ---
     tools = data.get("tools", {})

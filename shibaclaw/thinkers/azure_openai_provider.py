@@ -32,9 +32,11 @@ class AzureOpenAIThinker(Thinker):
         api_key: str = "",
         api_base: str = "",
         default_model: str = "gpt-5.2-chat",
+        extra_headers: dict[str, str] | None = None,
     ):
         super().__init__(api_key, api_base)
         self.default_model = default_model
+        self.extra_headers = extra_headers or {}
         self.api_version = "2024-10-21"
 
         # Validate required parameters
@@ -65,6 +67,7 @@ class AzureOpenAIThinker(Thinker):
             "Content-Type": "application/json",
             "api-key": self.api_key,  # Azure OpenAI uses api-key header, not Authorization
             "x-session-affinity": uuid.uuid4().hex,  # For cache locality
+            **self.extra_headers,
         }
 
     @staticmethod
@@ -136,6 +139,8 @@ class AzureOpenAIThinker(Thinker):
             LLMResponse with content and/or tool calls.
         """
         deployment_name = model or self.default_model
+        if deployment_name.startswith("endpoint_") and "/" in deployment_name:
+            deployment_name = deployment_name.split("/", 1)[1]
         url = self._build_chat_url(deployment_name)
         headers = self._build_headers()
         payload = self._prepare_request_payload(
@@ -178,6 +183,8 @@ class AzureOpenAIThinker(Thinker):
         tool_choice: str | dict[str, Any] | None = None,
     ) -> LLMResponse:
         deployment_name = model or self.default_model
+        if deployment_name.startswith("endpoint_") and "/" in deployment_name:
+            deployment_name = deployment_name.split("/", 1)[1]
         url = self._build_chat_url(deployment_name)
         headers = self._build_headers()
         payload = self._prepare_request_payload(

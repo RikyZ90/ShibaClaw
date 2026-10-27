@@ -13,6 +13,7 @@ const state = {
     sessionId: null,
     sessionLoadSeq: 0,
     activeModelId: "",
+    modelOverrideId: "",
     profileId: "default",
     profileAvatar: DEFAULT_AVATAR,
     _initialConnectDone: false,

@@ -960,6 +960,7 @@
     margin-bottom: 0;
 }
 #model-search-input {
+    flex-shrink: 0;
     width: 100%;
     padding: 10px;
     background: var(--bg-secondary);
@@ -975,10 +976,51 @@
 }
 
 .model-list {
+    min-height: 0;
     max-height: 250px;
     overflow-y: auto;
     background: var(--bg-elevated);
 }
+.model-list.model-picker-list, .settings-model-list.model-picker-list {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.model-picker-results {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+}
+.model-picker-defaults { flex-shrink: 0; border-bottom: 1px solid var(--border-color); }
+.model-custom-action, .model-picker-back {
+    flex-shrink: 0;
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 0;
+    color: var(--shiba-gold);
+    text-align: left;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.model-custom-action { border-top: 1px solid var(--border-color); }
+.model-custom-action::after { content: " →"; }
+.model-picker-back::before { content: "← "; }
+.model-custom-action:hover, .model-picker-back:hover { background: var(--bg-surface-hover); }
+.model-custom-action:focus-visible, .model-picker-back:focus-visible, .model-item:focus-visible {
+    outline: 2px solid var(--shiba-gold);
+    outline-offset: -2px;
+}
+.model-picker-results:focus-visible { outline: 1px solid var(--shiba-gold); outline-offset: -1px; }
+.model-custom-heading { padding: 6px 12px; color: var(--text-muted); font-size: 0.75rem; flex-shrink: 0; }
+.model-provider-choice { flex-direction: column; align-items: flex-start; gap: 3px; }
+.model-provider-choice .model-item-provider { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .model-item {
     display: flex;
     align-items: center;
@@ -1004,6 +1046,10 @@
 }
 
 .model-item-provider {
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     flex-shrink: 0;
     color: var(--text-muted);
     font-size: 0.74rem;

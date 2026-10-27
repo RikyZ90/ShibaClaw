@@ -26,7 +26,9 @@ def _filter_redacted(data: Any) -> Any:
 
 
 def _normalize_provider_name(provider_name: str) -> str:
-    return provider_name.lower().replace("-", "_")
+    from shibaclaw.helpers.model_ids import normalize_provider_name
+
+    return normalize_provider_name(provider_name)
 
 
 def _provider_label(provider_name: str) -> str:
@@ -37,6 +39,8 @@ def _provider_label(provider_name: str) -> str:
 
 
 def _canonical_model_id(provider_name: str, raw_model_id: str) -> str:
+    if provider_name.startswith("endpoint_"):
+        return f"{provider_name}/{raw_model_id}"
     if "/" in raw_model_id:
         prefix = _normalize_provider_name(raw_model_id.split("/", 1)[0])
         if prefix == _normalize_provider_name(provider_name):
@@ -96,20 +100,21 @@ def _normalize_model_entry(provider_name: str, model: dict[str, Any]) -> dict[st
 
 
 
-def _is_provider_configured(cfg, spec) -> bool:
-    from shibaclaw.cli.auth import _is_oauth_authenticated
+def _configured_provider_metadata(cfg) -> list[dict[str, Any]]:
+    from shibaclaw.helpers.model_ids import configured_provider_names
 
-    provider_cfg = getattr(cfg.providers, spec.name, None)
-
-    if spec.name == "custom":
-        return bool(provider_cfg and (provider_cfg.api_base or provider_cfg.resolve_api_key()))
-    if spec.is_oauth:
-        return _is_oauth_authenticated(spec)
-    if spec.name == "azure_openai":
-        return bool(provider_cfg and provider_cfg.resolve_api_key(spec.name) and provider_cfg.api_base)
-    if spec.is_local:
-        return bool(provider_cfg and provider_cfg.api_base)
-    return cfg._provider_has_credentials(provider_cfg, spec)
+    providers = []
+    for provider_id in configured_provider_names(cfg):
+        endpoint = cfg.provider_endpoints.get(provider_id)
+        provider_cfg = endpoint or getattr(cfg.providers, provider_id)
+        provider_type = endpoint.provider if endpoint else provider_id
+        providers.append({
+            "id": provider_id,
+            "name": provider_cfg.name or _provider_label(provider_type),
+            "api_base": provider_cfg.api_base or "",
+            "provider": provider_type,
+        })
+    return providers
 
 
 async def _fetch_provider_models(cfg, provider_name: str) -> list[dict[str, Any]]:
@@ -117,10 +122,11 @@ async def _fetch_provider_models(cfg, provider_name: str) -> list[dict[str, Any]
     from shibaclaw.thinkers.registry import find_by_name
 
     provider_name = _normalize_provider_name(provider_name)
-    spec = find_by_name(provider_name)
+    endpoint = cfg.provider_endpoints.get(provider_name)
+    spec = find_by_name(endpoint.provider if endpoint else provider_name)
     if not spec:
         raise ValueError(f"Unknown provider: {provider_name}")
-    if not _is_provider_configured(cfg, spec):
+    if provider_name not in {item["id"] for item in _configured_provider_metadata(cfg)}:
         raise RuntimeError(f"Provider {provider_name} not configured")
 
     temp_cfg = cfg.model_copy(deep=True)
@@ -136,6 +142,10 @@ async def _fetch_provider_models(cfg, provider_name: str) -> list[dict[str, Any]
     for model in models:
         entry = _normalize_model_entry(provider_name, model)
         if entry:
+            provider_cfg = endpoint or getattr(cfg.providers, provider_name)
+            entry["provider_label"] = provider_cfg.name or _provider_label(spec.name)
+            if endpoint:
+                entry["api_base"] = endpoint.api_base or ""
             normalized.append(entry)
     return normalized
 
@@ -143,12 +153,7 @@ async def _fetch_provider_models(cfg, provider_name: str) -> list[dict[str, Any]
 async def _fetch_all_configured_provider_models(
     cfg,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
-    from shibaclaw.thinkers.registry import PROVIDERS
-
-    provider_names: list[str] = []
-    for spec in PROVIDERS:
-        if _is_provider_configured(cfg, spec):
-            provider_names.append(spec.name)
+    provider_names = [item["id"] for item in _configured_provider_metadata(cfg)]
 
     if not provider_names:
         return [], []
@@ -222,6 +227,10 @@ async def _inject_vault_placeholders(data: dict) -> dict:
                 if snake != provider_name:
                     await _maybe_mask("providers", f"{snake}.api_key", provider_cfg, "apiKey")
 
+    for endpoint_id, endpoint_cfg in (data.get("providerEndpoints") or {}).items():
+        if isinstance(endpoint_cfg, dict):
+            await _maybe_mask("providers", f"{endpoint_id}.api_key", endpoint_cfg, "apiKey")
+
     # --- Web search API key ---
     try:
         search_cfg = data["tools"]["web"]["search"]
@@ -294,6 +303,7 @@ async def api_settings_post(request: Request):
             return JSONResponse({"error": "No config"}, status_code=400)
 
         data = await request.json()
+        from pydantic import ValidationError
         from shibaclaw.config.schema import Config
         from shibaclaw.config.loader import (
             _migrate_secrets_from_raw_dict,
@@ -307,6 +317,15 @@ async def api_settings_post(request: Request):
         if isinstance(data.get("tools"), dict) and "mcpServers" in data["tools"]:
             merged.setdefault("tools", {})["mcpServers"] = data["tools"]["mcpServers"]
         filtered_data = _filter_redacted(data)
+        for key in ("providerEndpoints", "provider_endpoints"):
+            if key in data:
+                endpoints = filtered_data.pop(key, None)
+                if isinstance(endpoints, dict):
+                    previous = merged.get("providerEndpoints", {})
+                    merged["providerEndpoints"] = {endpoint_id: previous.get(endpoint_id, {}) for endpoint_id in endpoints}
+                    _deep_merge(merged["providerEndpoints"], endpoints)
+                else:
+                    merged["providerEndpoints"] = endpoints
         _deep_merge(merged, filtered_data)
 
         # ----------------------------------------------------------------
@@ -316,9 +335,14 @@ async def api_settings_post(request: Request):
         # ----------------------------------------------------------------
         try:
             new_cfg = Config.model_validate(merged)
+        except ValidationError as e:
+            errors = e.errors(include_input=False, include_context=False, include_url=False)
+            message = "; ".join(f"{'.'.join(map(str, error['loc']))}: {error['msg']}" for error in errors)
+            logger.error("Validation failed: {}", message)
+            return JSONResponse({"error": f"Invalid config: {message}"}, status_code=422)
         except Exception as e:
-            logger.error(f"Validation failed: {e}")
-            return JSONResponse({"error": f"Invalid config: {e}"}, status_code=422)
+            logger.error("Config validation failed ({})", type(e).__name__)
+            return JSONResponse({"error": "Invalid config"}, status_code=422)
 
         # ----------------------------------------------------------------
         # Persist to disk.
@@ -328,8 +352,16 @@ async def api_settings_post(request: Request):
         disk_data = copy.deepcopy(merged)
         cm = _get_cm_if_active()
         if cm:
+            for section in ("providerEndpoints", "provider_endpoints"):
+                endpoint_inputs = data.get(section, {})
+                if isinstance(endpoint_inputs, dict):
+                    for endpoint_id, endpoint_input in endpoint_inputs.items():
+                        if isinstance(endpoint_input, dict) and any(endpoint_input.get(key) == "" for key in ("apiKey", "api_key")):
+                            cm.delete_secret("providers", f"{endpoint_id}.api_key")
             # Move plaintext secrets into the vault and remove from disk copy.
             _migrate_secrets_from_raw_dict(disk_data, cm)
+            for endpoint in new_cfg.provider_endpoints.values():
+                endpoint.api_key = ""
         # Belt-and-suspenders: zero out any residual plaintext only when vault active.
         _scrub_secrets_from_dump(disk_data, cm)
 
@@ -391,19 +423,20 @@ async def api_models_get(request: Request):
     """Get available models for one provider or aggregate all configured providers."""
     global _models_cache
     provider_name = request.query_params.get("provider")
-    if (
-        not provider_name
-        and _models_cache
-        and _models_cache[1]
-        and time.monotonic() - _models_cache[0] < 120
-    ):
-        return JSONResponse({"models": _models_cache[1], "errors": _models_cache[2]})
     if not agent_manager.config:
         agent_manager.load_latest_config()
 
     cfg = agent_manager.config
     if not cfg:
         return JSONResponse({"error": "No config"}, status_code=400)
+    providers = _configured_provider_metadata(cfg)
+    if (
+        not provider_name
+        and _models_cache
+        and _models_cache[1]
+        and time.monotonic() - _models_cache[0] < 120
+    ):
+        return JSONResponse({"models": _models_cache[1], "errors": _models_cache[2], "providers": providers})
 
     if provider_name:
         try:
@@ -414,11 +447,11 @@ async def api_models_get(request: Request):
             return JSONResponse({"error": str(e)}, status_code=400)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
-        return JSONResponse({"models": models, "errors": []})
+        return JSONResponse({"models": models, "errors": [], "providers": [item for item in providers if item["id"] == provider_name]})
 
     generation = _models_cache_generation
     models, errors = await _fetch_all_configured_provider_models(cfg)
     # A catalog fetched before an account/settings change must not refill the cache.
     if models and generation == _models_cache_generation:
         _models_cache = (time.monotonic(), models, errors)
-    return JSONResponse({"models": models, "errors": errors})
+    return JSONResponse({"models": models, "errors": errors, "providers": providers})

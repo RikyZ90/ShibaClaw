@@ -139,6 +139,31 @@ Get the current configuration. **Secrets are redacted** (API keys replaced with 
 
 Update configuration with a **partial** JSON object (deep-merged into the current config). On success, resets the running agent.
 
+Provider instances are stored in `providerEndpoints`, alongside the existing `providers` configuration. Each instance has a stable ID starting with `endpoint_`, a registered API `provider` type, a display `name`, `enabled` (default `true`), and optional `apiBase`, `apiKey`, and `extraHeaders`. Multiple instances can share the same type, name and model. API keys are optional for endpoints that do not require authentication; enter their URL in `apiBase`.
+
+```json
+{
+  "providerEndpoints": {
+    "endpoint_local_a": {
+      "provider": "custom",
+      "name": "Local server",
+      "enabled": true,
+      "apiBase": "http://localhost:1234/v1"
+    },
+    "endpoint_local_b": {
+      "provider": "custom",
+      "name": "Local server",
+      "enabled": true,
+      "apiBase": "http://localhost:5678/v1"
+    }
+  }
+}
+```
+
+When supplied, `providerEndpoints` replaces the map of instance IDs; omitted IDs are removed. Fields of retained instances are merged. Omitted or redacted API keys preserve the stored key; `apiKey: ""` clears an instance's key. Keys use the encrypted vault when configured. Legacy `providers` entries also accept `name` and `enabled`.
+
+Use `endpoint_local_a/org/model` to route a model to that instance. Only the instance prefix is removed before the provider request, preserving `org/model`. Disabled or deleted instances cannot fall back to another provider. In the WebUI, each endpoint has its own **Save endpoint** button; the model search in Agent settings and chat also offers manual IDs for each active source.
+
 **Request body** (partial config)
 
 ```json
@@ -168,13 +193,13 @@ Update configuration with a **partial** JSON object (deep-merged into the curren
 
 ### `GET /api/models`
 
-Get available models for one provider or aggregate all configured providers.
+Get available models for one provider or aggregate all enabled, configured providers and endpoint instances.
 
 **Query params**
 
 | Param | Required | Description |
 |---|---|---|
-| `provider` | ❌ | Name of the provider to fetch models for |
+| `provider` | ❌ | Provider name or `endpoint_...` instance ID to fetch models for |
 
 **Response**
 
@@ -189,9 +214,14 @@ Get available models for one provider or aggregate all configured providers.
       "provider_label": "OpenAI"
     }
   ],
-  "errors": []
+  "errors": [],
+  "providers": [
+    { "id": "openai", "name": "OpenAI", "api_base": "", "provider": "openai" }
+  ]
 }
 ```
+
+The `providers` array lists active sources even when their model catalog is empty or unavailable, allowing a manually entered model ID. Instance model entries use their instance ID as `provider` and their display name as `provider_label`.
 
 ---
 
@@ -248,6 +278,8 @@ Get details and message history for a specific session.
 ### `PATCH /api/sessions/{session_id}`
 
 Update session metadata (nickname, profile, active model, and/or active knowledge bases).
+
+Send `{"model": null}` (or an empty string) to clear the session model override and resume the profile/configured default. The chat model picker exposes this as **Default**; it stays available after selecting a specific model. Chat and **Settings → Agent** share endpoint discovery and manual model entry, including custom models as the configured default.
 
 **Request body** (all fields optional)
 

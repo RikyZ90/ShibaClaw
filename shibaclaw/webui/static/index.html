@@ -20,7 +20,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/bundle.css?v=1793090000734">
+    <link rel="stylesheet" href="/static/bundle.css?v=1793089975392">
 
     <!-- WebSocket adapter and Marked.js -->
     <script src="/static/vendor/marked.min.js"></script>
@@ -817,18 +817,24 @@
                     </div>
 
 
-                    <!-- Tab: Providers (card grid) -->
+                    <!-- Tab: Provider endpoints -->
                     <div class="settings-panel" id="panel-providers" style="display:none">
+                        <h3 data-i18n="settings.provider.add">Add a provider</h3>
+                        <p class="provider-help" data-i18n="settings.provider.help">Choose + to configure an endpoint. You can add the same provider more than once.</p>
                         <div class="provider-stats-bar">
                             <div class="provider-search-wrap">
                                 <span class="material-icons-round">search</span>
-                                <input type="text" id="provider-search" class="provider-search-input"
+                                <input type="search" id="provider-search" class="provider-search-input"
                                     placeholder="Filter providers..." data-i18n-placeholder="settings.provider.filter"
                                     data-i18n-aria="settings.provider.filter" aria-label="Filter providers...">
                             </div>
-                            <div class="provider-stats-count" id="provider-stats"></div>
                         </div>
-                        <div class="provider-grid" id="providers-list"></div>
+                        <div class="provider-catalog" id="provider-catalog"></div>
+                        <div class="provider-configured-header"><h3 data-i18n="settings.provider.endpoints">Configured endpoints</h3>
+                            <span class="provider-stats-count" id="provider-stats"></span></div>
+                        <p class="provider-help" data-i18n="settings.provider.save_hint">Save each endpoint here to apply its changes, including the on/off switch. API keys are optional for servers that do not require authentication.</p>
+                        <p id="provider-save-status" class="provider-save-status" role="status" aria-live="polite"></p>
+                        <div class="provider-endpoints" id="providers-list"></div>
                     </div>
 
 
@@ -1853,8 +1859,8 @@
         </div>
     </div>
 
-    <script src="/static/bundle.js?v=1793090000734"></script>
-    <script src="/static/js/chat_history_window.js?v=1793090000734"></script>
+    <script src="/static/bundle.js?v=1793089975392"></script>
+    <script src="/static/js/chat_history_window.js?v=1793089975392"></script>
 </body>
 
 </html>

@@ -1,6 +1,8 @@
 let _availableModels = [];
+let _modelProviders = [];
 let _fetchingModelsPromise = null;
 let _hasFetchedModels = false;
+let _modelCacheVersion = 0;
 const SETTINGS_MODEL_PICKERS = [
     {
         valueId: "s-agent-model",
@@ -33,9 +35,9 @@ const SETTINGS_MODEL_PICKERS = [
 ];
 let _settingsModelPickersInitialized = false;
 
-async function fetchModels() {
+async function fetchModels(providerId = "") {
     try {
-        const res = await authFetch("/api/models");
+        const res = await authFetch("/api/models" + (providerId ? "?provider=" + encodeURIComponent(providerId) : ""));
         const data = await res.json();
         if (!res.ok) {
             throw new Error(data.error || "Failed to fetch models");
@@ -43,12 +45,21 @@ async function fetchModels() {
         if (Array.isArray(data.errors) && data.errors.length) {
             console.warn("Some providers failed to return models", data.errors);
         }
-        return data.models || [];
+        return data;
     } catch (e) {
         console.error("Failed to fetch models", e);
-        return [];
+        return { models: [], providers: [] };
     }
 }
+
+function resetAvailableModelsCache() {
+    _modelCacheVersion++;
+    _availableModels = [];
+    _modelProviders = [];
+    _hasFetchedModels = false;
+    _fetchingModelsPromise = null;
+}
+window.resetAvailableModelsCache = resetAvailableModelsCache;
 
 async function ensureAvailableModels(listEl = null) {
     if (_availableModels.length || _hasFetchedModels) {
@@ -60,12 +71,18 @@ async function ensureAvailableModels(listEl = null) {
     if (listEl) {
         listEl.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">${escapeHtml(typeof t === "function" ? t("chat.loading_models") : "Loading models...")}</div>`;
     }
-    _fetchingModelsPromise = fetchModels().then(models => {
-        _availableModels = models || [];
+    const version = _modelCacheVersion;
+    _fetchingModelsPromise = fetchModels().then(data => {
+        if (version !== _modelCacheVersion) return _availableModels;
+        _availableModels = data.models || [];
+        _modelProviders = Array.isArray(data.providers) ? data.providers : [...new Map(_availableModels.map(model => [model.provider, {
+            id: model.provider, name: model.provider_label || model.provider,
+        }])).values()];
         _hasFetchedModels = true;
         _fetchingModelsPromise = null;
         return _availableModels;
     }).catch(err => {
+        if (version !== _modelCacheVersion) return _availableModels;
         _hasFetchedModels = true;
         _fetchingModelsPromise = null;
         return [];
@@ -83,6 +100,7 @@ function filterModelsByQuery(query) {
         || (m.raw_id || m.id || "").toLowerCase().includes(q)
         || (m.provider_label || "").toLowerCase().includes(q)
         || (m.provider || "").toLowerCase().includes(q)
+        || modelProviderDescription(m).toLowerCase().includes(q)
     );
 }
 
@@ -90,22 +108,49 @@ function findAvailableModel(modelId) {
     if (!modelId) {
         return null;
     }
-    const cleanId = String(modelId).trim().toLowerCase();
-    const rawName = cleanId.split("/").pop();
-    const exactId = _availableModels.find(m => (m.id || "").toLowerCase() === cleanId);
+    const cleanId = String(modelId).trim();
+    const exactId = _availableModels.find(m => m.id === cleanId);
     if (exactId) return exactId;
-    const exactRawId = _availableModels.find(m => (m.raw_id || "").toLowerCase() === cleanId);
-    if (exactRawId) return exactRawId;
-    return _availableModels.find(m => {
-        const mId = (m.id || "").toLowerCase();
-        const mRaw = (m.raw_id || "").toLowerCase();
-        return mRaw === rawName || mId.endsWith("/" + rawName);
-    }) || null;
+    const prefix = cleanId.split("/")[0];
+    if (prefix.startsWith("endpoint_") || _modelProviders.some(provider => provider.id === prefix)) return null;
+    const rawMatches = _availableModels.filter(m => m.raw_id === cleanId);
+    return rawMatches.length === 1 ? rawMatches[0] : null;
+}
+
+function modelProviderDescription(model) {
+    const source = _modelProviders.find(provider => provider.id === model.provider);
+    return source ? [source.name || source.id, source.api_base || source.apiBase].filter(Boolean).join(" • ")
+        : model.provider_label || model.provider || "";
+}
+
+function customModelChoices(query) {
+    const typedId = (query || "").trim();
+    if (!typedId) return [];
+    const explicitSource = _modelProviders.find(provider => typedId.startsWith(provider.id + "/"));
+    const rawId = explicitSource ? typedId.slice(explicitSource.id.length + 1) : typedId;
+    if (!rawId) return [];
+    const sources = explicitSource ? [explicitSource] : _modelProviders;
+    return sources.filter(source => !_availableModels.some(model => model.id === `${source.id}/${rawId}`)).map(source => ({
+        id: `${source.id}/${rawId}`,
+        raw_id: rawId,
+        name: typeof t === "function" ? t("chat.use_custom_model", { model: rawId }) : `Use “${rawId}”`,
+        provider: source.id,
+        provider_label: source.name || source.id,
+    }));
+}
+
+function modelForDisplay(modelId) {
+    const match = findAvailableModel(modelId);
+    if (match) return match;
+    const source = _modelProviders.find(provider => String(modelId || "").startsWith(provider.id + "/"));
+    return source ? { id: modelId, raw_id: modelId.slice(source.id.length + 1), provider: source.id } : null;
 }
 
 function createModelListItem(model, currentModelId, onSelect) {
     const item = document.createElement("div");
     item.className = "model-item" + (model.id === currentModelId ? " selected" : "");
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
 
     const nameEl = document.createElement("span");
     nameEl.className = "model-item-name";
@@ -113,14 +158,21 @@ function createModelListItem(model, currentModelId, onSelect) {
 
     const providerEl = document.createElement("span");
     providerEl.className = "model-item-provider";
-    providerEl.textContent = model.provider_label || model.provider || "";
+    providerEl.textContent = modelProviderDescription(model);
 
     item.appendChild(nameEl);
     item.appendChild(providerEl);
-    item.title = [model.raw_id || model.id || "", model.provider_label || model.provider || ""].filter(Boolean).join(" • ");
+    item.title = [model.raw_id || model.id || "", modelProviderDescription(model)].filter(Boolean).join(" • ");
     item.addEventListener("click", (e) => {
         e.stopPropagation();
         onSelect(model);
+    });
+    item.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(model);
+        }
     });
     return item;
 }
@@ -133,6 +185,138 @@ function renderModelList(list, models, currentModelId, onSelect, extraItems = []
         return;
     }
     allItems.forEach(model => list.appendChild(createModelListItem(model, currentModelId, onSelect)));
+}
+
+function renderModelPicker(list, models, currentModelId, onSelect, query, extraItems = [], searchInput = null) {
+    const scopedSource = _modelProviders.find(source => source.id === list.dataset.providerId);
+    const q = (query || "").trim().toLowerCase();
+    const matchingSources = !scopedSource && searchInput ? _modelProviders.filter(source => {
+        const custom = source.provider === "custom" || source.id.startsWith("endpoint_");
+        const matches = q ? [source.name, source.id, source.api_base, source.apiBase, source.provider].some(value => (value || "").toLowerCase().includes(q)) : custom;
+        return matches && (custom || !models.some(model => model.provider === source.id));
+    }) : [];
+    const sourceNameQuery = !scopedSource && _modelProviders.some(source => [source.name, source.id].some(value => (value || "").toLowerCase() === q));
+    const choices = sourceNameQuery ? [] : customModelChoices(query).filter(choice => !scopedSource || choice.provider === scopedSource.id);
+    if (scopedSource) models = models.filter(model => model.provider === scopedSource.id);
+    list.classList.add("model-picker-list");
+    list.replaceChildren();
+    if (extraItems.length) {
+        const defaults = document.createElement("div");
+        defaults.className = "model-picker-defaults";
+        extraItems.forEach(model => defaults.appendChild(createModelListItem(model, currentModelId, onSelect)));
+        list.appendChild(defaults);
+    }
+    if (scopedSource && searchInput) {
+        const back = document.createElement("button");
+        back.type = "button";
+        back.className = "model-picker-back model-source-back";
+        back.textContent = typeof t === "function" ? t("chat.back_to_models") : "Back to models";
+        back.addEventListener("click", event => {
+            event.stopPropagation();
+            const previousQuery = list.dataset.providerQuery || "";
+            delete list.dataset.providerId;
+            delete list.dataset.providerQuery;
+            searchInput.value = previousQuery;
+            searchInput.placeholder = typeof t === "function" ? t("common.search_models") : "Search models...";
+            renderModelPicker(list, filterModelsByQuery(previousQuery), currentModelId, onSelect, previousQuery, extraItems, searchInput);
+            searchInput.focus();
+        });
+        const heading = document.createElement("div");
+        heading.className = "model-custom-heading";
+        heading.textContent = modelProviderDescription({ provider: scopedSource.id });
+        list.append(back, heading);
+    }
+    const results = document.createElement("div");
+    results.className = "model-picker-results";
+    results.tabIndex = 0;
+    results.setAttribute("role", "region");
+    results.setAttribute("aria-label", typeof t === "function" ? t("chat.model_results") : "Model results");
+    if (matchingSources.length) {
+        const heading = document.createElement("div");
+        heading.className = "model-custom-heading";
+        heading.textContent = typeof t === "function" ? t("chat.model_endpoints") : "Endpoints";
+        results.appendChild(heading);
+    }
+    for (const source of matchingSources) {
+        const item = createModelListItem({ id: source.id, name: source.name || source.id, provider: source.id }, "", async () => {
+            list.dataset.providerId = source.id;
+            list.dataset.providerQuery = query;
+            searchInput.value = "";
+            searchInput.placeholder = typeof t === "function" ? t("chat.model_id_for", { provider: source.name || source.id }) : `Model ID for ${source.name || source.id}`;
+            renderModelPicker(list, _availableModels, currentModelId, onSelect, "", extraItems, searchInput);
+            searchInput.focus();
+            const version = _modelCacheVersion;
+            const request = Symbol();
+            list._providerRequest = request;
+            const data = await fetchModels(source.id);
+            if (version !== _modelCacheVersion || list.dataset.providerId !== source.id || list._providerRequest !== request) return;
+            _availableModels = _availableModels.filter(model => model.provider !== source.id).concat(data.models || []);
+            renderModelPicker(list, filterModelsByQuery(searchInput.value), currentModelId, onSelect, searchInput.value, extraItems, searchInput);
+        });
+        item.classList.add("model-source-choice");
+        item.querySelector(".model-item-provider").textContent = source.api_base || source.apiBase || source.provider || source.id;
+        results.appendChild(item);
+    }
+    if (scopedSource && !q && !models.length) {
+        const hint = document.createElement("div");
+        hint.className = "model-custom-heading";
+        hint.textContent = typeof t === "function" ? t("chat.enter_model_id") : "No models loaded. Enter a model ID to use this endpoint.";
+        results.appendChild(hint);
+    } else if (!matchingSources.length && (models.length || !choices.length)) {
+        renderModelList(results, models, currentModelId, onSelect);
+    } else {
+        if (models.length) {
+            const heading = document.createElement("div");
+            heading.className = "model-custom-heading";
+            heading.textContent = typeof t === "function" ? t("chat.model_results") : "Model results";
+            results.appendChild(heading);
+        }
+        models.forEach(model => results.appendChild(createModelListItem(model, currentModelId, onSelect)));
+    }
+    list.appendChild(results);
+    if (!choices.length) return;
+
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "model-custom-action";
+    action.textContent = typeof t === "function" ? t("chat.use_custom_model", { model: choices[0].raw_id }) : `Use “${choices[0].raw_id}”`;
+    action.title = typeof t === "function" ? t("chat.choose_model_provider") : "Choose a provider";
+    action.addEventListener("click", event => {
+        event.stopPropagation();
+        if (choices.length === 1) {
+            onSelect(choices[0]);
+            return;
+        }
+        const back = document.createElement("button");
+        back.type = "button";
+        back.className = "model-picker-back";
+        back.textContent = typeof t === "function" ? t("chat.back_to_models") : "Back to models";
+        back.addEventListener("click", event => {
+            event.stopPropagation();
+            renderModelPicker(list, models, currentModelId, onSelect, query, extraItems, searchInput);
+            list.querySelector(".model-custom-action").focus();
+        });
+        const heading = document.createElement("div");
+        heading.className = "model-custom-heading";
+        heading.textContent = typeof t === "function" ? t("chat.choose_model_provider") : "Choose a provider";
+        results.replaceChildren();
+        results.setAttribute("aria-label", heading.textContent);
+        for (const choice of choices) {
+            const item = createModelListItem(choice, currentModelId, onSelect);
+            item.classList.add("model-provider-choice");
+            item.querySelector(".model-item-name").textContent = choice.provider_label;
+            const source = _modelProviders.find(provider => provider.id === choice.provider);
+            const detail = item.querySelector(".model-item-provider");
+            const duplicateName = _modelProviders.some(other => other.id !== source.id && other.name === source.name);
+            detail.textContent = source.api_base || source.apiBase || (duplicateName ? source.id : "");
+            detail.hidden = !detail.textContent;
+            results.appendChild(item);
+        }
+        const defaults = list.querySelector(".model-picker-defaults");
+        list.replaceChildren(...[defaults, back, heading, results].filter(Boolean));
+        results.querySelector(".model-item")?.focus();
+    });
+    list.appendChild(action);
 }
 
 let _activeSessionReasoningEffort = null;
@@ -362,14 +546,15 @@ async function updateModelSelectorDisplay(modelId) {
     }
 
     state.activeModelId = resolvedModelId || "";
+    state.modelOverrideId = modelId || "";
 
     await ensureAvailableModels();
-    const match = findAvailableModel(resolvedModelId);
+    const match = modelForDisplay(resolvedModelId);
     const fullName = match ? (match.name || match.raw_id || match.id) : (resolvedModelId || "Default");
-    display.textContent = fullName;
+    display.textContent = modelId ? fullName : (typeof t === "function" ? t("common.default") : "Default");
 
     if (btn) {
-        const providerText = match && (match.provider_label || match.provider) ? ` (${match.provider_label || match.provider})` : "";
+        const providerText = match ? ` (${modelProviderDescription(match)})` : "";
         const rawIdText = match && match.raw_id && match.raw_id !== fullName ? ` • ${match.raw_id}` : "";
         btn.title = typeof t === "function" ? t("chat.active_model", { name: `${fullName}${providerText}${rawIdText}` }) : `Active Model: ${fullName}${providerText}${rawIdText}`;
     }
@@ -413,9 +598,9 @@ async function updateSettingsModelPickerDisplay(config) {
     }
 
     await ensureAvailableModels();
-    const match = findAvailableModel(value);
+    const match = modelForDisplay(value);
     display.textContent = match ? (match.name || match.raw_id || match.id) : value;
-    provider.textContent = match ? (match.provider_label || match.provider || "") : "Custom";
+    provider.textContent = match ? modelProviderDescription(match) : "Custom";
     provider.classList.toggle("settings-model-button-provider-placeholder", !match);
 }
 
@@ -445,7 +630,7 @@ function renderSettingsModelPickerOptions(config) {
         });
     }
 
-    renderModelList(
+    renderModelPicker(
         list,
         models,
         input.value.trim(),
@@ -457,7 +642,9 @@ function renderSettingsModelPickerOptions(config) {
                 menu.style.display = "none";
             }
         },
+        search.value,
         extraItems,
+        search,
     );
 }
 
@@ -486,6 +673,9 @@ function setupSettingsModelPickers() {
             closeSettingsModelMenus(menu);
             menu.style.display = "flex";
             await ensureAvailableModels(list);
+            delete list.dataset.providerId;
+            delete list.dataset.providerQuery;
+            search.placeholder = typeof t === "function" ? t("common.search_models") : "Search models...";
             search.value = "";
             renderSettingsModelPickerOptions(config);
             search.focus();
@@ -526,9 +716,12 @@ function setupModelSelector() {
         if (isHidden) {
             openComposerMenu(btn, menu, 420);
             await ensureAvailableModels(list);
+            delete list.dataset.providerId;
+            delete list.dataset.providerQuery;
+            search.placeholder = typeof t === "function" ? t("common.search_models") : "Search models...";
+            search.value = "";
             renderModels(_availableModels);
             positionComposerMenu(btn, menu, 420);
-            search.value = "";
             search.focus();
         } else {
             menu.style.display = "none";
@@ -547,22 +740,31 @@ function setupModelSelector() {
     }, 250));
 
     function renderModels(models) {
-        const currentModelId = state.activeModelId || "";
-        renderModelList(list, models, currentModelId, async (model) => {
-            state.activeModelId = model.id;
-            updateModelSelectorDisplay(model.id);
-            menu.style.display = "none";
-            if (state.sessionId) {
-                await authFetch("/api/sessions/" + encodeURIComponent(state.sessionId), {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ model: model.id })
-                });
-                if (typeof refreshTokenBadge === "function") {
-                    refreshTokenBadge();
+        const currentModelId = state.modelOverrideId || "";
+        const defaultChoice = {
+            id: "", name: typeof t === "function" ? t("common.default") : "Default",
+            provider_label: typeof t === "function" ? t("chat.default_model_desc") : "Use Settings → Agent model",
+        };
+        renderModelPicker(list, models, currentModelId, async (model) => {
+            try {
+                if (state.sessionId) {
+                    const response = await authFetch("/api/sessions/" + encodeURIComponent(state.sessionId), {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ model: model.id || null })
+                    });
+                    if (!response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        throw new Error(data.error || (typeof t === "function" ? t("chat.model_update_failed") : "Failed to update session model"));
+                    }
                 }
+                await updateModelSelectorDisplay(model.id);
+                menu.style.display = "none";
+            } catch (error) {
+                console.error("Failed to update session model", error);
+                alert(error.message || String(error));
             }
-        });
+        }, search.value, [defaultChoice], search);
     }
 }
 document.addEventListener("DOMContentLoaded", () => {
