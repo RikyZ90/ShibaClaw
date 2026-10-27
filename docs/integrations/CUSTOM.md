@@ -38,6 +38,20 @@ For direct Python use, the corresponding constructor options are `CustomThinker(
 - `reasoning_content` and `reasoning_details` returned by compatible endpoints are retained in the response. When constructing history directly, preserve those assistant fields alongside tool calls before appending tool results. The adapter preserves them when serializing that history; this does not guarantee every server accepts them.
 - Passing `reasoning_effort` sends it to the endpoint. If an endpoint rejects an optional field, the adapter reports `finish_reason="error"` with the server's error text; it does not silently remove that field and retry. Omit unsupported options in your calling code/configuration. Authentication failures are also reported as errors.
 
+## Tested endpoints
+
+These are contributor-reported checks of specific configurations, not endorsements or guarantees for every model or feature.
+
+### A2Agent
+
+[A2Agent](https://a2agent.me) was tested on **2026-10-27** using the existing `CustomThinker` at ShibaClaw commit `a27ab142`, Python 3.12 on Linux, API base `https://api.a2agent.me/v1`, and model `deepseek-v4-flash`. The checks were contributed by an A2Agent representative; use your own credentials through the settings flow above.
+
+- Ordinary chat and streamed text succeeded. A repeated streamed tool-call check and its tool-result continuation also succeeded, after the initial tool-call attempt returned an error. The initial error body was not retained, so its cause is unconfirmed.
+- CustomThinker model discovery reached its four-second timeout in both attempts. A separate SDK request subsequently returned 22 models, including the tested model, in 3.7 seconds; this does not establish reliable discovery through CustomThinker.
+- Streamed usage was empty with the default request, which does not opt into `include_usage`. The offline fixtures below cover terminal usage chunks, reasoning/history fields and error handling; those fixture results are not additional live-service verification.
+
+These checks used the existing adapter without production-code changes. Other models, sustained reliability and untested features are outside their scope.
+
 ## Reproducible compatibility checks
 
 Run these offline tests from a development installation:
