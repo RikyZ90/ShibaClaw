@@ -1,3 +1,10 @@
+## [1.1.5] - 2026-11-03
+
+### Security
+- Require pypdf>=6.21.4 and lock pypdf 6.21.4, resolving Dependabot alerts #79–#85.
+- Update locked pyasn1 to 0.6.5, resolving alerts #75–#78.
+- Update locked langgraph to 1.2.19 and langgraph-sdk to 0.4.11, resolving alerts #73–#74.
+
 ## [1.1.4] - 2026-11-03
 
 ### Security
