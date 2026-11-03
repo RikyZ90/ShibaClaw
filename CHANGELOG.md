@@ -1,3 +1,8 @@
+## [1.1.4] - 2026-11-03
+
+### Security
+- Update msgpack to 1.2.4 in the dependency lockfile to resolve Dependabot alert #72.
+
 ## [1.1.3] - 2026-10-27
 
 ### Added
