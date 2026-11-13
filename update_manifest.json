@@ -1,41 +1,41 @@
 {
-    "version": "1.1.5",
-    "release_notes": "Security release: update pypdf, pyasn1, langgraph, and langgraph-sdk to resolve Dependabot alerts #73–#85.",
+    "version": "1.1.6",
+    "release_notes": "Security release: update Soup Sieve to 4.1 to resolve Dependabot alert #86 (CVE-2026-126192) and alert #87 (CVE-2026-126190).",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Require patched pypdf and set v1.1.5."
+            "note": "Set the package version to v1.1.6."
         },
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Lock patched pypdf, pyasn1, langgraph and langgraph-sdk."
+            "note": "Lock Soup Sieve 4.1 and package version 1.1.6."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Document the security release."
+            "note": "Document the v1.1.6 security release."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Publish the v1.1.5 updater manifest."
+            "note": "Publish the v1.1.6 updater manifest."
         },
         {
             "path": "update_manifest.json",
             "overwrite": true,
-            "note": "Synchronize the root updater manifest."
+            "note": "Synchronize the v1.1.6 root updater manifest."
         },
         {
             "path": "shibaclaw/desktop/app.manifest",
             "overwrite": true,
-            "note": "Set the Windows application identity to v1.1.5."
+            "note": "Set the Windows application identity to v1.1.6."
         },
         {
             "path": "shibaclaw/webui/package.json",
             "overwrite": true,
-            "note": "Set the WebUI package version to v1.1.5."
+            "note": "Set the WebUI package version to v1.1.6."
         },
         {
             "path": "shibaclaw/webui/package-lock.json",

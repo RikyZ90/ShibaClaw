@@ -1,4 +1,4 @@
-## [Unreleased]
+## [1.1.6] - 2026-11-13
 
 ### Security
 - Update the locked transitive Soup Sieve dependency from 2.9.2 to 4.1, resolving alert #86 (CVE-2026-126192 / GHSA-4j63-6c4x-wfg4) and alert #87 (CVE-2026-126190 / GHSA-mmhr-3c5m-f64f).
