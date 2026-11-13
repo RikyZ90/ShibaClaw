@@ -1,41 +1,41 @@
 {
-    "version": "1.1.6",
-    "release_notes": "Security release: update Soup Sieve to 4.1 to resolve Dependabot alert #86 (CVE-2026-126192) and alert #87 (CVE-2026-126190).",
+    "version": "1.1.7",
+    "release_notes": "Security release: update filelock to 4.2.10 for the latest Dependabot alerts. Pillow remains at 13.0.0, the patched version for the current Pillow advisories.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Set the package version to v1.1.6."
+            "note": "Set the package version to v1.1.7 and raise the filelock security floor to 4.2.10."
         },
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Lock Soup Sieve 4.1 and package version 1.1.6."
+            "note": "Lock filelock 4.2.10 and package version 1.1.7."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Document the v1.1.6 security release."
+            "note": "Document the v1.1.7 security release."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Publish the v1.1.6 updater manifest."
+            "note": "Publish the v1.1.7 updater manifest."
         },
         {
             "path": "update_manifest.json",
             "overwrite": true,
-            "note": "Synchronize the v1.1.6 root updater manifest."
+            "note": "Synchronize the v1.1.7 root updater manifest."
         },
         {
             "path": "shibaclaw/desktop/app.manifest",
             "overwrite": true,
-            "note": "Set the Windows application identity to v1.1.6."
+            "note": "Set the Windows application identity to v1.1.7."
         },
         {
             "path": "shibaclaw/webui/package.json",
             "overwrite": true,
-            "note": "Set the WebUI package version to v1.1.6."
+            "note": "Set the WebUI package version to v1.1.7."
         },
         {
             "path": "shibaclaw/webui/package-lock.json",

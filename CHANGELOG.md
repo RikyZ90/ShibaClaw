@@ -1,3 +1,9 @@
+## [1.1.7] - 2026-11-13
+
+### Security
+- Raise the optional `filelock` minimum to 4.2.10 and refresh the lockfile for the latest Dependabot alerts.
+- Keep Pillow at 13.0.0, the patched release required by the current Pillow advisories.
+
 ## [1.1.6] - 2026-11-13
 
 ### Security
