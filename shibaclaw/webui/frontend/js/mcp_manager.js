@@ -391,13 +391,14 @@
         try {
             const res = await authFetch(`/api/mcp/servers/${encodeURIComponent(name)}/test`, { method: "POST" });
             const data = await res.json();
+            const label = escapeHtml(`${data.transport || "unknown"}: ${data.category || "MCP initialization failure"}`);
             if (data.ok) {
-                statusEl.innerHTML = `<span class="mcp-status-badge ok" title="${escapeHtml(data.detail || "OK")}"><span class="material-icons-round" style="font-size:13px">check_circle</span> OK</span>`;
+                statusEl.innerHTML = `<span class="mcp-status-badge ok" title="${escapeHtml(data.detail || "OK")}"><span class="material-icons-round" style="font-size:13px">check_circle</span> ${label}</span>`;
             } else {
-                statusEl.innerHTML = `<span class="mcp-status-badge err" title="${escapeHtml(data.error || "Error")}"><span class="material-icons-round" style="font-size:13px">error_outline</span> Fail</span>`;
+                statusEl.innerHTML = `<span class="mcp-status-badge err" title="${escapeHtml(data.error || "Error")}"><span class="material-icons-round" style="font-size:13px">error_outline</span> ${label}</span>`;
             }
         } catch (e) {
-            statusEl.innerHTML = `<span class="mcp-status-badge err" title="${escapeHtml(String(e))}"><span class="material-icons-round" style="font-size:13px">error_outline</span> Error</span>`;
+            statusEl.innerHTML = `<span class="mcp-status-badge err" title="MCP test request failed."><span class="material-icons-round" style="font-size:13px">error_outline</span> Error</span>`;
         }
 
         // Auto-clear badge after 8s
