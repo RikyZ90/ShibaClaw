@@ -39,7 +39,7 @@ def test_youcom_keyless(monkeypatch):
         seen.append(request)
         return httpx.Response(200, json=PAYLOAD)
 
-    out = asyncio.run(_tool(handler).execute("shiba", count=3))
+    out = asyncio.run(_tool(handler, key="stored-brave-key").execute("shiba", count=3))
     req = seen[0]
     assert req.method == "GET"
     assert str(req.url).startswith("https://api.you.com/v1/agents/search")
@@ -51,20 +51,6 @@ def test_youcom_keyless(monkeypatch):
     assert "3. N" in out
 
 
-def test_youcom_keyed_from_vault():
-    seen = []
-
-    def handler(request):
-        seen.append(request)
-        return httpx.Response(200, json=PAYLOAD)
-
-    asyncio.run(_tool(handler, key="vault-key").execute("q", count=2))
-    req = seen[0]
-    assert req.method == "POST" and str(req.url) == "https://ydc-index.io/v1/search"
-    assert req.headers["X-API-Key"] == "vault-key" and req.headers["User-Agent"] == UA
-    assert json.loads(req.content) == {"query": "q", "count": 2}
-
-
 def test_youcom_keyed_from_env(monkeypatch):
     monkeypatch.setenv("YDC_API_KEY", "env-key")
     seen = []
@@ -73,15 +59,19 @@ def test_youcom_keyed_from_env(monkeypatch):
         seen.append(request)
         return httpx.Response(200, json=PAYLOAD)
 
-    asyncio.run(_tool(handler, provider="you.com").execute("q"))
-    assert seen[0].headers["X-API-Key"] == "env-key"
+    asyncio.run(_tool(handler, key="stored-brave-key", provider="you.com").execute("q", count=2))
+    req = seen[0]
+    assert req.method == "POST" and str(req.url) == "https://ydc-index.io/v1/search"
+    assert req.headers["X-API-Key"] == "env-key" and req.headers["User-Agent"] == UA
+    assert json.loads(req.content) == {"query": "q", "count": 2}
 
 
 def test_youcom_errors(monkeypatch):
     monkeypatch.delenv("YDC_API_KEY", raising=False)
     out = asyncio.run(_tool(lambda r: httpx.Response(429)).execute("q"))
     assert "keyless search limit" in out
-    out = asyncio.run(_tool(lambda r: httpx.Response(401), key="bad").execute("q"))
-    assert "rejected the search API key" in out
     out = asyncio.run(_tool(lambda r: httpx.Response(200, json={"results": {}})).execute("q"))
     assert out == "No results for: q"
+    monkeypatch.setenv("YDC_API_KEY", "bad")
+    out = asyncio.run(_tool(lambda r: httpx.Response(401)).execute("q"))
+    assert "rejected the search API key" in out

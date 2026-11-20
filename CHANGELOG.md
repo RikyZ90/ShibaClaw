@@ -1,3 +1,11 @@
+## [1.1.8] - 2026-11-20
+
+### Added
+- Add You.com as an optional web search provider with keyless access and API-key authentication via the dedicated `YDC_API_KEY` environment variable. ([#201](https://github.com/RikyZ90/ShibaClaw/pull/201))
+
+### Fixed
+- Make the WebUI MCP connection test verify session initialization and tool discovery over the configured transport before reporting success. Report which stage failed without invoking server tools. ([#202](https://github.com/RikyZ90/ShibaClaw/pull/202))
+
 ## [1.1.7] - 2026-11-13
 
 ### Security

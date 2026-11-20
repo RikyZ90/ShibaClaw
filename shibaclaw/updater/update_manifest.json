@@ -1,41 +1,41 @@
 {
-    "version": "1.1.7",
-    "release_notes": "Security release: update filelock to 4.2.10 for the latest Dependabot alerts. Pillow remains at 13.0.0, the patched version for the current Pillow advisories.",
+    "version": "1.1.8",
+    "release_notes": "Add optional You.com web search and improve MCP connection tests by verifying session initialization and tool discovery.",
     "changes": [
         {
             "path": "pyproject.toml",
             "overwrite": true,
-            "note": "Set the package version to v1.1.7 and raise the filelock security floor to 4.2.10."
+            "note": "Set the package version to v1.1.8."
         },
         {
             "path": "uv.lock",
             "overwrite": true,
-            "note": "Lock filelock 4.2.10 and package version 1.1.7."
+            "note": "Lock package version 1.1.8."
         },
         {
             "path": "CHANGELOG.md",
             "overwrite": true,
-            "note": "Document the v1.1.7 security release."
+            "note": "Document the v1.1.8 release."
         },
         {
             "path": "shibaclaw/updater/update_manifest.json",
             "overwrite": true,
-            "note": "Publish the v1.1.7 updater manifest."
+            "note": "Publish the v1.1.8 updater manifest."
         },
         {
             "path": "update_manifest.json",
             "overwrite": true,
-            "note": "Synchronize the v1.1.7 root updater manifest."
+            "note": "Synchronize the v1.1.8 root updater manifest."
         },
         {
             "path": "shibaclaw/desktop/app.manifest",
             "overwrite": true,
-            "note": "Set the Windows application identity to v1.1.7."
+            "note": "Set the Windows application identity to v1.1.8."
         },
         {
             "path": "shibaclaw/webui/package.json",
             "overwrite": true,
-            "note": "Set the WebUI package version to v1.1.7."
+            "note": "Set the WebUI package version to v1.1.8."
         },
         {
             "path": "shibaclaw/webui/package-lock.json",

@@ -232,19 +232,8 @@ class WebSearchTool(Tool):
             return f"Error: {e}"
 
     async def _search_youcom(self, query: str, n: int) -> str:
-        """You.com search. Works without a key (free keyless tier, about 100 searches a day).
-
-        With the search API key from the vault, or YDC_API_KEY, it uses the keyed API instead.
-        Other providers' env keys are never sent to You.com.
-        """
-        api_key = ""
-        resolve = getattr(self.config, "resolve_api_key", None)
-        if callable(resolve):
-            try:
-                api_key = resolve() or ""
-            except Exception:
-                api_key = ""
-        api_key = (api_key or os.environ.get("YDC_API_KEY", "")).strip()
+        """Use the keyless You.com endpoint unless YDC_API_KEY is configured."""
+        api_key = os.environ.get("YDC_API_KEY", "").strip()
         headers = {"Accept": "application/json", "User-Agent": YOUCOM_USER_AGENT}
         try:
             client = self._get_client()
@@ -267,7 +256,7 @@ class WebSearchTool(Tool):
             if r.status_code in (402, 429) and not api_key:
                 return (
                     "Error: You.com keyless search limit reached for today. "
-                    "Set a search API key (or YDC_API_KEY) for higher limits."
+                    "Set YDC_API_KEY for higher limits."
                 )
             r.raise_for_status()
             results = r.json().get("results") or {}
