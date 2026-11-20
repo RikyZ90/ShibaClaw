@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import AsyncExitStack
 from typing import Any
+
+import httpx
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -196,8 +199,53 @@ async def rename_mcp_server(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "new_name": new_name})
 
 
+_MCP_TEST_TIMEOUT = 10.0
+
+
+def _probe_category(exc: Exception, stage: str) -> str:
+    """Classify nested SDK failures without exposing exception text."""
+    from mcp.shared.exceptions import McpError
+
+    errors = [exc]
+    seen = set()
+    categories = set()
+    while errors:
+        error = errors.pop()
+        if id(error) in seen:
+            continue
+        seen.add(id(error))
+        if isinstance(error, BaseExceptionGroup):
+            errors.extend(error.exceptions)
+        if error.__cause__ is not None:
+            errors.append(error.__cause__)
+        if isinstance(error, (TimeoutError, httpx.TimeoutException)) or (
+            isinstance(error, McpError) and error.error.code == httpx.codes.REQUEST_TIMEOUT
+        ):
+            categories.add("timeout")
+        if isinstance(error, httpx.HTTPStatusError) and error.response.status_code in (401, 403):
+            categories.add("auth failure")
+        if isinstance(error, (ConnectionRefusedError, httpx.ConnectError)):
+            categories.add("connection refused")
+    for category in ("timeout", "auth failure", "connection refused"):
+        if category in categories:
+            return category
+    return stage
+
+
+async def _raise_probe_stream_error(message: Any) -> None:
+    """Raise transport and parser errors that the SDK logs and its default handler drops."""
+    if isinstance(message, Exception):
+        raise message
+
+
 async def test_mcp_server(request: Request) -> JSONResponse:
-    """POST /api/mcp/servers/{name}/test – quick connectivity probe."""
+    """POST /api/mcp/servers/{name}/test – initialize MCP and discover tools."""
+    from mcp import ClientSession
+    from shibaclaw.agent.tools.mcp import (
+        _resolve_auth_headers, mcp_transport_type, open_mcp_transport,
+    )
+    from shibaclaw.config.schema import MCPServerConfig
+
     name = request.path_params["name"]
     cfg = agent_manager.config
     if not cfg:
@@ -207,63 +255,47 @@ async def test_mcp_server(request: Request) -> JSONResponse:
     if name not in servers:
         return JSONResponse({"error": f"Server '{name}' not found"}, status_code=404)
 
-    sc = servers[name]
-    sc_dict = dict(sc) if isinstance(sc, dict) else _cfg_to_dict(sc)
-    server_type = sc_dict.get("type") or "stdio"
-    url = sc_dict.get("url") or ""
-    command = sc_dict.get("command") or ""
-    args = sc_dict.get("args") or []
-    env_vars: dict = sc_dict.get("env") or {}
-
-    import os
-    probe_env = {**os.environ, **{str(k): str(v) for k, v in env_vars.items()}}
-
-    # SSE / streamableHttp – just do a HEAD/GET to the URL
-    if server_type in ("sse", "streamableHttp") or (url and not command):
-        if not url:
-            return JSONResponse({"ok": False, "error": "No URL configured for HTTP server"})
-        try:
-            from shibaclaw.agent.tools.mcp import _resolve_auth_headers
-            headers = await _resolve_auth_headers(name, sc)
-
-            import httpx
-            # Use a longer timeout in case first-time OAuth requires user interaction
-            timeout = sc_dict.get("oauth", {}).get("callback_timeout", 120.0) if sc_dict.get("oauth") else 10.0
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.get(url, headers=headers)
-                status = resp.status_code
-            if status >= 400:
-                return JSONResponse({"ok": False, "error": f"HTTP {status} from {url}"})
-            return JSONResponse({"ok": True, "detail": f"HTTP {status} from {url}"})
-        except Exception as exc:
-            return JSONResponse({"ok": False, "error": str(exc)})
-
-    # stdio – try to spawn and read first bytes
-    if not command:
-        return JSONResponse({"ok": False, "error": "No command configured"})
-    cmd = [command] + [str(a) for a in args]
+    transport = "unknown"
+    stage = "MCP initialization failure"
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=probe_env,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=6)
-        except asyncio.TimeoutError:
-            proc.kill()
-            # Timeout just means it's running and waiting for stdin – that's fine
-            return JSONResponse({"ok": True, "detail": "Process started successfully (stdio, waiting for input)"})
-        rc = proc.returncode
-        if rc == 0 or (stdout and len(stdout) > 0):
-            return JSONResponse({"ok": True, "detail": "Process exited cleanly"})
-        err_text = (stderr or b"").decode(errors="replace")[:400]
-        return JSONResponse({"ok": False, "error": f"Exit code {rc}: {err_text}"})
-    except FileNotFoundError:
-        return JSONResponse({"ok": False, "error": f"Command not found: {command}"})
+        sc = servers[name]
+        if isinstance(sc, dict):
+            sc = MCPServerConfig.model_validate(sc)
+        transport = mcp_transport_type(sc)
+        # An OAuth server may open the browser login, as before; give it its callback time.
+        limit = _MCP_TEST_TIMEOUT + (sc.oauth.callback_timeout if sc.oauth else 0.0)
+        # Bound setup and cleanup on this task, so the SDK's cancel scopes enter and exit on one task.
+        async with asyncio.timeout(limit):
+            async with AsyncExitStack() as stack:
+                stage = "auth failure"
+                headers = await _resolve_auth_headers(name, sc)
+                stage = "MCP initialization failure"
+                read, write = await open_mcp_transport(
+                    stack, name, sc, headers, request_timeout=_MCP_TEST_TIMEOUT,
+                )
+                session = await stack.enter_async_context(ClientSession(
+                    read, write, message_handler=_raise_probe_stream_error,
+                ))
+                await session.initialize()
+                stage = "tool discovery failure"
+                await session.list_tools()
+        return JSONResponse({
+            "ok": True, "transport": transport, "category": "ready",
+            "detail": "MCP initialized; tools discovered.",
+        })
     except Exception as exc:
-        return JSONResponse({"ok": False, "error": str(exc)})
+        category = _probe_category(exc, stage)
+        messages = {
+            "connection refused": "Connection refused.",
+            "timeout": "MCP test timed out.",
+            "auth failure": "Authentication failed.",
+            "MCP initialization failure": "MCP initialization failed.",
+            "tool discovery failure": "Tool discovery failed.",
+        }
+        return JSONResponse({
+            "ok": False, "transport": transport, "category": category,
+            "error": messages[category],
+        })
 
 
 # ── router registration ───────────────────────────────────────────────────────

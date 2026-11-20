@@ -546,6 +546,98 @@ class MCPCallTool(Tool):
 # ---------------------------------------------------------------------------
 
 
+def mcp_transport_type(cfg: Any) -> str:
+    """Resolve the configured MCP transport using the agent's inference rules."""
+    if cfg.type:
+        return cfg.type
+    if cfg.command:
+        return "stdio"
+    if cfg.url:
+        return "sse" if cfg.url.rstrip("/").endswith("/sse") else "streamableHttp"
+    raise ValueError("No MCP command or URL configured")
+
+
+async def open_mcp_transport(
+    stack: AsyncExitStack, name: str, cfg: Any, auth_headers: dict[str, str],
+    *, request_timeout: float | None = None,
+) -> tuple[Any, Any]:
+    """Open the agent's transport on the caller's stack with resolved auth headers."""
+    from mcp import StdioServerParameters
+    from mcp.client.sse import sse_client
+    from mcp.client.stdio import stdio_client
+    from mcp.client.streamable_http import streamable_http_client
+
+    transport_type = mcp_transport_type(cfg)
+    if transport_type == "stdio":
+        params = StdioServerParameters(
+            command=cfg.command, args=cfg.args, env=cfg.env or None
+        )
+        read, write = await stack.enter_async_context(stdio_client(params))
+
+    elif transport_type == "sse":
+        oauth_hook = _make_oauth_hook(name, cfg)
+
+        def _make_httpx_client_factory(
+            resolved_headers: dict[str, str],
+            origin_url: str,
+            oauth_hook: Any | None = None,
+        ) -> Any:
+            _ssrf = _make_ssrf_hook(origin_url)
+            hooks = [_ssrf]
+            if oauth_hook:
+                hooks.append(oauth_hook)
+
+            def httpx_client_factory(
+                headers: dict[str, str] | None = None,
+                timeout: httpx.Timeout | None = None,
+                auth: httpx.Auth | None = None,
+            ) -> httpx.AsyncClient:
+                merged_headers = {**resolved_headers, **(headers or {})}
+                if request_timeout is not None:
+                    timeout = httpx.Timeout(request_timeout)
+                elif timeout is None:
+                    timeout = httpx.Timeout(connect=40.0, read=40.0, write=40.0, pool=40.0)
+                return httpx.AsyncClient(
+                    headers=merged_headers or None,
+                    follow_redirects=True,
+                    timeout=timeout,
+                    auth=auth,
+                    event_hooks={"request": hooks},
+                )
+            return httpx_client_factory
+
+        read, write = await stack.enter_async_context(
+            sse_client(cfg.url, httpx_client_factory=_make_httpx_client_factory(auth_headers, cfg.url, oauth_hook))
+        )
+
+    elif transport_type == "streamableHttp":
+        oauth_hook = _make_oauth_hook(name, cfg)
+        hooks = [_make_ssrf_hook(cfg.url)]
+        if oauth_hook:
+            hooks.append(oauth_hook)
+
+        connect_timeout = (
+            request_timeout if request_timeout is not None else getattr(cfg, "tool_timeout", 30) + 10
+        )
+
+        http_client = await stack.enter_async_context(
+            httpx.AsyncClient(
+                headers=auth_headers or None,
+                follow_redirects=True,
+                timeout=httpx.Timeout(connect=connect_timeout, read=connect_timeout, write=connect_timeout, pool=connect_timeout),
+                event_hooks={"request": hooks},
+            )
+        )
+        read, write, _ = await stack.enter_async_context(
+            streamable_http_client(cfg.url, http_client=http_client)
+        )
+
+    else:
+        raise ValueError(f"Unknown MCP transport type '{transport_type}'")
+
+    return read, write
+
+
 async def connect_mcp_servers(
     mcp_servers: dict,
     registry: SkillVault,
@@ -567,10 +659,7 @@ async def _connect_mcp_servers_impl(
     *,
     is_reconfigure: bool = True,
 ) -> None:
-    from mcp import ClientSession, StdioServerParameters
-    from mcp.client.sse import sse_client
-    from mcp.client.stdio import stdio_client
-    from mcp.client.streamable_http import streamable_http_client
+    from mcp import ClientSession
 
     global _parent_stack, _registry, _mcp_cleanup_registered
     _parent_stack = stack
@@ -633,91 +722,20 @@ async def _connect_mcp_servers_impl(
     # Connect sequentially to ensure anyio task-binding of cancel scopes remains on _mcp_worker
     for name in to_connect:
         cfg = mcp_servers[name]
+        if not (cfg.type or cfg.command or cfg.url):
+            logger.warning("MCP server '{}': no command or url configured, skipping", name)
+            continue
+        server_stack = AsyncExitStack()
         try:
-            transport_type = cfg.type
-            if not transport_type:
-                if cfg.command:
-                    transport_type = "stdio"
-                elif cfg.url:
-                    transport_type = (
-                        "sse" if cfg.url.rstrip("/").endswith("/sse") else "streamableHttp"
-                    )
-                else:
-                    logger.warning("MCP server '{}': no command or url configured, skipping", name)
-                    continue
+            transport_type = mcp_transport_type(cfg)
 
             logger.info("Connecting to MCP server '{}' (transport: {})...", name, transport_type)
-            server_stack = AsyncExitStack()
             await server_stack.__aenter__()
             _mcp_stacks[name] = server_stack
 
-            if transport_type == "stdio":
-                params = StdioServerParameters(
-                    command=cfg.command, args=cfg.args, env=cfg.env or None
-                )
-                read, write = await server_stack.enter_async_context(stdio_client(params))
-
-            elif transport_type == "sse":
-                auth_headers = auth_headers_map.get(name, {})
-                oauth_hook = _make_oauth_hook(name, cfg)
-
-                def _make_httpx_client_factory(
-                    resolved_headers: dict[str, str],
-                    origin_url: str,
-                    oauth_hook: Any | None = None,
-                ) -> Any:
-                    _ssrf = _make_ssrf_hook(origin_url)
-                    hooks = [_ssrf]
-                    if oauth_hook:
-                        hooks.append(oauth_hook)
-
-                    def httpx_client_factory(
-                        headers: dict[str, str] | None = None,
-                        timeout: httpx.Timeout | None = None,
-                        auth: httpx.Auth | None = None,
-                    ) -> httpx.AsyncClient:
-                        merged_headers = {**resolved_headers, **(headers or {})}
-                        if timeout is None:
-                            timeout = httpx.Timeout(connect=40.0, read=40.0, write=40.0, pool=40.0)
-                        return httpx.AsyncClient(
-                            headers=merged_headers or None,
-                            follow_redirects=True,
-                            timeout=timeout,
-                            auth=auth,
-                            event_hooks={"request": hooks},
-                        )
-                    return httpx_client_factory
-
-                read, write = await server_stack.enter_async_context(
-                    sse_client(cfg.url, httpx_client_factory=_make_httpx_client_factory(auth_headers, cfg.url, oauth_hook))
-                )
-
-            elif transport_type == "streamableHttp":
-                auth_headers = auth_headers_map.get(name, {})
-                oauth_hook = _make_oauth_hook(name, cfg)
-                hooks = [_make_ssrf_hook(cfg.url)]
-                if oauth_hook:
-                    hooks.append(oauth_hook)
-
-                connect_timeout = getattr(cfg, "tool_timeout", 30) + 10
-
-                http_client = await server_stack.enter_async_context(
-                    httpx.AsyncClient(
-                        headers=auth_headers or None,
-                        follow_redirects=True,
-                        timeout=httpx.Timeout(connect=connect_timeout, read=connect_timeout, write=connect_timeout, pool=connect_timeout),
-                        event_hooks={"request": hooks},
-                    )
-                )
-                read, write, _ = await server_stack.enter_async_context(
-                    streamable_http_client(cfg.url, http_client=http_client)
-                )
-
-            else:
-                logger.warning("MCP server '{}': unknown transport type '{}'", name, transport_type)
-                _mcp_stacks.pop(name, None)
-                await server_stack.aclose()
-                continue
+            read, write = await open_mcp_transport(
+                server_stack, name, cfg, auth_headers_map.get(name, {})
+            )
 
             # Wrap stream in SafeReadStream to prevent unhandled background crashes
             safe_read = SafeReadStream(read, name)
