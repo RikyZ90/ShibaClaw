@@ -274,8 +274,6 @@ Start with the [documentation index](docs/README.md), [API reference](docs/API_R
 
 ShibaClaw is licensed under [Apache 2.0](LICENSE).
 
-If ShibaClaw is useful to you, consider [supporting its development on GitHub Sponsors](https://github.com/sponsors/RikyZ90).
-
 ## What's New
 
 <details open>
